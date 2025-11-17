@@ -305,10 +305,11 @@ class _PlacesAdminScreenState extends ConsumerState<PlacesAdminScreen> {
           projectId: projectId,
           request: model.PlaceCreateRequest(
             name: res.name,
+            introText: res.description.isEmpty ? null : res.description,
             description: res.description,
             latitude: res.lat,
             longitude: res.lon,
-            type: res.type,
+            types: [model.PlaceTypeCodec.toJson(res.type)],
             address: res.address,
           ),
         );
@@ -350,10 +351,11 @@ class _PlacesAdminScreenState extends ConsumerState<PlacesAdminScreen> {
           placeId: fullPlace.id,
           request: model.PlaceCreateRequest(
             name: res.name,
+            introText: res.description.isEmpty ? null : res.description,
             description: res.description,
             latitude: res.lat,
             longitude: res.lon,
-            type: res.type,
+            types: [model.PlaceTypeCodec.toJson(res.type)],
             address: res.address,
           ),
         );

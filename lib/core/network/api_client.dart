@@ -38,7 +38,8 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final isAuthEndpoint = options.path == ApiConstants.refresh ||
+          final isAuthEndpoint =
+              options.path == ApiConstants.refresh ||
               options.path == ApiConstants.login ||
               options.path == ApiConstants.register ||
               options.extra['skipAuth'] == true;
@@ -62,8 +63,9 @@ class ApiClient {
             final refreshed = await _refreshToken();
             if (refreshed) {
               final newToken = await _secureStorage.read(key: 'access_token');
-              final mergedHeaders =
-                  Map<String, dynamic>.from(error.requestOptions.headers);
+              final mergedHeaders = Map<String, dynamic>.from(
+                error.requestOptions.headers,
+              );
               if (newToken != null && newToken.isNotEmpty) {
                 mergedHeaders['Authorization'] = 'Bearer $newToken';
               }
@@ -118,10 +120,7 @@ class ApiClient {
         ),
       );
 
-      final envelope = _processResponse(
-        response,
-        expectEnvelope: true,
-      );
+      final envelope = _processResponse(response, expectEnvelope: true);
 
       final payload = envelope.requireDataAsMap();
       final accessToken = payload['accessToken']?.toString();
@@ -170,10 +169,7 @@ class ApiClient {
         queryParameters: queryParameters,
         options: options,
       );
-      return _processResponse(
-        response,
-        expectEnvelope: expectEnvelope,
-      );
+      return _processResponse(response, expectEnvelope: expectEnvelope);
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -193,10 +189,7 @@ class ApiClient {
         queryParameters: queryParameters,
         options: options,
       );
-      return _processResponse(
-        response,
-        expectEnvelope: expectEnvelope,
-      );
+      return _processResponse(response, expectEnvelope: expectEnvelope);
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -216,10 +209,7 @@ class ApiClient {
         queryParameters: queryParameters,
         options: options,
       );
-      return _processResponse(
-        response,
-        expectEnvelope: expectEnvelope,
-      );
+      return _processResponse(response, expectEnvelope: expectEnvelope);
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -239,10 +229,7 @@ class ApiClient {
         queryParameters: queryParameters,
         options: options,
       );
-      return _processResponse(
-        response,
-        expectEnvelope: expectEnvelope,
-      );
+      return _processResponse(response, expectEnvelope: expectEnvelope);
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -262,10 +249,7 @@ class ApiClient {
         queryParameters: queryParameters,
         options: options,
       );
-      return _processResponse(
-        response,
-        expectEnvelope: expectEnvelope,
-      );
+      return _processResponse(response, expectEnvelope: expectEnvelope);
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -300,13 +284,13 @@ class ApiClient {
             )
           : null;
       final pagination = body['pagination'] is Map<String, dynamic>
-          ? ApiPagination.fromJson(
-              body['pagination'] as Map<String, dynamic>?,
-            )
+          ? ApiPagination.fromJson(body['pagination'] as Map<String, dynamic>?)
           : null;
 
       return ApiEnvelope(
-        success: statusCode != null ? statusCode >= 200 && statusCode < 300 : null,
+        success: statusCode != null
+            ? statusCode >= 200 && statusCode < 300
+            : null,
         statusCode: statusCode,
         data: data,
         metadata: metadata,
@@ -318,7 +302,9 @@ class ApiClient {
 
     if (expectEnvelope && body == null) {
       return ApiEnvelope(
-        success: statusCode != null ? statusCode >= 200 && statusCode < 300 : null,
+        success: statusCode != null
+            ? statusCode >= 200 && statusCode < 300
+            : null,
         statusCode: statusCode,
         data: null,
         metadata: null,
@@ -338,9 +324,24 @@ class ApiClient {
       if (body is Map<String, dynamic>) {
         if (body.containsKey('success') || body.containsKey('error')) {
           final serialized = body.containsKey('success')
-              ? body
+              ? Map<String, dynamic>.from(body)
               : <String, dynamic>{'success': false, ...body};
-          final envelope = ApiEnvelope.fromJson(serialized, statusCode: response.statusCode);
+          final errorValue = serialized['error'];
+          if (errorValue is String) {
+            String message = errorValue;
+            final details = serialized['details'];
+            if (details is List && details.isNotEmpty) {
+              final firstDetail = details.first;
+              if (firstDetail is String && firstDetail.isNotEmpty) {
+                message = firstDetail;
+              }
+            }
+            serialized['error'] = <String, dynamic>{'message': message};
+          }
+          final envelope = ApiEnvelope.fromJson(
+            serialized,
+            statusCode: response.statusCode,
+          );
           return ApiException.fromEnvelope(envelope);
         }
         if (body.containsKey('message')) {

@@ -57,8 +57,9 @@ class _PlaceVerificationSheetState
   }
 
   void _startVerificationIfNeeded() {
-    final controller = ref
-        .read(placeVerificationControllerProvider(widget.placeId).notifier);
+    final controller = ref.read(
+      placeVerificationControllerProvider(widget.placeId).notifier,
+    );
     final state = ref.read(placeVerificationControllerProvider(widget.placeId));
     if (!state.isLoading && state.status != PlaceVerificationStatus.success) {
       controller.verify(
@@ -89,15 +90,9 @@ class _PlaceVerificationSheetState
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '장소 인증',
-            style: theme.textTheme.headlineMedium,
-          ),
+          Text('장소 인증', style: theme.textTheme.headlineMedium),
           const SizedBox(height: 4),
-          Text(
-            widget.placeName,
-            style: theme.textTheme.titleMedium,
-          ),
+          Text(widget.placeName, style: theme.textTheme.titleMedium),
           const SizedBox(height: 16),
           FlowCard(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
@@ -106,11 +101,6 @@ class _PlaceVerificationSheetState
               children: [
                 _StatusRow(state: state),
                 const SizedBox(height: 16),
-                if (state.accuracyM != null)
-                  Text(
-                    '측정된 정확도: 약 ${state.accuracyM!.toStringAsFixed(1)} m',
-                    style: theme.textTheme.bodyMedium,
-                  ),
                 if (state.distanceM != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
@@ -121,11 +111,17 @@ class _PlaceVerificationSheetState
                   ),
                 if (state.message != null) ...[
                   const SizedBox(height: 12),
-                  Text(
-                    state.message!,
-                    style: theme.textTheme.bodyMedium,
-                  ),
+                  Text(state.message!, style: theme.textTheme.bodyMedium),
                 ],
+                if (state.status == PlaceVerificationStatus.error &&
+                    (state.resultCode?.isNotEmpty ?? false))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      '오류 코드: ${state.resultCode!.trim().toUpperCase().replaceAll('_', ' ')}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -137,8 +133,11 @@ class _PlaceVerificationSheetState
                   child: OutlinedButton.icon(
                     onPressed: () {
                       ref
-                          .read(placeVerificationControllerProvider(widget.placeId)
-                              .notifier)
+                          .read(
+                            placeVerificationControllerProvider(
+                              widget.placeId,
+                            ).notifier,
+                          )
                           .verify(
                             projectId: widget.projectId,
                             placeLat: widget.placeLat,
@@ -162,14 +161,16 @@ class _PlaceVerificationSheetState
                     isSuccess
                         ? Icons.check_circle_rounded
                         : isError
-                            ? Icons.highlight_off_rounded
-                            : Icons.close_rounded,
+                        ? Icons.highlight_off_rounded
+                        : Icons.close_rounded,
                   ),
-                  label: Text(isSuccess
-                      ? '완료'
-                      : isError
-                          ? '닫기'
-                          : '취소'),
+                  label: Text(
+                    isSuccess
+                        ? '완료'
+                        : isError
+                        ? '닫기'
+                        : '취소',
+                  ),
                 ),
               ),
             ],
@@ -262,10 +263,7 @@ class _StatusRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: theme.textTheme.titleMedium,
-              ),
+              Text(label, style: theme.textTheme.titleMedium),
               if (state.verifiedAt != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),

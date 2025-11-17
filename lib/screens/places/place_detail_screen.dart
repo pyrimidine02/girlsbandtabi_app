@@ -32,8 +32,10 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
         ref.read(selectedProjectProvider) ?? ApiConstants.defaultProjectId;
     _currentProjectId = initialProject;
     _future = _load(initialProject);
-    _projectSubscription =
-        ref.listenManual<String?>(selectedProjectProvider, (previous, next) {
+    _projectSubscription = ref.listenManual<String?>(selectedProjectProvider, (
+      previous,
+      next,
+    ) {
       final target = next ?? ApiConstants.defaultProjectId;
       if (target == _currentProjectId) return;
       setState(() {
@@ -61,8 +63,9 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final verificationState =
-        ref.watch(placeVerificationControllerProvider(widget.placeId));
+    final verificationState = ref.watch(
+      placeVerificationControllerProvider(widget.placeId),
+    );
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -111,10 +114,35 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                             subtitle: '성지의 기본 정보를 확인하세요',
                           ),
                           const SizedBox(height: 12),
+                          if ((place.introText ?? '').isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Text(
+                                place.introText!,
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ),
                           Text(
                             place.description,
                             style: Theme.of(context).textTheme.bodyLarge,
                           ),
+                          if (place.tags.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                children: place.tags
+                                    .map(
+                                      (tag) => Chip(
+                                        label: Text(tag),
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                    )
+                                    .toList(growable: false),
+                              ),
+                            ),
                           const SizedBox(height: 20),
                           _MetaRow(
                             icon: Icons.place_outlined,
@@ -122,13 +150,23 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                             value:
                                 '위도 ${place.latitude.toStringAsFixed(5)}, 경도 ${place.longitude.toStringAsFixed(5)}',
                           ),
-                          if (place.address != null && place.address!.isNotEmpty)
+                          if (place.address != null &&
+                              place.address!.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 12),
                               child: _MetaRow(
                                 icon: Icons.map_outlined,
                                 label: '주소',
                                 value: place.address!,
+                              ),
+                            ),
+                          if (place.regionSummary != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: _MetaRow(
+                                icon: Icons.public,
+                                label: '지역',
+                                value: place.regionSummary!.primaryName,
                               ),
                             ),
                         ],
@@ -150,18 +188,18 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withValues(alpha: 0.12),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Row(
                                 children: [
                                   Icon(
                                     Icons.verified_rounded,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
@@ -171,16 +209,16 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                                       children: [
                                         Text(
                                           '최근에 인증되었습니다',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleMedium,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.titleMedium,
                                         ),
                                         Text(
                                           verificationState.message ??
                                               '방문 인증이 완료되었습니다.',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.bodySmall,
                                         ),
                                       ],
                                     ),
@@ -237,29 +275,97 @@ class _PlaceHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final imageUrl = place.primaryImage?.url ?? place.imageUrl;
     return FlowCard(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          FlowPill(
-            label: _typeLabel(place.type),
-            leading: Icon(
-              _typeIcon(place.type),
-              size: 16,
-              color: theme.colorScheme.primary,
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: imageUrl == null
+                ? Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          theme.colorScheme.primary.withValues(alpha: 0.15),
+                          theme.colorScheme.secondary.withValues(alpha: 0.1),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.image_not_supported_outlined,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                      size: 48,
+                    ),
+                  )
+                : Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: theme.colorScheme.surfaceVariant,
+                          child: const Icon(Icons.image_not_supported_outlined),
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.black.withValues(alpha: 0.55),
+                              Colors.transparent,
+                            ],
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FlowPill(
+                  label: _typeLabel(place.type),
+                  leading: Icon(
+                    _typeIcon(place.type),
+                    size: 16,
+                    color: theme.colorScheme.primary,
+                  ),
+                  backgroundColor: theme.colorScheme.primary.withValues(
+                    alpha: 0.12,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(place.name, style: theme.textTheme.headlineLarge),
+                if ((place.introText ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(place.introText!, style: theme.textTheme.bodyMedium),
+                ],
+                if (place.regionSummary != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.public, size: 18),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          place.regionSummary!.primaryName,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
             ),
-            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.12),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            place.name,
-            style: theme.textTheme.headlineLarge,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '밴드 여정 속의 핵심 성지',
-            style: theme.textTheme.bodyMedium,
           ),
         ],
       ),
@@ -320,15 +426,9 @@ class _MetaRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: theme.textTheme.titleSmall,
-              ),
+              Text(label, style: theme.textTheme.titleSmall),
               const SizedBox(height: 4),
-              Text(
-                value,
-                style: theme.textTheme.bodyMedium,
-              ),
+              Text(value, style: theme.textTheme.bodyMedium),
             ],
           ),
         ),
@@ -353,10 +453,7 @@ class _DetailErrorView extends StatelessWidget {
           children: [
             const Icon(Icons.error_outline, size: 40),
             const SizedBox(height: 16),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-            ),
+            Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),
             FilledButton(onPressed: onRetry, child: const Text('다시 시도')),
           ],

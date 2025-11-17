@@ -11,10 +11,7 @@ import '../../widgets/flow_components.dart';
 /// EN: Map screen showing places with optional initial place selection.
 /// KO: 선택적 초기 장소 선택과 함께 장소들을 보여주는 지도 화면.
 class PlaceMapScreen extends ConsumerStatefulWidget {
-  const PlaceMapScreen({
-    super.key,
-    this.initialPlaceId,
-  });
+  const PlaceMapScreen({super.key, this.initialPlaceId});
 
   final String? initialPlaceId;
 
@@ -36,13 +33,9 @@ class _PlaceMapScreenState extends ConsumerState<PlaceMapScreen>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
     _animationController.forward();
   }
 
@@ -70,10 +63,7 @@ class _PlaceMapScreenState extends ConsumerState<PlaceMapScreen>
             backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.9),
           ),
         ),
-        title: Text(
-          'Places Map',
-          style: theme.textTheme.titleLarge,
-        ),
+        title: Text('Places Map', style: theme.textTheme.titleLarge),
         actions: [
           IconButton(
             onPressed: () => context.push('/places'),
@@ -144,12 +134,14 @@ class _PlaceMapScreenState extends ConsumerState<PlaceMapScreen>
               ),
             ),
           ),
-          
+
           // EN: Grid overlay for map effect
           // KO: 지도 효과를 위한 격자 오버레이
           CustomPaint(
             size: Size.infinite,
-            painter: _MapGridPainter(theme.colorScheme.outline.withValues(alpha: 0.1)),
+            painter: _MapGridPainter(
+              theme.colorScheme.outline.withValues(alpha: 0.1),
+            ),
           ),
 
           // EN: Places markers
@@ -170,21 +162,27 @@ class _PlaceMapScreenState extends ConsumerState<PlaceMapScreen>
                 FloatingActionButton(
                   mini: true,
                   onPressed: () => _zoomIn(),
-                  backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.9),
+                  backgroundColor: theme.colorScheme.surface.withValues(
+                    alpha: 0.9,
+                  ),
                   child: const Icon(Icons.add_rounded),
                 ),
                 const SizedBox(height: kSpacingXSmall),
                 FloatingActionButton(
                   mini: true,
                   onPressed: () => _zoomOut(),
-                  backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.9),
+                  backgroundColor: theme.colorScheme.surface.withValues(
+                    alpha: 0.9,
+                  ),
                   child: const Icon(Icons.remove_rounded),
                 ),
                 const SizedBox(height: kSpacingXSmall),
                 FloatingActionButton(
                   mini: true,
                   onPressed: () => _centerMap(),
-                  backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.9),
+                  backgroundColor: theme.colorScheme.surface.withValues(
+                    alpha: 0.9,
+                  ),
                   child: const Icon(Icons.my_location_rounded),
                 ),
               ],
@@ -195,11 +193,15 @@ class _PlaceMapScreenState extends ConsumerState<PlaceMapScreen>
     );
   }
 
-  Widget _buildPlaceMarker(model.PlaceSummary place, int index, ThemeData theme) {
+  Widget _buildPlaceMarker(
+    model.PlaceSummary place,
+    int index,
+    ThemeData theme,
+  ) {
     final isSelected = _selectedPlace?.id == place.id;
     final baseX = 100.0 + (index % 3) * 80.0;
     final baseY = 200.0 + (index ~/ 3) * 100.0;
-    
+
     return Positioned(
       left: baseX,
       top: baseY,
@@ -214,10 +216,7 @@ class _PlaceMapScreenState extends ConsumerState<PlaceMapScreen>
             decoration: BoxDecoration(
               color: theme.colorScheme.primary,
               shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white,
-                width: 3,
-              ),
+              border: Border.all(color: Colors.white, width: 3),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.2),
@@ -265,13 +264,13 @@ class _PlaceMapScreenState extends ConsumerState<PlaceMapScreen>
 
   Widget _buildPlaceDetailsSheet(model.PlaceSummary place, ThemeData theme) {
     return SlideTransition(
-      position: Tween<Offset>(
-        begin: const Offset(0, 1),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeOut,
-      )),
+      position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+          .animate(
+            CurvedAnimation(
+              parent: _animationController,
+              curve: Curves.easeOut,
+            ),
+          ),
       child: Container(
         margin: const EdgeInsets.all(kSpacingMedium),
         child: FlowCard(
@@ -295,8 +294,12 @@ class _PlaceMapScreenState extends ConsumerState<PlaceMapScreen>
                       gradient: place.thumbnailUrl == null
                           ? LinearGradient(
                               colors: [
-                                theme.colorScheme.primary.withValues(alpha: 0.2),
-                                theme.colorScheme.secondary.withValues(alpha: 0.18),
+                                theme.colorScheme.primary.withValues(
+                                  alpha: 0.2,
+                                ),
+                                theme.colorScheme.secondary.withValues(
+                                  alpha: 0.18,
+                                ),
                               ],
                             )
                           : null,
@@ -326,7 +329,9 @@ class _PlaceMapScreenState extends ConsumerState<PlaceMapScreen>
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.12,
+                            ),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -349,7 +354,32 @@ class _PlaceMapScreenState extends ConsumerState<PlaceMapScreen>
                   ),
                 ],
               ),
-              const SizedBox(height: kSpacingMedium),
+              if ((place.introText ?? '').isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: kSpacingSmall),
+                  child: Text(
+                    place.introText!,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+              if (place.regionSummary != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: kSpacingSmall),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.public, size: 16),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          place.regionSummary!.primaryName,
+                          style: theme.textTheme.bodySmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               Row(
                 children: [
                   Expanded(
@@ -479,21 +509,13 @@ class _MapGridPainter extends CustomPainter {
     // EN: Draw vertical lines
     // KO: 수직선 그리기
     for (double x = 0; x <= size.width; x += spacing) {
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height),
-        paint,
-      );
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
     }
 
     // EN: Draw horizontal lines
     // KO: 수평선 그리기
     for (double y = 0; y <= size.height; y += spacing) {
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        paint,
-      );
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
 

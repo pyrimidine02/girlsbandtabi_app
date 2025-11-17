@@ -23,18 +23,23 @@ PlaceSummary _$PlaceSummaryFromJson(Map<String, dynamic> json) {
 mixin _$PlaceSummary {
   String get id => throw _privateConstructorUsedError;
   String get name => throw _privateConstructorUsedError;
-  @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-  PlaceType get type => throw _privateConstructorUsedError;
-  @JsonKey(
-    fromJson: PlaceTypeCodec.fromJsonList,
-    toJson: PlaceTypeCodec.toJsonList,
-  )
-  List<PlaceType> get types => throw _privateConstructorUsedError;
+  String? get introText => throw _privateConstructorUsedError;
   double get latitude => throw _privateConstructorUsedError;
   double get longitude => throw _privateConstructorUsedError;
+  List<String> get tags => throw _privateConstructorUsedError;
+  @JsonKey(
+    name: 'types',
+    fromJson: _stringListFromJson,
+    toJson: _stringListToJson,
+  )
+  List<String> get types => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _regionSummaryFromJson, toJson: _regionSummaryToJson)
+  RegionSummary? get regionSummary => throw _privateConstructorUsedError;
   String? get thumbnailUrl => throw _privateConstructorUsedError;
   String? get thumbnailFilename => throw _privateConstructorUsedError;
   int? get thumbnailSize => throw _privateConstructorUsedError;
+  @PlaceTypeConverter()
+  PlaceType get type => throw _privateConstructorUsedError;
 
   /// Serializes this PlaceSummary to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -56,19 +61,25 @@ abstract class $PlaceSummaryCopyWith<$Res> {
   $Res call({
     String id,
     String name,
-    @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-    PlaceType type,
-    @JsonKey(
-      fromJson: PlaceTypeCodec.fromJsonList,
-      toJson: PlaceTypeCodec.toJsonList,
-    )
-    List<PlaceType> types,
+    String? introText,
     double latitude,
     double longitude,
+    List<String> tags,
+    @JsonKey(
+      name: 'types',
+      fromJson: _stringListFromJson,
+      toJson: _stringListToJson,
+    )
+    List<String> types,
+    @JsonKey(fromJson: _regionSummaryFromJson, toJson: _regionSummaryToJson)
+    RegionSummary? regionSummary,
     String? thumbnailUrl,
     String? thumbnailFilename,
     int? thumbnailSize,
+    @PlaceTypeConverter() PlaceType type,
   });
+
+  $RegionSummaryCopyWith<$Res>? get regionSummary;
 }
 
 /// @nodoc
@@ -88,13 +99,16 @@ class _$PlaceSummaryCopyWithImpl<$Res, $Val extends PlaceSummary>
   $Res call({
     Object? id = null,
     Object? name = null,
-    Object? type = null,
-    Object? types = null,
+    Object? introText = freezed,
     Object? latitude = null,
     Object? longitude = null,
+    Object? tags = null,
+    Object? types = null,
+    Object? regionSummary = freezed,
     Object? thumbnailUrl = freezed,
     Object? thumbnailFilename = freezed,
     Object? thumbnailSize = freezed,
+    Object? type = null,
   }) {
     return _then(
       _value.copyWith(
@@ -106,14 +120,10 @@ class _$PlaceSummaryCopyWithImpl<$Res, $Val extends PlaceSummary>
                 ? _value.name
                 : name // ignore: cast_nullable_to_non_nullable
                       as String,
-            type: null == type
-                ? _value.type
-                : type // ignore: cast_nullable_to_non_nullable
-                      as PlaceType,
-            types: null == types
-                ? _value.types
-                : types // ignore: cast_nullable_to_non_nullable
-                      as List<PlaceType>,
+            introText: freezed == introText
+                ? _value.introText
+                : introText // ignore: cast_nullable_to_non_nullable
+                      as String?,
             latitude: null == latitude
                 ? _value.latitude
                 : latitude // ignore: cast_nullable_to_non_nullable
@@ -122,6 +132,18 @@ class _$PlaceSummaryCopyWithImpl<$Res, $Val extends PlaceSummary>
                 ? _value.longitude
                 : longitude // ignore: cast_nullable_to_non_nullable
                       as double,
+            tags: null == tags
+                ? _value.tags
+                : tags // ignore: cast_nullable_to_non_nullable
+                      as List<String>,
+            types: null == types
+                ? _value.types
+                : types // ignore: cast_nullable_to_non_nullable
+                      as List<String>,
+            regionSummary: freezed == regionSummary
+                ? _value.regionSummary
+                : regionSummary // ignore: cast_nullable_to_non_nullable
+                      as RegionSummary?,
             thumbnailUrl: freezed == thumbnailUrl
                 ? _value.thumbnailUrl
                 : thumbnailUrl // ignore: cast_nullable_to_non_nullable
@@ -134,9 +156,27 @@ class _$PlaceSummaryCopyWithImpl<$Res, $Val extends PlaceSummary>
                 ? _value.thumbnailSize
                 : thumbnailSize // ignore: cast_nullable_to_non_nullable
                       as int?,
+            type: null == type
+                ? _value.type
+                : type // ignore: cast_nullable_to_non_nullable
+                      as PlaceType,
           )
           as $Val,
     );
+  }
+
+  /// Create a copy of PlaceSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $RegionSummaryCopyWith<$Res>? get regionSummary {
+    if (_value.regionSummary == null) {
+      return null;
+    }
+
+    return $RegionSummaryCopyWith<$Res>(_value.regionSummary!, (value) {
+      return _then(_value.copyWith(regionSummary: value) as $Val);
+    });
   }
 }
 
@@ -152,19 +192,26 @@ abstract class _$$PlaceSummaryImplCopyWith<$Res>
   $Res call({
     String id,
     String name,
-    @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-    PlaceType type,
-    @JsonKey(
-      fromJson: PlaceTypeCodec.fromJsonList,
-      toJson: PlaceTypeCodec.toJsonList,
-    )
-    List<PlaceType> types,
+    String? introText,
     double latitude,
     double longitude,
+    List<String> tags,
+    @JsonKey(
+      name: 'types',
+      fromJson: _stringListFromJson,
+      toJson: _stringListToJson,
+    )
+    List<String> types,
+    @JsonKey(fromJson: _regionSummaryFromJson, toJson: _regionSummaryToJson)
+    RegionSummary? regionSummary,
     String? thumbnailUrl,
     String? thumbnailFilename,
     int? thumbnailSize,
+    @PlaceTypeConverter() PlaceType type,
   });
+
+  @override
+  $RegionSummaryCopyWith<$Res>? get regionSummary;
 }
 
 /// @nodoc
@@ -183,13 +230,16 @@ class __$$PlaceSummaryImplCopyWithImpl<$Res>
   $Res call({
     Object? id = null,
     Object? name = null,
-    Object? type = null,
-    Object? types = null,
+    Object? introText = freezed,
     Object? latitude = null,
     Object? longitude = null,
+    Object? tags = null,
+    Object? types = null,
+    Object? regionSummary = freezed,
     Object? thumbnailUrl = freezed,
     Object? thumbnailFilename = freezed,
     Object? thumbnailSize = freezed,
+    Object? type = null,
   }) {
     return _then(
       _$PlaceSummaryImpl(
@@ -201,14 +251,10 @@ class __$$PlaceSummaryImplCopyWithImpl<$Res>
             ? _value.name
             : name // ignore: cast_nullable_to_non_nullable
                   as String,
-        type: null == type
-            ? _value.type
-            : type // ignore: cast_nullable_to_non_nullable
-                  as PlaceType,
-        types: null == types
-            ? _value._types
-            : types // ignore: cast_nullable_to_non_nullable
-                  as List<PlaceType>,
+        introText: freezed == introText
+            ? _value.introText
+            : introText // ignore: cast_nullable_to_non_nullable
+                  as String?,
         latitude: null == latitude
             ? _value.latitude
             : latitude // ignore: cast_nullable_to_non_nullable
@@ -217,6 +263,18 @@ class __$$PlaceSummaryImplCopyWithImpl<$Res>
             ? _value.longitude
             : longitude // ignore: cast_nullable_to_non_nullable
                   as double,
+        tags: null == tags
+            ? _value._tags
+            : tags // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
+        types: null == types
+            ? _value._types
+            : types // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
+        regionSummary: freezed == regionSummary
+            ? _value.regionSummary
+            : regionSummary // ignore: cast_nullable_to_non_nullable
+                  as RegionSummary?,
         thumbnailUrl: freezed == thumbnailUrl
             ? _value.thumbnailUrl
             : thumbnailUrl // ignore: cast_nullable_to_non_nullable
@@ -229,6 +287,10 @@ class __$$PlaceSummaryImplCopyWithImpl<$Res>
             ? _value.thumbnailSize
             : thumbnailSize // ignore: cast_nullable_to_non_nullable
                   as int?,
+        type: null == type
+            ? _value.type
+            : type // ignore: cast_nullable_to_non_nullable
+                  as PlaceType,
       ),
     );
   }
@@ -240,19 +302,24 @@ class _$PlaceSummaryImpl implements _PlaceSummary {
   const _$PlaceSummaryImpl({
     required this.id,
     required this.name,
-    @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-    required this.type,
-    @JsonKey(
-      fromJson: PlaceTypeCodec.fromJsonList,
-      toJson: PlaceTypeCodec.toJsonList,
-    )
-    final List<PlaceType> types = const <PlaceType>[],
+    this.introText,
     required this.latitude,
     required this.longitude,
+    final List<String> tags = const <String>[],
+    @JsonKey(
+      name: 'types',
+      fromJson: _stringListFromJson,
+      toJson: _stringListToJson,
+    )
+    final List<String> types = const <String>[],
+    @JsonKey(fromJson: _regionSummaryFromJson, toJson: _regionSummaryToJson)
+    this.regionSummary,
     this.thumbnailUrl,
     this.thumbnailFilename,
     this.thumbnailSize,
-  }) : _types = types;
+    @PlaceTypeConverter() required this.type,
+  }) : _tags = tags,
+       _types = types;
 
   factory _$PlaceSummaryImpl.fromJson(Map<String, dynamic> json) =>
       _$$PlaceSummaryImplFromJson(json);
@@ -262,34 +329,49 @@ class _$PlaceSummaryImpl implements _PlaceSummary {
   @override
   final String name;
   @override
-  @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-  final PlaceType type;
-  final List<PlaceType> _types;
+  final String? introText;
+  @override
+  final double latitude;
+  @override
+  final double longitude;
+  final List<String> _tags;
+  @override
+  @JsonKey()
+  List<String> get tags {
+    if (_tags is EqualUnmodifiableListView) return _tags;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_tags);
+  }
+
+  final List<String> _types;
   @override
   @JsonKey(
-    fromJson: PlaceTypeCodec.fromJsonList,
-    toJson: PlaceTypeCodec.toJsonList,
+    name: 'types',
+    fromJson: _stringListFromJson,
+    toJson: _stringListToJson,
   )
-  List<PlaceType> get types {
+  List<String> get types {
     if (_types is EqualUnmodifiableListView) return _types;
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_types);
   }
 
   @override
-  final double latitude;
-  @override
-  final double longitude;
+  @JsonKey(fromJson: _regionSummaryFromJson, toJson: _regionSummaryToJson)
+  final RegionSummary? regionSummary;
   @override
   final String? thumbnailUrl;
   @override
   final String? thumbnailFilename;
   @override
   final int? thumbnailSize;
+  @override
+  @PlaceTypeConverter()
+  final PlaceType type;
 
   @override
   String toString() {
-    return 'PlaceSummary(id: $id, name: $name, type: $type, types: $types, latitude: $latitude, longitude: $longitude, thumbnailUrl: $thumbnailUrl, thumbnailFilename: $thumbnailFilename, thumbnailSize: $thumbnailSize)';
+    return 'PlaceSummary(id: $id, name: $name, introText: $introText, latitude: $latitude, longitude: $longitude, tags: $tags, types: $types, regionSummary: $regionSummary, thumbnailUrl: $thumbnailUrl, thumbnailFilename: $thumbnailFilename, thumbnailSize: $thumbnailSize, type: $type)';
   }
 
   @override
@@ -299,18 +381,23 @@ class _$PlaceSummaryImpl implements _PlaceSummary {
             other is _$PlaceSummaryImpl &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.name, name) || other.name == name) &&
-            (identical(other.type, type) || other.type == type) &&
-            const DeepCollectionEquality().equals(other._types, _types) &&
+            (identical(other.introText, introText) ||
+                other.introText == introText) &&
             (identical(other.latitude, latitude) ||
                 other.latitude == latitude) &&
             (identical(other.longitude, longitude) ||
                 other.longitude == longitude) &&
+            const DeepCollectionEquality().equals(other._tags, _tags) &&
+            const DeepCollectionEquality().equals(other._types, _types) &&
+            (identical(other.regionSummary, regionSummary) ||
+                other.regionSummary == regionSummary) &&
             (identical(other.thumbnailUrl, thumbnailUrl) ||
                 other.thumbnailUrl == thumbnailUrl) &&
             (identical(other.thumbnailFilename, thumbnailFilename) ||
                 other.thumbnailFilename == thumbnailFilename) &&
             (identical(other.thumbnailSize, thumbnailSize) ||
-                other.thumbnailSize == thumbnailSize));
+                other.thumbnailSize == thumbnailSize) &&
+            (identical(other.type, type) || other.type == type));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -319,13 +406,16 @@ class _$PlaceSummaryImpl implements _PlaceSummary {
     runtimeType,
     id,
     name,
-    type,
-    const DeepCollectionEquality().hash(_types),
+    introText,
     latitude,
     longitude,
+    const DeepCollectionEquality().hash(_tags),
+    const DeepCollectionEquality().hash(_types),
+    regionSummary,
     thumbnailUrl,
     thumbnailFilename,
     thumbnailSize,
+    type,
   );
 
   /// Create a copy of PlaceSummary
@@ -346,18 +436,22 @@ abstract class _PlaceSummary implements PlaceSummary {
   const factory _PlaceSummary({
     required final String id,
     required final String name,
-    @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-    required final PlaceType type,
-    @JsonKey(
-      fromJson: PlaceTypeCodec.fromJsonList,
-      toJson: PlaceTypeCodec.toJsonList,
-    )
-    final List<PlaceType> types,
+    final String? introText,
     required final double latitude,
     required final double longitude,
+    final List<String> tags,
+    @JsonKey(
+      name: 'types',
+      fromJson: _stringListFromJson,
+      toJson: _stringListToJson,
+    )
+    final List<String> types,
+    @JsonKey(fromJson: _regionSummaryFromJson, toJson: _regionSummaryToJson)
+    final RegionSummary? regionSummary,
     final String? thumbnailUrl,
     final String? thumbnailFilename,
     final int? thumbnailSize,
+    @PlaceTypeConverter() required final PlaceType type,
   }) = _$PlaceSummaryImpl;
 
   factory _PlaceSummary.fromJson(Map<String, dynamic> json) =
@@ -368,24 +462,32 @@ abstract class _PlaceSummary implements PlaceSummary {
   @override
   String get name;
   @override
-  @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-  PlaceType get type;
-  @override
-  @JsonKey(
-    fromJson: PlaceTypeCodec.fromJsonList,
-    toJson: PlaceTypeCodec.toJsonList,
-  )
-  List<PlaceType> get types;
+  String? get introText;
   @override
   double get latitude;
   @override
   double get longitude;
+  @override
+  List<String> get tags;
+  @override
+  @JsonKey(
+    name: 'types',
+    fromJson: _stringListFromJson,
+    toJson: _stringListToJson,
+  )
+  List<String> get types;
+  @override
+  @JsonKey(fromJson: _regionSummaryFromJson, toJson: _regionSummaryToJson)
+  RegionSummary? get regionSummary;
   @override
   String? get thumbnailUrl;
   @override
   String? get thumbnailFilename;
   @override
   int? get thumbnailSize;
+  @override
+  @PlaceTypeConverter()
+  PlaceType get type;
 
   /// Create a copy of PlaceSummary
   /// with the given fields replaced by the non-null parameter values.
@@ -403,15 +505,29 @@ Place _$PlaceFromJson(Map<String, dynamic> json) {
 mixin _$Place {
   String get id => throw _privateConstructorUsedError;
   String get name => throw _privateConstructorUsedError;
+  String? get introText => throw _privateConstructorUsedError;
   String get description => throw _privateConstructorUsedError;
   double get latitude => throw _privateConstructorUsedError;
   double get longitude => throw _privateConstructorUsedError;
-  @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
+  @JsonKey(
+    name: 'types',
+    fromJson: _stringListFromJson,
+    toJson: _stringListToJson,
+  )
+  List<String> get types => throw _privateConstructorUsedError;
+  @PlaceTypeConverter()
   PlaceType get type => throw _privateConstructorUsedError;
   String? get address => throw _privateConstructorUsedError;
   String? get imageUrl => throw _privateConstructorUsedError;
   List<String> get tags => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _placeImageFromJson, toJson: _placeImageToJson)
+  PlaceImage? get primaryImage => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _placeImageListFromJson, toJson: _placeImageListToJson)
+  List<PlaceImage> get images => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _regionSummaryFromJson, toJson: _regionSummaryToJson)
+  RegionSummary? get regionSummary => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
+  DateTime? get updatedAt => throw _privateConstructorUsedError;
 
   /// Serializes this Place to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -430,16 +546,32 @@ abstract class $PlaceCopyWith<$Res> {
   $Res call({
     String id,
     String name,
+    String? introText,
     String description,
     double latitude,
     double longitude,
-    @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-    PlaceType type,
+    @JsonKey(
+      name: 'types',
+      fromJson: _stringListFromJson,
+      toJson: _stringListToJson,
+    )
+    List<String> types,
+    @PlaceTypeConverter() PlaceType type,
     String? address,
     String? imageUrl,
     List<String> tags,
+    @JsonKey(fromJson: _placeImageFromJson, toJson: _placeImageToJson)
+    PlaceImage? primaryImage,
+    @JsonKey(fromJson: _placeImageListFromJson, toJson: _placeImageListToJson)
+    List<PlaceImage> images,
+    @JsonKey(fromJson: _regionSummaryFromJson, toJson: _regionSummaryToJson)
+    RegionSummary? regionSummary,
     DateTime? createdAt,
+    DateTime? updatedAt,
   });
+
+  $PlaceImageCopyWith<$Res>? get primaryImage;
+  $RegionSummaryCopyWith<$Res>? get regionSummary;
 }
 
 /// @nodoc
@@ -459,14 +591,20 @@ class _$PlaceCopyWithImpl<$Res, $Val extends Place>
   $Res call({
     Object? id = null,
     Object? name = null,
+    Object? introText = freezed,
     Object? description = null,
     Object? latitude = null,
     Object? longitude = null,
+    Object? types = null,
     Object? type = null,
     Object? address = freezed,
     Object? imageUrl = freezed,
     Object? tags = null,
+    Object? primaryImage = freezed,
+    Object? images = null,
+    Object? regionSummary = freezed,
     Object? createdAt = freezed,
+    Object? updatedAt = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -478,6 +616,10 @@ class _$PlaceCopyWithImpl<$Res, $Val extends Place>
                 ? _value.name
                 : name // ignore: cast_nullable_to_non_nullable
                       as String,
+            introText: freezed == introText
+                ? _value.introText
+                : introText // ignore: cast_nullable_to_non_nullable
+                      as String?,
             description: null == description
                 ? _value.description
                 : description // ignore: cast_nullable_to_non_nullable
@@ -490,6 +632,10 @@ class _$PlaceCopyWithImpl<$Res, $Val extends Place>
                 ? _value.longitude
                 : longitude // ignore: cast_nullable_to_non_nullable
                       as double,
+            types: null == types
+                ? _value.types
+                : types // ignore: cast_nullable_to_non_nullable
+                      as List<String>,
             type: null == type
                 ? _value.type
                 : type // ignore: cast_nullable_to_non_nullable
@@ -506,13 +652,57 @@ class _$PlaceCopyWithImpl<$Res, $Val extends Place>
                 ? _value.tags
                 : tags // ignore: cast_nullable_to_non_nullable
                       as List<String>,
+            primaryImage: freezed == primaryImage
+                ? _value.primaryImage
+                : primaryImage // ignore: cast_nullable_to_non_nullable
+                      as PlaceImage?,
+            images: null == images
+                ? _value.images
+                : images // ignore: cast_nullable_to_non_nullable
+                      as List<PlaceImage>,
+            regionSummary: freezed == regionSummary
+                ? _value.regionSummary
+                : regionSummary // ignore: cast_nullable_to_non_nullable
+                      as RegionSummary?,
             createdAt: freezed == createdAt
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
+            updatedAt: freezed == updatedAt
+                ? _value.updatedAt
+                : updatedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
           )
           as $Val,
     );
+  }
+
+  /// Create a copy of Place
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $PlaceImageCopyWith<$Res>? get primaryImage {
+    if (_value.primaryImage == null) {
+      return null;
+    }
+
+    return $PlaceImageCopyWith<$Res>(_value.primaryImage!, (value) {
+      return _then(_value.copyWith(primaryImage: value) as $Val);
+    });
+  }
+
+  /// Create a copy of Place
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $RegionSummaryCopyWith<$Res>? get regionSummary {
+    if (_value.regionSummary == null) {
+      return null;
+    }
+
+    return $RegionSummaryCopyWith<$Res>(_value.regionSummary!, (value) {
+      return _then(_value.copyWith(regionSummary: value) as $Val);
+    });
   }
 }
 
@@ -527,16 +717,34 @@ abstract class _$$PlaceImplCopyWith<$Res> implements $PlaceCopyWith<$Res> {
   $Res call({
     String id,
     String name,
+    String? introText,
     String description,
     double latitude,
     double longitude,
-    @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-    PlaceType type,
+    @JsonKey(
+      name: 'types',
+      fromJson: _stringListFromJson,
+      toJson: _stringListToJson,
+    )
+    List<String> types,
+    @PlaceTypeConverter() PlaceType type,
     String? address,
     String? imageUrl,
     List<String> tags,
+    @JsonKey(fromJson: _placeImageFromJson, toJson: _placeImageToJson)
+    PlaceImage? primaryImage,
+    @JsonKey(fromJson: _placeImageListFromJson, toJson: _placeImageListToJson)
+    List<PlaceImage> images,
+    @JsonKey(fromJson: _regionSummaryFromJson, toJson: _regionSummaryToJson)
+    RegionSummary? regionSummary,
     DateTime? createdAt,
+    DateTime? updatedAt,
   });
+
+  @override
+  $PlaceImageCopyWith<$Res>? get primaryImage;
+  @override
+  $RegionSummaryCopyWith<$Res>? get regionSummary;
 }
 
 /// @nodoc
@@ -555,14 +763,20 @@ class __$$PlaceImplCopyWithImpl<$Res>
   $Res call({
     Object? id = null,
     Object? name = null,
+    Object? introText = freezed,
     Object? description = null,
     Object? latitude = null,
     Object? longitude = null,
+    Object? types = null,
     Object? type = null,
     Object? address = freezed,
     Object? imageUrl = freezed,
     Object? tags = null,
+    Object? primaryImage = freezed,
+    Object? images = null,
+    Object? regionSummary = freezed,
     Object? createdAt = freezed,
+    Object? updatedAt = freezed,
   }) {
     return _then(
       _$PlaceImpl(
@@ -574,6 +788,10 @@ class __$$PlaceImplCopyWithImpl<$Res>
             ? _value.name
             : name // ignore: cast_nullable_to_non_nullable
                   as String,
+        introText: freezed == introText
+            ? _value.introText
+            : introText // ignore: cast_nullable_to_non_nullable
+                  as String?,
         description: null == description
             ? _value.description
             : description // ignore: cast_nullable_to_non_nullable
@@ -586,6 +804,10 @@ class __$$PlaceImplCopyWithImpl<$Res>
             ? _value.longitude
             : longitude // ignore: cast_nullable_to_non_nullable
                   as double,
+        types: null == types
+            ? _value._types
+            : types // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
         type: null == type
             ? _value.type
             : type // ignore: cast_nullable_to_non_nullable
@@ -602,9 +824,25 @@ class __$$PlaceImplCopyWithImpl<$Res>
             ? _value._tags
             : tags // ignore: cast_nullable_to_non_nullable
                   as List<String>,
+        primaryImage: freezed == primaryImage
+            ? _value.primaryImage
+            : primaryImage // ignore: cast_nullable_to_non_nullable
+                  as PlaceImage?,
+        images: null == images
+            ? _value._images
+            : images // ignore: cast_nullable_to_non_nullable
+                  as List<PlaceImage>,
+        regionSummary: freezed == regionSummary
+            ? _value.regionSummary
+            : regionSummary // ignore: cast_nullable_to_non_nullable
+                  as RegionSummary?,
         createdAt: freezed == createdAt
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
+        updatedAt: freezed == updatedAt
+            ? _value.updatedAt
+            : updatedAt // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
       ),
     );
@@ -617,16 +855,31 @@ class _$PlaceImpl implements _Place {
   const _$PlaceImpl({
     required this.id,
     required this.name,
+    this.introText,
     required this.description,
     required this.latitude,
     required this.longitude,
-    @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-    required this.type,
+    @JsonKey(
+      name: 'types',
+      fromJson: _stringListFromJson,
+      toJson: _stringListToJson,
+    )
+    final List<String> types = const <String>[],
+    @PlaceTypeConverter() required this.type,
     this.address,
     this.imageUrl,
     final List<String> tags = const <String>[],
+    @JsonKey(fromJson: _placeImageFromJson, toJson: _placeImageToJson)
+    this.primaryImage,
+    @JsonKey(fromJson: _placeImageListFromJson, toJson: _placeImageListToJson)
+    final List<PlaceImage> images = const <PlaceImage>[],
+    @JsonKey(fromJson: _regionSummaryFromJson, toJson: _regionSummaryToJson)
+    this.regionSummary,
     this.createdAt,
-  }) : _tags = tags;
+    this.updatedAt,
+  }) : _types = types,
+       _tags = tags,
+       _images = images;
 
   factory _$PlaceImpl.fromJson(Map<String, dynamic> json) =>
       _$$PlaceImplFromJson(json);
@@ -636,13 +889,28 @@ class _$PlaceImpl implements _Place {
   @override
   final String name;
   @override
+  final String? introText;
+  @override
   final String description;
   @override
   final double latitude;
   @override
   final double longitude;
+  final List<String> _types;
   @override
-  @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
+  @JsonKey(
+    name: 'types',
+    fromJson: _stringListFromJson,
+    toJson: _stringListToJson,
+  )
+  List<String> get types {
+    if (_types is EqualUnmodifiableListView) return _types;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_types);
+  }
+
+  @override
+  @PlaceTypeConverter()
   final PlaceType type;
   @override
   final String? address;
@@ -658,11 +926,28 @@ class _$PlaceImpl implements _Place {
   }
 
   @override
+  @JsonKey(fromJson: _placeImageFromJson, toJson: _placeImageToJson)
+  final PlaceImage? primaryImage;
+  final List<PlaceImage> _images;
+  @override
+  @JsonKey(fromJson: _placeImageListFromJson, toJson: _placeImageListToJson)
+  List<PlaceImage> get images {
+    if (_images is EqualUnmodifiableListView) return _images;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_images);
+  }
+
+  @override
+  @JsonKey(fromJson: _regionSummaryFromJson, toJson: _regionSummaryToJson)
+  final RegionSummary? regionSummary;
+  @override
   final DateTime? createdAt;
+  @override
+  final DateTime? updatedAt;
 
   @override
   String toString() {
-    return 'Place(id: $id, name: $name, description: $description, latitude: $latitude, longitude: $longitude, type: $type, address: $address, imageUrl: $imageUrl, tags: $tags, createdAt: $createdAt)';
+    return 'Place(id: $id, name: $name, introText: $introText, description: $description, latitude: $latitude, longitude: $longitude, types: $types, type: $type, address: $address, imageUrl: $imageUrl, tags: $tags, primaryImage: $primaryImage, images: $images, regionSummary: $regionSummary, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -672,19 +957,29 @@ class _$PlaceImpl implements _Place {
             other is _$PlaceImpl &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.name, name) || other.name == name) &&
+            (identical(other.introText, introText) ||
+                other.introText == introText) &&
             (identical(other.description, description) ||
                 other.description == description) &&
             (identical(other.latitude, latitude) ||
                 other.latitude == latitude) &&
             (identical(other.longitude, longitude) ||
                 other.longitude == longitude) &&
+            const DeepCollectionEquality().equals(other._types, _types) &&
             (identical(other.type, type) || other.type == type) &&
             (identical(other.address, address) || other.address == address) &&
             (identical(other.imageUrl, imageUrl) ||
                 other.imageUrl == imageUrl) &&
             const DeepCollectionEquality().equals(other._tags, _tags) &&
+            (identical(other.primaryImage, primaryImage) ||
+                other.primaryImage == primaryImage) &&
+            const DeepCollectionEquality().equals(other._images, _images) &&
+            (identical(other.regionSummary, regionSummary) ||
+                other.regionSummary == regionSummary) &&
             (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt));
+                other.createdAt == createdAt) &&
+            (identical(other.updatedAt, updatedAt) ||
+                other.updatedAt == updatedAt));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -693,14 +988,20 @@ class _$PlaceImpl implements _Place {
     runtimeType,
     id,
     name,
+    introText,
     description,
     latitude,
     longitude,
+    const DeepCollectionEquality().hash(_types),
     type,
     address,
     imageUrl,
     const DeepCollectionEquality().hash(_tags),
+    primaryImage,
+    const DeepCollectionEquality().hash(_images),
+    regionSummary,
     createdAt,
+    updatedAt,
   );
 
   /// Create a copy of Place
@@ -721,15 +1022,28 @@ abstract class _Place implements Place {
   const factory _Place({
     required final String id,
     required final String name,
+    final String? introText,
     required final String description,
     required final double latitude,
     required final double longitude,
-    @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-    required final PlaceType type,
+    @JsonKey(
+      name: 'types',
+      fromJson: _stringListFromJson,
+      toJson: _stringListToJson,
+    )
+    final List<String> types,
+    @PlaceTypeConverter() required final PlaceType type,
     final String? address,
     final String? imageUrl,
     final List<String> tags,
+    @JsonKey(fromJson: _placeImageFromJson, toJson: _placeImageToJson)
+    final PlaceImage? primaryImage,
+    @JsonKey(fromJson: _placeImageListFromJson, toJson: _placeImageListToJson)
+    final List<PlaceImage> images,
+    @JsonKey(fromJson: _regionSummaryFromJson, toJson: _regionSummaryToJson)
+    final RegionSummary? regionSummary,
     final DateTime? createdAt,
+    final DateTime? updatedAt,
   }) = _$PlaceImpl;
 
   factory _Place.fromJson(Map<String, dynamic> json) = _$PlaceImpl.fromJson;
@@ -739,13 +1053,22 @@ abstract class _Place implements Place {
   @override
   String get name;
   @override
+  String? get introText;
+  @override
   String get description;
   @override
   double get latitude;
   @override
   double get longitude;
   @override
-  @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
+  @JsonKey(
+    name: 'types',
+    fromJson: _stringListFromJson,
+    toJson: _stringListToJson,
+  )
+  List<String> get types;
+  @override
+  @PlaceTypeConverter()
   PlaceType get type;
   @override
   String? get address;
@@ -754,7 +1077,18 @@ abstract class _Place implements Place {
   @override
   List<String> get tags;
   @override
+  @JsonKey(fromJson: _placeImageFromJson, toJson: _placeImageToJson)
+  PlaceImage? get primaryImage;
+  @override
+  @JsonKey(fromJson: _placeImageListFromJson, toJson: _placeImageListToJson)
+  List<PlaceImage> get images;
+  @override
+  @JsonKey(fromJson: _regionSummaryFromJson, toJson: _regionSummaryToJson)
+  RegionSummary? get regionSummary;
+  @override
   DateTime? get createdAt;
+  @override
+  DateTime? get updatedAt;
 
   /// Create a copy of Place
   /// with the given fields replaced by the non-null parameter values.
@@ -771,14 +1105,20 @@ PlaceCreateRequest _$PlaceCreateRequestFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$PlaceCreateRequest {
   String get name => throw _privateConstructorUsedError;
+  String? get introText => throw _privateConstructorUsedError;
   String get description => throw _privateConstructorUsedError;
   double get latitude => throw _privateConstructorUsedError;
   double get longitude => throw _privateConstructorUsedError;
-  @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-  PlaceType get type => throw _privateConstructorUsedError;
+  @JsonKey(
+    name: 'types',
+    fromJson: _stringListFromJson,
+    toJson: _stringListToJson,
+  )
+  List<String> get types => throw _privateConstructorUsedError;
   String? get address => throw _privateConstructorUsedError;
   String? get imageUrl => throw _privateConstructorUsedError;
   List<String> get tags => throw _privateConstructorUsedError;
+  List<String> get unitIds => throw _privateConstructorUsedError;
 
   /// Serializes this PlaceCreateRequest to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -799,14 +1139,20 @@ abstract class $PlaceCreateRequestCopyWith<$Res> {
   @useResult
   $Res call({
     String name,
+    String? introText,
     String description,
     double latitude,
     double longitude,
-    @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-    PlaceType type,
+    @JsonKey(
+      name: 'types',
+      fromJson: _stringListFromJson,
+      toJson: _stringListToJson,
+    )
+    List<String> types,
     String? address,
     String? imageUrl,
     List<String> tags,
+    List<String> unitIds,
   });
 }
 
@@ -826,13 +1172,15 @@ class _$PlaceCreateRequestCopyWithImpl<$Res, $Val extends PlaceCreateRequest>
   @override
   $Res call({
     Object? name = null,
+    Object? introText = freezed,
     Object? description = null,
     Object? latitude = null,
     Object? longitude = null,
-    Object? type = null,
+    Object? types = null,
     Object? address = freezed,
     Object? imageUrl = freezed,
     Object? tags = null,
+    Object? unitIds = null,
   }) {
     return _then(
       _value.copyWith(
@@ -840,6 +1188,10 @@ class _$PlaceCreateRequestCopyWithImpl<$Res, $Val extends PlaceCreateRequest>
                 ? _value.name
                 : name // ignore: cast_nullable_to_non_nullable
                       as String,
+            introText: freezed == introText
+                ? _value.introText
+                : introText // ignore: cast_nullable_to_non_nullable
+                      as String?,
             description: null == description
                 ? _value.description
                 : description // ignore: cast_nullable_to_non_nullable
@@ -852,10 +1204,10 @@ class _$PlaceCreateRequestCopyWithImpl<$Res, $Val extends PlaceCreateRequest>
                 ? _value.longitude
                 : longitude // ignore: cast_nullable_to_non_nullable
                       as double,
-            type: null == type
-                ? _value.type
-                : type // ignore: cast_nullable_to_non_nullable
-                      as PlaceType,
+            types: null == types
+                ? _value.types
+                : types // ignore: cast_nullable_to_non_nullable
+                      as List<String>,
             address: freezed == address
                 ? _value.address
                 : address // ignore: cast_nullable_to_non_nullable
@@ -867,6 +1219,10 @@ class _$PlaceCreateRequestCopyWithImpl<$Res, $Val extends PlaceCreateRequest>
             tags: null == tags
                 ? _value.tags
                 : tags // ignore: cast_nullable_to_non_nullable
+                      as List<String>,
+            unitIds: null == unitIds
+                ? _value.unitIds
+                : unitIds // ignore: cast_nullable_to_non_nullable
                       as List<String>,
           )
           as $Val,
@@ -885,14 +1241,20 @@ abstract class _$$PlaceCreateRequestImplCopyWith<$Res>
   @useResult
   $Res call({
     String name,
+    String? introText,
     String description,
     double latitude,
     double longitude,
-    @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-    PlaceType type,
+    @JsonKey(
+      name: 'types',
+      fromJson: _stringListFromJson,
+      toJson: _stringListToJson,
+    )
+    List<String> types,
     String? address,
     String? imageUrl,
     List<String> tags,
+    List<String> unitIds,
   });
 }
 
@@ -911,13 +1273,15 @@ class __$$PlaceCreateRequestImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? name = null,
+    Object? introText = freezed,
     Object? description = null,
     Object? latitude = null,
     Object? longitude = null,
-    Object? type = null,
+    Object? types = null,
     Object? address = freezed,
     Object? imageUrl = freezed,
     Object? tags = null,
+    Object? unitIds = null,
   }) {
     return _then(
       _$PlaceCreateRequestImpl(
@@ -925,6 +1289,10 @@ class __$$PlaceCreateRequestImplCopyWithImpl<$Res>
             ? _value.name
             : name // ignore: cast_nullable_to_non_nullable
                   as String,
+        introText: freezed == introText
+            ? _value.introText
+            : introText // ignore: cast_nullable_to_non_nullable
+                  as String?,
         description: null == description
             ? _value.description
             : description // ignore: cast_nullable_to_non_nullable
@@ -937,10 +1305,10 @@ class __$$PlaceCreateRequestImplCopyWithImpl<$Res>
             ? _value.longitude
             : longitude // ignore: cast_nullable_to_non_nullable
                   as double,
-        type: null == type
-            ? _value.type
-            : type // ignore: cast_nullable_to_non_nullable
-                  as PlaceType,
+        types: null == types
+            ? _value._types
+            : types // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
         address: freezed == address
             ? _value.address
             : address // ignore: cast_nullable_to_non_nullable
@@ -953,6 +1321,10 @@ class __$$PlaceCreateRequestImplCopyWithImpl<$Res>
             ? _value._tags
             : tags // ignore: cast_nullable_to_non_nullable
                   as List<String>,
+        unitIds: null == unitIds
+            ? _value._unitIds
+            : unitIds // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
       ),
     );
   }
@@ -963,15 +1335,23 @@ class __$$PlaceCreateRequestImplCopyWithImpl<$Res>
 class _$PlaceCreateRequestImpl implements _PlaceCreateRequest {
   const _$PlaceCreateRequestImpl({
     required this.name,
+    this.introText,
     required this.description,
     required this.latitude,
     required this.longitude,
-    @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-    required this.type,
+    @JsonKey(
+      name: 'types',
+      fromJson: _stringListFromJson,
+      toJson: _stringListToJson,
+    )
+    final List<String> types = const <String>[],
     this.address,
     this.imageUrl,
     final List<String> tags = const <String>[],
-  }) : _tags = tags;
+    final List<String> unitIds = const <String>[],
+  }) : _types = types,
+       _tags = tags,
+       _unitIds = unitIds;
 
   factory _$PlaceCreateRequestImpl.fromJson(Map<String, dynamic> json) =>
       _$$PlaceCreateRequestImplFromJson(json);
@@ -979,14 +1359,26 @@ class _$PlaceCreateRequestImpl implements _PlaceCreateRequest {
   @override
   final String name;
   @override
+  final String? introText;
+  @override
   final String description;
   @override
   final double latitude;
   @override
   final double longitude;
+  final List<String> _types;
   @override
-  @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-  final PlaceType type;
+  @JsonKey(
+    name: 'types',
+    fromJson: _stringListFromJson,
+    toJson: _stringListToJson,
+  )
+  List<String> get types {
+    if (_types is EqualUnmodifiableListView) return _types;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_types);
+  }
+
   @override
   final String? address;
   @override
@@ -1000,9 +1392,18 @@ class _$PlaceCreateRequestImpl implements _PlaceCreateRequest {
     return EqualUnmodifiableListView(_tags);
   }
 
+  final List<String> _unitIds;
+  @override
+  @JsonKey()
+  List<String> get unitIds {
+    if (_unitIds is EqualUnmodifiableListView) return _unitIds;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_unitIds);
+  }
+
   @override
   String toString() {
-    return 'PlaceCreateRequest(name: $name, description: $description, latitude: $latitude, longitude: $longitude, type: $type, address: $address, imageUrl: $imageUrl, tags: $tags)';
+    return 'PlaceCreateRequest(name: $name, introText: $introText, description: $description, latitude: $latitude, longitude: $longitude, types: $types, address: $address, imageUrl: $imageUrl, tags: $tags, unitIds: $unitIds)';
   }
 
   @override
@@ -1011,17 +1412,20 @@ class _$PlaceCreateRequestImpl implements _PlaceCreateRequest {
         (other.runtimeType == runtimeType &&
             other is _$PlaceCreateRequestImpl &&
             (identical(other.name, name) || other.name == name) &&
+            (identical(other.introText, introText) ||
+                other.introText == introText) &&
             (identical(other.description, description) ||
                 other.description == description) &&
             (identical(other.latitude, latitude) ||
                 other.latitude == latitude) &&
             (identical(other.longitude, longitude) ||
                 other.longitude == longitude) &&
-            (identical(other.type, type) || other.type == type) &&
+            const DeepCollectionEquality().equals(other._types, _types) &&
             (identical(other.address, address) || other.address == address) &&
             (identical(other.imageUrl, imageUrl) ||
                 other.imageUrl == imageUrl) &&
-            const DeepCollectionEquality().equals(other._tags, _tags));
+            const DeepCollectionEquality().equals(other._tags, _tags) &&
+            const DeepCollectionEquality().equals(other._unitIds, _unitIds));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1029,13 +1433,15 @@ class _$PlaceCreateRequestImpl implements _PlaceCreateRequest {
   int get hashCode => Object.hash(
     runtimeType,
     name,
+    introText,
     description,
     latitude,
     longitude,
-    type,
+    const DeepCollectionEquality().hash(_types),
     address,
     imageUrl,
     const DeepCollectionEquality().hash(_tags),
+    const DeepCollectionEquality().hash(_unitIds),
   );
 
   /// Create a copy of PlaceCreateRequest
@@ -1058,14 +1464,20 @@ class _$PlaceCreateRequestImpl implements _PlaceCreateRequest {
 abstract class _PlaceCreateRequest implements PlaceCreateRequest {
   const factory _PlaceCreateRequest({
     required final String name,
+    final String? introText,
     required final String description,
     required final double latitude,
     required final double longitude,
-    @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-    required final PlaceType type,
+    @JsonKey(
+      name: 'types',
+      fromJson: _stringListFromJson,
+      toJson: _stringListToJson,
+    )
+    final List<String> types,
     final String? address,
     final String? imageUrl,
     final List<String> tags,
+    final List<String> unitIds,
   }) = _$PlaceCreateRequestImpl;
 
   factory _PlaceCreateRequest.fromJson(Map<String, dynamic> json) =
@@ -1074,20 +1486,28 @@ abstract class _PlaceCreateRequest implements PlaceCreateRequest {
   @override
   String get name;
   @override
+  String? get introText;
+  @override
   String get description;
   @override
   double get latitude;
   @override
   double get longitude;
   @override
-  @JsonKey(fromJson: PlaceTypeCodec.fromJson, toJson: PlaceTypeCodec.toJson)
-  PlaceType get type;
+  @JsonKey(
+    name: 'types',
+    fromJson: _stringListFromJson,
+    toJson: _stringListToJson,
+  )
+  List<String> get types;
   @override
   String? get address;
   @override
   String? get imageUrl;
   @override
   List<String> get tags;
+  @override
+  List<String> get unitIds;
 
   /// Create a copy of PlaceCreateRequest
   /// with the given fields replaced by the non-null parameter values.
@@ -1734,4 +2154,516 @@ abstract class _VerificationResponse implements VerificationResponse {
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VerificationResponseImplCopyWith<_$VerificationResponseImpl>
   get copyWith => throw _privateConstructorUsedError;
+}
+
+RegionSummary _$RegionSummaryFromJson(Map<String, dynamic> json) {
+  return _RegionSummary.fromJson(json);
+}
+
+/// @nodoc
+mixin _$RegionSummary {
+  String get code => throw _privateConstructorUsedError;
+  String get primaryName => throw _privateConstructorUsedError;
+  String get path => throw _privateConstructorUsedError;
+  int get level => throw _privateConstructorUsedError;
+
+  /// Serializes this RegionSummary to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of RegionSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $RegionSummaryCopyWith<RegionSummary> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $RegionSummaryCopyWith<$Res> {
+  factory $RegionSummaryCopyWith(
+    RegionSummary value,
+    $Res Function(RegionSummary) then,
+  ) = _$RegionSummaryCopyWithImpl<$Res, RegionSummary>;
+  @useResult
+  $Res call({String code, String primaryName, String path, int level});
+}
+
+/// @nodoc
+class _$RegionSummaryCopyWithImpl<$Res, $Val extends RegionSummary>
+    implements $RegionSummaryCopyWith<$Res> {
+  _$RegionSummaryCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of RegionSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? code = null,
+    Object? primaryName = null,
+    Object? path = null,
+    Object? level = null,
+  }) {
+    return _then(
+      _value.copyWith(
+            code: null == code
+                ? _value.code
+                : code // ignore: cast_nullable_to_non_nullable
+                      as String,
+            primaryName: null == primaryName
+                ? _value.primaryName
+                : primaryName // ignore: cast_nullable_to_non_nullable
+                      as String,
+            path: null == path
+                ? _value.path
+                : path // ignore: cast_nullable_to_non_nullable
+                      as String,
+            level: null == level
+                ? _value.level
+                : level // ignore: cast_nullable_to_non_nullable
+                      as int,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$RegionSummaryImplCopyWith<$Res>
+    implements $RegionSummaryCopyWith<$Res> {
+  factory _$$RegionSummaryImplCopyWith(
+    _$RegionSummaryImpl value,
+    $Res Function(_$RegionSummaryImpl) then,
+  ) = __$$RegionSummaryImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({String code, String primaryName, String path, int level});
+}
+
+/// @nodoc
+class __$$RegionSummaryImplCopyWithImpl<$Res>
+    extends _$RegionSummaryCopyWithImpl<$Res, _$RegionSummaryImpl>
+    implements _$$RegionSummaryImplCopyWith<$Res> {
+  __$$RegionSummaryImplCopyWithImpl(
+    _$RegionSummaryImpl _value,
+    $Res Function(_$RegionSummaryImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of RegionSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? code = null,
+    Object? primaryName = null,
+    Object? path = null,
+    Object? level = null,
+  }) {
+    return _then(
+      _$RegionSummaryImpl(
+        code: null == code
+            ? _value.code
+            : code // ignore: cast_nullable_to_non_nullable
+                  as String,
+        primaryName: null == primaryName
+            ? _value.primaryName
+            : primaryName // ignore: cast_nullable_to_non_nullable
+                  as String,
+        path: null == path
+            ? _value.path
+            : path // ignore: cast_nullable_to_non_nullable
+                  as String,
+        level: null == level
+            ? _value.level
+            : level // ignore: cast_nullable_to_non_nullable
+                  as int,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$RegionSummaryImpl implements _RegionSummary {
+  const _$RegionSummaryImpl({
+    required this.code,
+    required this.primaryName,
+    required this.path,
+    required this.level,
+  });
+
+  factory _$RegionSummaryImpl.fromJson(Map<String, dynamic> json) =>
+      _$$RegionSummaryImplFromJson(json);
+
+  @override
+  final String code;
+  @override
+  final String primaryName;
+  @override
+  final String path;
+  @override
+  final int level;
+
+  @override
+  String toString() {
+    return 'RegionSummary(code: $code, primaryName: $primaryName, path: $path, level: $level)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$RegionSummaryImpl &&
+            (identical(other.code, code) || other.code == code) &&
+            (identical(other.primaryName, primaryName) ||
+                other.primaryName == primaryName) &&
+            (identical(other.path, path) || other.path == path) &&
+            (identical(other.level, level) || other.level == level));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, code, primaryName, path, level);
+
+  /// Create a copy of RegionSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$RegionSummaryImplCopyWith<_$RegionSummaryImpl> get copyWith =>
+      __$$RegionSummaryImplCopyWithImpl<_$RegionSummaryImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$RegionSummaryImplToJson(this);
+  }
+}
+
+abstract class _RegionSummary implements RegionSummary {
+  const factory _RegionSummary({
+    required final String code,
+    required final String primaryName,
+    required final String path,
+    required final int level,
+  }) = _$RegionSummaryImpl;
+
+  factory _RegionSummary.fromJson(Map<String, dynamic> json) =
+      _$RegionSummaryImpl.fromJson;
+
+  @override
+  String get code;
+  @override
+  String get primaryName;
+  @override
+  String get path;
+  @override
+  int get level;
+
+  /// Create a copy of RegionSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$RegionSummaryImplCopyWith<_$RegionSummaryImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+PlaceImage _$PlaceImageFromJson(Map<String, dynamic> json) {
+  return _PlaceImage.fromJson(json);
+}
+
+/// @nodoc
+mixin _$PlaceImage {
+  String get imageId => throw _privateConstructorUsedError;
+  String get url => throw _privateConstructorUsedError;
+  String? get filename => throw _privateConstructorUsedError;
+  String? get contentType => throw _privateConstructorUsedError;
+  int? get fileSize => throw _privateConstructorUsedError;
+  DateTime? get uploadedAt => throw _privateConstructorUsedError;
+  bool get isPrimary => throw _privateConstructorUsedError;
+
+  /// Serializes this PlaceImage to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of PlaceImage
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $PlaceImageCopyWith<PlaceImage> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $PlaceImageCopyWith<$Res> {
+  factory $PlaceImageCopyWith(
+    PlaceImage value,
+    $Res Function(PlaceImage) then,
+  ) = _$PlaceImageCopyWithImpl<$Res, PlaceImage>;
+  @useResult
+  $Res call({
+    String imageId,
+    String url,
+    String? filename,
+    String? contentType,
+    int? fileSize,
+    DateTime? uploadedAt,
+    bool isPrimary,
+  });
+}
+
+/// @nodoc
+class _$PlaceImageCopyWithImpl<$Res, $Val extends PlaceImage>
+    implements $PlaceImageCopyWith<$Res> {
+  _$PlaceImageCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of PlaceImage
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? imageId = null,
+    Object? url = null,
+    Object? filename = freezed,
+    Object? contentType = freezed,
+    Object? fileSize = freezed,
+    Object? uploadedAt = freezed,
+    Object? isPrimary = null,
+  }) {
+    return _then(
+      _value.copyWith(
+            imageId: null == imageId
+                ? _value.imageId
+                : imageId // ignore: cast_nullable_to_non_nullable
+                      as String,
+            url: null == url
+                ? _value.url
+                : url // ignore: cast_nullable_to_non_nullable
+                      as String,
+            filename: freezed == filename
+                ? _value.filename
+                : filename // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            contentType: freezed == contentType
+                ? _value.contentType
+                : contentType // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            fileSize: freezed == fileSize
+                ? _value.fileSize
+                : fileSize // ignore: cast_nullable_to_non_nullable
+                      as int?,
+            uploadedAt: freezed == uploadedAt
+                ? _value.uploadedAt
+                : uploadedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
+            isPrimary: null == isPrimary
+                ? _value.isPrimary
+                : isPrimary // ignore: cast_nullable_to_non_nullable
+                      as bool,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$PlaceImageImplCopyWith<$Res>
+    implements $PlaceImageCopyWith<$Res> {
+  factory _$$PlaceImageImplCopyWith(
+    _$PlaceImageImpl value,
+    $Res Function(_$PlaceImageImpl) then,
+  ) = __$$PlaceImageImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    String imageId,
+    String url,
+    String? filename,
+    String? contentType,
+    int? fileSize,
+    DateTime? uploadedAt,
+    bool isPrimary,
+  });
+}
+
+/// @nodoc
+class __$$PlaceImageImplCopyWithImpl<$Res>
+    extends _$PlaceImageCopyWithImpl<$Res, _$PlaceImageImpl>
+    implements _$$PlaceImageImplCopyWith<$Res> {
+  __$$PlaceImageImplCopyWithImpl(
+    _$PlaceImageImpl _value,
+    $Res Function(_$PlaceImageImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of PlaceImage
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? imageId = null,
+    Object? url = null,
+    Object? filename = freezed,
+    Object? contentType = freezed,
+    Object? fileSize = freezed,
+    Object? uploadedAt = freezed,
+    Object? isPrimary = null,
+  }) {
+    return _then(
+      _$PlaceImageImpl(
+        imageId: null == imageId
+            ? _value.imageId
+            : imageId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        url: null == url
+            ? _value.url
+            : url // ignore: cast_nullable_to_non_nullable
+                  as String,
+        filename: freezed == filename
+            ? _value.filename
+            : filename // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        contentType: freezed == contentType
+            ? _value.contentType
+            : contentType // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        fileSize: freezed == fileSize
+            ? _value.fileSize
+            : fileSize // ignore: cast_nullable_to_non_nullable
+                  as int?,
+        uploadedAt: freezed == uploadedAt
+            ? _value.uploadedAt
+            : uploadedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
+        isPrimary: null == isPrimary
+            ? _value.isPrimary
+            : isPrimary // ignore: cast_nullable_to_non_nullable
+                  as bool,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$PlaceImageImpl implements _PlaceImage {
+  const _$PlaceImageImpl({
+    required this.imageId,
+    required this.url,
+    this.filename,
+    this.contentType,
+    this.fileSize,
+    this.uploadedAt,
+    this.isPrimary = false,
+  });
+
+  factory _$PlaceImageImpl.fromJson(Map<String, dynamic> json) =>
+      _$$PlaceImageImplFromJson(json);
+
+  @override
+  final String imageId;
+  @override
+  final String url;
+  @override
+  final String? filename;
+  @override
+  final String? contentType;
+  @override
+  final int? fileSize;
+  @override
+  final DateTime? uploadedAt;
+  @override
+  @JsonKey()
+  final bool isPrimary;
+
+  @override
+  String toString() {
+    return 'PlaceImage(imageId: $imageId, url: $url, filename: $filename, contentType: $contentType, fileSize: $fileSize, uploadedAt: $uploadedAt, isPrimary: $isPrimary)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PlaceImageImpl &&
+            (identical(other.imageId, imageId) || other.imageId == imageId) &&
+            (identical(other.url, url) || other.url == url) &&
+            (identical(other.filename, filename) ||
+                other.filename == filename) &&
+            (identical(other.contentType, contentType) ||
+                other.contentType == contentType) &&
+            (identical(other.fileSize, fileSize) ||
+                other.fileSize == fileSize) &&
+            (identical(other.uploadedAt, uploadedAt) ||
+                other.uploadedAt == uploadedAt) &&
+            (identical(other.isPrimary, isPrimary) ||
+                other.isPrimary == isPrimary));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    imageId,
+    url,
+    filename,
+    contentType,
+    fileSize,
+    uploadedAt,
+    isPrimary,
+  );
+
+  /// Create a copy of PlaceImage
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$PlaceImageImplCopyWith<_$PlaceImageImpl> get copyWith =>
+      __$$PlaceImageImplCopyWithImpl<_$PlaceImageImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$PlaceImageImplToJson(this);
+  }
+}
+
+abstract class _PlaceImage implements PlaceImage {
+  const factory _PlaceImage({
+    required final String imageId,
+    required final String url,
+    final String? filename,
+    final String? contentType,
+    final int? fileSize,
+    final DateTime? uploadedAt,
+    final bool isPrimary,
+  }) = _$PlaceImageImpl;
+
+  factory _PlaceImage.fromJson(Map<String, dynamic> json) =
+      _$PlaceImageImpl.fromJson;
+
+  @override
+  String get imageId;
+  @override
+  String get url;
+  @override
+  String? get filename;
+  @override
+  String? get contentType;
+  @override
+  int? get fileSize;
+  @override
+  DateTime? get uploadedAt;
+  @override
+  bool get isPrimary;
+
+  /// Create a copy of PlaceImage
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$PlaceImageImplCopyWith<_$PlaceImageImpl> get copyWith =>
+      throw _privateConstructorUsedError;
 }

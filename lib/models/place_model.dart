@@ -16,19 +16,24 @@ class PlaceSummary with _$PlaceSummary {
   const factory PlaceSummary({
     required String id,
     required String name,
-    @PlaceTypeConverter()
-    required PlaceType type,
-    @PlaceTypeListConverter()
-    @Default(<PlaceType>[])
-    List<PlaceType> types,
+    String? introText,
     required double latitude,
     required double longitude,
+    @Default(<String>[]) List<String> tags,
+    @JsonKey(name: 'types', fromJson: _stringListFromJson, toJson: _stringListToJson)
+    @Default(<String>[])
+    List<String> types,
+    @JsonKey(fromJson: _regionSummaryFromJson, toJson: _regionSummaryToJson)
+    RegionSummary? regionSummary,
     String? thumbnailUrl,
     String? thumbnailFilename,
     int? thumbnailSize,
+    @PlaceTypeConverter()
+    required PlaceType type,
   }) = _PlaceSummary;
 
-  factory PlaceSummary.fromJson(Map<String, dynamic> json) => _$PlaceSummaryFromJson(json);
+  factory PlaceSummary.fromJson(Map<String, dynamic> json) =>
+      _$PlaceSummaryFromJson(_normalizePlaceJson(json));
 }
 
 @freezed
@@ -36,32 +41,47 @@ class Place with _$Place {
   const factory Place({
     required String id,
     required String name,
+    String? introText,
     required String description,
     required double latitude,
     required double longitude,
+    @JsonKey(name: 'types', fromJson: _stringListFromJson, toJson: _stringListToJson)
+    @Default(<String>[])
+    List<String> types,
     @PlaceTypeConverter()
     required PlaceType type,
     String? address,
     String? imageUrl,
     @Default(<String>[]) List<String> tags,
+    @JsonKey(fromJson: _placeImageFromJson, toJson: _placeImageToJson)
+    PlaceImage? primaryImage,
+    @JsonKey(fromJson: _placeImageListFromJson, toJson: _placeImageListToJson)
+    @Default(<PlaceImage>[]) List<PlaceImage> images,
+    @JsonKey(fromJson: _regionSummaryFromJson, toJson: _regionSummaryToJson)
+    RegionSummary? regionSummary,
     DateTime? createdAt,
+    DateTime? updatedAt,
   }) = _Place;
 
-  factory Place.fromJson(Map<String, dynamic> json) => _$PlaceFromJson(json);
+  factory Place.fromJson(Map<String, dynamic> json) =>
+      _$PlaceFromJson(_normalizePlaceJson(json));
 }
 
 @freezed
 class PlaceCreateRequest with _$PlaceCreateRequest {
   const factory PlaceCreateRequest({
     required String name,
+    String? introText,
     required String description,
     required double latitude,
     required double longitude,
-    @PlaceTypeConverter()
-    required PlaceType type,
+    @JsonKey(name: 'types', fromJson: _stringListFromJson, toJson: _stringListToJson)
+    @Default(<String>[])
+    List<String> types,
     String? address,
     String? imageUrl,
     @Default(<String>[]) List<String> tags,
+    @Default(<String>[]) List<String> unitIds,
   }) = _PlaceCreateRequest;
 
   factory PlaceCreateRequest.fromJson(Map<String, dynamic> json) =>
@@ -148,22 +168,8 @@ class PlaceTypeCodec {
     }
   }
 
-  static List<PlaceType> fromJsonList(dynamic raw) {
-    if (raw is List) {
-      return raw.map(fromJson).toList(growable: false);
-    }
-    if (raw is String) {
-      return [fromJson(raw)];
-    }
-    return const <PlaceType>[];
-  }
-
   static String toJson(PlaceType type) {
     return _apiValues[type] ?? 'other';
-  }
-
-  static List<String> toJsonList(List<PlaceType> types) {
-    return types.map(toJson).toList(growable: false);
   }
 
   static String _normalize(String input) {
@@ -190,14 +196,88 @@ class PlaceTypeConverter extends JsonConverter<PlaceType, dynamic> {
   dynamic toJson(PlaceType object) => PlaceTypeCodec.toJson(object);
 }
 
-/// EN: JsonConverter for PlaceType lists.
-/// KO: PlaceType 목록을 위한 JsonConverter 입니다.
-class PlaceTypeListConverter extends JsonConverter<List<PlaceType>, dynamic> {
-  const PlaceTypeListConverter();
+@freezed
+class RegionSummary with _$RegionSummary {
+  const factory RegionSummary({
+    required String code,
+    required String primaryName,
+    required String path,
+    required int level,
+  }) = _RegionSummary;
 
-  @override
-  List<PlaceType> fromJson(dynamic json) => PlaceTypeCodec.fromJsonList(json);
-
-  @override
-  dynamic toJson(List<PlaceType> object) => PlaceTypeCodec.toJsonList(object);
+  factory RegionSummary.fromJson(Map<String, dynamic> json) =>
+      _$RegionSummaryFromJson(json);
 }
+
+@freezed
+class PlaceImage with _$PlaceImage {
+  const factory PlaceImage({
+    required String imageId,
+    required String url,
+    String? filename,
+    String? contentType,
+    int? fileSize,
+    DateTime? uploadedAt,
+    @Default(false) bool isPrimary,
+  }) = _PlaceImage;
+
+  factory PlaceImage.fromJson(Map<String, dynamic> json) =>
+      _$PlaceImageFromJson(json);
+}
+
+Map<String, dynamic> _normalizePlaceJson(Map<String, dynamic> json) {
+  final normalized = Map<String, dynamic>.from(json);
+  if (!normalized.containsKey('type') || normalized['type'] == null) {
+    final types = normalized['types'];
+    if (types is List && types.isNotEmpty) {
+      normalized['type'] = types.first;
+    }
+  }
+  if (!normalized.containsKey('imageUrl') || normalized['imageUrl'] == null) {
+    final primaryImage = normalized['primaryImage'];
+    if (primaryImage is Map<String, dynamic> &&
+        primaryImage['url'] != null) {
+      normalized['imageUrl'] = primaryImage['url'];
+    }
+  }
+  return normalized;
+}
+
+List<String> _stringListFromJson(dynamic raw) {
+  if (raw is List) {
+    return raw
+        .map((e) => e?.toString())
+        .whereType<String>()
+        .toList(growable: false);
+  }
+  if (raw is String && raw.isNotEmpty) {
+    return [raw];
+  }
+  return const <String>[];
+}
+
+List<String> _stringListToJson(List<String> values) => values;
+
+RegionSummary? _regionSummaryFromJson(Map<String, dynamic>? json) =>
+    json == null ? null : RegionSummary.fromJson(json);
+
+Map<String, dynamic>? _regionSummaryToJson(RegionSummary? region) =>
+    region?.toJson();
+
+PlaceImage? _placeImageFromJson(Map<String, dynamic>? json) =>
+    json == null ? null : PlaceImage.fromJson(json);
+
+Map<String, dynamic>? _placeImageToJson(PlaceImage? image) => image?.toJson();
+
+List<PlaceImage> _placeImageListFromJson(dynamic raw) {
+  if (raw is List) {
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map(PlaceImage.fromJson)
+        .toList(growable: false);
+  }
+  return const <PlaceImage>[];
+}
+
+List<Map<String, dynamic>> _placeImageListToJson(List<PlaceImage> images) =>
+    images.map((e) => e.toJson()).toList(growable: false);

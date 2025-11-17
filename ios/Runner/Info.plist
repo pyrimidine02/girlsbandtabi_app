@@ -60,5 +60,9 @@
       </dict>
     </dict>
   </dict>
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>EN: We need your location to verify place visits. KO: 성지 방문 인증을 위해 현재 위치 정보가 필요합니다.</string>
+  <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+  <string>EN: Allow location access to verify places even when returning to the app. KO: 앱으로 돌아왔을 때도 성지 인증을 하려면 위치 접근을 허용해주세요.</string>
 </dict>
 </plist>

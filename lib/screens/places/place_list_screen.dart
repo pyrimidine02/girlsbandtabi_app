@@ -78,8 +78,13 @@ class _PlaceListScreenState extends ConsumerState<PlaceListScreen> {
     // KO: 검색 쿼리를 기반으로 장소 필터링
     final filteredPlaces = _searchQuery.isEmpty
         ? places
-        : places.where((place) =>
-            place.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+        : places
+              .where(
+                (place) => place.name.toLowerCase().contains(
+                  _searchQuery.toLowerCase(),
+                ),
+              )
+              .toList();
 
     return RefreshIndicator(
       color: theme.colorScheme.primary,
@@ -114,9 +119,7 @@ class _PlaceListScreenState extends ConsumerState<PlaceListScreen> {
           // KO: 검색 및 뷰 전환 컨트롤
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: kSpacingMedium),
-            sliver: SliverToBoxAdapter(
-              child: _buildSearchAndControls(theme),
-            ),
+            sliver: SliverToBoxAdapter(child: _buildSearchAndControls(theme)),
           ),
 
           // EN: Places grid or list
@@ -157,10 +160,7 @@ class _PlaceListScreenState extends ConsumerState<PlaceListScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Places',
-                      style: theme.textTheme.headlineLarge,
-                    ),
+                    Text('Places', style: theme.textTheme.headlineLarge),
                     const SizedBox(height: kSpacingXXSmall),
                     Text(
                       '성지와 라이브 장소를 탐험해보세요',
@@ -174,7 +174,9 @@ class _PlaceListScreenState extends ConsumerState<PlaceListScreen> {
                 icon: const Icon(Icons.map_outlined),
                 tooltip: '지도 보기',
                 style: IconButton.styleFrom(
-                  backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.8),
+                  backgroundColor: theme.colorScheme.surface.withValues(
+                    alpha: 0.8,
+                  ),
                 ),
               ),
             ],
@@ -196,7 +198,9 @@ class _PlaceListScreenState extends ConsumerState<PlaceListScreen> {
             FlowPill(
               label: selectedBandName,
               leading: const Icon(Icons.music_note_outlined, size: 16),
-              backgroundColor: theme.colorScheme.secondary.withValues(alpha: 0.18),
+              backgroundColor: theme.colorScheme.secondary.withValues(
+                alpha: 0.18,
+              ),
               onTap: () => showProjectBandSelector(
                 context,
                 ref,
@@ -299,13 +303,10 @@ class _PlaceListScreenState extends ConsumerState<PlaceListScreen> {
           crossAxisSpacing: kSpacingMedium,
           mainAxisSpacing: kSpacingMedium,
         ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final place = places[index];
-            return _PlaceGridItem(place: place);
-          },
-          childCount: places.length,
-        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final place = places[index];
+          return _PlaceGridItem(place: place);
+        }, childCount: places.length),
       ),
     );
   }
@@ -337,7 +338,9 @@ class _PlaceListScreenState extends ConsumerState<PlaceListScreen> {
           Icon(
             isSearching ? Icons.search_off_rounded : Icons.place_outlined,
             size: 64,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.4),
           ),
           const SizedBox(height: kSpacingMedium),
           Text(
@@ -346,9 +349,7 @@ class _PlaceListScreenState extends ConsumerState<PlaceListScreen> {
           ),
           const SizedBox(height: kSpacingXSmall),
           Text(
-            isSearching
-                ? '다른 검색어를 시도해보세요'
-                : '프로젝트나 밴드를 선택해보세요',
+            isSearching ? '다른 검색어를 시도해보세요' : '프로젝트나 밴드를 선택해보세요',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],
@@ -404,6 +405,9 @@ class _PlaceGridItem extends ConsumerWidget {
     final favoriteKey = FavoriteKey(FavoriteEntityType.place, place.id);
     final isFavorite = ref.watch(isFavoriteProvider(favoriteKey));
 
+    final introText = place.introText;
+    final regionText = place.regionSummary?.primaryName;
+
     return Semantics(
       label: '${place.name}, ${_getPlaceTypeLabel(place.type)} 장소',
       hint: '탭하여 상세 정보 보기',
@@ -413,92 +417,135 @@ class _PlaceGridItem extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          // EN: Place image
-          // KO: 장소 이미지
-          Expanded(
-            flex: 3,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                image: place.thumbnailUrl != null
-                    ? DecorationImage(
-                        image: NetworkImage(place.thumbnailUrl!),
-                        fit: BoxFit.cover,
+            // EN: Place image
+            // KO: 장소 이미지
+            Expanded(
+              flex: 3,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                  image: place.thumbnailUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(place.thumbnailUrl!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: place.thumbnailUrl == null
+                    ? Container(
+                        decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(24),
+                          ),
+                          gradient: LinearGradient(
+                            colors: [
+                              theme.colorScheme.primary.withValues(alpha: 0.2),
+                              theme.colorScheme.secondary.withValues(
+                                alpha: 0.18,
+                              ),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            _getPlaceTypeIcon(place.type),
+                            size: 32,
+                            color: Colors.white70,
+                          ),
+                        ),
                       )
-                    : null,
+                    : const SizedBox.shrink(),
               ),
-              child: place.thumbnailUrl == null
-                  ? Container(
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                        gradient: LinearGradient(
-                          colors: [
-                            theme.colorScheme.primary.withValues(alpha: 0.2),
-                            theme.colorScheme.secondary.withValues(alpha: 0.18),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          _getPlaceTypeIcon(place.type),
-                          size: 32,
-                          color: Colors.white70,
-                        ),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
             ),
-          ),
-          
-          // EN: Place info
-          // KO: 장소 정보
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(kSpacingSmall),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
+
+            // EN: Place info
+            // KO: 장소 정보
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(kSpacingSmall),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            place.name,
+                            style: theme.textTheme.titleSmall,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        _FavoriteButton(
+                          isFavorite: isFavorite,
+                          onToggle: () => _toggleFavorite(ref, place.id),
+                        ),
+                      ],
+                    ),
+                    if (introText != null && introText.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6, bottom: 4),
                         child: Text(
-                          place.name,
-                          style: theme.textTheme.titleSmall,
+                          introText,
+                          style: theme.textTheme.bodySmall,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
+                      )
+                    else
+                      const SizedBox(height: 6),
+                    if (regionText != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.public,
+                              size: 14,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                regionText,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      _FavoriteButton(
-                        isFavorite: isFavorite,
-                        onToggle: () => _toggleFavorite(ref, place.id),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: kSpacingXSmall,
+                        vertical: 2,
                       ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: kSpacingXSmall,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      _getPlaceTypeLabel(place.type),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w600,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withValues(
+                          alpha: 0.12,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _getPlaceTypeLabel(place.type),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
           ],
         ),
       ),
@@ -529,6 +576,8 @@ class _PlaceListItem extends ConsumerWidget {
     final theme = Theme.of(context);
     final favoriteKey = FavoriteKey(FavoriteEntityType.place, place.id);
     final isFavorite = ref.watch(isFavoriteProvider(favoriteKey));
+    final introText = place.introText;
+    final regionText = place.regionSummary?.primaryName;
 
     return Semantics(
       label: '${place.name}, ${_getPlaceTypeLabel(place.type)} 장소',
@@ -538,90 +587,126 @@ class _PlaceListItem extends ConsumerWidget {
         onTap: () => context.push('/places/${place.id}'),
         child: Row(
           children: [
-          // EN: Place image
-          // KO: 장소 이미지
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              borderRadius: const BorderRadius.horizontal(left: Radius.circular(24)),
-              image: place.thumbnailUrl != null
-                  ? DecorationImage(
-                      image: NetworkImage(place.thumbnailUrl!),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-            ),
-            child: place.thumbnailUrl == null
-                ? Container(
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.horizontal(left: Radius.circular(24)),
-                      gradient: LinearGradient(
-                        colors: [
-                          theme.colorScheme.primary.withValues(alpha: 0.2),
-                          theme.colorScheme.secondary.withValues(alpha: 0.18),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        _getPlaceTypeIcon(place.type),
-                        size: 24,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
-          
-          // EN: Place info
-          // KO: 장소 정보
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(kSpacingMedium),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          place.name,
-                          style: theme.textTheme.titleMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+            // EN: Place image
+            // KO: 장소 이미지
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.horizontal(
+                  left: Radius.circular(24),
+                ),
+                image: place.thumbnailUrl != null
+                    ? DecorationImage(
+                        image: NetworkImage(place.thumbnailUrl!),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: place.thumbnailUrl == null
+                  ? Container(
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.horizontal(
+                          left: Radius.circular(24),
+                        ),
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.colorScheme.primary.withValues(alpha: 0.2),
+                            theme.colorScheme.secondary.withValues(alpha: 0.18),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
                       ),
-                      _FavoriteButton(
-                        isFavorite: isFavorite,
-                        onToggle: () => _toggleFavorite(ref, place.id),
+                      child: Center(
+                        child: Icon(
+                          _getPlaceTypeIcon(place.type),
+                          size: 24,
+                          color: Colors.white70,
+                        ),
                       ),
-                    ],
-                  ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+
+            // EN: Place info
+            // KO: 장소 정보
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(kSpacingMedium),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            place.name,
+                            style: theme.textTheme.titleMedium,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        _FavoriteButton(
+                          isFavorite: isFavorite,
+                          onToggle: () => _toggleFavorite(ref, place.id),
+                        ),
+                      ],
+                    ),
                   const SizedBox(height: kSpacingXXSmall),
+                  if (introText != null && introText.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        introText,
+                        style: theme.textTheme.bodySmall,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  if (regionText != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
+                          Icon(Icons.public, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              regionText,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: kSpacingXSmall,
                       vertical: 2,
                     ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      _getPlaceTypeLabel(place.type),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w600,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withValues(
+                          alpha: 0.12,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _getPlaceTypeLabel(place.type),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
           ],
         ),
       ),
@@ -641,10 +726,7 @@ class _PlaceListItem extends ConsumerWidget {
 /// EN: Animated favorite button widget.
 /// KO: 애니메이션 즐겨찾기 버튼 위젯.
 class _FavoriteButton extends StatefulWidget {
-  const _FavoriteButton({
-    required this.isFavorite,
-    required this.onToggle,
-  });
+  const _FavoriteButton({required this.isFavorite, required this.onToggle});
 
   final bool isFavorite;
   final VoidCallback onToggle;
@@ -665,13 +747,9 @@ class _FavoriteButtonState extends State<_FavoriteButton>
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.2,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.elasticOut,
-    ));
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
+    );
   }
 
   @override
@@ -683,7 +761,7 @@ class _FavoriteButtonState extends State<_FavoriteButton>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return AnimatedBuilder(
       animation: _scaleAnimation,
       builder: (context, child) {
@@ -705,10 +783,7 @@ class _FavoriteButtonState extends State<_FavoriteButton>
                   : theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
             iconSize: 18,
-            constraints: const BoxConstraints(
-              minWidth: 28,
-              minHeight: 28,
-            ),
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             padding: EdgeInsets.zero,
             tooltip: widget.isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가',
           ),
