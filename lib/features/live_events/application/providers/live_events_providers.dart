@@ -19,7 +19,7 @@ import '../controllers/live_events_controller.dart';
 /// EN: Live events remote data source provider
 /// KO: 라이브 이벤트 원격 데이터 소스 프로바이더
 final liveEventsRemoteDataSourceProvider = Provider<LiveEventsRemoteDataSource>((ref) {
-  final apiClient = ref.watch(apiClientProvider);
+  final apiClient = ref.watch(core_providers.apiClientProvider);
   return LiveEventsRemoteDataSourceImpl(apiClient: apiClient);
 });
 

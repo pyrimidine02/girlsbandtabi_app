@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -96,10 +98,12 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       ]);
       return const Success(null);
     } catch (e) {
-      return ResultFailure(StorageFailure(
-        message: 'Failed to store authentication tokens: ${e.toString()}',
-        code: 'TOKEN_STORE_ERROR',
-      ));
+      return ResultFailure(
+        StorageFailure(
+          message: 'Failed to store authentication tokens: ${e.toString()}',
+          code: 'TOKEN_STORE_ERROR',
+        ),
+      );
     }
   }
 
@@ -113,10 +117,12 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       final legacyToken = await secureStorage.read(key: _legacyAccessTokenKey);
       return Success(legacyToken);
     } catch (e) {
-      return ResultFailure(StorageFailure(
-        message: 'Failed to retrieve access token: ${e.toString()}',
-        code: 'TOKEN_RETRIEVE_ERROR',
-      ));
+      return ResultFailure(
+        StorageFailure(
+          message: 'Failed to retrieve access token: ${e.toString()}',
+          code: 'TOKEN_RETRIEVE_ERROR',
+        ),
+      );
     }
   }
 
@@ -130,10 +136,12 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       final legacyToken = await secureStorage.read(key: _legacyRefreshTokenKey);
       return Success(legacyToken);
     } catch (e) {
-      return ResultFailure(StorageFailure(
-        message: 'Failed to retrieve refresh token: ${e.toString()}',
-        code: 'TOKEN_RETRIEVE_ERROR',
-      ));
+      return ResultFailure(
+        StorageFailure(
+          message: 'Failed to retrieve refresh token: ${e.toString()}',
+          code: 'TOKEN_RETRIEVE_ERROR',
+        ),
+      );
     }
   }
 
@@ -148,33 +156,40 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       ]);
       return const Success(null);
     } catch (e) {
-      return ResultFailure(StorageFailure(
-        message: 'Failed to clear authentication tokens: ${e.toString()}',
-        code: 'TOKEN_CLEAR_ERROR',
-      ));
+      return ResultFailure(
+        StorageFailure(
+          message: 'Failed to clear authentication tokens: ${e.toString()}',
+          code: 'TOKEN_CLEAR_ERROR',
+        ),
+      );
     }
   }
 
   @override
   Future<Result<void>> cacheUser(UserModel user) async {
     try {
-      final userJson = user.toJson();
-      final userString = userJson.toString(); // EN: Convert to string for storage / KO: 저장을 위해 문자열로 변환
-      
-      final success = await sharedPreferences.setString(_userCacheKey, userString);
+      final userJson = jsonEncode(user.toJson());
+      final success = await sharedPreferences.setString(
+        _userCacheKey,
+        userJson,
+      );
       if (success) {
         return const Success(null);
       } else {
-        return const ResultFailure(StorageFailure(
-          message: 'Failed to cache user profile',
-          code: 'USER_CACHE_ERROR',
-        ));
+        return const ResultFailure(
+          StorageFailure(
+            message: 'Failed to cache user profile',
+            code: 'USER_CACHE_ERROR',
+          ),
+        );
       }
     } catch (e) {
-      return ResultFailure(StorageFailure(
-        message: 'Failed to cache user profile: ${e.toString()}',
-        code: 'USER_CACHE_ERROR',
-      ));
+      return ResultFailure(
+        StorageFailure(
+          message: 'Failed to cache user profile: ${e.toString()}',
+          code: 'USER_CACHE_ERROR',
+        ),
+      );
     }
   }
 
@@ -185,17 +200,24 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       if (userString == null) {
         return const Success(null);
       }
+      final decoded = jsonDecode(userString);
+      if (decoded is! Map<String, dynamic>) {
+        await sharedPreferences.remove(_userCacheKey);
+        return const Success(null);
+      }
 
-      // EN: Note: This is a simplified implementation. In a real app, you'd want to
-      // use a proper JSON serialization library or store as JSON string
-      // KO: 참고: 이것은 단순화된 구현입니다. 실제 앱에서는 적절한 JSON 직렬화 라이브러리를 사용하거나 JSON 문자열로 저장하고 싶을 것입니다
-      
-      return const Success(null); // EN: Placeholder - implement proper deserialization / KO: 자리 표시자 - 적절한 역직렬화 구현
+      final userModel = UserModel.fromJson(decoded);
+      return Success(userModel);
+    } on FormatException {
+      await sharedPreferences.remove(_userCacheKey);
+      return const Success(null);
     } catch (e) {
-      return ResultFailure(StorageFailure(
-        message: 'Failed to retrieve cached user: ${e.toString()}',
-        code: 'USER_CACHE_RETRIEVE_ERROR',
-      ));
+      return ResultFailure(
+        StorageFailure(
+          message: 'Failed to retrieve cached user: ${e.toString()}',
+          code: 'USER_CACHE_RETRIEVE_ERROR',
+        ),
+      );
     }
   }
 
@@ -206,16 +228,20 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       if (success) {
         return const Success(null);
       } else {
-        return const ResultFailure(StorageFailure(
-          message: 'Failed to clear cached user',
-          code: 'USER_CACHE_CLEAR_ERROR',
-        ));
+        return const ResultFailure(
+          StorageFailure(
+            message: 'Failed to clear cached user',
+            code: 'USER_CACHE_CLEAR_ERROR',
+          ),
+        );
       }
     } catch (e) {
-      return ResultFailure(StorageFailure(
-        message: 'Failed to clear cached user: ${e.toString()}',
-        code: 'USER_CACHE_CLEAR_ERROR',
-      ));
+      return ResultFailure(
+        StorageFailure(
+          message: 'Failed to clear cached user: ${e.toString()}',
+          code: 'USER_CACHE_CLEAR_ERROR',
+        ),
+      );
     }
   }
 
@@ -227,17 +253,19 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
       return accessTokenResult.flatMap((accessToken) {
         return refreshTokenResult.map((refreshToken) {
-          return accessToken != null && 
-                 accessToken.isNotEmpty && 
-                 refreshToken != null && 
-                 refreshToken.isNotEmpty;
+          return accessToken != null &&
+              accessToken.isNotEmpty &&
+              refreshToken != null &&
+              refreshToken.isNotEmpty;
         });
       });
     } catch (e) {
-      return ResultFailure(StorageFailure(
-        message: 'Failed to check login status: ${e.toString()}',
-        code: 'LOGIN_STATUS_CHECK_ERROR',
-      ));
+      return ResultFailure(
+        StorageFailure(
+          message: 'Failed to check login status: ${e.toString()}',
+          code: 'LOGIN_STATUS_CHECK_ERROR',
+        ),
+      );
     }
   }
 
@@ -248,16 +276,20 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       if (success) {
         return const Success(null);
       } else {
-        return ResultFailure(StorageFailure(
-          message: 'Failed to store preference: $key',
-          code: 'PREFERENCE_STORE_ERROR',
-        ));
+        return ResultFailure(
+          StorageFailure(
+            message: 'Failed to store preference: $key',
+            code: 'PREFERENCE_STORE_ERROR',
+          ),
+        );
       }
     } catch (e) {
-      return ResultFailure(StorageFailure(
-        message: 'Failed to store preference: ${e.toString()}',
-        code: 'PREFERENCE_STORE_ERROR',
-      ));
+      return ResultFailure(
+        StorageFailure(
+          message: 'Failed to store preference: ${e.toString()}',
+          code: 'PREFERENCE_STORE_ERROR',
+        ),
+      );
     }
   }
 
@@ -267,10 +299,12 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       final value = sharedPreferences.getString(key);
       return Success(value);
     } catch (e) {
-      return ResultFailure(StorageFailure(
-        message: 'Failed to retrieve preference: ${e.toString()}',
-        code: 'PREFERENCE_RETRIEVE_ERROR',
-      ));
+      return ResultFailure(
+        StorageFailure(
+          message: 'Failed to retrieve preference: ${e.toString()}',
+          code: 'PREFERENCE_RETRIEVE_ERROR',
+        ),
+      );
     }
   }
 
@@ -281,16 +315,20 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       if (success) {
         return const Success(null);
       } else {
-        return const ResultFailure(StorageFailure(
-          message: 'Failed to clear preferences',
-          code: 'PREFERENCE_CLEAR_ERROR',
-        ));
+        return const ResultFailure(
+          StorageFailure(
+            message: 'Failed to clear preferences',
+            code: 'PREFERENCE_CLEAR_ERROR',
+          ),
+        );
       }
     } catch (e) {
-      return ResultFailure(StorageFailure(
-        message: 'Failed to clear preferences: ${e.toString()}',
-        code: 'PREFERENCE_CLEAR_ERROR',
-      ));
+      return ResultFailure(
+        StorageFailure(
+          message: 'Failed to clear preferences: ${e.toString()}',
+          code: 'PREFERENCE_CLEAR_ERROR',
+        ),
+      );
     }
   }
 }

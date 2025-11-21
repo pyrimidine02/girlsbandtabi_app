@@ -178,7 +178,7 @@ class _LiveEventsListPageState extends ConsumerState<LiveEventsListPage> {
                   onRefresh: () async => _onRefresh(),
                   child: ListView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
                     itemCount: events.length + (hasMore ? 1 : 0),
                     itemBuilder: (context, index) {
                       if (index >= events.length) {

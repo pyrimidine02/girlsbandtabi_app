@@ -9,5 +9,5 @@ final placeServiceProvider = Provider<PlaceService>((ref) => PlaceService());
 final placesPageProvider = FutureProvider.autoDispose<model.PaginatedPlaceResponse>((ref) async {
   final service = ref.watch(placeServiceProvider);
   final project = ref.watch(selectedProjectProvider) ?? ApiConstants.defaultProjectId;
-  return service.getPlaces(projectId: project, page: 0, size: 20, sort: 'createdAt,desc');
+  return service.getPlaces(projectId: project, page: 0, size: 1000, sort: 'createdAt,desc');
 });

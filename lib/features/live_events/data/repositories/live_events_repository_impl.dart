@@ -1,3 +1,4 @@
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/result.dart';
@@ -24,10 +25,14 @@ class LiveEventsRepositoryImpl implements LiveEventsRepository {
   @override
   Future<Result<List<LiveEvent>>> getLiveEvents(GetLiveEventsParams params) async {
     try {
+      // EN: Use the default project ID
+      // KO: 기본 프로젝트 ID 사용
+      const projectId = ApiConstants.defaultProjectId;
+      
       // EN: Try to get events from remote source first
       // KO: 먼저 원격 소스에서 이벤트 가져오기 시도
       try {
-        final remoteEvents = await _remoteDataSource.getLiveEvents(params);
+        final remoteEvents = await _remoteDataSource.getLiveEvents(params, projectId);
         final domainEvents = remoteEvents.map((model) => model.toDomain()).toList();
 
         // EN: Cache the events for offline access
@@ -97,10 +102,14 @@ class LiveEventsRepositoryImpl implements LiveEventsRepository {
   @override
   Future<Result<List<LiveEvent>>> searchLiveEvents(SearchLiveEventsParams params) async {
     try {
+      // EN: Use the default project ID
+      // KO: 기본 프로젝트 ID 사용
+      const projectId = ApiConstants.defaultProjectId;
+      
       // EN: Search is always performed on remote data for accuracy
       // KO: 검색은 정확성을 위해 항상 원격 데이터에서 수행
       try {
-        final remoteEvents = await _remoteDataSource.searchLiveEvents(params);
+        final remoteEvents = await _remoteDataSource.searchLiveEvents(params, projectId);
         final domainEvents = remoteEvents.map((model) => model.toDomain()).toList();
 
         return Success(domainEvents);
@@ -124,8 +133,13 @@ class LiveEventsRepositoryImpl implements LiveEventsRepository {
     int size = 20,
   }) async {
     try {
+      // EN: Use the default project ID
+      // KO: 기본 프로젝트 ID 사용
+      const projectId = ApiConstants.defaultProjectId;
+      
       try {
         final remoteEvents = await _remoteDataSource.getUpcomingLiveEvents(
+          projectId: projectId,
           page: page,
           size: size,
         );
@@ -169,8 +183,13 @@ class LiveEventsRepositoryImpl implements LiveEventsRepository {
     int size = 20,
   }) async {
     try {
+      // EN: Use the default project ID
+      // KO: 기본 프로젝트 ID 사용
+      const projectId = ApiConstants.defaultProjectId;
+      
       try {
         final remoteEvents = await _remoteDataSource.getLiveEventsByStatus(
+          projectId: projectId,
           status: status,
           page: page,
           size: size,

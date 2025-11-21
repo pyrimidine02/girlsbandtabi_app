@@ -1,12 +1,19 @@
+import '../config/app_config.dart';
+
 class ApiConstants {
-  static const String baseUrl = 'http://localhost:8080';
+  /// EN: API base URL - Change in app_config.dart for deployment
+  /// KO: API 기본 URL - 배포시 app_config.dart에서 변경
+  /// 
+  /// 🔧 CHANGE URL HERE / URL 변경 위치:
+  /// 📁 lib/core/config/app_config.dart
+  static String get baseUrl => AppConfig.baseUrl;
 
   // Common bases
   static const String apiBase = '/api/v1';
   static const String admin = '$apiBase/admin';
 
   // Defaults
-  static const String defaultProjectId = 'girls_band_cry';
+  static const String defaultProjectId = 'girls-band-cry';
 
   // Auth
   static const String login = '$apiBase/auth/login';
