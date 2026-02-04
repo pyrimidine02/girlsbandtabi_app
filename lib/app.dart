@@ -1,212 +1,145 @@
+/// EN: Main application widget with theme and router configuration
+/// KO: 테마 및 라우터 구성을 포함한 메인 앱 위젯
+library;
+
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'core/theme/kt_theme.dart';
-import 'features/auth/application/providers/auth_providers.dart';
-import 'features/auth/presentation/pages/login_page.dart';
+import 'core/connectivity/connectivity_service.dart';
+import 'core/providers/core_providers.dart';
+import 'core/router/app_router.dart';
+import 'core/theme/gbt_theme.dart';
 
-/// EN: Main application widget with Clean Architecture implementation
-/// KO: Clean Architecture 구현을 포함한 메인 애플리케이션 위젯
-class App extends ConsumerStatefulWidget {
-  /// EN: Creates the main app instance
-  /// KO: 메인 앱 인스턴스 생성
-  const App({super.key});
-
-  @override
-  ConsumerState<App> createState() => _AppState();
-}
-
-class _AppState extends ConsumerState<App> {
-  @override
-  void initState() {
-    super.initState();
-    
-    // EN: Check authentication status on app start
-    // KO: 앱 시작시 인증 상태 확인
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(authControllerProvider.notifier).checkAuthStatus();
-    });
-  }
+/// EN: Main application widget
+/// KO: 메인 앱 위젯
+class GBTApp extends ConsumerWidget {
+  const GBTApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '걸즈밴드타비',
-      theme: KTTheme.lightTheme,
-      darkTheme: KTTheme.darkTheme,
-      themeMode: ThemeMode.system,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(appRouterProvider);
+    final themeMode = ref.watch(themeModeProvider);
+
+    return MaterialApp.router(
+      title: 'Girls Band Tabi',
       debugShowCheckedModeBanner: false,
-      
-      // EN: Use auth state to determine initial route
-      // KO: 인증 상태를 사용해 초기 경로 결정
-      home: Consumer(
-        builder: (context, ref, child) {
-          final authState = ref.watch(authControllerProvider);
-          
-          return authState.when(
-            initial: () => _buildSplashScreen(),
-            loading: () => _buildSplashScreen(),
-            authenticated: (user) => _buildHomeScreen(user.displayName),
-            unauthenticated: () => const LoginPage(),
-            error: (failure) => _buildErrorScreen(failure.message),
-          );
-        },
-      ),
-      
-      // EN: Define named routes for navigation
-      // KO: 네비게이션용 명명된 경로 정의
-      routes: {
-        '/login': (context) => const LoginPage(),
-        '/home': (context) => _buildHomeScreen('사용자'),
-        '/register': (context) => _buildRegisterScreen(),
+
+      // EN: Theme configuration
+      // KO: 테마 구성
+      theme: GBTTheme.light,
+      darkTheme: GBTTheme.dark,
+      themeMode: _parseThemeMode(themeMode),
+
+      // EN: Router configuration
+      // KO: 라우터 구성
+      routerConfig: router,
+
+      // EN: Localization
+      // KO: 다국어 지원
+      locale: const Locale('ko', 'KR'),
+      supportedLocales: const [
+        Locale('ko', 'KR'),
+        Locale('en', 'US'),
+        Locale('ja', 'JP'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+
+      // EN: Builder for global overlays
+      // KO: 전역 오버레이를 위한 빌더
+      builder: (context, child) {
+        return MediaQuery(
+          // EN: Prevent text scaling beyond 1.3x for accessibility
+          // KO: 접근성을 위해 텍스트 스케일링을 1.3배 이하로 제한
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(
+              MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.3),
+            ),
+          ),
+          child: _ConnectivityWrapper(child: child ?? const SizedBox.shrink()),
+        );
       },
     );
   }
 
-  /// EN: Build splash/loading screen
-  /// KO: 스플래시/로딩 화면 구성
-  Widget _buildSplashScreen() {
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text(
-              '걸즈밴드타비',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Loading...',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
-          ],
+  /// EN: Parse theme mode string to ThemeMode enum
+  /// KO: 테마 모드 문자열을 ThemeMode 열거형으로 파싱
+  ThemeMode _parseThemeMode(String mode) {
+    return switch (mode) {
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      _ => ThemeMode.system,
+    };
+  }
+}
+
+/// EN: Wrapper widget for connectivity status display
+/// KO: 연결 상태 표시를 위한 래퍼 위젯
+class _ConnectivityWrapper extends ConsumerWidget {
+  const _ConnectivityWrapper({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final connectivityAsync = ref.watch(connectivityStatusProvider);
+
+    return Column(
+      children: [
+        // EN: Offline banner
+        // KO: 오프라인 배너
+        connectivityAsync.when(
+          data: (status) {
+            if (status == ConnectivityStatus.offline) {
+              return _OfflineBanner();
+            }
+            return const SizedBox.shrink();
+          },
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
         ),
-      ),
+
+        // EN: Main content
+        // KO: 메인 콘텐츠
+        Expanded(child: child),
+      ],
     );
   }
+}
 
-  /// EN: Build home screen (placeholder)
-  /// KO: 홈 화면 구성 (자리 표시자)
-  Widget _buildHomeScreen(String displayName) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('걸즈밴드타비'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              ref.read(authControllerProvider.notifier).logout();
-            },
+/// EN: Offline status banner widget
+/// KO: 오프라인 상태 배너 위젯
+class _OfflineBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        color: Theme.of(context).colorScheme.error,
+        child: SafeArea(
+          bottom: false,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.cloud_off,
+                size: 16,
+                color: Theme.of(context).colorScheme.onError,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '오프라인 모드 - 일부 기능이 제한됩니다',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onError,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.check_circle,
-              size: 100,
-              color: Colors.green,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '환영합니다, $displayName님!',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Clean Architecture 구현이 성공적으로 작동하고 있습니다.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () {
-                ref.read(authControllerProvider.notifier).logout();
-              },
-              child: const Text('로그아웃'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// EN: Build error screen
-  /// KO: 오류 화면 구성
-  Widget _buildErrorScreen(String message) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.error,
-              size: 100,
-              color: Colors.red,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              '오류가 발생했습니다',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () {
-                ref.read(authControllerProvider.notifier).checkAuthStatus();
-              },
-              child: const Text('다시 시도'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// EN: Build register screen (placeholder)
-  /// KO: 등록 화면 구성 (자리 표시자)
-  Widget _buildRegisterScreen() {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('회원가입'),
-      ),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '회원가입 화면',
-              style: TextStyle(fontSize: 24),
-            ),
-            SizedBox(height: 16),
-            Text(
-              '여기에 회원가입 폼이 구현될 예정입니다.',
-              textAlign: TextAlign.center,
-            ),
-          ],
         ),
       ),
     );

@@ -1,257 +1,68 @@
-import 'package:dio/dio.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+/// EN: Application entry point
+/// KO: 앱 진입점
+library;
 
-import 'core/constants/api_constants.dart';
-import 'core/network/network_client.dart';
-import 'core/providers/core_providers.dart' as core_providers;
-import 'core/router/app_router.dart';
-import 'core/theme/app_colors.dart';
-import 'core/theme/app_typography.dart';
-import 'features/auth/application/providers/auth_providers.dart' as auth_providers;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'app.dart';
+import 'core/config/app_config.dart';
+import 'core/logging/app_logger.dart';
+import 'core/providers/core_providers.dart';
 
 Future<void> main() async {
+  // EN: Ensure Flutter bindings are initialized
+  // KO: Flutter 바인딩 초기화 확인
   WidgetsFlutterBinding.ensureInitialized();
-  final sharedPrefs = await SharedPreferences.getInstance();
 
-  final dio = Dio(
-    BaseOptions(
-      baseUrl: ApiConstants.baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-      headers: const {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+  // EN: Initialize app configuration
+  // KO: 앱 구성 초기화
+  AppConfig.instance.init(
+    environment: Environment.development,
+    // EN: Override with actual values for production
+    // KO: 프로덕션에서는 실제 값으로 오버라이드
+  );
+
+  AppLogger.info('App starting', tag: 'Main');
+  AppLogger.info('Environment: ${AppConfig.instance.environment.name}');
+  AppLogger.info('Base URL: ${AppConfig.instance.baseUrl}');
+
+  // EN: Set preferred orientations
+  // KO: 선호 방향 설정
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  // EN: Set system UI overlay style
+  // KO: 시스템 UI 오버레이 스타일 설정
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.white,
+      systemNavigationBarIconBrightness: Brightness.dark,
     ),
   );
 
-  const secureStorage = FlutterSecureStorage();
+  // EN: Create provider container for pre-initialization
+  // KO: 사전 초기화를 위한 프로바이더 컨테이너 생성
+  final container = ProviderContainer();
 
-  dio.interceptors.add(
-    InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final path = options.path;
-        final isAuthEndpoint = path.contains('/auth/login') ||
-            path.contains('/auth/register') ||
-            path.contains('/auth/refresh');
-        if (!isAuthEndpoint) {
-          final token = await secureStorage.read(key: 'access_token');
-          if (token != null && token.isNotEmpty) {
-            options.headers['Authorization'] = 'Bearer $token';
-          }
-        }
-        handler.next(options);
-      },
-    ),
-  );
+  // EN: Pre-initialize local storage
+  // KO: 로컬 저장소 사전 초기화
+  await container.read(localStorageProvider.future);
 
-  dio.interceptors.add(
-    LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      requestHeader: true,
-      responseHeader: false,
-      logPrint: (object) => debugPrint(object.toString()),
-    ),
-  );
+  // EN: Check authentication status
+  // KO: 인증 상태 확인
+  await container.read(authStateProvider.notifier).checkAuthStatus();
 
-  final networkClient = DioNetworkClient(
-    dio: dio,
-    defaultDecoder: (data) {
-      if (data is Map<String, dynamic>) {
-        return data;
-      }
-      if (data is List) {
-        return {'data': data};
-      }
-      return {'value': data};
-    },
-  );
+  AppLogger.info('App initialization complete', tag: 'Main');
 
+  // EN: Run the app with Riverpod
+  // KO: Riverpod과 함께 앱 실행
   runApp(
-    ProviderScope(
-      overrides: [
-        core_providers.sharedPreferencesProvider.overrideWithValue(sharedPrefs),
-        auth_providers.sharedPreferencesProvider.overrideWithValue(sharedPrefs),
-        auth_providers.networkClientProvider.overrideWithValue(networkClient),
-      ],
-      child: const MyApp(),
-    ),
+    UncontrolledProviderScope(container: container, child: const GBTApp()),
   );
-}
-
-class MyApp extends ConsumerStatefulWidget {
-  const MyApp({super.key});
-
-  @override
-  ConsumerState<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends ConsumerState<MyApp> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(auth_providers.authControllerProvider.notifier).checkAuthStatus();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final ref = this.ref;
-    final router = ref.watch(routerProvider);
-    // Initialize selection persistence (load + watch changes)
-    ref.watch(core_providers.selectionPersistenceManagerProvider);
-
-    final lightTheme = ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.light,
-      scaffoldBackgroundColor: AppColors.lightBackground,
-      fontFamily: AppTypography.fontFamily,
-      textTheme: AppTypography.lightTextTheme,
-      colorScheme: const ColorScheme.light(
-      primary: AppColors.lightAccent,
-      onPrimary: Colors.white,
-      secondary: AppColors.lightAccentSecondary,
-      onSecondary: AppColors.lightTextPrimary,
-      tertiary: AppColors.lightAccentTertiary,
-      onTertiary: Colors.white,
-      surface: AppColors.lightSurface,
-      onSurface: AppColors.lightTextPrimary,
-      error: AppColors.lightError,
-      onError: Colors.white,
-    ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.transparent,
-        foregroundColor: AppColors.lightTextPrimary,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: false,
-      ),
-      cardTheme: CardThemeData(
-        clipBehavior: Clip.antiAlias,
-        color: AppColors.lightSurface,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-          side: const BorderSide(color: AppColors.lightCardOutline),
-        ),
-      ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        selectedItemColor: AppColors.lightAccent,
-        unselectedItemColor: AppColors.lightTextSecondary,
-        showUnselectedLabels: true,
-        type: BottomNavigationBarType.fixed,
-      ),
-      chipTheme: ChipThemeData(
-        backgroundColor: AppColors.lightSurface,
-        selectedColor: AppColors.lightAccent.withValues(alpha: 0.12),
-        secondarySelectedColor: AppColors.lightAccent,
-        labelStyle: AppTypography.lightTextTheme.labelLarge!,
-        secondaryLabelStyle:
-            AppTypography.lightTextTheme.labelLarge!.copyWith(color: Colors.white),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      ),
-      cupertinoOverrideTheme: const CupertinoThemeData(
-        brightness: Brightness.light,
-        primaryColor: AppColors.lightAccent,
-        scaffoldBackgroundColor: AppColors.lightBackground,
-        barBackgroundColor: Color(0xF2FFFFFF),
-        textTheme: CupertinoTextThemeData(
-          textStyle: TextStyle(
-            fontFamily: AppTypography.fontFamily,
-            color: AppColors.lightTextPrimary,
-          ),
-        ),
-      ),
-    );
-
-    final darkTheme = ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.darkBackground,
-      fontFamily: AppTypography.fontFamily,
-      textTheme: AppTypography.darkTextTheme,
-      colorScheme: const ColorScheme.dark(
-      primary: AppColors.darkAccentSecondary,
-      onPrimary: Colors.black,
-      secondary: AppColors.darkAccent,
-      onSecondary: Colors.black,
-      tertiary: AppColors.darkAccentTertiary,
-      onTertiary: Colors.black,
-      surface: AppColors.darkSurface,
-      onSurface: AppColors.darkTextPrimary,
-      error: AppColors.darkError,
-      onError: Colors.black,
-    ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.transparent,
-        foregroundColor: AppColors.darkTextPrimary,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: false,
-      ),
-      cardTheme: CardThemeData(
-        clipBehavior: Clip.antiAlias,
-        color: AppColors.darkSurface,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-          side: const BorderSide(color: AppColors.darkCardOutline),
-        ),
-      ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        selectedItemColor: AppColors.darkAccent,
-        unselectedItemColor: AppColors.darkTextSecondary,
-        showUnselectedLabels: true,
-        type: BottomNavigationBarType.fixed,
-      ),
-      chipTheme: ChipThemeData(
-        backgroundColor: AppColors.darkSurfaceElevated,
-        selectedColor: AppColors.darkAccentSecondary.withValues(alpha: 0.18),
-        secondarySelectedColor: AppColors.darkAccent,
-        labelStyle: AppTypography.darkTextTheme.labelLarge!,
-        secondaryLabelStyle:
-            AppTypography.darkTextTheme.labelLarge!.copyWith(color: Colors.black),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      ),
-      cupertinoOverrideTheme: const CupertinoThemeData(
-        brightness: Brightness.dark,
-        primaryColor: AppColors.darkAccent,
-        scaffoldBackgroundColor: AppColors.darkBackground,
-        barBackgroundColor: Color(0xCC141A29),
-        textTheme: CupertinoTextThemeData(
-          textStyle: TextStyle(
-            fontFamily: AppTypography.fontFamily,
-            color: AppColors.darkTextPrimary,
-          ),
-        ),
-      ),
-    );
-
-    return MaterialApp.router(
-      title: '걸즈밴드타비',
-      theme: lightTheme,
-      darkTheme: darkTheme,
-      themeMode: ThemeMode.system,
-      routerConfig: router,
-      debugShowCheckedModeBanner: false,
-    );
-  }
 }

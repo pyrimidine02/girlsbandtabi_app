@@ -1,167 +1,68 @@
+/// EN: Dio-based API client with JWT interceptor and error handling
+/// KO: JWT 인터셉터와 에러 처리를 포함한 Dio 기반 API 클라이언트
+library;
+
 import 'package:dio/dio.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/foundation.dart';
 
+import '../config/app_config.dart';
 import '../constants/api_constants.dart';
-import 'api_envelope.dart';
+import '../error/error_handler.dart';
+import '../error/failure.dart';
+import '../logging/app_logger.dart';
+import '../security/secure_storage.dart';
+import '../utils/result.dart';
 
-/// EN: Provider for ApiClient
-/// KO: ApiClient 프로바이더
-final apiClientProvider = Provider<ApiClient>((ref) {
-  return ApiClient.instance;
-});
-
+/// EN: API client for making HTTP requests
+/// KO: HTTP 요청을 위한 API 클라이언트
 class ApiClient {
-  ApiClient._internal() {
-    _dio = Dio(
-      BaseOptions(
-        baseUrl: ApiConstants.baseUrl,
-        connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 30),
-        headers: const {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      ),
+  ApiClient({
+    required SecureStorage secureStorage,
+    VoidCallback? onUnauthorized,
+    Dio? dio,
+  }) : _secureStorage = secureStorage,
+       _onUnauthorized = onUnauthorized,
+       _dio = dio ?? Dio() {
+    _setupDio();
+  }
+
+  final Dio _dio;
+  final SecureStorage _secureStorage;
+  final VoidCallback? _onUnauthorized;
+
+  /// EN: Setup Dio with base configuration and interceptors
+  /// KO: 기본 구성 및 인터셉터로 Dio 설정
+  void _setupDio() {
+    _dio.options = BaseOptions(
+      baseUrl: AppConfig.instance.baseUrl,
+      connectTimeout: const Duration(milliseconds: ApiTimeouts.connectTimeout),
+      receiveTimeout: const Duration(milliseconds: ApiTimeouts.receiveTimeout),
+      sendTimeout: const Duration(milliseconds: ApiTimeouts.sendTimeout),
+      headers: {
+        ApiHeaders.contentType: ApiHeaders.applicationJson,
+        ApiHeaders.clientType: ApiHeaders.clientTypeMobile,
+      },
     );
 
-    _setupInterceptors();
-  }
-
-  static final ApiClient _instance = ApiClient._internal();
-  static ApiClient get instance => _instance;
-
-  late final Dio _dio;
-  final _secureStorage = const FlutterSecureStorage();
-
-  void _setupInterceptors() {
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          final isAuthEndpoint =
-              options.path == ApiConstants.refresh ||
-              options.path == ApiConstants.login ||
-              options.path == ApiConstants.register ||
-              options.extra['skipAuth'] == true;
-
-          if (!isAuthEndpoint) {
-            final token = await _secureStorage.read(key: 'access_token');
-            if (token != null) {
-              options.headers['Authorization'] = 'Bearer $token';
-            }
-          } else {
-            options.headers.remove('Authorization');
-          }
-          handler.next(options);
-        },
-        onResponse: (response, handler) {
-          handler.next(response);
-        },
-        onError: (error, handler) async {
-          if (error.response?.statusCode == 401 &&
-              error.requestOptions.path != ApiConstants.refresh) {
-            final refreshed = await _refreshToken();
-            if (refreshed) {
-              final newToken = await _secureStorage.read(key: 'access_token');
-              final mergedHeaders = Map<String, dynamic>.from(
-                error.requestOptions.headers,
-              );
-              if (newToken != null && newToken.isNotEmpty) {
-                mergedHeaders['Authorization'] = 'Bearer $newToken';
-              }
-              try {
-                final clonedRequest = await _dio.request<dynamic>(
-                  error.requestOptions.path,
-                  data: error.requestOptions.data,
-                  queryParameters: error.requestOptions.queryParameters,
-                  options: Options(
-                    method: error.requestOptions.method,
-                    headers: mergedHeaders,
-                  ),
-                );
-                handler.resolve(clonedRequest);
-                return;
-              } on DioException catch (retryError) {
-                handler.next(retryError);
-                return;
-              }
-            } else {
-              await _clearTokens();
-            }
-          }
-          handler.next(error);
-        },
+    _dio.interceptors.addAll([
+      _AuthInterceptor(
+        _secureStorage,
+        _dio,
+        onUnauthorized: _onUnauthorized,
       ),
-    );
-
-    _dio.interceptors.add(
-      LogInterceptor(
-        requestBody: true,
-        responseBody: true,
-        requestHeader: true,
-        responseHeader: false,
-      ),
-    );
+      _LoggingInterceptor(),
+    ]);
   }
 
-  Future<bool> _refreshToken() async {
-    try {
-      final refreshToken = await _secureStorage.read(key: 'refresh_token');
-      if (refreshToken == null || refreshToken.isEmpty) {
-        return false;
-      }
-
-      final response = await _dio.post<dynamic>(
-        ApiConstants.refresh,
-        data: {'refreshToken': refreshToken},
-        options: Options(
-          headers: {'Authorization': null},
-          extra: {'skipAuth': true},
-        ),
-      );
-
-      final envelope = _processResponse(response, expectEnvelope: true);
-
-      final payload = envelope.requireDataAsMap();
-      final accessToken = payload['accessToken']?.toString();
-      final refresh = payload['refreshToken']?.toString();
-      if (accessToken == null || refresh == null) {
-        return false;
-      }
-      await _secureStorage.write(key: 'access_token', value: accessToken);
-      await _secureStorage.write(key: 'refresh_token', value: refresh);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<void> _clearTokens() async {
-    await _secureStorage.delete(key: 'access_token');
-    await _secureStorage.delete(key: 'refresh_token');
-  }
-
-  Future<Response<T>> getRaw<T>(
+  // ========================================
+  // EN: GET Request
+  // KO: GET 요청
+  // ========================================
+  Future<Result<T>> get<T>(
     String path, {
     Map<String, dynamic>? queryParameters,
+    T Function(dynamic)? fromJson,
     Options? options,
-  }) async {
-    try {
-      return await _dio.get<T>(
-        path,
-        queryParameters: queryParameters,
-        options: options,
-      );
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-  Future<ApiEnvelope> get(
-    String path, {
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-    bool expectEnvelope = true,
   }) async {
     try {
       final response = await _dio.get<dynamic>(
@@ -169,18 +70,24 @@ class ApiClient {
         queryParameters: queryParameters,
         options: options,
       );
-      return _processResponse(response, expectEnvelope: expectEnvelope);
+      return _handleResponse<T>(response, fromJson);
     } on DioException catch (e) {
-      throw _handleError(e);
+      return Result.failure(ErrorHandler.mapDioError(e));
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
     }
   }
 
-  Future<ApiEnvelope> post(
+  // ========================================
+  // EN: POST Request
+  // KO: POST 요청
+  // ========================================
+  Future<Result<T>> post<T>(
     String path, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
+    T Function(dynamic)? fromJson,
     Options? options,
-    bool expectEnvelope = true,
   }) async {
     try {
       final response = await _dio.post<dynamic>(
@@ -189,18 +96,24 @@ class ApiClient {
         queryParameters: queryParameters,
         options: options,
       );
-      return _processResponse(response, expectEnvelope: expectEnvelope);
+      return _handleResponse<T>(response, fromJson);
     } on DioException catch (e) {
-      throw _handleError(e);
+      return Result.failure(ErrorHandler.mapDioError(e));
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
     }
   }
 
-  Future<ApiEnvelope> put(
+  // ========================================
+  // EN: PUT Request
+  // KO: PUT 요청
+  // ========================================
+  Future<Result<T>> put<T>(
     String path, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
+    T Function(dynamic)? fromJson,
     Options? options,
-    bool expectEnvelope = true,
   }) async {
     try {
       final response = await _dio.put<dynamic>(
@@ -209,18 +122,24 @@ class ApiClient {
         queryParameters: queryParameters,
         options: options,
       );
-      return _processResponse(response, expectEnvelope: expectEnvelope);
+      return _handleResponse<T>(response, fromJson);
     } on DioException catch (e) {
-      throw _handleError(e);
+      return Result.failure(ErrorHandler.mapDioError(e));
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
     }
   }
 
-  Future<ApiEnvelope> patch(
+  // ========================================
+  // EN: PATCH Request
+  // KO: PATCH 요청
+  // ========================================
+  Future<Result<T>> patch<T>(
     String path, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
+    T Function(dynamic)? fromJson,
     Options? options,
-    bool expectEnvelope = true,
   }) async {
     try {
       final response = await _dio.patch<dynamic>(
@@ -229,18 +148,24 @@ class ApiClient {
         queryParameters: queryParameters,
         options: options,
       );
-      return _processResponse(response, expectEnvelope: expectEnvelope);
+      return _handleResponse<T>(response, fromJson);
     } on DioException catch (e) {
-      throw _handleError(e);
+      return Result.failure(ErrorHandler.mapDioError(e));
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
     }
   }
 
-  Future<ApiEnvelope> delete(
+  // ========================================
+  // EN: DELETE Request
+  // KO: DELETE 요청
+  // ========================================
+  Future<Result<T>> delete<T>(
     String path, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
+    T Function(dynamic)? fromJson,
     Options? options,
-    bool expectEnvelope = true,
   }) async {
     try {
       final response = await _dio.delete<dynamic>(
@@ -249,162 +174,294 @@ class ApiClient {
         queryParameters: queryParameters,
         options: options,
       );
-      return _processResponse(response, expectEnvelope: expectEnvelope);
+      return _handleResponse<T>(response, fromJson);
     } on DioException catch (e) {
-      throw _handleError(e);
+      return Result.failure(ErrorHandler.mapDioError(e));
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
     }
   }
 
-  ApiEnvelope _processResponse(
-    Response<dynamic> response, {
-    required bool expectEnvelope,
-  }) {
-    final statusCode = response.statusCode;
-    final body = response.data;
+  // ========================================
+  // EN: Response Handler
+  // KO: 응답 핸들러
+  // ========================================
+  Result<T> _handleResponse<T>(
+    Response<dynamic> response,
+    T Function(dynamic)? fromJson,
+  ) {
+    final data = response.data;
 
-    if (expectEnvelope && body is Map<String, dynamic>) {
-      if (body.containsKey('success')) {
-        final envelope = ApiEnvelope.fromJson(body, statusCode: statusCode);
-        if (!envelope.isSuccess) {
-          throw ApiException.fromEnvelope(envelope);
-        }
-        return envelope;
+    // EN: Handle ApiResponse wrapper
+    // KO: ApiResponse 래퍼 처리
+    if (data is Map<String, dynamic>) {
+      final success = data['success'] as bool? ?? true;
+      if (!success) {
+        final error = data['error'];
+        final message = error?['message'] as String? ?? 'Unknown error';
+        final code = error?['code'] as String?;
+        return Result.failure(ServerFailure(message, code: code));
       }
 
-      if (body.containsKey('error') && !body.containsKey('success')) {
-        final merged = <String, dynamic>{'success': false, ...body};
-        final envelope = ApiEnvelope.fromJson(merged, statusCode: statusCode);
-        throw ApiException.fromEnvelope(envelope);
-      }
+      // EN: Extract data from wrapper if present
+      // KO: 래퍼에서 데이터 추출
+      final responseData = data['data'] ?? data;
 
-      final data = body.containsKey('data') ? body['data'] : body;
-      final metadata = body['metadata'] is Map<String, dynamic>
-          ? ApiResponseMetadata.fromJson(
-              body['metadata'] as Map<String, dynamic>?,
-            )
-          : null;
-      final pagination = body['pagination'] is Map<String, dynamic>
-          ? ApiPagination.fromJson(body['pagination'] as Map<String, dynamic>?)
-          : null;
-
-      return ApiEnvelope(
-        success: statusCode != null
-            ? statusCode >= 200 && statusCode < 300
-            : null,
-        statusCode: statusCode,
-        data: data,
-        metadata: metadata,
-        pagination: pagination,
-        error: null,
-        raw: body,
-      );
-    }
-
-    if (expectEnvelope && body == null) {
-      return ApiEnvelope(
-        success: statusCode != null
-            ? statusCode >= 200 && statusCode < 300
-            : null,
-        statusCode: statusCode,
-        data: null,
-        metadata: null,
-        pagination: null,
-        error: null,
-        raw: null,
-      );
-    }
-
-    return ApiEnvelope.fallback(statusCode: statusCode, data: body);
-  }
-
-  ApiException _handleError(DioException error) {
-    final response = error.response;
-    if (response != null) {
-      final body = response.data;
-      if (body is Map<String, dynamic>) {
-        if (body.containsKey('success') || body.containsKey('error')) {
-          final serialized = body.containsKey('success')
-              ? Map<String, dynamic>.from(body)
-              : <String, dynamic>{'success': false, ...body};
-          final errorValue = serialized['error'];
-          if (errorValue is String) {
-            String message = errorValue;
-            final details = serialized['details'];
-            if (details is List && details.isNotEmpty) {
-              final firstDetail = details.first;
-              if (firstDetail is String && firstDetail.isNotEmpty) {
-                message = firstDetail;
-              }
-            }
-            serialized['error'] = <String, dynamic>{'message': message};
-          }
-          final envelope = ApiEnvelope.fromJson(
-            serialized,
-            statusCode: response.statusCode,
+      if (fromJson != null) {
+        try {
+          return Result.success(fromJson(responseData));
+        } catch (e, stackTrace) {
+          AppLogger.error(
+            'JSON parsing error',
+            error: e,
+            stackTrace: stackTrace,
           );
-          return ApiException.fromEnvelope(envelope);
-        }
-        if (body.containsKey('message')) {
-          return ApiException(
-            message: body['message']?.toString() ?? '요청 처리에 실패했습니다.',
-            statusCode: response.statusCode,
+          return Result.failure(
+            ValidationFailure(
+              'Failed to parse response',
+              stackTrace: stackTrace,
+            ),
           );
         }
       }
+
+      return Result.success(responseData as T);
     }
 
-    switch (error.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-        return const ApiException(message: '연결 시간이 초과되었습니다. 네트워크 상태를 확인해주세요.');
-      case DioExceptionType.connectionError:
-        return const ApiException(message: '네트워크 연결을 확인해주세요.');
-      case DioExceptionType.badResponse:
-        return ApiException(
-          message: error.message ?? '요청 처리에 실패했습니다.',
-          statusCode: response?.statusCode,
-        );
-      default:
-        return ApiException(
-          message: error.message ?? '알 수 없는 오류가 발생했습니다.',
-          statusCode: response?.statusCode,
-        );
+    if (fromJson != null) {
+      return Result.success(fromJson(data));
     }
+
+    return Result.success(data as T);
   }
 }
 
-class ApiException implements Exception {
-  const ApiException({
-    required this.message,
-    this.statusCode,
-    this.code,
-    this.metadata,
-    this.error,
-  });
+/// EN: Auth interceptor for JWT token management
+/// KO: JWT 토큰 관리를 위한 인증 인터셉터
+class _AuthInterceptor extends Interceptor {
+  _AuthInterceptor(this._secureStorage, this._dio, {this.onUnauthorized});
 
-  factory ApiException.fromEnvelope(ApiEnvelope envelope) {
-    final error = envelope.error;
-    final message = error?.message ?? '요청 처리에 실패했습니다.';
-    return ApiException(
-      message: message,
-      statusCode: envelope.statusCode,
-      code: error?.code,
-      metadata: envelope.metadata,
-      error: error,
-    );
-  }
-
-  final String message;
-  final int? statusCode;
-  final String? code;
-  final ApiResponseMetadata? metadata;
-  final ApiErrorDetails? error;
-
-  List<ApiFieldError> get fieldErrors => error?.fieldErrors ?? const [];
+  final SecureStorage _secureStorage;
+  final Dio _dio;
+  final VoidCallback? onUnauthorized;
+  bool _isRefreshing = false;
 
   @override
-  String toString() {
-    return 'ApiException(status: $statusCode, code: $code, message: $message)';
+  Future<void> onRequest(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
+    // EN: Skip auth for public endpoints
+    // KO: 공개 엔드포인트는 인증 건너뛰기
+    if (_isPublicEndpoint(options.path)) {
+      return handler.next(options);
+    }
+
+    final token = await _secureStorage.getAccessToken();
+    if (token != null) {
+      options.headers[ApiHeaders.authorization] = '${ApiHeaders.bearer} $token';
+    }
+
+    handler.next(options);
+  }
+
+  @override
+  Future<void> onError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
+    if (err.response?.statusCode == 403 && _isCsrfFailure(err.response?.data)) {
+      await _secureStorage.clearTokens();
+      onUnauthorized?.call();
+      return handler.next(err);
+    }
+
+    // EN: Handle 401 Unauthorized - try to refresh token
+    // KO: 401 Unauthorized 처리 - 토큰 갱신 시도
+    if (err.response?.statusCode == 401 && !_isRefreshing) {
+      _isRefreshing = true;
+
+      try {
+        final refreshed = await _refreshToken();
+        if (refreshed) {
+          // EN: Retry original request with new token
+          // KO: 새 토큰으로 원래 요청 재시도
+          final token = await _secureStorage.getAccessToken();
+          err.requestOptions.headers[ApiHeaders.authorization] =
+              '${ApiHeaders.bearer} $token';
+
+          final response = await _dio.fetch(err.requestOptions);
+          return handler.resolve(response);
+        }
+      } catch (e) {
+        AppLogger.error('Token refresh failed', error: e);
+      } finally {
+        _isRefreshing = false;
+      }
+
+      // EN: Clear tokens on refresh failure
+      // KO: 갱신 실패 시 토큰 삭제
+      await _secureStorage.clearTokens();
+      onUnauthorized?.call();
+    }
+
+    handler.next(err);
+  }
+
+  bool _isCsrfFailure(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      final error = data['error'];
+      if (error is String && error.toLowerCase().contains('csrf')) {
+        return true;
+      }
+      final details = data['details'];
+      if (details is List) {
+        return details
+            .whereType<String>()
+            .any((detail) => detail.toLowerCase().contains('csrf'));
+      }
+      if (details is String && details.toLowerCase().contains('csrf')) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// EN: Refresh access token using refresh token
+  /// KO: 리프레시 토큰을 사용하여 액세스 토큰 갱신
+  Future<bool> _refreshToken() async {
+    final refreshToken = await _secureStorage.getRefreshToken();
+    if (refreshToken == null) return false;
+
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.refresh,
+        data: {'refreshToken': refreshToken},
+      );
+
+      final data = response.data?['data'] as Map<String, dynamic>?;
+      if (data != null) {
+        final newAccessToken = data['accessToken'] as String?;
+        final newRefreshToken = data['refreshToken'] as String?;
+
+        if (newAccessToken != null && newRefreshToken != null) {
+          await _secureStorage.saveTokens(
+            accessToken: newAccessToken,
+            refreshToken: newRefreshToken,
+          );
+          return true;
+        }
+      }
+    } catch (e) {
+      AppLogger.error('Token refresh request failed', error: e);
+    }
+
+    return false;
+  }
+
+  /// EN: Check if endpoint is public (no auth required)
+  /// KO: 엔드포인트가 공개인지 확인 (인증 불필요)
+  bool _isPublicEndpoint(String path) {
+    const publicPaths = [
+      ApiEndpoints.login,
+      ApiEndpoints.register,
+      ApiEndpoints.refresh,
+      ApiEndpoints.homeSummary,
+      ApiEndpoints.health,
+    ];
+
+    return publicPaths.any((p) => path.contains(p));
+  }
+}
+
+/// EN: Logging interceptor for debugging
+/// KO: 디버깅을 위한 로깅 인터셉터
+class _LoggingInterceptor extends Interceptor {
+  Map<String, dynamic>? _sanitizeMap(Map<String, dynamic> data) {
+    final sanitized = <String, dynamic>{};
+    for (final entry in data.entries) {
+      final key = entry.key.toLowerCase();
+      final value = entry.value;
+      if (key.contains('token') ||
+          key.contains('authorization') ||
+          key.contains('access') ||
+          key.contains('refresh')) {
+        sanitized[entry.key] = '***';
+        continue;
+      }
+      sanitized[entry.key] = value;
+    }
+    return sanitized;
+  }
+
+  dynamic _sanitizeData(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      return _sanitizeMap(data);
+    }
+    return data;
+  }
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    final startTime = DateTime.now();
+    options.extra['startTime'] = startTime;
+
+    AppLogger.network(options.method, options.uri.toString(), tag: 'Request');
+    if (options.queryParameters.isNotEmpty) {
+      AppLogger.debug(
+        'Query: ${options.queryParameters}',
+        tag: 'Request',
+      );
+    }
+    if (options.data != null) {
+      AppLogger.debug(
+        'Body: ${_sanitizeData(options.data)}',
+        tag: 'Request',
+      );
+    }
+
+    handler.next(options);
+  }
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    final startTime = response.requestOptions.extra['startTime'] as DateTime?;
+    final responseTime = startTime != null
+        ? DateTime.now().difference(startTime).inMilliseconds
+        : null;
+
+    AppLogger.network(
+      response.requestOptions.method,
+      response.requestOptions.uri.toString(),
+      statusCode: response.statusCode,
+      responseTimeMs: responseTime,
+      tag: 'Response',
+    );
+    if (response.data != null) {
+      AppLogger.debug(
+        'Body: ${_sanitizeData(response.data)}',
+        tag: 'Response',
+      );
+    }
+
+    handler.next(response);
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    AppLogger.network(
+      err.requestOptions.method,
+      err.requestOptions.uri.toString(),
+      statusCode: err.response?.statusCode,
+      tag: 'Error',
+    );
+    if (err.response?.data != null) {
+      AppLogger.debug(
+        'Body: ${_sanitizeData(err.response?.data)}',
+        tag: 'Error',
+      );
+    }
+
+    handler.next(err);
   }
 }

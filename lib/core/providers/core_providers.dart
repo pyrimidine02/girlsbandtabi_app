@@ -1,137 +1,178 @@
-import 'package:dio/dio.dart';
+/// EN: Core Riverpod providers for dependency injection
+/// KO: 의존성 주입을 위한 핵심 Riverpod 프로바이더
+library;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../constants/api_constants.dart';
+import '../connectivity/connectivity_service.dart';
+import '../cache/cache_manager.dart';
 import '../network/api_client.dart';
-import '../network/network_client.dart';
-import '../persistence/selection_persistence.dart';
+import '../analytics/analytics_service.dart';
+import '../location/location_service.dart';
+import '../security/secure_storage.dart';
+import '../storage/local_storage.dart';
 
-/// EN: Provider for secure storage instance
-/// KO: 보안 저장소 인스턴스를 위한 프로바이더
-final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
-  return const FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-    ),
-    iOptions: IOSOptions(
-      accessibility: KeychainAccessibility.first_unlock_this_device,
-    ),
-  );
+// ========================================
+// EN: Storage Providers
+// KO: 저장소 프로바이더
+// ========================================
+
+/// EN: Secure storage provider for sensitive data
+/// KO: 민감한 데이터를 위한 보안 저장소 프로바이더
+final secureStorageProvider = Provider<SecureStorage>((ref) {
+  return SecureStorage();
 });
 
-/// EN: Provider for shared preferences instance - must be overridden with actual instance
-/// KO: 공유 환경설정 인스턴스 프로바이더 - 실제 인스턴스로 재정의되어야 함
-final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
-  throw UnimplementedError(
-    'SharedPreferences provider must be overridden in main.dart with actual instance',
-  );
+/// EN: Local storage provider (async initialization required)
+/// KO: 로컬 저장소 프로바이더 (비동기 초기화 필요)
+final localStorageProvider = FutureProvider<LocalStorage>((ref) async {
+  return LocalStorage.create();
 });
 
-/// EN: Provider for Dio HTTP client instance
-/// KO: Dio HTTP 클라이언트 인스턴스 프로바이더
-final dioProvider = Provider<Dio>((ref) {
-  final dio = Dio(
-    BaseOptions(
-      baseUrl: ApiConstants.baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-      sendTimeout: const Duration(seconds: 30),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    ),
-  );
-
-  // EN: Add interceptors for authentication and logging
-  // KO: 인증 및 로깅을 위한 인터셉터 추가
-  dio.interceptors.add(
-    InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        // EN: Add auth token to requests (except auth endpoints)
-        // KO: 요청에 인증 토큰 추가 (인증 엔드포인트 제외)
-        final secureStorage = ref.read(secureStorageProvider);
-        final isAuthEndpoint = options.path.contains('/auth/') ||
-            options.extra['skipAuth'] == true;
-
-        if (!isAuthEndpoint) {
-          final token = await secureStorage.read(key: 'access_token');
-          if (token != null && token.isNotEmpty) {
-            options.headers['Authorization'] = 'Bearer $token';
-          }
-        }
-        handler.next(options);
-      },
-      onError: (error, handler) async {
-        // EN: Handle token refresh on 401 errors
-        // KO: 401 오류 시 토큰 갱신 처리
-        if (error.response?.statusCode == 401) {
-          // EN: Token refresh logic would go here
-          // KO: 토큰 갱신 로직이 여기에 들어갑니다
-          // For now, just pass the error through
-          handler.next(error);
-        } else {
-          handler.next(error);
-        }
-      },
-    ),
-  );
-
-  // EN: Add logging interceptor in debug mode
-  // KO: 디버그 모드에서 로깅 인터셉터 추가
-  dio.interceptors.add(
-    LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      requestHeader: true,
-      responseHeader: false,
-      logPrint: (object) {
-        // EN: Custom log print for better debugging
-        // KO: 더 나은 디버깅을 위한 커스텀 로그 출력
-        print('[DIO] $object');
-      },
-    ),
-  );
-
-  return dio;
+/// EN: Cache manager provider (async initialization required).
+/// KO: 캐시 매니저 프로바이더 (비동기 초기화 필요).
+final cacheManagerProvider = FutureProvider<CacheManager>((ref) async {
+  final localStorage = await ref.watch(localStorageProvider.future);
+  return CacheManager(localStorage);
 });
 
-/// EN: Provider for network client implementation
-/// KO: 네트워크 클라이언트 구현 프로바이더
-final networkClientProvider = Provider<NetworkClient>((ref) {
-  final dio = ref.watch(dioProvider);
-  return DioNetworkClient(
-    dio: dio,
-    defaultDecoder: (data) {
-      if (data is Map<String, dynamic>) {
-        return data;
-      }
-      if (data is List) {
-        return {'data': data};
-      }
-      return {'value': data};
-    },
-  );
-});
+// ========================================
+// EN: Network Providers
+// KO: 네트워크 프로바이더
+// ========================================
 
-/// EN: Provider for API client instance
-/// KO: API 클라이언트 인스턴스 프로바이더
+/// EN: API client provider
+/// KO: API 클라이언트 프로바이더
 final apiClientProvider = Provider<ApiClient>((ref) {
-  return ApiClient.instance;
+  final secureStorage = ref.watch(secureStorageProvider);
+  return ApiClient(
+    secureStorage: secureStorage,
+    onUnauthorized: ref.read(authStateProvider.notifier).setUnauthenticated,
+  );
 });
 
-/// EN: Provider for selection persistence manager
-/// KO: 선택 지속성 관리자 프로바이더
-final selectionPersistenceProvider = Provider<SelectionPersistence>((ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return SelectionPersistence(preferences: prefs, ref: ref);
+/// EN: Analytics service provider.
+/// KO: 분석 서비스 프로바이더.
+final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
+  return AnalyticsService.instance;
 });
 
-/// EN: Provider that initializes selection persistence and watches for changes
-/// KO: 선택 지속성을 초기화하고 변경 사항을 감시하는 프로바이더
-final selectionPersistenceManagerProvider = FutureProvider<void>((ref) async {
-  final persistence = ref.watch(selectionPersistenceProvider);
-  await persistence.initialize();
+/// EN: Connectivity service provider
+/// KO: 연결 서비스 프로바이더
+final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
+  final service = ConnectivityService();
+  ref.onDispose(() => service.dispose());
+  return service;
+});
+
+/// EN: Location service provider.
+/// KO: 위치 서비스 프로바이더.
+final locationServiceProvider = Provider<LocationService>((ref) {
+  return const LocationService();
+});
+
+/// EN: Connectivity status stream provider
+/// KO: 연결 상태 스트림 프로바이더
+final connectivityStatusProvider = StreamProvider<ConnectivityStatus>((ref) {
+  final service = ref.watch(connectivityServiceProvider);
+  return service.statusStream;
+});
+
+/// EN: Current connectivity status provider
+/// KO: 현재 연결 상태 프로바이더
+final isOnlineProvider = FutureProvider<bool>((ref) async {
+  final service = ref.watch(connectivityServiceProvider);
+  return service.isOnline;
+});
+
+// ========================================
+// EN: App State Providers
+// KO: 앱 상태 프로바이더
+// ========================================
+
+/// EN: Theme mode provider (light/dark/system)
+/// KO: 테마 모드 프로바이더 (라이트/다크/시스템)
+final themeModeProvider = StateProvider<String>((ref) {
+  return 'system';
+});
+
+/// EN: Selected project key provider (slug/code)
+/// KO: 선택된 프로젝트 키 프로바이더 (slug/code)
+final selectedProjectKeyProvider = StateProvider<String?>((ref) {
+  return null;
+});
+
+/// EN: Selected project ID provider (UUID when available).
+/// KO: 선택된 프로젝트 ID 프로바이더 (가능하면 UUID).
+final selectedProjectIdProvider = StateProvider<String?>((ref) {
+  return null;
+});
+
+/// EN: Selected unit IDs provider
+/// KO: 선택된 유닛 ID 목록 프로바이더
+final selectedUnitIdsProvider = StateProvider<List<String>>((ref) {
+  return [];
+});
+
+// ========================================
+// EN: Auth State Providers
+// KO: 인증 상태 프로바이더
+// ========================================
+
+/// EN: Auth state enumeration
+/// KO: 인증 상태 열거형
+enum AuthState { initial, authenticated, unauthenticated }
+
+/// EN: Auth state notifier for managing authentication
+/// KO: 인증 관리를 위한 인증 상태 노티파이어
+class AuthStateNotifier extends StateNotifier<AuthState> {
+  AuthStateNotifier(this._secureStorage) : super(AuthState.initial);
+
+  final SecureStorage _secureStorage;
+
+  /// EN: Check authentication status
+  /// KO: 인증 상태 확인
+  Future<void> checkAuthStatus() async {
+    final hasTokens = await _secureStorage.hasValidTokens();
+    if (!hasTokens) {
+      state = AuthState.unauthenticated;
+      return;
+    }
+    final isExpired = await _secureStorage.isTokenExpired();
+    state = isExpired ? AuthState.unauthenticated : AuthState.authenticated;
+  }
+
+  /// EN: Set authenticated state
+  /// KO: 인증됨 상태 설정
+  void setAuthenticated() {
+    state = AuthState.authenticated;
+  }
+
+  /// EN: Set unauthenticated state
+  /// KO: 인증되지 않음 상태 설정
+  void setUnauthenticated() {
+    state = AuthState.unauthenticated;
+  }
+
+  /// EN: Logout - clear tokens and set unauthenticated
+  /// KO: 로그아웃 - 토큰 삭제 및 인증되지 않음 설정
+  Future<void> logout() async {
+    await _secureStorage.clearTokens();
+    state = AuthState.unauthenticated;
+  }
+}
+
+/// EN: Auth state notifier provider
+/// KO: 인증 상태 노티파이어 프로바이더
+final authStateProvider = StateNotifierProvider<AuthStateNotifier, AuthState>((
+  ref,
+) {
+  final secureStorage = ref.watch(secureStorageProvider);
+  return AuthStateNotifier(secureStorage);
+});
+
+/// EN: Check if user is authenticated
+/// KO: 사용자 인증 여부 확인
+final isAuthenticatedProvider = Provider<bool>((ref) {
+  return ref.watch(authStateProvider) == AuthState.authenticated;
 });

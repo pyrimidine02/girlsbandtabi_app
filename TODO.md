@@ -1,3 +1,46 @@
 # TODO
 
-- [ ] Coordinate with backend owners to resolve the intermittent HTTP 500 responses for `GET /api/v1/projects/{projectId}/places/{placeId}` that still surface in the Place Detail screen error view.
+- Add a HomePage widget test that verifies the ProjectSelector renders during loading and triggers a reload after selection (remove once CI covers the flow).
+- Implement the live events calendar view (calendar icon on LiveEventsPage) and apply the same sorting + D-day labels (remove once calendar UI ships).
+- Re-verify Swagger for `{projectId}` usage on units endpoints once `http://localhost:8080/swagger-ui/index.html` is reachable, and adjust ID/slug usage if required.
+- Implement JWE location token generation for place verification (currently using latitude/longitude payload per `docs/place-verification-endpoints.md`).
+- After local endpoint checks, restore development base URL to the shared dev/staging host or make it configurable via env (remove when backend validation is done).
+- Confirm backend accepts project slug/code for remaining project-scoped endpoints (places/live/news/verification) and document any exceptions.
+- Expand verification error localization map as backend adds new failure reasons.
+- Decide whether place detail should show favorites as "좋아요" or a true rating once backend exposes rating data.
+- Request backend fix: disable CSRF for `/api/v1/**` or document CSRF token flow for mobile clients (nickname update currently 403).
+- Revisit profile update payload workaround (empty avatarUrl) once backend handles null/omitted fields.
+- Add Firebase config files (`google-services.json`, `GoogleService-Info.plist`) and verify Analytics/Crashlytics runtime behavior.
+- Define cache key registry + clear-all mechanism for `CacheManager` and map feature TTLs to cache keys.
+- Enable OAuth once backend is ready by providing authorize URLs and deep-link redirects.
+- Confirm `HomeSummaryDto` field mapping with backend response and adjust parsing keys if needed.
+- Confirm `PlaceDetailDto`/`PlaceSummaryDto` field mapping with backend response and adjust parsing keys if needed.
+- Implement bounds-based refresh for Places map (current map uses the full list + region filter).
+- Confirm whether Places Regions endpoints accept project slug; currently retrying with UUID when the slug call fails.
+- Confirm whether visit stats should use `/api/v1/users/me/visits/summary` per place and expand UI if backend adds aggregate stats.
+- Provide Android `MAPS_API_KEY` via `local.properties`/CI secrets for Google Maps rendering.
+- Revisit chip label color overrides if design tokens change for tags/filters.
+- Add UI feedback for large full-list loads (pagination or loading indicator).
+- Consider adding geocoding-based search for map lookup (currently local search only).
+- Confirm `LiveEventDetailDto`/`LiveEventSummaryDto` field mapping with backend response and adjust parsing keys if needed.
+- Confirm `NewsSummaryDto`/`NewsDetailDto` field mapping with backend response and adjust parsing keys if needed.
+- Confirm `PostSummaryDto`/`PostDetailDto` field mapping + `projectCode` usage with backend response and adjust parsing keys if needed.
+- Confirm `UserProfileDto` and `NotificationSettingsDto` mappings with backend response and adjust parsing keys if needed.
+- Confirm avatar upload flow (presigned + confirm URL) is accepted by `PATCH /api/v1/users/me`.
+- Confirm `/api/v1/search` query parameter name (`query` vs `q`) and simplify once confirmed.
+- Confirm whether production verification requires JWE tokens vs raw latitude/longitude and update payload strategy accordingly.
+- Reduce or remove verbose network body logging once verification 400s are resolved.
+- Confirm favorites API payload (`targetId`, `targetType`) with backend and adjust mapping if needed.
+- Confirm notification item DTO field mapping (`title/body/category/read`) with backend response and adjust parsing keys if needed.
+- Confirm unit name/description semantics (`code` vs `displayName`) with backend and update mapping if the contract changes.
+- Keep the Flutter code standards guide in sync with AGENTS.md and lint rules.
+- Confirm place guide/comment DTO mappings with backend (fields + pagination).
+- Confirm place comment creation request (`CreatePlaceCommentRequest`) and photo upload flow (presigned + confirm) with backend.
+- Confirm `ProjectDto`/`UnitDto` field mapping and selection persistence expectations with backend.
+- Request backend fix: `GET /api/v1/projects/{projectId}/units` returns 500 for existing project (should be 200 empty list or 404 when missing).
+- Request backend fix: `/v3/api-docs` returns 500 while Swagger UI relies on `/api-docs/api`.
+- Confirm uploads list/approval behavior (URL availability after confirm, approval required before public access).
+- Confirm rejected uploads are removed from comments after delete and whether backend clears photo references.
+- Remove client-side media URL normalization once backend returns public CDN URLs by default.
+- Replace iOS/macOS JPEG fallback with true WebP encoding (preserving metadata) once a supported encoder is available.
+- Run on-device QA for Stage 9 flows (search/verification/favorites/notifications/projects/uploads) and record findings.

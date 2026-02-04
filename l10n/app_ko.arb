@@ -1,0 +1,13 @@
+{
+  "@@locale": "ko",
+  "appTitle": "걸즈밴드 타비",
+  "home": "홈",
+  "places": "장소",
+  "live": "라이브",
+  "feed": "피드",
+  "settings": "설정",
+  "login": "로그인",
+  "email": "이메일",
+  "password": "비밀번호",
+  "createAccount": "계정 생성"
+}

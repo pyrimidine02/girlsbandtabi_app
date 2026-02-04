@@ -1,0 +1,305 @@
+/// EN: Local storage for non-sensitive app data using SharedPreferences
+/// KO: SharedPreferences를 사용한 비민감 앱 데이터용 로컬 저장소
+library;
+
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// EN: Keys for local storage
+/// KO: 로컬 저장소 키
+class LocalStorageKeys {
+  LocalStorageKeys._();
+
+  // EN: App Settings
+  // KO: 앱 설정
+  static const String themeMode = 'theme_mode';
+  static const String locale = 'locale';
+  static const String onboardingCompleted = 'onboarding_completed';
+  static const String notificationsEnabled = 'notifications_enabled';
+
+  // EN: User Preferences
+  // KO: 사용자 설정
+  static const String selectedProjectId = 'selected_project_id';
+  static const String selectedProjectKey = 'selected_project_key';
+  static const String selectedUnitIds = 'selected_unit_ids';
+  static const String recentSearches = 'recent_searches';
+
+  // EN: Cache Keys
+  // KO: 캐시 키
+  static const String lastSyncTime = 'last_sync_time';
+  static const String cachedHomeData = 'cached_home_data';
+}
+
+/// EN: Wrapper for SharedPreferences with typed methods
+/// KO: 타입화된 메서드를 제공하는 SharedPreferences 래퍼
+class LocalStorage {
+  LocalStorage(this._prefs);
+
+  final SharedPreferences _prefs;
+
+  /// EN: Create instance asynchronously
+  /// KO: 비동기적으로 인스턴스 생성
+  static Future<LocalStorage> create() async {
+    final prefs = await SharedPreferences.getInstance();
+    return LocalStorage(prefs);
+  }
+
+  // ========================================
+  // EN: Theme Settings
+  // KO: 테마 설정
+  // ========================================
+
+  /// EN: Get theme mode (light/dark/system)
+  /// KO: 테마 모드 조회 (라이트/다크/시스템)
+  String? getThemeMode() {
+    return _prefs.getString(LocalStorageKeys.themeMode);
+  }
+
+  /// EN: Set theme mode
+  /// KO: 테마 모드 설정
+  Future<bool> setThemeMode(String mode) {
+    return _prefs.setString(LocalStorageKeys.themeMode, mode);
+  }
+
+  // ========================================
+  // EN: Locale Settings
+  // KO: 로케일 설정
+  // ========================================
+
+  /// EN: Get locale code
+  /// KO: 로케일 코드 조회
+  String? getLocale() {
+    return _prefs.getString(LocalStorageKeys.locale);
+  }
+
+  /// EN: Set locale code
+  /// KO: 로케일 코드 설정
+  Future<bool> setLocale(String locale) {
+    return _prefs.setString(LocalStorageKeys.locale, locale);
+  }
+
+  // ========================================
+  // EN: Onboarding Status
+  // KO: 온보딩 상태
+  // ========================================
+
+  /// EN: Check if onboarding is completed
+  /// KO: 온보딩 완료 여부 확인
+  bool isOnboardingCompleted() {
+    return _prefs.getBool(LocalStorageKeys.onboardingCompleted) ?? false;
+  }
+
+  /// EN: Set onboarding completed
+  /// KO: 온보딩 완료 설정
+  Future<bool> setOnboardingCompleted(bool completed) {
+    return _prefs.setBool(LocalStorageKeys.onboardingCompleted, completed);
+  }
+
+  // ========================================
+  // EN: Project Selection
+  // KO: 프로젝트 선택
+  // ========================================
+
+  /// EN: Get selected project key (slug/code)
+  /// KO: 선택된 프로젝트 키(slug/code) 조회
+  String? getSelectedProjectKey() {
+    return _prefs.getString(LocalStorageKeys.selectedProjectKey);
+  }
+
+  /// EN: Set selected project key (slug/code)
+  /// KO: 선택된 프로젝트 키(slug/code) 설정
+  Future<bool> setSelectedProjectKey(String projectKey) {
+    return _prefs.setString(LocalStorageKeys.selectedProjectKey, projectKey);
+  }
+
+  /// EN: Get selected project ID (legacy)
+  /// KO: 선택된 프로젝트 ID 조회 (레거시)
+  String? getSelectedProjectId() {
+    return _prefs.getString(LocalStorageKeys.selectedProjectId);
+  }
+
+  /// EN: Set selected project ID (legacy)
+  /// KO: 선택된 프로젝트 ID 설정 (레거시)
+  Future<bool> setSelectedProjectId(String projectId) {
+    return _prefs.setString(LocalStorageKeys.selectedProjectId, projectId);
+  }
+
+  /// EN: Get selected unit IDs
+  /// KO: 선택된 유닛 ID 목록 조회
+  List<String> getSelectedUnitIds() {
+    return _prefs.getStringList(LocalStorageKeys.selectedUnitIds) ?? [];
+  }
+
+  /// EN: Set selected unit IDs
+  /// KO: 선택된 유닛 ID 목록 설정
+  Future<bool> setSelectedUnitIds(List<String> unitIds) {
+    return _prefs.setStringList(LocalStorageKeys.selectedUnitIds, unitIds);
+  }
+
+  // ========================================
+  // EN: Recent Searches
+  // KO: 최근 검색
+  // ========================================
+
+  /// EN: Get recent searches
+  /// KO: 최근 검색 목록 조회
+  List<String> getRecentSearches() {
+    return _prefs.getStringList(LocalStorageKeys.recentSearches) ?? [];
+  }
+
+  /// EN: Add search to recent searches (max 10)
+  /// KO: 최근 검색에 추가 (최대 10개)
+  Future<bool> addRecentSearch(String query) {
+    final searches = getRecentSearches();
+    searches.remove(query); // Remove if exists
+    searches.insert(0, query); // Add to beginning
+    if (searches.length > 10) {
+      searches.removeLast();
+    }
+    return _prefs.setStringList(LocalStorageKeys.recentSearches, searches);
+  }
+
+  /// EN: Clear recent searches
+  /// KO: 최근 검색 삭제
+  Future<bool> clearRecentSearches() {
+    return _prefs.remove(LocalStorageKeys.recentSearches);
+  }
+
+  /// EN: Set recent searches list
+  /// KO: 최근 검색 목록 설정
+  Future<bool> setRecentSearches(List<String> searches) {
+    return _prefs.setStringList(LocalStorageKeys.recentSearches, searches);
+  }
+
+  /// EN: Remove a search query from recent searches
+  /// KO: 최근 검색에서 특정 검색어 제거
+  Future<bool> removeRecentSearch(String query) {
+    final searches = getRecentSearches();
+    searches.remove(query);
+    return _prefs.setStringList(LocalStorageKeys.recentSearches, searches);
+  }
+
+  // ========================================
+  // EN: Cache Management
+  // KO: 캐시 관리
+  // ========================================
+
+  /// EN: Get last sync time
+  /// KO: 마지막 동기화 시간 조회
+  DateTime? getLastSyncTime() {
+    final timestamp = _prefs.getInt(LocalStorageKeys.lastSyncTime);
+    if (timestamp == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(timestamp);
+  }
+
+  /// EN: Set last sync time
+  /// KO: 마지막 동기화 시간 설정
+  Future<bool> setLastSyncTime(DateTime time) {
+    return _prefs.setInt(
+      LocalStorageKeys.lastSyncTime,
+      time.millisecondsSinceEpoch,
+    );
+  }
+
+  // ========================================
+  // EN: Generic JSON Methods
+  // KO: 제네릭 JSON 메서드
+  // ========================================
+
+  /// EN: Save JSON object
+  /// KO: JSON 객체 저장
+  Future<bool> setJson(String key, Map<String, dynamic> value) {
+    return _prefs.setString(key, jsonEncode(value));
+  }
+
+  /// EN: Get JSON object
+  /// KO: JSON 객체 조회
+  Map<String, dynamic>? getJson(String key) {
+    final value = _prefs.getString(key);
+    if (value == null) return null;
+    try {
+      return jsonDecode(value) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// EN: Save JSON list
+  /// KO: JSON 리스트 저장
+  Future<bool> setJsonList(String key, List<Map<String, dynamic>> value) {
+    return _prefs.setString(key, jsonEncode(value));
+  }
+
+  /// EN: Get JSON list
+  /// KO: JSON 리스트 조회
+  List<Map<String, dynamic>>? getJsonList(String key) {
+    final value = _prefs.getString(key);
+    if (value == null) return null;
+    try {
+      final list = jsonDecode(value) as List;
+      return list.cast<Map<String, dynamic>>();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ========================================
+  // EN: Generic Methods
+  // KO: 제네릭 메서드
+  // ========================================
+
+  /// EN: Set string value
+  /// KO: 문자열 값 설정
+  Future<bool> setString(String key, String value) {
+    return _prefs.setString(key, value);
+  }
+
+  /// EN: Get string value
+  /// KO: 문자열 값 조회
+  String? getString(String key) {
+    return _prefs.getString(key);
+  }
+
+  /// EN: Set int value
+  /// KO: 정수 값 설정
+  Future<bool> setInt(String key, int value) {
+    return _prefs.setInt(key, value);
+  }
+
+  /// EN: Get int value
+  /// KO: 정수 값 조회
+  int? getInt(String key) {
+    return _prefs.getInt(key);
+  }
+
+  /// EN: Set bool value
+  /// KO: 불리언 값 설정
+  Future<bool> setBool(String key, bool value) {
+    return _prefs.setBool(key, value);
+  }
+
+  /// EN: Get bool value
+  /// KO: 불리언 값 조회
+  bool? getBool(String key) {
+    return _prefs.getBool(key);
+  }
+
+  /// EN: Remove value
+  /// KO: 값 삭제
+  Future<bool> remove(String key) {
+    return _prefs.remove(key);
+  }
+
+  /// EN: Clear all data
+  /// KO: 모든 데이터 삭제
+  Future<bool> clearAll() {
+    return _prefs.clear();
+  }
+
+  /// EN: Check if key exists
+  /// KO: 키 존재 여부 확인
+  bool containsKey(String key) {
+    return _prefs.containsKey(key);
+  }
+}

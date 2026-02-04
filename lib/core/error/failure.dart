@@ -1,214 +1,128 @@
-/// EN: Base failure class for error handling in Clean Architecture
-/// KO: Clean Architecture에서 에러 처리를 위한 기본 실패 클래스
-abstract class Failure {
-  /// EN: Error message for display to users
-  /// KO: 사용자에게 표시할 에러 메시지
+/// EN: Failure types for error handling using sealed class pattern
+/// KO: sealed class 패턴을 사용한 에러 처리용 Failure 타입
+library;
+
+/// EN: Base sealed class for all failure types
+/// KO: 모든 실패 타입의 기본 sealed 클래스
+sealed class Failure {
+  const Failure(this.message, {this.code, this.stackTrace});
+
   final String message;
-  
-  /// EN: Error code for debugging and logging
-  /// KO: 디버깅 및 로깅을 위한 에러 코드
-  final String code;
-  
-  /// EN: Additional data for error context
-  /// KO: 에러 컨텍스트를 위한 추가 데이터
-  final Map<String, dynamic>? data;
+  final String? code;
+  final StackTrace? stackTrace;
 
-  const Failure({
-    required this.message,
-    required this.code,
-    this.data,
-  });
+  /// EN: Returns user-friendly error message for UI display
+  /// KO: UI 표시용 사용자 친화적 에러 메시지 반환
+  String get userMessage;
 
   @override
-  String toString() => 'Failure(code: $code, message: $message)';
-  
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Failure &&
-          runtimeType == other.runtimeType &&
-          code == other.code &&
-          message == other.message;
+  String toString() => 'Failure(message: $message, code: $code)';
+}
+
+/// EN: Network-related failures (timeout, connection issues)
+/// KO: 네트워크 관련 실패 (타임아웃, 연결 문제)
+final class NetworkFailure extends Failure {
+  const NetworkFailure(super.message, {super.code, super.stackTrace});
 
   @override
-  int get hashCode => code.hashCode ^ message.hashCode;
+  String get userMessage => '네트워크 연결을 확인해주세요';
 }
 
-/// EN: Network-related failures (HTTP errors, connectivity issues)
-/// KO: 네트워크 관련 실패 (HTTP 에러, 연결 문제)
-class NetworkFailure extends Failure {
-  /// EN: HTTP status code if applicable
-  /// KO: 해당하는 경우 HTTP 상태 코드
-  final int? statusCode;
+/// EN: Authentication/Authorization failures
+/// KO: 인증/인가 관련 실패
+final class AuthFailure extends Failure {
+  const AuthFailure(super.message, {super.code, super.stackTrace});
 
-  const NetworkFailure({
-    required super.message,
-    required super.code,
-    this.statusCode,
-    super.data,
-  });
-
-  /// EN: Factory constructor for common network errors
-  /// KO: 일반적인 네트워크 에러를 위한 팩토리 생성자
-  factory NetworkFailure.connectionFailed() => const NetworkFailure(
-        message: 'Network connection failed',
-        code: 'NETWORK_CONNECTION_FAILED',
-      );
-
-  factory NetworkFailure.timeout() => const NetworkFailure(
-        message: 'Request timeout',
-        code: 'NETWORK_TIMEOUT',
-      );
-
-  factory NetworkFailure.serverError(int statusCode) => NetworkFailure(
-        message: 'Server error occurred',
-        code: 'SERVER_ERROR',
-        statusCode: statusCode,
-      );
-
-  factory NetworkFailure.unauthorized() => const NetworkFailure(
-        message: 'Unauthorized access',
-        code: 'UNAUTHORIZED',
-        statusCode: 401,
-      );
-
-  factory NetworkFailure.forbidden() => const NetworkFailure(
-        message: 'Access forbidden',
-        code: 'FORBIDDEN',
-        statusCode: 403,
-      );
-
-  factory NetworkFailure.notFound() => const NetworkFailure(
-        message: 'Resource not found',
-        code: 'NOT_FOUND',
-        statusCode: 404,
-      );
+  @override
+  String get userMessage {
+    return switch (code) {
+      '401' => '로그인이 필요합니다',
+      '403' => '접근 권한이 없습니다',
+      'auth_required' => '로그인이 필요합니다',
+      'token_expired' => '세션이 만료되었습니다. 다시 로그인해주세요',
+      _ => '인증 오류가 발생했습니다',
+    };
+  }
 }
 
-/// EN: Authentication and authorization failures
-/// KO: 인증 및 권한 실패
-class AuthFailure extends Failure {
-  const AuthFailure({
-    required super.message,
-    required super.code,
-    super.data,
-  });
+/// EN: Server-side failures (5xx errors)
+/// KO: 서버 측 실패 (5xx 에러)
+final class ServerFailure extends Failure {
+  const ServerFailure(super.message, {super.code, super.stackTrace});
 
-  factory AuthFailure.invalidCredentials() => const AuthFailure(
-        message: 'Invalid username or password',
-        code: 'INVALID_CREDENTIALS',
-      );
-
-  factory AuthFailure.userNotFound() => const AuthFailure(
-        message: 'User not found',
-        code: 'USER_NOT_FOUND',
-      );
-
-  factory AuthFailure.emailAlreadyInUse() => const AuthFailure(
-        message: 'Username already in use',
-        code: 'EMAIL_ALREADY_IN_USE',
-      );
-
-  factory AuthFailure.weakPassword() => const AuthFailure(
-        message: 'Password is too weak',
-        code: 'WEAK_PASSWORD',
-      );
-
-  factory AuthFailure.tokenExpired() => const AuthFailure(
-        message: 'Session expired, please login again',
-        code: 'TOKEN_EXPIRED',
-      );
+  @override
+  String get userMessage {
+    return switch (code) {
+      '500' => '서버 오류가 발생했습니다',
+      '502' => '서버가 일시적으로 사용 불가능합니다',
+      '503' => '서버 점검 중입니다',
+      '429' => '요청이 너무 많습니다. 잠시 후 다시 시도해주세요',
+      _ => '서버 오류가 발생했습니다',
+    };
+  }
 }
 
-/// EN: Validation failures for user input
-/// KO: 사용자 입력에 대한 검증 실패
-class ValidationFailure extends Failure {
-  /// EN: Field name that failed validation
-  /// KO: 검증에 실패한 필드 이름
-  final String? fieldName;
-
-  const ValidationFailure({
-    required super.message,
-    required super.code,
-    this.fieldName,
-    super.data,
+/// EN: Validation failures (invalid input, 422 errors)
+/// KO: 유효성 검증 실패 (잘못된 입력, 422 에러)
+final class ValidationFailure extends Failure {
+  const ValidationFailure(
+    super.message, {
+    super.code,
+    super.stackTrace,
+    this.fieldErrors,
   });
 
-  factory ValidationFailure.required(String fieldName) => ValidationFailure(
-        message: '$fieldName is required',
-        code: 'FIELD_REQUIRED',
-        fieldName: fieldName,
-      );
+  final Map<String, List<String>>? fieldErrors;
 
-  factory ValidationFailure.invalidEmail() => const ValidationFailure(
-        message: 'Invalid email format',
-        code: 'INVALID_EMAIL_FORMAT',
-        fieldName: 'email',
-      );
+  @override
+  String get userMessage => '입력값이 올바르지 않습니다';
 
-  factory ValidationFailure.invalidPassword() => const ValidationFailure(
-        message: 'Password must be at least 8 characters',
-        code: 'INVALID_PASSWORD',
-        fieldName: 'password',
-      );
+  /// EN: Get error message for specific field
+  /// KO: 특정 필드의 에러 메시지 반환
+  String? getFieldError(String field) {
+    return fieldErrors?[field]?.firstOrNull;
+  }
 }
 
-/// EN: Cache and storage failures
-/// KO: 캐시 및 저장소 실패
-class StorageFailure extends Failure {
-  const StorageFailure({
-    required super.message,
-    required super.code,
-    super.data,
-  });
+/// EN: Cache-related failures
+/// KO: 캐시 관련 실패
+final class CacheFailure extends Failure {
+  const CacheFailure(super.message, {super.code, super.stackTrace});
 
-  factory StorageFailure.accessDenied() => const StorageFailure(
-        message: 'Storage access denied',
-        code: 'STORAGE_ACCESS_DENIED',
-      );
-
-  factory StorageFailure.insufficientSpace() => const StorageFailure(
-        message: 'Insufficient storage space',
-        code: 'INSUFFICIENT_SPACE',
-      );
-
-  factory StorageFailure.corruptedData() => const StorageFailure(
-        message: 'Corrupted data detected',
-        code: 'CORRUPTED_DATA',
-      );
+  @override
+  String get userMessage => '데이터를 불러올 수 없습니다';
 }
 
-/// EN: Business logic failures
-/// KO: 비즈니스 로직 실패
-class BusinessLogicFailure extends Failure {
-  const BusinessLogicFailure({
-    required super.message,
-    required super.code,
-    super.data,
-  });
+/// EN: Location/Permission-related failures
+/// KO: 위치/권한 관련 실패
+final class LocationFailure extends Failure {
+  const LocationFailure(super.message, {super.code, super.stackTrace});
 
-  factory BusinessLogicFailure.invalidOperation() => const BusinessLogicFailure(
-        message: 'Invalid operation',
-        code: 'INVALID_OPERATION',
-      );
-
-  factory BusinessLogicFailure.preconditionFailed() => const BusinessLogicFailure(
-        message: 'Precondition failed',
-        code: 'PRECONDITION_FAILED',
-      );
+  @override
+  String get userMessage {
+    return switch (code) {
+      'permission_denied' => '위치 권한을 허용해주세요',
+      'permission_denied_forever' => '설정에서 위치 권한을 허용해주세요',
+      'service_disabled' => '위치 서비스를 활성화해주세요',
+      _ => '위치 정보를 가져올 수 없습니다',
+    };
+  }
 }
 
-/// EN: Unknown or unexpected failures
-/// KO: 알려지지 않았거나 예상치 못한 실패
-class UnknownFailure extends Failure {
-  const UnknownFailure({
-    required super.message,
-    required super.code,
-    super.data,
-  });
+/// EN: Not found failures (404 errors)
+/// KO: 리소스 없음 실패 (404 에러)
+final class NotFoundFailure extends Failure {
+  const NotFoundFailure(super.message, {super.code, super.stackTrace});
 
-  factory UnknownFailure.unexpected([String? details]) => UnknownFailure(
-        message: details ?? 'An unexpected error occurred',
-        code: 'UNKNOWN_ERROR',
-      );
+  @override
+  String get userMessage => '요청하신 정보를 찾을 수 없습니다';
+}
+
+/// EN: Unknown/Unexpected failures
+/// KO: 알 수 없는/예상치 못한 실패
+final class UnknownFailure extends Failure {
+  const UnknownFailure(super.message, {super.code, super.stackTrace});
+
+  @override
+  String get userMessage => '알 수 없는 오류가 발생했습니다';
 }

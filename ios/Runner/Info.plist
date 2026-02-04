@@ -64,5 +64,9 @@
   <string>EN: We need your location to verify place visits. KO: 성지 방문 인증을 위해 현재 위치 정보가 필요합니다.</string>
   <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
   <string>EN: Allow location access to verify places even when returning to the app. KO: 앱으로 돌아왔을 때도 성지 인증을 하려면 위치 접근을 허용해주세요.</string>
+  <key>NSPhotoLibraryUsageDescription</key>
+  <string>EN: Allow photo access to attach images to your visit review. KO: 방문 후기에 사진을 첨부하기 위해 사진 접근 권한이 필요합니다.</string>
+  <key>io.flutter.embedded_views_preview</key>
+  <true/>
 </dict>
 </plist>
