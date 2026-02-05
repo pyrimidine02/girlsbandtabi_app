@@ -65,13 +65,17 @@ class GBTImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final resolvedUrl = resolveMediaUrl(imageUrl);
+    final cacheWidth =
+        width != null && width!.isFinite ? width!.toInt() : null;
+    final cacheHeight =
+        height != null && height!.isFinite ? height!.toInt() : null;
     final baseImage = CachedNetworkImage(
       imageUrl: resolvedUrl,
       width: width,
       height: height,
       fit: fit,
-      memCacheWidth: width?.toInt(),
-      memCacheHeight: height?.toInt(),
+      memCacheWidth: cacheWidth,
+      memCacheHeight: cacheHeight,
       placeholder: (context, _) => _buildPlaceholder(),
       errorWidget: (context, _, __) => _buildError(),
       imageBuilder: (context, imageProvider) {

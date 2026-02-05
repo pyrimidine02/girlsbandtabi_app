@@ -20,6 +20,7 @@ import '../../../../core/widgets/inputs/gbt_search_bar.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
 import '../../../projects/presentation/widgets/band_filter_sheet.dart';
+import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../application/places_controller.dart';
 import '../../domain/entities/place_entities.dart';
 import '../../domain/entities/place_region_entities.dart';
@@ -131,6 +132,23 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
               onCameraIdle: _handleCameraIdle,
               onClusterTap: _zoomToCluster,
               onPlaceTap: (place) => context.goToPlaceDetail(place.id),
+            ),
+          ),
+          Positioned(
+            top: GBTSpacing.sm,
+            left: GBTSpacing.md,
+            right: GBTSpacing.md,
+            child: SafeArea(
+              bottom: false,
+              child: Material(
+                color: Theme.of(context).colorScheme.surface,
+                elevation: 2,
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                child: Padding(
+                  padding: const EdgeInsets.all(GBTSpacing.sm),
+                  child: const ProjectSelectorCompact(),
+                ),
+              ),
             ),
           ),
 

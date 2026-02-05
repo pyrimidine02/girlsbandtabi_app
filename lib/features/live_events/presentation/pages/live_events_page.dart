@@ -17,6 +17,7 @@ import '../../domain/entities/live_event_entities.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
 import '../../../projects/presentation/widgets/band_filter_sheet.dart';
+import '../../../projects/presentation/widgets/project_selector.dart';
 
 /// EN: Live events page widget
 /// KO: 라이브 이벤트 페이지 위젯
@@ -87,6 +88,15 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              GBTSpacing.md,
+              GBTSpacing.md,
+              GBTSpacing.md,
+              0,
+            ),
+            child: const ProjectSelectorCompact(),
+          ),
           _BandFilterBar(
             label: bandLabel,
             hasSelection: selectedBandIds.isNotEmpty,

@@ -9,7 +9,7 @@
 - Expand verification error localization map as backend adds new failure reasons.
 - Decide whether place detail should show favorites as "좋아요" or a true rating once backend exposes rating data.
 - Request backend fix: disable CSRF for `/api/v1/**` or document CSRF token flow for mobile clients (nickname update currently 403).
-- Revisit profile update payload workaround (empty avatarUrl) once backend handles null/omitted fields.
+- Confirm profile update payload handling for optional fields (avatar/bio/cover) when omitted vs empty.
 - Add Firebase config files (`google-services.json`, `GoogleService-Info.plist`) and verify Analytics/Crashlytics runtime behavior.
 - Define cache key registry + clear-all mechanism for `CacheManager` and map feature TTLs to cache keys.
 - Enable OAuth once backend is ready by providing authorize URLs and deep-link redirects.
@@ -32,6 +32,11 @@
 - Reduce or remove verbose network body logging once verification 400s are resolved.
 - Confirm favorites API payload (`targetId`, `targetType`) with backend and adjust mapping if needed.
 - Confirm notification item DTO field mapping (`title/body/category/read`) with backend response and adjust parsing keys if needed.
+- Remove temporary notification category mapping once backend documents all supported category enums.
+- Verify community posts/comments pagination contract (`page`/`size` vs `pageable`) and adjust query params if needed.
+- Request backend support for community post image attachments (create/update payload fields + response images list).
+- Confirm user profile `bio` and `coverImageUrl` are returned on public profile endpoints (read + update).
+- Confirm whether `username` should be an email for registration and align login labels accordingly.
 - Confirm unit name/description semantics (`code` vs `displayName`) with backend and update mapping if the contract changes.
 - Keep the Flutter code standards guide in sync with AGENTS.md and lint rules.
 - Confirm place guide/comment DTO mappings with backend (fields + pagination).

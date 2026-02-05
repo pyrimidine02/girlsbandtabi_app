@@ -82,13 +82,15 @@ class GBTColors {
   // EN: Dark Mode Colors
   // KO: 다크 모드 색상
   // ========================================
-  static const Color darkBackground = Color(0xFF121212);
-  static const Color darkSurface = Color(0xFF1E1E1E);
-  static const Color darkSurfaceVariant = Color(0xFF2A2A2A);
-  static const Color darkTextPrimary = Color(0xFFFFFFFF);
-  static const Color darkTextSecondary = Color(0xFFB0B0B0);
-  static const Color darkTextTertiary = Color(0xFF808080);
-  static const Color darkBorder = Color(0xFF2A2A2A);
+  static const Color darkBackground = Color(0xFF0F0F14);
+  static const Color darkSurface = Color(0xFF1A1A24);
+  static const Color darkSurfaceVariant = Color(0xFF252532);
+  static const Color darkSurfaceElevated = Color(0xFF2E2E3E);
+  static const Color darkTextPrimary = Color(0xFFF5F5F7);
+  static const Color darkTextSecondary = Color(0xFFB8B8C4);
+  static const Color darkTextTertiary = Color(0xFF7A7A8C);
+  static const Color darkBorder = Color(0xFF333344);
+  static const Color darkBorderSubtle = Color(0xFF28283A);
 
   // ========================================
   // EN: Interactive Colors
@@ -123,11 +125,34 @@ class GBTColors {
     end: Alignment.bottomRight,
   );
 
-  static const LinearGradient cardOverlayGradient = LinearGradient(
-    colors: [Colors.transparent, Color(0x80000000)],
+  // EN: Dark mode gradient with deeper, richer colors
+  // KO: 다크 모드용 더 깊고 풍부한 색상의 그라디언트
+  static const LinearGradient darkAccentGradient = LinearGradient(
+    colors: [Color(0xFF5A38A8), Color(0xFFCB3D82)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  // EN: Subtle surface gradient for elevated dark surfaces
+  // KO: 다크 모드 높은 표면을 위한 미세한 표면 그라디언트
+  static const LinearGradient darkSurfaceGradient = LinearGradient(
+    colors: [darkSurface, darkSurfaceVariant],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
+
+  static const LinearGradient cardOverlayGradient = LinearGradient(
+    colors: [Colors.transparent, Color(0x99000000)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
+  // EN: Shimmer gradient for loading placeholders
+  // KO: 로딩 플레이스홀더를 위한 쉬머 그라디언트
+  static const Color shimmerBase = Color(0xFFE8E8E8);
+  static const Color shimmerHighlight = Color(0xFFF5F5F5);
+  static const Color darkShimmerBase = Color(0xFF252532);
+  static const Color darkShimmerHighlight = Color(0xFF333344);
 }
 
 /// EN: Color accessibility validator for WCAG compliance

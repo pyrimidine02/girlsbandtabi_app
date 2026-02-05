@@ -35,36 +35,62 @@ class PlaceDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(placeDetailControllerProvider(placeId));
+    Future<void> handleRefresh() async {
+      await _refreshAll(ref);
+    }
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: state.when(
-          loading: () => [
-            const SliverFillRemaining(
-              child: Center(child: GBTLoading(message: '장소 정보를 불러오는 중...')),
-            ),
-          ],
-          error: (error, _) {
-            final message = error is Failure
-                ? error.userMessage
-                : '장소 정보를 불러오지 못했어요';
-            return [
-              SliverFillRemaining(
+      body: RefreshIndicator(
+        onRefresh: handleRefresh,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: state.when(
+            loading: () => [
+              const SliverFillRemaining(
                 child: Center(
-                  child: GBTErrorState(
-                    message: message,
-                    onRetry: () => ref
-                        .read(placeDetailControllerProvider(placeId).notifier)
-                        .load(forceRefresh: true),
-                  ),
+                  child: GBTLoading(message: '장소 정보를 불러오는 중...'),
                 ),
               ),
-            ];
-          },
-          data: (place) => _buildContent(context, ref, place),
+            ],
+            error: (error, _) {
+              final message = error is Failure
+                  ? error.userMessage
+                  : '장소 정보를 불러오지 못했어요';
+              return [
+                SliverFillRemaining(
+                  child: Center(
+                    child: GBTErrorState(
+                      message: message,
+                      onRetry: () => ref
+                          .read(
+                            placeDetailControllerProvider(placeId).notifier,
+                          )
+                          .load(forceRefresh: true),
+                    ),
+                  ),
+                ),
+              ];
+            },
+            data: (place) => _buildContent(context, ref, place),
+          ),
         ),
       ),
     );
+  }
+
+  Future<void> _refreshAll(WidgetRef ref) async {
+    await Future.wait([
+      ref
+          .read(placeDetailControllerProvider(placeId).notifier)
+          .load(forceRefresh: true),
+      ref
+          .read(placeGuidesControllerProvider(placeId).notifier)
+          .load(forceRefresh: true),
+      ref
+          .read(placeCommentsControllerProvider(placeId).notifier)
+          .load(forceRefresh: true),
+      ref.read(favoritesControllerProvider.notifier).load(forceRefresh: true),
+    ]);
   }
 
   List<Widget> _buildContent(
@@ -345,16 +371,17 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Expanded(
       child: Container(
         padding: GBTSpacing.paddingMd,
         decoration: BoxDecoration(
-          color: GBTColors.surfaceVariant,
+          color: colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
         ),
         child: Column(
           children: [
-            Icon(icon, color: GBTColors.accent),
+            Icon(icon, color: colorScheme.primary),
             const SizedBox(height: GBTSpacing.xs),
             Text(
               value,
@@ -365,7 +392,7 @@ class _StatCard extends StatelessWidget {
             Text(
               label,
               style: GBTTypography.labelSmall.copyWith(
-                color: GBTColors.textSecondary,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ],

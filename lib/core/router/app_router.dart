@@ -18,7 +18,9 @@ import '../../features/live_events/presentation/pages/live_events_page.dart';
 import '../../features/live_events/presentation/pages/live_event_detail_page.dart';
 import '../../features/feed/presentation/pages/feed_page.dart';
 import '../../features/feed/presentation/pages/news_detail_page.dart';
+import '../../features/feed/presentation/pages/post_create_page.dart';
 import '../../features/feed/presentation/pages/post_detail_page.dart';
+import '../../features/feed/presentation/pages/user_profile_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/settings/presentation/pages/profile_edit_page.dart';
 import '../../features/settings/presentation/pages/notification_settings_page.dart';
@@ -49,6 +51,8 @@ class AppRoutes {
   static const String feed = 'feed';
   static const String newsDetail = 'news-detail';
   static const String postDetail = 'post-detail';
+  static const String postCreate = 'post-create';
+  static const String userProfile = 'user-profile';
   static const String settings = 'settings';
   static const String profileEdit = 'profile-edit';
   static const String notificationSettings = 'notification-settings';
@@ -205,6 +209,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     },
                   ),
                   GoRoute(
+                    path: 'posts/new',
+                    name: AppRoutes.postCreate,
+                    builder: (context, state) => const PostCreatePage(),
+                  ),
+                  GoRoute(
                     path: 'posts/:postId',
                     name: AppRoutes.postDetail,
                     builder: (context, state) {
@@ -274,6 +283,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.favorites,
         builder: (context, state) => const FavoritesPage(),
       ),
+      GoRoute(
+        path: '/users/:userId',
+        name: AppRoutes.userProfile,
+        builder: (context, state) {
+          final userId = state.pathParameters['userId']!;
+          return UserProfilePage(userId: userId);
+        },
+      ),
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(
@@ -328,6 +345,18 @@ extension AppRouterExtension on BuildContext {
   /// KO: 게시글 상세로 이동
   void goToPostDetail(String postId) {
     goNamed(AppRoutes.postDetail, pathParameters: {'postId': postId});
+  }
+
+  /// EN: Navigate to post creation.
+  /// KO: 게시글 작성으로 이동
+  void goToPostCreate() {
+    goNamed(AppRoutes.postCreate);
+  }
+
+  /// EN: Navigate to user profile.
+  /// KO: 사용자 프로필로 이동
+  void goToUserProfile(String userId) {
+    pushNamed(AppRoutes.userProfile, pathParameters: {'userId': userId});
   }
 
   /// EN: Navigate to search with optional query

@@ -107,18 +107,18 @@ class _NotificationSettingsView extends StatelessWidget {
               onChanged(settings.copyWith(liveEventsEnabled: value)),
         ),
         _SettingsSwitchTile(
-          title: '뉴스',
-          subtitle: '밴드 관련 뉴스',
-          value: settings.newsEnabled,
+          title: '즐겨찾기',
+          subtitle: '즐겨찾기한 장소/콘텐츠 소식',
+          value: settings.favoritesEnabled,
           onChanged: (value) =>
-              onChanged(settings.copyWith(newsEnabled: value)),
+              onChanged(settings.copyWith(favoritesEnabled: value)),
         ),
         _SettingsSwitchTile(
-          title: '커뮤니티',
-          subtitle: '댓글/새 글 알림',
-          value: settings.communityEnabled,
+          title: '댓글',
+          subtitle: '댓글/후기 알림',
+          value: settings.commentsEnabled,
           onChanged: (value) =>
-              onChanged(settings.copyWith(communityEnabled: value)),
+              onChanged(settings.copyWith(commentsEnabled: value)),
         ),
         const SizedBox(height: GBTSpacing.lg),
       ],

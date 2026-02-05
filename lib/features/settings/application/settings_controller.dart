@@ -39,6 +39,8 @@ class UserProfileController extends StateNotifier<AsyncValue<UserProfile?>> {
   Future<Result<UserProfile>> updateProfile({
     required String displayName,
     String? avatarUrl,
+    String? bio,
+    String? coverImageUrl,
   }) async {
     final isAuthenticated = _ref.read(isAuthenticatedProvider);
     if (!isAuthenticated) {
@@ -51,6 +53,8 @@ class UserProfileController extends StateNotifier<AsyncValue<UserProfile?>> {
     final result = await repository.updateUserProfile(
       displayName: displayName,
       avatarUrl: avatarUrl,
+      bio: bio,
+      coverImageUrl: coverImageUrl,
     );
 
     if (result is Success<UserProfile>) {
@@ -60,6 +64,38 @@ class UserProfileController extends StateNotifier<AsyncValue<UserProfile?>> {
     }
 
     return result;
+  }
+}
+
+class UserProfileByIdController
+    extends StateNotifier<AsyncValue<UserProfile?>> {
+  UserProfileByIdController(this._ref, this.userId)
+    : super(const AsyncLoading()) {
+    load();
+  }
+
+  final Ref _ref;
+  final String userId;
+
+  Future<void> load({bool forceRefresh = false}) async {
+    final isAuthenticated = _ref.read(isAuthenticatedProvider);
+    if (!isAuthenticated) {
+      state = const AsyncData(null);
+      return;
+    }
+
+    state = const AsyncLoading();
+    final repository = await _ref.read(settingsRepositoryProvider.future);
+    final result = await repository.getUserProfileById(
+      userId: userId,
+      forceRefresh: forceRefresh,
+    );
+
+    if (result is Success<UserProfile>) {
+      state = AsyncData(result.data);
+    } else if (result is Err<UserProfile>) {
+      state = AsyncError(result.failure, StackTrace.current);
+    }
   }
 }
 
@@ -136,6 +172,17 @@ final userProfileControllerProvider =
       ref,
     ) {
       return UserProfileController(ref)..load();
+    });
+
+/// EN: User profile controller provider by ID.
+/// KO: 사용자 ID별 프로필 컨트롤러 프로바이더.
+final userProfileByIdProvider =
+    StateNotifierProvider.family<
+      UserProfileByIdController,
+      AsyncValue<UserProfile?>,
+      String
+    >((ref, userId) {
+      return UserProfileByIdController(ref, userId);
     });
 
 /// EN: Notification settings controller provider.

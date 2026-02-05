@@ -48,14 +48,43 @@ class SettingsRepositoryImpl implements SettingsRepository {
   }
 
   @override
+  Future<Result<UserProfile>> getUserProfileById({
+    required String userId,
+    bool forceRefresh = false,
+  }) async {
+    final policy = forceRefresh
+        ? CachePolicy.networkFirst
+        : CachePolicy.staleWhileRevalidate;
+
+    try {
+      final cacheResult = await _cacheManager.resolve<UserProfileDto>(
+        key: _userProfileCacheKey(userId),
+        policy: policy,
+        ttl: const Duration(minutes: 5),
+        fetcher: () => _fetchUserProfileById(userId),
+        toJson: (dto) => dto.toJson(),
+        fromJson: (json) => UserProfileDto.fromJson(json),
+      );
+      return Result.success(UserProfile.fromDto(cacheResult.data));
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  @override
   Future<Result<UserProfile>> updateUserProfile({
     required String displayName,
     String? avatarUrl,
+    String? bio,
+    String? coverImageUrl,
   }) async {
     try {
       final result = await _remoteDataSource.updateUserProfile(
         displayName: displayName,
         avatarUrl: avatarUrl,
+        bio: bio,
+        coverImageUrl: coverImageUrl,
       );
 
       if (result is Success<UserProfileDto>) {
@@ -160,6 +189,22 @@ class SettingsRepositoryImpl implements SettingsRepository {
     );
   }
 
+  Future<UserProfileDto> _fetchUserProfileById(String userId) async {
+    final result = await _remoteDataSource.fetchUserProfileById(userId);
+
+    if (result is Success<UserProfileDto>) {
+      return result.data;
+    }
+    if (result is Err<UserProfileDto>) {
+      throw result.failure;
+    }
+
+    throw const UnknownFailure(
+      'Unknown user profile by id result',
+      code: 'unknown_profile_by_id',
+    );
+  }
+
   Future<NotificationSettingsDto> _fetchNotificationSettings() async {
     final result = await _remoteDataSource.fetchNotificationSettings();
 
@@ -178,4 +223,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
 
   static const String _profileCacheKey = 'user_profile';
   static const String _notificationCacheKey = 'notification_settings';
+
+  String _userProfileCacheKey(String userId) {
+    return 'user_profile:$userId';
+  }
 }

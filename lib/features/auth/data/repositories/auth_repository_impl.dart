@@ -9,6 +9,8 @@ import '../../domain/entities/auth_tokens.dart';
 import '../../domain/entities/oauth_provider.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_data_source.dart';
+import '../dto/email_verification_confirm_request.dart';
+import '../dto/email_verification_request.dart';
 import '../dto/login_request.dart';
 import '../dto/register_request.dart';
 import '../dto/refresh_token_request.dart';
@@ -93,6 +95,20 @@ class AuthRepositoryImpl implements AuthRepository {
       state: state,
     );
     return _persistTokens(result);
+  }
+
+  @override
+  Future<Result<void>> sendEmailVerification({required String email}) {
+    return _remoteDataSource.sendEmailVerification(
+      EmailVerificationRequest(email: email),
+    );
+  }
+
+  @override
+  Future<Result<void>> confirmEmailVerification({required String token}) {
+    return _remoteDataSource.confirmEmailVerification(
+      EmailVerificationConfirmRequest(token: token),
+    );
   }
 
   Future<Result<AuthTokens>> _persistTokens(

@@ -12,6 +12,8 @@ class UserProfile {
     required this.role,
     required this.createdAt,
     this.avatarUrl,
+    this.bio,
+    this.coverImageUrl,
   });
 
   final String id;
@@ -20,6 +22,8 @@ class UserProfile {
   final String role;
   final DateTime createdAt;
   final String? avatarUrl;
+  final String? bio;
+  final String? coverImageUrl;
 
   String get summaryLabel {
     return '가입일: ${createdAt.toLocal().toIso8601String().split('T').first}';
@@ -33,6 +37,8 @@ class UserProfile {
       avatarUrl: dto.avatarUrl,
       role: dto.role,
       createdAt: dto.createdAt,
+      bio: dto.bio,
+      coverImageUrl: dto.coverImageUrl,
     );
   }
 }

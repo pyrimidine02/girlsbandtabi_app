@@ -26,14 +26,20 @@ class RegisterPage extends ConsumerStatefulWidget {
 
 class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _verificationController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nicknameController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isEmailVerified = false;
+  bool _isSendingVerification = false;
+  bool _isConfirmingVerification = false;
+  bool _verificationSent = false;
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _emailController.dispose();
+    _verificationController.dispose();
     _passwordController.dispose();
     _nicknameController.dispose();
     super.dispose();
@@ -77,17 +83,69 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 ),
                 const SizedBox(height: GBTSpacing.lg),
                 GBTTextField(
-                  controller: _usernameController,
-                  label: '사용자명',
-                  hint: '아이디를 입력하세요',
-                  prefixIcon: Icons.person_outline,
+                  controller: _emailController,
+                  label: '이메일',
+                  hint: '이메일을 입력하세요',
+                  prefixIcon: Icons.email_outlined,
                   textInputAction: TextInputAction.next,
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '사용자명을 입력해주세요';
+                    if (value == null || value.trim().isEmpty) {
+                      return '이메일을 입력해주세요';
+                    }
+                    if (!_isValidEmail(value)) {
+                      return '올바른 이메일 형식을 입력해주세요';
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: GBTSpacing.sm),
+                Row(
+                  children: [
+                    Expanded(
+                      child: GBTTextField(
+                        controller: _verificationController,
+                        label: '인증 코드',
+                        hint: '메일로 받은 코드를 입력하세요',
+                        prefixIcon: Icons.verified_outlined,
+                        textInputAction: TextInputAction.next,
+                        enabled: !_isEmailVerified,
+                        validator: (value) {
+                          if (!_isEmailVerified &&
+                              (value == null || value.isEmpty)) {
+                            return '인증 코드를 입력해주세요';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: GBTSpacing.sm),
+                    SizedBox(
+                      height: 48,
+                      child: OutlinedButton(
+                        onPressed: (_isSendingVerification || _isEmailVerified)
+                            ? null
+                            : _sendVerification,
+                        child: Text(_verificationSent ? '재전송' : '인증번호 발송'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: GBTSpacing.sm),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: (_isConfirmingVerification || _isEmailVerified)
+                        ? null
+                        : _confirmVerification,
+                    child: Text(
+                      _isEmailVerified ? '인증 완료' : '인증 확인',
+                      style: GBTTypography.labelLarge.copyWith(
+                        color: _isEmailVerified
+                            ? GBTColors.success
+                            : GBTColors.textSecondary,
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: GBTSpacing.md),
                 GBTTextField(
@@ -157,10 +215,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_isEmailVerified) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('이메일 인증을 완료해주세요')),
+      );
+      return;
+    }
 
     final controller = ref.read(authControllerProvider.notifier);
     final result = await controller.register(
-      username: _usernameController.text.trim(),
+      username: _emailController.text.trim(),
       password: _passwordController.text,
       nickname: _nicknameController.text.trim(),
     );
@@ -168,5 +232,59 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     if (result is Success<void> && mounted) {
       context.go('/home');
     }
+  }
+
+  Future<void> _sendVerification() async {
+    if (_isSendingVerification) return;
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !_isValidEmail(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('이메일을 확인해주세요')),
+      );
+      return;
+    }
+
+    setState(() => _isSendingVerification = true);
+    final controller = ref.read(authControllerProvider.notifier);
+    final result = await controller.sendEmailVerification(email: email);
+    if (!mounted) return;
+
+    if (result is Success<void>) {
+      setState(() => _verificationSent = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('인증 메일을 보냈어요')),
+      );
+    }
+    setState(() => _isSendingVerification = false);
+  }
+
+  Future<void> _confirmVerification() async {
+    if (_isConfirmingVerification || _isEmailVerified) return;
+    final token = _verificationController.text.trim();
+    if (token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('인증 코드를 입력해주세요')),
+      );
+      return;
+    }
+
+    setState(() => _isConfirmingVerification = true);
+    final controller = ref.read(authControllerProvider.notifier);
+    final result = await controller.confirmEmailVerification(token: token);
+    if (!mounted) return;
+
+    if (result is Success<void>) {
+      setState(() => _isEmailVerified = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('이메일 인증이 완료되었습니다')),
+      );
+    }
+    setState(() => _isConfirmingVerification = false);
+  }
+
+  bool _isValidEmail(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return false;
+    return RegExp(r'^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$').hasMatch(trimmed);
   }
 }

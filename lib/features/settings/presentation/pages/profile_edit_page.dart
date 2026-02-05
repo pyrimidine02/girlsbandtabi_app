@@ -1,5 +1,5 @@
-/// EN: Profile edit page for updating display name/avatar.
-/// KO: 표시 이름/프로필을 수정하는 프로필 편집 페이지.
+/// EN: Profile edit page for updating display name/avatar/bio/cover.
+/// KO: 표시 이름/아바타/소개/배경 이미지를 수정하는 프로필 편집 페이지.
 library;
 
 import 'package:flutter/material.dart';
@@ -34,26 +34,32 @@ class ProfileEditPage extends ConsumerStatefulWidget {
 
 class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
   late final TextEditingController _displayNameController;
+  late final TextEditingController _bioController;
   final ImagePicker _imagePicker = ImagePicker();
   bool _didSetInitial = false;
   bool _isSaving = false;
   bool _isUploadingAvatar = false;
+  bool _isUploadingCover = false;
   String? _pendingAvatarUrl;
+  String? _pendingCoverUrl;
 
   @override
   void initState() {
     super.initState();
     _displayNameController = TextEditingController();
+    _bioController = TextEditingController();
   }
 
   @override
   void dispose() {
     _displayNameController.dispose();
+    _bioController.dispose();
     super.dispose();
   }
 
   Future<void> _saveProfile() async {
     final displayName = _displayNameController.text.trim();
+    final bio = _bioController.text.trim();
     if (displayName.isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -69,6 +75,8 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
         .updateProfile(
           displayName: displayName,
           avatarUrl: _pendingAvatarUrl ?? profile?.avatarUrl,
+          bio: bio.isEmpty ? null : bio,
+          coverImageUrl: _pendingCoverUrl ?? profile?.coverImageUrl,
         );
 
     if (!mounted) return;
@@ -106,11 +114,13 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
         actions: [
           TextButton(
             onPressed:
-                _isSaving || _isUploadingAvatar ? null : _saveProfile,
+                _isSaving || _isUploadingAvatar || _isUploadingCover
+                    ? null
+                    : _saveProfile,
             child: Text(
               '저장',
               style: GBTTypography.bodyMedium.copyWith(
-                color: _isSaving || _isUploadingAvatar
+                color: _isSaving || _isUploadingAvatar || _isUploadingCover
                     ? GBTColors.textTertiary
                     : GBTColors.accent,
               ),
@@ -119,7 +129,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
         ],
       ),
       body: GBTLoadingOverlay(
-        isLoading: _isSaving || _isUploadingAvatar,
+        isLoading: _isSaving || _isUploadingAvatar || _isUploadingCover,
         child: state.when(
           loading: () => const GBTLoading(message: '프로필을 불러오는 중...'),
           error: (error, _) => Center(
@@ -153,14 +163,19 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
             }
             if (!_didSetInitial) {
               _displayNameController.text = profile.displayName;
+              _bioController.text = profile.bio ?? '';
               _didSetInitial = true;
             }
             return _ProfileForm(
               profile: profile,
               avatarUrl: _pendingAvatarUrl ?? profile.avatarUrl,
+              coverUrl: _pendingCoverUrl ?? profile.coverImageUrl,
               displayNameController: _displayNameController,
+              bioController: _bioController,
               isUploadingAvatar: _isUploadingAvatar,
+              isUploadingCover: _isUploadingCover,
               onChangeAvatar: _changeAvatar,
+              onChangeCover: _changeCover,
             );
           },
         ),
@@ -199,7 +214,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
         size: bytes.length,
       );
       if (presignedResult case Err(:final failure)) {
-        _handleAvatarFailure(failure);
+        _handleUploadFailure(failure);
         return;
       }
 
@@ -218,13 +233,17 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
       final confirmResult =
           await uploadController.confirmUpload(presigned.uploadId);
       if (confirmResult case Err(:final failure)) {
-        _handleAvatarFailure(failure);
+        _handleUploadFailure(failure);
         return;
       }
 
-      await _resolveAvatarUrl(presigned.uploadId);
+      await _resolveUploadUrl(
+        uploadId: presigned.uploadId,
+        onResolved: (url) => _pendingAvatarUrl = url,
+        successMessage: '사진이 업로드되었습니다. 저장을 눌러 반영하세요.',
+      );
     } on Failure catch (failure) {
-      _handleAvatarFailure(failure);
+      _handleUploadFailure(failure);
     } catch (_) {
       _showMessage('사진 업로드에 실패했습니다.');
     } finally {
@@ -234,7 +253,77 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     }
   }
 
-  void _handleAvatarFailure(Failure failure) {
+  Future<void> _changeCover() async {
+    final picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1080,
+      imageQuality: 90,
+    );
+    if (picked == null) return;
+
+    setState(() => _isUploadingCover = true);
+
+    try {
+      final payload = await convertToWebp(
+        path: picked.path,
+        originalFilename: p.basename(picked.path),
+        maxWidth: 1920,
+        maxHeight: 1080,
+        quality: 80,
+      );
+      final bytes = payload.bytes;
+      final filename = payload.filename;
+      final contentType = payload.contentType;
+      final uploadController =
+          ref.read(uploadsControllerProvider.notifier);
+
+      final presignedResult = await uploadController.requestPresignedUrl(
+        filename: filename,
+        contentType: contentType,
+        size: bytes.length,
+      );
+      if (presignedResult case Err(:final failure)) {
+        _handleUploadFailure(failure);
+        return;
+      }
+
+      final presigned = switch (presignedResult) {
+        Success(:final data) => data,
+        Err(:final failure) => throw failure,
+      };
+
+      await uploadToPresignedUrl(
+        url: presigned.url,
+        bytes: bytes,
+        contentType: contentType,
+        headers: presigned.headers,
+      );
+
+      final confirmResult =
+          await uploadController.confirmUpload(presigned.uploadId);
+      if (confirmResult case Err(:final failure)) {
+        _handleUploadFailure(failure);
+        return;
+      }
+
+      await _resolveUploadUrl(
+        uploadId: presigned.uploadId,
+        onResolved: (url) => _pendingCoverUrl = url,
+        successMessage: '배경 이미지가 업로드되었습니다. 저장을 눌러 반영하세요.',
+      );
+    } on Failure catch (failure) {
+      _handleUploadFailure(failure);
+    } catch (_) {
+      _showMessage('배경 이미지 업로드에 실패했습니다.');
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingCover = false);
+      }
+    }
+  }
+
+  void _handleUploadFailure(Failure failure) {
     if (!mounted) return;
     final message =
         failure is AuthFailure && failure.code == '403'
@@ -250,11 +339,15 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _resolveAvatarUrl(String uploadId) async {
+  Future<void> _resolveUploadUrl({
+    required String uploadId,
+    required ValueChanged<String> onResolved,
+    required String successMessage,
+  }) async {
     final repository = await ref.read(uploadsRepositoryProvider.future);
     final result = await repository.getMyUploads(forceRefresh: true);
     if (result is Err<List<UploadInfo>>) {
-      _handleAvatarFailure(result.failure);
+      _handleUploadFailure(result.failure);
       return;
     }
 
@@ -275,8 +368,8 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     }
 
     if (!mounted) return;
-    setState(() => _pendingAvatarUrl = match.url);
-    _showMessage('사진이 업로드되었습니다. 저장을 눌러 반영하세요.');
+    setState(() => onResolved(match.url));
+    _showMessage(successMessage);
   }
 }
 
@@ -284,22 +377,50 @@ class _ProfileForm extends StatelessWidget {
   const _ProfileForm({
     required this.profile,
     required this.displayNameController,
+    required this.bioController,
     required this.avatarUrl,
+    required this.coverUrl,
     required this.isUploadingAvatar,
+    required this.isUploadingCover,
     required this.onChangeAvatar,
+    required this.onChangeCover,
   });
 
   final UserProfile profile;
   final TextEditingController displayNameController;
+  final TextEditingController bioController;
   final String? avatarUrl;
+  final String? coverUrl;
   final bool isUploadingAvatar;
+  final bool isUploadingCover;
   final VoidCallback onChangeAvatar;
+  final VoidCallback onChangeCover;
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: GBTSpacing.paddingPage,
       children: [
+        Text(
+          '배경 이미지',
+          style: GBTTypography.labelMedium.copyWith(
+            color: GBTColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: GBTSpacing.xs),
+        _ProfileCoverPreview(
+          coverUrl: coverUrl,
+          isUploading: isUploadingCover,
+        ),
+        const SizedBox(height: GBTSpacing.sm),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: isUploadingCover ? null : onChangeCover,
+            child: Text(isUploadingCover ? '업로드 중...' : '배경 이미지 변경'),
+          ),
+        ),
+        const SizedBox(height: GBTSpacing.lg),
         Center(
           child: Column(
             children: [
@@ -327,6 +448,24 @@ class _ProfileForm extends StatelessWidget {
           controller: displayNameController,
           decoration: InputDecoration(
             hintText: '표시 이름을 입력하세요',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+            ),
+          ),
+        ),
+        const SizedBox(height: GBTSpacing.lg),
+        Text(
+          '소개',
+          style: GBTTypography.labelMedium.copyWith(
+            color: GBTColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: GBTSpacing.xs),
+        TextField(
+          controller: bioController,
+          maxLines: 3,
+          decoration: InputDecoration(
+            hintText: '간단한 소개를 입력하세요',
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
             ),
@@ -397,6 +536,65 @@ class _ProfileAvatar extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.35),
             shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileCoverPreview extends StatelessWidget {
+  const _ProfileCoverPreview({
+    required this.coverUrl,
+    this.isUploading = false,
+  });
+
+  final String? coverUrl;
+  final bool isUploading;
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = ClipRRect(
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      child: coverUrl == null || coverUrl!.isEmpty
+          ? Container(
+              height: 140,
+              color: GBTColors.surfaceVariant,
+              alignment: Alignment.center,
+              child: Text(
+                '배경 이미지 없음',
+                style: GBTTypography.labelSmall.copyWith(
+                  color: GBTColors.textTertiary,
+                ),
+              ),
+            )
+          : GBTImage(
+              imageUrl: coverUrl!,
+              width: double.infinity,
+              height: 140,
+              fit: BoxFit.cover,
+              semanticLabel: '프로필 배경 이미지',
+            ),
+    );
+
+    if (!isUploading) {
+      return preview;
+    }
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        preview,
+        Container(
+          height: 140,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
           ),
         ),
         const SizedBox(

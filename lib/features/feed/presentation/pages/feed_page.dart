@@ -12,6 +12,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../application/feed_controller.dart';
 import '../../domain/entities/feed_entities.dart';
 
@@ -27,17 +28,28 @@ class FeedPage extends ConsumerStatefulWidget {
 class _FeedPageState extends ConsumerState<FeedPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _showCommunityFab = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _showCommunityFab = _tabController.index == 1;
+    _tabController.addListener(_handleTabChange);
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _handleTabChange() {
+    if (!mounted) return;
+    final shouldShow = _tabController.index == 1;
+    if (shouldShow == _showCommunityFab) return;
+    setState(() => _showCommunityFab = shouldShow);
   }
 
   @override
@@ -63,30 +75,44 @@ class _FeedPageState extends ConsumerState<FeedPage>
           ),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _NewsList(
-            state: newsState,
-            onRetry: () => ref
-                .read(newsListControllerProvider.notifier)
-                .load(forceRefresh: true),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              GBTSpacing.md,
+              GBTSpacing.md,
+              GBTSpacing.md,
+              0,
+            ),
+            child: const ProjectSelectorCompact(),
           ),
-          _CommunityList(
-            state: postState,
-            onRetry: () => ref
-                .read(postListControllerProvider.notifier)
-                .load(forceRefresh: true),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _NewsList(
+                  state: newsState,
+                  onRetry: () => ref
+                      .read(newsListControllerProvider.notifier)
+                      .load(forceRefresh: true),
+                ),
+                _CommunityList(
+                  state: postState,
+                  onRetry: () => ref
+                      .read(postListControllerProvider.notifier)
+                      .load(forceRefresh: true),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // EN: TODO: Navigate to create post.
-          // KO: TODO: 게시글 작성으로 이동.
-        },
-        child: const Icon(Icons.edit),
-      ),
+      floatingActionButton: _showCommunityFab
+          ? FloatingActionButton(
+              onPressed: () => context.goToPostCreate(),
+              child: const Icon(Icons.edit),
+            )
+          : null,
     );
   }
 }
@@ -298,6 +324,14 @@ class _CommunityPostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authorLabel = post.authorName?.isNotEmpty == true
+        ? post.authorName!
+        : post.authorId;
+    final avatarUrl =
+        post.authorAvatarUrl?.isNotEmpty == true ? post.authorAvatarUrl : null;
+    final commentCount = post.commentCount ?? 0;
+    final likeCount = post.likeCount ?? 0;
+
     return Card(
       margin: EdgeInsets.zero,
       child: InkWell(
@@ -310,14 +344,10 @@ class _CommunityPostCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
+                  _Avatar(
+                    url: avatarUrl,
                     radius: 16,
-                    backgroundColor: GBTColors.surfaceVariant,
-                    child: Icon(
-                      Icons.person,
-                      size: 20,
-                      color: GBTColors.textTertiary,
-                    ),
+                    onTap: () => context.goToUserProfile(post.authorId),
                   ),
                   const SizedBox(width: GBTSpacing.sm),
                   Expanded(
@@ -325,7 +355,7 @@ class _CommunityPostCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '작성자: ${post.authorId}',
+                          '작성자: $authorLabel',
                           style: GBTTypography.labelMedium,
                         ),
                         Text(
@@ -358,10 +388,80 @@ class _CommunityPostCard extends StatelessWidget {
                   color: GBTColors.textSecondary,
                 ),
               ),
+              const SizedBox(height: GBTSpacing.sm),
+              Row(
+                children: [
+                  Icon(
+                    Icons.favorite_border,
+                    size: 16,
+                    color: GBTColors.textTertiary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    likeCount.toString(),
+                    style: GBTTypography.labelSmall.copyWith(
+                      color: GBTColors.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(width: GBTSpacing.md),
+                  Icon(
+                    Icons.comment_outlined,
+                    size: 16,
+                    color: GBTColors.textTertiary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    commentCount.toString(),
+                    style: GBTTypography.labelSmall.copyWith(
+                      color: GBTColors.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
       ),
     );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  const _Avatar({
+    required this.url,
+    required this.radius,
+    this.onTap,
+  });
+
+  final String? url;
+  final double radius;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = CircleAvatar(
+      radius: radius,
+      backgroundColor: GBTColors.surfaceVariant,
+      child: Icon(
+        Icons.person,
+        size: radius,
+        color: GBTColors.textTertiary,
+      ),
+    );
+
+    final content = (url == null || url!.isEmpty)
+        ? fallback
+        : ClipOval(
+            child: GBTImage(
+              imageUrl: url!,
+              width: radius * 2,
+              height: radius * 2,
+              fit: BoxFit.cover,
+              semanticLabel: '프로필 사진',
+            ),
+          );
+
+    if (onTap == null) return content;
+    return GestureDetector(onTap: onTap, child: content);
   }
 }

@@ -15,36 +15,36 @@ class NotificationSettings {
   final bool emailEnabled;
   final List<String> categories;
 
-  static const String categoryLiveEvents = 'LIVE_EVENTS';
-  static const String categoryNews = 'NEWS';
-  static const String categoryCommunity = 'COMMUNITY';
+  static const String categoryLiveEvents = 'LIVE_EVENT';
+  static const String categoryFavorites = 'FAVORITE';
+  static const String categoryComments = 'COMMENT';
 
   bool get liveEventsEnabled =>
       _hasCategory(categories, categoryLiveEvents);
-  bool get newsEnabled => _hasCategory(categories, categoryNews);
-  bool get communityEnabled => _hasCategory(categories, categoryCommunity);
+  bool get favoritesEnabled => _hasCategory(categories, categoryFavorites);
+  bool get commentsEnabled => _hasCategory(categories, categoryComments);
 
   NotificationSettings copyWith({
     bool? pushEnabled,
     bool? emailEnabled,
     List<String>? categories,
     bool? liveEventsEnabled,
-    bool? newsEnabled,
-    bool? communityEnabled,
+    bool? favoritesEnabled,
+    bool? commentsEnabled,
   }) {
     final updatedCategories = categories ?? List<String>.from(this.categories);
 
     if (liveEventsEnabled != null) {
       _toggleCategory(updatedCategories, categoryLiveEvents, liveEventsEnabled);
     }
-    if (newsEnabled != null) {
-      _toggleCategory(updatedCategories, categoryNews, newsEnabled);
+    if (favoritesEnabled != null) {
+      _toggleCategory(updatedCategories, categoryFavorites, favoritesEnabled);
     }
-    if (communityEnabled != null) {
+    if (commentsEnabled != null) {
       _toggleCategory(
         updatedCategories,
-        categoryCommunity,
-        communityEnabled,
+        categoryComments,
+        commentsEnabled,
       );
     }
 
@@ -69,8 +69,8 @@ class NotificationSettings {
       emailEnabled: true,
       categories: <String>[
         categoryLiveEvents,
-        categoryNews,
-        categoryCommunity,
+        categoryFavorites,
+        categoryComments,
       ],
     );
   }

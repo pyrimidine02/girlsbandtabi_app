@@ -2,6 +2,10 @@
 
 ## 2026-02-05
 - **MEDIA**: Normalize legacy R2 URLs to the public CDN host before loading images.
+- **SETTINGS**: Align notification category values with backend enums (LIVE_EVENT/FAVORITE/COMMENT).
+- **SETTINGS**: Sanitize notification category payloads to drop/convert unsupported values before PUT.
+- **COMMUNITY**: Load real community posts/comments, add post creation flow, and wire profile navigation from author avatars.
+- **COMMUNITY**: Sync community endpoints (author profiles, by-author feeds, like status) with updated API docs and use new like endpoints.
 
 ## 2026-02-04
 - **PROJECTS**: Show unit name (code) with description in the unit filter list so names are no longer hidden.
@@ -258,3 +262,17 @@
 - Captured the backend `Date` header when fetching the verification config so the client aligns its token timestamps with server time (preventing `Invalid location token` errors on devices with skewed clocks).
 - Embedded the location payload inside an unsecured nested JWT (`cty: JWT`, `alg: none`) before encrypting, matching the backend's expectation for double-wrapped JWE tokens and unblocking verification.
 - Improved verification error surfacing: API errors like "Too far from place" now come through with friendly Korean copy, thanks to better error parsing in `ApiClient` and message mapping in the controller.
+## 2026-02-05
+- Unified community post/comment edit/delete snackbar copy and wired report/block actions to the new moderation endpoints.
+- Added report flow UI with reason selection and connected comment reporting from post detail menus.
+- Added block/unblock toggle in community user profiles for authenticated viewers.
+- Added project selector bars to Places, Live Events, and Feed pages for quick project switching.
+- Implemented compact project selector toggles on feature pages and refreshed community profile layout with header/intro.
+- Enabled community post image attachments via upload + markdown rendering fallback.
+- Wired email verification into the registration flow using the new auth endpoints.
+- Limited the feed floating action button to the Community tab only.
+- Hid the follow button for a user's own posts.
+- Extended profile editing to include bio/cover image updates and linked profile pages to the edit screen.
+- Guarded GBTImage cache sizing against infinite dimensions to prevent runtime crashes.
+- Added pull-to-refresh on place detail to reload stats, guides, comments, and favorites.
+- Adjusted project selector and place stats surfaces to respect dark mode colors.

@@ -104,9 +104,11 @@ class GBTTheme {
 
   static ColorScheme get _darkColorScheme => ColorScheme(
     brightness: Brightness.dark,
-    primary: GBTColors.primary,
-    onPrimary: GBTColors.darkTextPrimary,
-    primaryContainer: GBTColors.darkSurfaceVariant,
+    // EN: Use lighter accent for primary in dark mode for visibility
+    // KO: 다크 모드에서 가시성을 위해 밝은 강조색을 primary로 사용
+    primary: GBTColors.darkTextPrimary,
+    onPrimary: GBTColors.darkBackground,
+    primaryContainer: GBTColors.darkSurfaceElevated,
     onPrimaryContainer: GBTColors.darkTextPrimary,
     secondary: GBTColors.secondary,
     onSecondary: GBTColors.darkTextPrimary,
@@ -121,7 +123,7 @@ class GBTTheme {
     surfaceContainerHighest: GBTColors.darkSurfaceVariant,
     onSurfaceVariant: GBTColors.darkTextSecondary,
     outline: GBTColors.darkBorder,
-    outlineVariant: GBTColors.darkBorder,
+    outlineVariant: GBTColors.darkBorderSubtle,
     shadow: Colors.black,
     scrim: GBTColors.scrim,
   );
@@ -272,10 +274,10 @@ class GBTTheme {
   static BottomNavigationBarThemeData get _darkBottomNavTheme =>
       BottomNavigationBarThemeData(
         backgroundColor: GBTColors.darkSurface,
-        selectedItemColor: GBTColors.secondary,
+        selectedItemColor: GBTColors.darkTextPrimary,
         unselectedItemColor: GBTColors.darkTextTertiary,
         type: BottomNavigationBarType.fixed,
-        elevation: 8,
+        elevation: 0,
         selectedLabelStyle: GBTTypography.labelSmall.copyWith(
           fontWeight: FontWeight.w600,
         ),
@@ -296,10 +298,14 @@ class GBTTheme {
   );
 
   static CardThemeData get _darkCardTheme => CardThemeData(
-    color: GBTColors.darkSurface,
-    elevation: GBTSpacing.elevationSm,
+    color: GBTColors.darkSurfaceVariant,
+    elevation: 0,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      side: BorderSide(
+        color: GBTColors.darkBorderSubtle,
+        width: 0.5,
+      ),
     ),
     margin: EdgeInsets.zero,
   );

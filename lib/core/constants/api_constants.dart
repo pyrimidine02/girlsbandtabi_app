@@ -19,6 +19,9 @@ class ApiEndpoints {
   static const String register = '$apiVersion/auth/register';
   static const String refresh = '$apiVersion/auth/refresh';
   static const String logout = '$apiVersion/auth/logout';
+  static const String emailVerifications = '$apiVersion/auth/email-verifications';
+  static const String emailVerificationsConfirm =
+      '$apiVersion/auth/email-verifications/confirm';
   static String oauthCallback(String provider) =>
       '$apiVersion/auth/oauth2/callback/$provider';
 
@@ -30,6 +33,12 @@ class ApiEndpoints {
   static const String userVisits = '$apiVersion/users/me/visits';
   static const String userVisitsSummary = '$apiVersion/users/me/visits/summary';
   static const String usersSearch = '$apiVersion/users/search';
+  static String userProfile(String userId) => '$apiVersion/users/$userId';
+  static String userBlocked(String userId) =>
+      '${userProfile(userId)}/blocked';
+  static const String userBlocks = '$apiVersion/users/me/blocks';
+  static String userBlock(String targetUserId) =>
+      '$userBlocks/$targetUserId';
 
   // ============================================================
   // EN: Favorites endpoints (8.14)
@@ -253,6 +262,26 @@ class ApiEndpoints {
       '${posts(projectCode)}/$postId';
   static String postComments(String projectCode, String postId) =>
       '${post(projectCode, postId)}/comments';
+  static String postComment(
+    String projectCode,
+    String postId,
+    String commentId,
+  ) =>
+      '${postComments(projectCode, postId)}/$commentId';
+  static String postLike(String projectCode, String postId) =>
+      '${post(projectCode, postId)}/like';
+  static String postsByAuthor(String projectCode, String userId) =>
+      '${posts(projectCode)}/by-author/$userId';
+  static String commentsByAuthor(String projectCode, String userId) =>
+      '$apiVersion/projects/$projectCode/comments/by-author/$userId';
+
+  // EN: Community reports endpoints.
+  // KO: 커뮤니티 신고 엔드포인트.
+  static const String communityReports = '$apiVersion/community/reports';
+  static const String communityReportsMe =
+      '$apiVersion/community/reports/me';
+  static String communityReport(String reportId) =>
+      '$communityReports/$reportId';
 
   // ============================================================
   // EN: News endpoints (8.17)

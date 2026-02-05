@@ -20,16 +20,36 @@ class SettingsRemoteDataSource {
     );
   }
 
+  /// EN: Fetch public user profile by ID.
+  /// KO: 사용자 ID로 공개 프로필을 조회합니다.
+  Future<Result<UserProfileDto>> fetchUserProfileById(String userId) {
+    return _apiClient.get<UserProfileDto>(
+      ApiEndpoints.userProfile(userId),
+      fromJson: (json) => UserProfileDto.fromJson(json as Map<String, dynamic>),
+    );
+  }
+
   Future<Result<UserProfileDto>> updateUserProfile({
     required String displayName,
     String? avatarUrl,
+    String? bio,
+    String? coverImageUrl,
   }) {
+    final payload = <String, dynamic>{
+      'displayName': displayName,
+    };
+    if (avatarUrl != null) {
+      payload['avatarUrl'] = avatarUrl;
+    }
+    if (bio != null) {
+      payload['bio'] = bio;
+    }
+    if (coverImageUrl != null) {
+      payload['coverImageUrl'] = coverImageUrl;
+    }
     return _apiClient.patch<UserProfileDto>(
       ApiEndpoints.userMe,
-      data: {
-        'displayName': displayName,
-        'avatarUrl': avatarUrl ?? '',
-      },
+      data: payload,
       fromJson: (json) => UserProfileDto.fromJson(json as Map<String, dynamic>),
     );
   }

@@ -20,6 +20,14 @@ abstract class AuthRepository {
     required String nickname,
   });
 
+  /// EN: Send email verification for registration.
+  /// KO: 회원가입용 이메일 인증을 요청합니다.
+  Future<Result<void>> sendEmailVerification({required String email});
+
+  /// EN: Confirm email verification token.
+  /// KO: 이메일 인증 토큰을 확인합니다.
+  Future<Result<void>> confirmEmailVerification({required String token});
+
   Future<Result<AuthTokens>> refresh();
 
   Future<Result<void>> logout();

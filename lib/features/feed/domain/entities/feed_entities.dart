@@ -5,6 +5,7 @@ library;
 import 'package:intl/intl.dart';
 
 import '../../data/dto/news_dto.dart';
+import '../../data/dto/post_comment_dto.dart';
 import '../../data/dto/post_dto.dart';
 
 class NewsSummary {
@@ -80,6 +81,10 @@ class PostSummary {
     required this.authorId,
     required this.title,
     required this.createdAt,
+    this.authorName,
+    this.authorAvatarUrl,
+    this.commentCount,
+    this.likeCount,
   });
 
   final String id;
@@ -87,6 +92,10 @@ class PostSummary {
   final String authorId;
   final String title;
   final DateTime createdAt;
+  final String? authorName;
+  final String? authorAvatarUrl;
+  final int? commentCount;
+  final int? likeCount;
 
   String get timeAgoLabel => _formatTimeAgo(createdAt);
 
@@ -97,6 +106,10 @@ class PostSummary {
       authorId: dto.authorId,
       title: dto.title,
       createdAt: dto.createdAt,
+      authorName: dto.authorName,
+      authorAvatarUrl: dto.authorAvatarUrl,
+      commentCount: dto.commentCount,
+      likeCount: dto.likeCount,
     );
   }
 }
@@ -108,8 +121,13 @@ class PostDetail {
     required this.authorId,
     required this.title,
     required this.createdAt,
+    this.imageUrls = const [],
     this.content,
     this.updatedAt,
+    this.authorName,
+    this.authorAvatarUrl,
+    this.commentCount,
+    this.likeCount,
   });
 
   final String id;
@@ -117,8 +135,13 @@ class PostDetail {
   final String authorId;
   final String title;
   final DateTime createdAt;
+  final List<String> imageUrls;
   final String? content;
   final DateTime? updatedAt;
+  final String? authorName;
+  final String? authorAvatarUrl;
+  final int? commentCount;
+  final int? likeCount;
 
   String get timeAgoLabel => _formatTimeAgo(createdAt);
 
@@ -129,8 +152,73 @@ class PostDetail {
       authorId: dto.authorId,
       title: dto.title,
       createdAt: dto.createdAt,
+      imageUrls: dto.imageUrls,
       content: dto.content,
       updatedAt: dto.updatedAt,
+      authorName: dto.authorName,
+      authorAvatarUrl: dto.authorAvatarUrl,
+      commentCount: dto.commentCount,
+      likeCount: dto.likeCount,
+    );
+  }
+}
+
+class PostComment {
+  const PostComment({
+    required this.id,
+    required this.postId,
+    required this.projectId,
+    required this.authorId,
+    required this.content,
+    required this.createdAt,
+    this.updatedAt,
+    this.authorName,
+    this.authorAvatarUrl,
+  });
+
+  final String id;
+  final String postId;
+  final String projectId;
+  final String authorId;
+  final String content;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+  final String? authorName;
+  final String? authorAvatarUrl;
+
+  String get timeAgoLabel => _formatTimeAgo(createdAt);
+
+  factory PostComment.fromDto(PostCommentDto dto) {
+    return PostComment(
+      id: dto.id,
+      postId: dto.postId,
+      projectId: dto.projectId,
+      authorId: dto.authorId,
+      content: dto.content,
+      createdAt: dto.createdAt,
+      updatedAt: dto.updatedAt,
+      authorName: dto.authorName,
+      authorAvatarUrl: dto.authorAvatarUrl,
+    );
+  }
+}
+
+class PostLikeStatus {
+  const PostLikeStatus({
+    required this.postId,
+    required this.isLiked,
+    required this.likeCount,
+  });
+
+  final String postId;
+  final bool isLiked;
+  final int likeCount;
+
+  factory PostLikeStatus.fromDto(PostLikeStatusDto dto) {
+    return PostLikeStatus(
+      postId: dto.postId,
+      isLiked: dto.isLiked,
+      likeCount: dto.likeCount,
     );
   }
 }

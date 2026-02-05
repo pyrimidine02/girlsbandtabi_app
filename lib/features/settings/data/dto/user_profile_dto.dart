@@ -10,12 +10,16 @@ class UserProfileDto {
     required this.role,
     required this.createdAt,
     this.avatarUrl,
+    this.bio,
+    this.coverImageUrl,
   });
 
   final String id;
   final String email;
   final String displayName;
   final String? avatarUrl;
+  final String? bio;
+  final String? coverImageUrl;
   final String role;
   final DateTime createdAt;
 
@@ -31,6 +35,11 @@ class UserProfileDto {
       role: _string(json, ['role']) ?? 'USER',
       createdAt: parsedCreatedAt,
       avatarUrl: _string(json, ['avatarUrl', 'profileImageUrl', 'imageUrl']),
+      bio: _string(json, ['bio', 'introduction', 'about', 'summary']),
+      coverImageUrl: _string(
+        json,
+        ['coverImageUrl', 'headerImageUrl', 'bannerImageUrl'],
+      ),
     );
   }
 
@@ -40,6 +49,8 @@ class UserProfileDto {
       'email': email,
       'displayName': displayName,
       'avatarUrl': avatarUrl,
+      'bio': bio,
+      'coverImageUrl': coverImageUrl,
       'role': role,
       'createdAt': createdAt.toIso8601String(),
     };

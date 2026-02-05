@@ -6,6 +6,8 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/oauth_provider.dart';
+import '../dto/email_verification_confirm_request.dart';
+import '../dto/email_verification_request.dart';
 import '../dto/login_request.dart';
 import '../dto/register_request.dart';
 import '../dto/refresh_token_request.dart';
@@ -31,6 +33,30 @@ class AuthRemoteDataSource {
       ApiEndpoints.register,
       data: request.toJson(),
       fromJson: (json) => TokenResponse.fromJson(json as Map<String, dynamic>),
+    );
+  }
+
+  /// EN: Send verification email for registration.
+  /// KO: 회원가입용 이메일 인증 메일을 보냅니다.
+  Future<Result<void>> sendEmailVerification(
+    EmailVerificationRequest request,
+  ) {
+    return _apiClient.post<void>(
+      ApiEndpoints.emailVerifications,
+      data: request.toJson(),
+      fromJson: (_) {},
+    );
+  }
+
+  /// EN: Confirm verification token.
+  /// KO: 이메일 인증 토큰을 확인합니다.
+  Future<Result<void>> confirmEmailVerification(
+    EmailVerificationConfirmRequest request,
+  ) {
+    return _apiClient.post<void>(
+      ApiEndpoints.emailVerificationsConfirm,
+      data: request.toJson(),
+      fromJson: (_) {},
     );
   }
 

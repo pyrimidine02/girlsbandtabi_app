@@ -32,10 +32,11 @@ class NotificationSettingsDto {
   }
 
   Map<String, dynamic> toJson() {
+    final normalizedCategories = _normalizeCategories(categories);
     return {
       'pushEnabled': pushEnabled,
       'emailEnabled': emailEnabled,
-      'categories': categories,
+      'categories': normalizedCategories,
     };
   }
 }
@@ -56,4 +57,22 @@ bool _bool(Map<String, dynamic> json, List<String> keys, bool fallback) {
     }
   }
   return fallback;
+}
+
+List<String> _normalizeCategories(List<String> categories) {
+  const allowed = <String>{'LIVE_EVENT', 'FAVORITE', 'COMMENT'};
+  final normalized = <String>[];
+  for (final raw in categories) {
+    final upper = raw.toUpperCase();
+    if (upper == 'LIVE_EVENTS') {
+      if (!normalized.contains('LIVE_EVENT')) {
+        normalized.add('LIVE_EVENT');
+      }
+      continue;
+    }
+    if (allowed.contains(upper) && !normalized.contains(upper)) {
+      normalized.add(upper);
+    }
+  }
+  return normalized;
 }

@@ -59,6 +59,28 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     return _handleAuthResult(result);
   }
 
+  /// EN: Send verification email for registration.
+  /// KO: 회원가입용 이메일 인증 메일을 보냅니다.
+  Future<Result<void>> sendEmailVerification({required String email}) async {
+    final result = await _repository.sendEmailVerification(email: email);
+    if (result is Err<void>) {
+      final failure = result.failure;
+      state = AsyncError(failure, StackTrace.current);
+    }
+    return result;
+  }
+
+  /// EN: Confirm verification token.
+  /// KO: 이메일 인증 토큰을 확인합니다.
+  Future<Result<void>> confirmEmailVerification({required String token}) async {
+    final result = await _repository.confirmEmailVerification(token: token);
+    if (result is Err<void>) {
+      final failure = result.failure;
+      state = AsyncError(failure, StackTrace.current);
+    }
+    return result;
+  }
+
   /// EN: Complete OAuth login after receiving authorization code.
   /// KO: 인가 코드 수신 후 OAuth 로그인 완료.
   Future<Result<void>> completeOAuthLogin({

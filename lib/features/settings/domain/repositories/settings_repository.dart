@@ -8,10 +8,16 @@ import '../entities/user_profile.dart';
 
 abstract class SettingsRepository {
   Future<Result<UserProfile>> getUserProfile({bool forceRefresh = false});
+  Future<Result<UserProfile>> getUserProfileById({
+    required String userId,
+    bool forceRefresh = false,
+  });
 
   Future<Result<UserProfile>> updateUserProfile({
     required String displayName,
     String? avatarUrl,
+    String? bio,
+    String? coverImageUrl,
   });
 
   Future<Result<NotificationSettings>> getNotificationSettings({
