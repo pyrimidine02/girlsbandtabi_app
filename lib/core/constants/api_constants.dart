@@ -297,9 +297,11 @@ class ApiEndpoints {
   // ============================================================
   static const String uploadsPresignedUrl =
       '$apiVersion/uploads/presigned-url';
+  static const String uploadsDirect = '$apiVersion/uploads';
   static String uploadsConfirm(String uploadId) =>
       '$apiVersion/uploads/$uploadId/confirm';
   static const String uploadsMy = '$apiVersion/uploads/my';
+  static const String uploadsPending = '$apiVersion/uploads/pending';
   static String uploadsDelete(String uploadId) =>
       '$apiVersion/uploads/$uploadId';
   static String uploadsApprove(String uploadId) =>

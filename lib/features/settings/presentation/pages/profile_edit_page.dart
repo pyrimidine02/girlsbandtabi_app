@@ -17,8 +17,6 @@ import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../uploads/application/uploads_controller.dart';
-import '../../../uploads/domain/entities/upload_entity.dart';
-import '../../../uploads/utils/presigned_upload_helper.dart';
 import '../../../uploads/utils/webp_image_converter.dart';
 import '../../application/settings_controller.dart';
 import '../../domain/entities/user_profile.dart';
@@ -208,40 +206,29 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
       final uploadController =
           ref.read(uploadsControllerProvider.notifier);
 
-      final presignedResult = await uploadController.requestPresignedUrl(
+      final uploadResult = await uploadController.uploadImageBytes(
+        bytes: bytes,
         filename: filename,
         contentType: contentType,
-        size: bytes.length,
       );
-      if (presignedResult case Err(:final failure)) {
+      if (uploadResult case Err(:final failure)) {
         _handleUploadFailure(failure);
         return;
       }
 
-      final presigned = switch (presignedResult) {
+      final upload = switch (uploadResult) {
         Success(:final data) => data,
         Err(:final failure) => throw failure,
       };
 
-      await uploadToPresignedUrl(
-        url: presigned.url,
-        bytes: bytes,
-        contentType: contentType,
-        headers: presigned.headers,
-      );
-
-      final confirmResult =
-          await uploadController.confirmUpload(presigned.uploadId);
-      if (confirmResult case Err(:final failure)) {
-        _handleUploadFailure(failure);
+      if (upload.url.isEmpty) {
+        _showMessage('업로드 정보를 가져오지 못했습니다.');
         return;
       }
 
-      await _resolveUploadUrl(
-        uploadId: presigned.uploadId,
-        onResolved: (url) => _pendingAvatarUrl = url,
-        successMessage: '사진이 업로드되었습니다. 저장을 눌러 반영하세요.',
-      );
+      if (!mounted) return;
+      setState(() => _pendingAvatarUrl = upload.url);
+      _showMessage('사진이 업로드되었습니다. 저장을 눌러 반영하세요.');
     } on Failure catch (failure) {
       _handleUploadFailure(failure);
     } catch (_) {
@@ -278,40 +265,29 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
       final uploadController =
           ref.read(uploadsControllerProvider.notifier);
 
-      final presignedResult = await uploadController.requestPresignedUrl(
+      final uploadResult = await uploadController.uploadImageBytes(
+        bytes: bytes,
         filename: filename,
         contentType: contentType,
-        size: bytes.length,
       );
-      if (presignedResult case Err(:final failure)) {
+      if (uploadResult case Err(:final failure)) {
         _handleUploadFailure(failure);
         return;
       }
 
-      final presigned = switch (presignedResult) {
+      final upload = switch (uploadResult) {
         Success(:final data) => data,
         Err(:final failure) => throw failure,
       };
 
-      await uploadToPresignedUrl(
-        url: presigned.url,
-        bytes: bytes,
-        contentType: contentType,
-        headers: presigned.headers,
-      );
-
-      final confirmResult =
-          await uploadController.confirmUpload(presigned.uploadId);
-      if (confirmResult case Err(:final failure)) {
-        _handleUploadFailure(failure);
+      if (upload.url.isEmpty) {
+        _showMessage('업로드 정보를 가져오지 못했습니다.');
         return;
       }
 
-      await _resolveUploadUrl(
-        uploadId: presigned.uploadId,
-        onResolved: (url) => _pendingCoverUrl = url,
-        successMessage: '배경 이미지가 업로드되었습니다. 저장을 눌러 반영하세요.',
-      );
+      if (!mounted) return;
+      setState(() => _pendingCoverUrl = upload.url);
+      _showMessage('배경 이미지가 업로드되었습니다. 저장을 눌러 반영하세요.');
     } on Failure catch (failure) {
       _handleUploadFailure(failure);
     } catch (_) {
@@ -339,38 +315,6 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _resolveUploadUrl({
-    required String uploadId,
-    required ValueChanged<String> onResolved,
-    required String successMessage,
-  }) async {
-    final repository = await ref.read(uploadsRepositoryProvider.future);
-    final result = await repository.getMyUploads(forceRefresh: true);
-    if (result is Err<List<UploadInfo>>) {
-      _handleUploadFailure(result.failure);
-      return;
-    }
-
-    final uploads = (result as Success<List<UploadInfo>>).data;
-    final match = uploads.firstWhere(
-      (item) => item.uploadId == uploadId,
-      orElse: () => const UploadInfo(
-        uploadId: '',
-        url: '',
-        filename: '',
-        isApproved: false,
-      ),
-    );
-
-    if (match.uploadId.isEmpty || match.url.isEmpty) {
-      _showMessage('업로드 정보를 가져오지 못했습니다.');
-      return;
-    }
-
-    if (!mounted) return;
-    setState(() => onResolved(match.url));
-    _showMessage(successMessage);
-  }
 }
 
 class _ProfileForm extends StatelessWidget {

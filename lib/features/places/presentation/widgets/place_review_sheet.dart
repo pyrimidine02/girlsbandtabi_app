@@ -14,7 +14,6 @@ import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../uploads/application/uploads_controller.dart';
-import '../../../uploads/utils/presigned_upload_helper.dart';
 import '../../../uploads/utils/webp_image_converter.dart';
 import '../../application/places_controller.dart';
 
@@ -190,8 +189,7 @@ class _PlaceReviewSheetState extends ConsumerState<PlaceReviewSheet> {
 
   Future<List<String>> _uploadImages() async {
     if (_images.isEmpty) return <String>[];
-    final uploadController =
-        ref.read(uploadsControllerProvider.notifier);
+    final uploadController = ref.read(uploadsControllerProvider.notifier);
     final uploadIds = <String>[];
 
     for (final image in _images) {
@@ -203,33 +201,21 @@ class _PlaceReviewSheetState extends ConsumerState<PlaceReviewSheet> {
       final filename = payload.filename;
       final contentType = payload.contentType;
 
-      final presignedResult = await uploadController.requestPresignedUrl(
+      final uploadResult = await uploadController.uploadImageBytes(
+        bytes: bytes,
         filename: filename,
         contentType: contentType,
-        size: bytes.length,
       );
-      if (presignedResult case Err(:final failure)) {
+      if (uploadResult case Err(:final failure)) {
         throw failure;
       }
 
-      final presigned = switch (presignedResult) {
+      final upload = switch (uploadResult) {
         Success(:final data) => data,
         Err(:final failure) => throw failure,
       };
-      await uploadToPresignedUrl(
-        url: presigned.url,
-        bytes: bytes,
-        contentType: contentType,
-        headers: presigned.headers,
-      );
 
-      final confirmResult =
-          await uploadController.confirmUpload(presigned.uploadId);
-      if (confirmResult case Err(:final failure)) {
-        throw failure;
-      }
-
-      uploadIds.add(presigned.uploadId);
+      uploadIds.add(upload.uploadId);
     }
 
     return uploadIds;

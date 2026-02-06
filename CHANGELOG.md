@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-02-06
+- **COMMUNITY**: Render post attachments even when the backend stores raw R2 URLs in content, and suppress those URLs from the body text.
+- **CONFIG**: Default release builds to the production API base URL while keeping debug builds on localhost.
+
 ## 2026-02-05
 - **MEDIA**: Normalize legacy R2 URLs to the public CDN host before loading images.
 - **SETTINGS**: Align notification category values with backend enums (LIVE_EVENT/FAVORITE/COMMENT).
@@ -276,3 +280,8 @@
 - Guarded GBTImage cache sizing against infinite dimensions to prevent runtime crashes.
 - Added pull-to-refresh on place detail to reload stats, guides, comments, and favorites.
 - Adjusted project selector and place stats surfaces to respect dark mode colors.
+- Updated login page text/icon colors to improve dark mode readability.
+- Added explicit navigation to home on login success to avoid delayed auth redirects.
+- Added direct multipart upload support with presigned fallback and updated profile/review/post image flows to use the unified upload helper.
+- Expanded direct-upload fallback to presigned on 5xx errors to keep uploads working when the direct endpoint fails.
+- Applied dark mode styling to Google Maps on the Places map view.

@@ -7,9 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/failure.dart';
-import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/buttons/gbt_button.dart';
 import '../../../../core/widgets/inputs/gbt_text_field.dart';
 import '../../application/auth_controller.dart';
@@ -39,6 +39,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     ref.listen<AsyncValue<void>>(authControllerProvider, (previous, next) {
       if (!mounted) return;
       next.whenOrNull(
@@ -72,19 +73,23 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 Center(
                   child: Column(
                     children: [
-                      Icon(Icons.music_note, size: 64, color: GBTColors.accent),
+                      Icon(
+                        Icons.music_note,
+                        size: 64,
+                        color: colorScheme.primary,
+                      ),
                       const SizedBox(height: GBTSpacing.md),
                       Text(
                         'Girls Band Tabi',
                         style: GBTTypography.headlineMedium.copyWith(
-                          color: GBTColors.textPrimary,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: GBTSpacing.xs),
                       Text(
                         '성지순례의 시작',
                         style: GBTTypography.bodyMedium.copyWith(
-                          color: GBTColors.textSecondary,
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -166,7 +171,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     Text(
                       '계정이 없으신가요?',
                       style: GBTTypography.bodyMedium.copyWith(
-                        color: GBTColors.textSecondary,
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                     TextButton(
@@ -186,7 +191,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     child: Text(
                       '로그인 없이 둘러보기',
                       style: GBTTypography.bodyMedium.copyWith(
-                        color: GBTColors.textTertiary,
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -202,11 +207,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
     final controller = ref.read(authControllerProvider.notifier);
-    await controller.login(
+    final result = await controller.login(
       username: _usernameController.text.trim(),
       password: _passwordController.text,
     );
-    // EN: Navigation is handled by GoRouter redirect on auth state change.
-    // KO: 인증 상태 변경 시 GoRouter 리다이렉트가 네비게이션을 처리합니다.
+    if (!mounted) return;
+    if (result is Success<void>) {
+      context.go('/home');
+    }
   }
 }

@@ -13,6 +13,7 @@ import '../../../../core/utils/result.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/utils/media_url.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../settings/application/settings_controller.dart';
@@ -505,8 +506,8 @@ class _PostDetailContent extends StatelessWidget {
     final contentText = _stripImageMarkdown(post.content ?? '');
     final embeddedImageUrls = _extractImageUrls(post.content);
     final mergedImageUrls = {
-      ...post.imageUrls,
-      ...embeddedImageUrls,
+      ...post.imageUrls.map(resolveMediaUrl),
+      ...embeddedImageUrls.map(resolveMediaUrl),
     }.where((url) => url.isNotEmpty).toList();
     final isOwnPost =
         currentUserId != null && currentUserId == post.authorId;
@@ -1060,20 +1061,119 @@ String _commentCountLabel(
 
 List<String> _extractImageUrls(String? content) {
   if (content == null || content.isEmpty) return const [];
-  final matches =
-      RegExp(r'!\\[[^\\]]*\\]\\((https?://[^)]+)\\)').allMatches(content);
-  return matches
+  final urls = <String>{};
+  urls.addAll(_extractMarkdownImageUrls(content));
+  urls.addAll(_extractHtmlImageUrls(content));
+  urls.addAll(_extractInlineImageUrls(content));
+  return urls.toList();
+}
+
+String _stripImageMarkdown(String content) {
+  if (content.isEmpty) return content;
+  var sanitized = content
+      .replaceAll(_markdownImagePattern, '')
+      .replaceAll(_htmlImagePattern, '');
+  sanitized = _stripInlineImageUrls(sanitized);
+  sanitized = sanitized.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+  sanitized = sanitized.replaceAll(RegExp(r'[ \t]{2,}'), ' ');
+  return sanitized.trim();
+}
+
+const _publicR2Host = 'r2.pyrimidines.org';
+const _legacyR2Suffix = 'r2.cloudflarestorage.com';
+const _imageExtensions = <String>{
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+  '.gif',
+  '.bmp',
+  '.heic',
+  '.heif',
+};
+
+final _markdownImagePattern =
+    RegExp(r'!\[[^\]]*\]\((https?://[^)\s]+)[^)]*\)');
+final _htmlImagePattern = RegExp(
+  r'''<img[^>]*src=["'](https?://[^"']+)["']''',
+  caseSensitive: false,
+);
+final _urlPattern = RegExp(r'''(https?://[^\s)<>"']+)''');
+final _bareR2Pattern = RegExp(
+  r'''(r2\.pyrimidines\.org/[^\s)<>"']+)''',
+  caseSensitive: false,
+);
+
+List<String> _extractMarkdownImageUrls(String content) {
+  return _markdownImagePattern
+      .allMatches(content)
       .map((match) => match.group(1) ?? '')
       .where((url) => url.isNotEmpty)
       .toList();
 }
 
-String _stripImageMarkdown(String content) {
-  if (content.isEmpty) return content;
-  return content.replaceAll(
-    RegExp(r'!\\[[^\\]]*\\]\\((https?://[^)]+)\\)'),
-    '',
-  ).trim();
+List<String> _extractHtmlImageUrls(String content) {
+  return _htmlImagePattern
+      .allMatches(content)
+      .map((match) => match.group(1) ?? '')
+      .where((url) => url.isNotEmpty)
+      .toList();
+}
+
+List<String> _extractInlineImageUrls(String content) {
+  final urls = <String>[];
+  urls.addAll(
+    _urlPattern
+        .allMatches(content)
+        .map((match) => match.group(1) ?? '')
+        .where((url) => _isLikelyImageUrl(url)),
+  );
+  urls.addAll(
+    _bareR2Pattern
+        .allMatches(content)
+        .map((match) => match.group(1) ?? '')
+        .where((url) => _isLikelyImageUrl(_ensureScheme(url))),
+  );
+  return urls;
+}
+
+String _stripInlineImageUrls(String content) {
+  var sanitized = content.replaceAllMapped(_urlPattern, (match) {
+    final url = match.group(1) ?? '';
+    return _isLikelyImageUrl(url) ? '' : url;
+  });
+  sanitized = sanitized.replaceAllMapped(_bareR2Pattern, (match) {
+    final url = match.group(1) ?? '';
+    return _isLikelyImageUrl(_ensureScheme(url)) ? '' : url;
+  });
+  return sanitized;
+}
+
+bool _isLikelyImageUrl(String value) {
+  if (value.isEmpty) return false;
+  final resolvedValue = _ensureScheme(value);
+  final uri = Uri.tryParse(resolvedValue);
+  if (uri == null || uri.host.isEmpty) return false;
+  if (uri.scheme != 'http' && uri.scheme != 'https') return false;
+
+  final normalizedUri = Uri.tryParse(resolveMediaUrl(resolvedValue)) ?? uri;
+  final host = normalizedUri.host.toLowerCase();
+  if (host == _publicR2Host || host.endsWith(_legacyR2Suffix)) {
+    return true;
+  }
+
+  final path = normalizedUri.path.toLowerCase();
+  return _imageExtensions.any(path.endsWith);
+}
+
+String _ensureScheme(String value) {
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value;
+  }
+  if (value.startsWith('r2.pyrimidines.org/')) {
+    return 'https://$value';
+  }
+  return value;
 }
 
 class _Avatar extends StatelessWidget {

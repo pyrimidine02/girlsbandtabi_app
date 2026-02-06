@@ -9,6 +9,14 @@ import '../entities/upload_entity.dart';
 /// EN: Abstract repository for upload operations.
 /// KO: 업로드 작업을 위한 추상 리포지토리.
 abstract class UploadsRepository {
+  /// EN: Upload a file directly via multipart.
+  /// KO: multipart로 파일을 직접 업로드합니다.
+  Future<Result<UploadInfo>> directUpload({
+    required List<int> bytes,
+    required String filename,
+    required String contentType,
+  });
+
   /// EN: Request a presigned URL for file upload.
   /// KO: 파일 업로드를 위한 presigned URL을 요청합니다.
   Future<Result<PresignedUrlResponse>> requestPresignedUrl({

@@ -2,6 +2,9 @@
 /// KO: 업로드 API 원격 데이터 소스.
 library;
 
+import 'package:dio/dio.dart';
+import 'package:http_parser/http_parser.dart';
+
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/utils/result.dart';
@@ -13,6 +16,30 @@ class UploadsRemoteDataSource {
   UploadsRemoteDataSource(this._apiClient);
 
   final ApiClient _apiClient;
+
+  /// EN: Upload a file directly via multipart/form-data.
+  /// KO: multipart/form-data로 파일을 직접 업로드합니다.
+  Future<Result<UploadInfoResponse>> directUpload({
+    required List<int> bytes,
+    required String filename,
+    required String contentType,
+  }) {
+    final formData = FormData.fromMap({
+      'file': MultipartFile.fromBytes(
+        bytes,
+        filename: filename,
+        contentType: MediaType.parse(contentType),
+      ),
+    });
+
+    return _apiClient.post<UploadInfoResponse>(
+      ApiEndpoints.uploadsDirect,
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+      fromJson: (json) =>
+          UploadInfoResponse.fromJson(json as Map<String, dynamic>),
+    );
+  }
 
   /// EN: Request a presigned URL for direct file upload.
   /// KO: 직접 파일 업로드를 위한 presigned URL을 요청합니다.

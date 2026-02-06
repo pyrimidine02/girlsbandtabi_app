@@ -2,8 +2,12 @@
 /// KO: 업로드 컨트롤러 및 Riverpod 프로바이더.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/error/error_handler.dart';
+import '../../../core/error/failure.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
 import '../data/datasources/uploads_remote_data_source.dart';
@@ -11,6 +15,7 @@ import '../data/dto/upload_dto.dart';
 import '../data/repositories/uploads_repository_impl.dart';
 import '../domain/entities/upload_entity.dart';
 import '../domain/repositories/uploads_repository.dart';
+import '../utils/presigned_upload_helper.dart';
 
 /// EN: Controller for managing user uploads.
 /// KO: 사용자 업로드를 관리하는 컨트롤러.
@@ -47,6 +52,38 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
       contentType: contentType,
       size: size,
     );
+  }
+
+  /// EN: Upload bytes and return upload info (direct or presigned fallback).
+  /// KO: 바이트 업로드 후 업로드 정보를 반환합니다(직접 업로드 우선).
+  Future<Result<UploadInfo>> uploadImageBytes({
+    required Uint8List bytes,
+    required String filename,
+    required String contentType,
+  }) async {
+    final repository = await _ref.read(uploadsRepositoryProvider.future);
+    final directResult = await repository.directUpload(
+      bytes: bytes,
+      filename: filename,
+      contentType: contentType,
+    );
+
+    if (directResult is Success<UploadInfo>) {
+      await load(forceRefresh: true);
+      return directResult;
+    }
+
+    if (directResult is Err<UploadInfo> &&
+        _shouldFallbackToPresigned(directResult.failure)) {
+      return _uploadViaPresigned(
+        repository: repository,
+        bytes: bytes,
+        filename: filename,
+        contentType: contentType,
+      );
+    }
+
+    return directResult;
   }
 
   /// EN: Confirm an upload after file has been sent to S3/R2.
@@ -88,6 +125,78 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
       await load(forceRefresh: true);
     }
     return result;
+  }
+
+  bool _shouldFallbackToPresigned(Failure failure) {
+    if (failure is NotFoundFailure) {
+      return true;
+    }
+    if (failure is ServerFailure) {
+      return switch (failure.code) {
+        '500' => true,
+        '501' => true,
+        '502' => true,
+        '503' => true,
+        'INTERNAL_SERVER_ERROR' => true,
+        '404' => true,
+        _ => failure.message.toLowerCase().contains('upload') &&
+            failure.message.toLowerCase().contains('disabled'),
+      };
+    }
+    return false;
+  }
+
+  Future<Result<UploadInfo>> _uploadViaPresigned({
+    required UploadsRepository repository,
+    required Uint8List bytes,
+    required String filename,
+    required String contentType,
+  }) async {
+    final presignedResult = await repository.requestPresignedUrl(
+      filename: filename,
+      contentType: contentType,
+      size: bytes.length,
+    );
+    if (presignedResult is Err<PresignedUrlResponse>) {
+      return Result.failure(presignedResult.failure);
+    }
+
+    final presigned = switch (presignedResult) {
+      Success(:final data) => data,
+      Err(:final failure) => throw failure,
+    };
+
+    try {
+      await uploadToPresignedUrl(
+        url: presigned.url,
+        bytes: bytes,
+        contentType: contentType,
+        headers: presigned.headers,
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+
+    final confirmResult = await repository.confirmUpload(presigned.uploadId);
+    if (confirmResult is Err<ConfirmUploadResponse>) {
+      return Result.failure(confirmResult.failure);
+    }
+
+    final listResult = await repository.getMyUploads(forceRefresh: true);
+    if (listResult is Success<List<UploadInfo>>) {
+      final match = listResult.data
+          .where((item) => item.uploadId == presigned.uploadId)
+          .toList();
+      if (match.isNotEmpty) {
+        return Result.success(match.first);
+      }
+    } else if (listResult is Err<List<UploadInfo>>) {
+      return Result.failure(listResult.failure);
+    }
+
+    return const Result.failure(
+      UnknownFailure('Uploaded file not found after confirm'),
+    );
   }
 }
 

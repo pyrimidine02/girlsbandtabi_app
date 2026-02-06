@@ -24,6 +24,31 @@ class UploadsRepositoryImpl implements UploadsRepository {
   static const String _myUploadsCacheKey = 'uploads_my';
 
   @override
+  Future<Result<UploadInfo>> directUpload({
+    required List<int> bytes,
+    required String filename,
+    required String contentType,
+  }) async {
+    final result = await _remoteDataSource.directUpload(
+      bytes: bytes,
+      filename: filename,
+      contentType: contentType,
+    );
+
+    if (result is Success<UploadInfoResponse>) {
+      await _cacheManager.remove(_myUploadsCacheKey);
+      return Result.success(UploadInfo.fromDto(result.data));
+    }
+    if (result is Err<UploadInfoResponse>) {
+      return Result.failure(result.failure);
+    }
+
+    return const Result.failure(
+      UnknownFailure('Unknown direct upload result'),
+    );
+  }
+
+  @override
   Future<Result<PresignedUrlResponse>> requestPresignedUrl({
     required String filename,
     required String contentType,

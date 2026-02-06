@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,10 +19,12 @@ Future<void> main() async {
 
   // EN: Initialize app configuration
   // KO: 앱 구성 초기화
+  final environment =
+      kReleaseMode ? Environment.production : Environment.development;
   AppConfig.instance.init(
-    environment: Environment.development,
-    // EN: Override with actual values for production
-    // KO: 프로덕션에서는 실제 값으로 오버라이드
+    environment: environment,
+    // EN: Override with actual values for production.
+    // KO: 프로덕션에서는 실제 값으로 오버라이드.
   );
 
   AppLogger.info('App starting', tag: 'Main');

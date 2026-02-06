@@ -19,7 +19,6 @@ import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../application/feed_controller.dart';
 import '../../domain/entities/feed_entities.dart';
 import '../../../uploads/application/uploads_controller.dart';
-import '../../../uploads/utils/presigned_upload_helper.dart';
 import '../../../uploads/utils/webp_image_converter.dart';
 
 class PostCreatePage extends ConsumerStatefulWidget {
@@ -214,7 +213,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
   Future<List<String>> _uploadImages() async {
     if (_images.isEmpty) return const [];
     final uploadController = ref.read(uploadsControllerProvider.notifier);
-    final uploadIds = <String>[];
+    final uploadUrls = <String>[];
 
     for (final image in _images) {
       final payload = await convertToWebp(
@@ -225,52 +224,26 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
       final filename = payload.filename;
       final contentType = payload.contentType;
 
-      final presignedResult = await uploadController.requestPresignedUrl(
+      final uploadResult = await uploadController.uploadImageBytes(
+        bytes: bytes,
         filename: filename,
         contentType: contentType,
-        size: bytes.length,
       );
-      if (presignedResult case Err(:final failure)) {
+      if (uploadResult case Err(:final failure)) {
         throw failure;
       }
 
-      final presigned = switch (presignedResult) {
+      final upload = switch (uploadResult) {
         Success(:final data) => data,
         Err(:final failure) => throw failure,
       };
 
-      await uploadToPresignedUrl(
-        url: presigned.url,
-        bytes: bytes,
-        contentType: contentType,
-        headers: presigned.headers,
-      );
-
-      final confirmResult =
-          await uploadController.confirmUpload(presigned.uploadId);
-      if (confirmResult case Err(:final failure)) {
-        throw failure;
+      if (upload.url.isNotEmpty) {
+        uploadUrls.add(upload.url);
       }
-
-      uploadIds.add(presigned.uploadId);
     }
 
-    final repository = await ref.read(uploadsRepositoryProvider.future);
-    final uploadsResult = await repository.getMyUploads(forceRefresh: true);
-    if (uploadsResult case Err(:final failure)) {
-      throw failure;
-    }
-    final uploads = switch (uploadsResult) {
-      Success(:final data) => data,
-      Err(:final failure) => throw failure,
-    };
-    final uploadMap = {
-      for (final upload in uploads) upload.uploadId: upload.url,
-    };
-    return uploadIds
-        .map((id) => uploadMap[id])
-        .whereType<String>()
-        .toList();
+    return uploadUrls;
   }
 }
 

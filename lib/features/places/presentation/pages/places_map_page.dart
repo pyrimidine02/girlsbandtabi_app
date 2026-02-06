@@ -51,6 +51,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final placesState = ref.watch(placesListControllerProvider);
     final places = placesState.maybeWhen(
       data: (items) => items,
@@ -120,6 +121,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
               places: places,
               zoom: _currentZoom,
               bottomPadding: MediaQuery.of(context).size.height * 0.35,
+              isDarkMode: isDarkMode,
               onAppleMapCreated: (controller) {
                 _appleMapController = controller;
                 _maybeCenterOnPlaces(places);
@@ -871,6 +873,7 @@ class _PlacesMapView extends StatelessWidget {
     required this.places,
     required this.zoom,
     required this.bottomPadding,
+    required this.isDarkMode,
     required this.onAppleMapCreated,
     required this.onGoogleMapCreated,
     required this.onCameraMove,
@@ -882,6 +885,7 @@ class _PlacesMapView extends StatelessWidget {
   final List<PlaceSummary> places;
   final double zoom;
   final double bottomPadding;
+  final bool isDarkMode;
   final ValueChanged<amaps.AppleMapController> onAppleMapCreated;
   final ValueChanged<gmaps.GoogleMapController> onGoogleMapCreated;
   final ValueChanged<double> onCameraMove;
@@ -936,6 +940,7 @@ class _PlacesMapView extends StatelessWidget {
       myLocationButtonEnabled: false,
       compassEnabled: true,
       zoomControlsEnabled: false,
+      style: isDarkMode ? _darkMapStyle : null,
       markers: _buildGoogleMarkers(clusters, onPlaceTap, onClusterTap),
       padding: EdgeInsets.only(bottom: bottomPadding),
     );
@@ -1000,6 +1005,23 @@ class _PlacesMapView extends StatelessWidget {
         .toSet();
   }
 }
+
+const String _darkMapStyle = '''
+[
+  {"elementType":"geometry","stylers":[{"color":"#1f1f1f"}]},
+  {"elementType":"labels.icon","stylers":[{"visibility":"off"}]},
+  {"elementType":"labels.text.fill","stylers":[{"color":"#8a8a8a"}]},
+  {"elementType":"labels.text.stroke","stylers":[{"color":"#1f1f1f"}]},
+  {"featureType":"administrative","elementType":"geometry","stylers":[{"color":"#2f2f2f"}]},
+  {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#262626"}]},
+  {"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#1e2b20"}]},
+  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#2b2b2b"}]},
+  {"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#1a1a1a"}]},
+  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#3a3a3a"}]},
+  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#0f1b2a"}]},
+  {"featureType":"transit.station","elementType":"labels.text.fill","stylers":[{"color":"#8a8a8a"}]}
+]
+''';
 
 class _MapFallback extends StatelessWidget {
   const _MapFallback({required this.message});

@@ -4,7 +4,7 @@
 - Implement the live events calendar view (calendar icon on LiveEventsPage) and apply the same sorting + D-day labels (remove once calendar UI ships).
 - Re-verify Swagger for `{projectId}` usage on units endpoints once `http://localhost:8080/swagger-ui/index.html` is reachable, and adjust ID/slug usage if required.
 - Implement JWE location token generation for place verification (currently using latitude/longitude payload per `docs/place-verification-endpoints.md`).
-- After local endpoint checks, restore development base URL to the shared dev/staging host or make it configurable via env (remove when backend validation is done).
+- Add a `dart-define` (or similar) base URL override so QA builds can target staging without code edits (release defaults to production).
 - Confirm backend accepts project slug/code for remaining project-scoped endpoints (places/live/news/verification) and document any exceptions.
 - Expand verification error localization map as backend adds new failure reasons.
 - Decide whether place detail should show favorites as "좋아요" or a true rating once backend exposes rating data.
@@ -35,6 +35,7 @@
 - Remove temporary notification category mapping once backend documents all supported category enums.
 - Verify community posts/comments pagination contract (`page`/`size` vs `pageable`) and adjust query params if needed.
 - Request backend support for community post image attachments (create/update payload fields + response images list).
+- Remove the post detail plain-URL attachment fallback once the backend preserves markdown or returns explicit `imageUrls`.
 - Confirm user profile `bio` and `coverImageUrl` are returned on public profile endpoints (read + update).
 - Confirm whether `username` should be an email for registration and align login labels accordingly.
 - Confirm unit name/description semantics (`code` vs `displayName`) with backend and update mapping if the contract changes.
@@ -47,5 +48,6 @@
 - Confirm uploads list/approval behavior (URL availability after confirm, approval required before public access).
 - Confirm rejected uploads are removed from comments after delete and whether backend clears photo references.
 - Remove client-side media URL normalization once backend returns public CDN URLs by default.
+- Investigate Apple Maps dark mode styling support once the plugin exposes map style controls.
 - Replace iOS/macOS JPEG fallback with true WebP encoding (preserving metadata) once a supported encoder is available.
 - Run on-device QA for Stage 9 flows (search/verification/favorites/notifications/projects/uploads) and record findings.

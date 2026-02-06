@@ -2,18 +2,20 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
-    <key>CFBundleDisplayName</key>
-    <string>걸즈밴드타비</string>
+	<key>CFBundleDisplayName</key>
+	<string>걸즈밴드타비</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
-    <key>CFBundleName</key>
-    <string>걸즈밴드타비</string>
+	<key>CFBundleName</key>
+	<string>걸즈밴드타비</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -23,6 +25,43 @@
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>api.pyrimidines.org</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+			<key>r2.pyrimidines.org</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>EN: Allow location access to verify places even when returning to the app. KO: 앱으로 돌아왔을 때도 성지 인증을 하려면 위치 접근을 허용해주세요.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>EN: We need your location to verify place visits. KO: 성지 방문 인증을 위해 현재 위치 정보가 필요합니다.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>EN: Allow photo access to attach images to your visit review. KO: 방문 후기에 사진을 첨부하기 위해 사진 접근 권한이 필요합니다.</string>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
@@ -41,32 +80,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<key>io.flutter.embedded_views_preview</key>
 	<true/>
-  <key>UIApplicationSupportsIndirectInputEvents</key>
-  <true/>
-  <key>NSAppTransportSecurity</key>
-  <dict>
-    <key>NSAllowsArbitraryLoads</key>
-    <true/>
-    <key>NSExceptionDomains</key>
-    <dict>
-      <key>localhost</key>
-      <dict>
-        <key>NSExceptionAllowsInsecureHTTPLoads</key>
-        <true/>
-        <key>NSIncludesSubdomains</key>
-        <true/>
-      </dict>
-    </dict>
-  </dict>
-  <key>NSLocationWhenInUseUsageDescription</key>
-  <string>EN: We need your location to verify place visits. KO: 성지 방문 인증을 위해 현재 위치 정보가 필요합니다.</string>
-  <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-  <string>EN: Allow location access to verify places even when returning to the app. KO: 앱으로 돌아왔을 때도 성지 인증을 하려면 위치 접근을 허용해주세요.</string>
-  <key>NSPhotoLibraryUsageDescription</key>
-  <string>EN: Allow photo access to attach images to your visit review. KO: 방문 후기에 사진을 첨부하기 위해 사진 접근 권한이 필요합니다.</string>
-  <key>io.flutter.embedded_views_preview</key>
-  <true/>
 </dict>
 </plist>
