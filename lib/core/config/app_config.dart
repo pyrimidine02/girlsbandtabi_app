@@ -54,7 +54,10 @@ class AppConfig {
 
   String _getDefaultBaseUrl(Environment env) {
     return switch (env) {
-      Environment.development => 'http://localhost:8080',
+      Environment.development =>
+        (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
+            ? 'http://10.0.2.2:8080'
+            : 'http://localhost:8080',
       Environment.staging => 'https://api.pyrimidines.org',
       Environment.production => 'https://api.pyrimidines.org',
     };

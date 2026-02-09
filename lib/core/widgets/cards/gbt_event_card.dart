@@ -10,10 +10,11 @@ import '../../theme/gbt_decorations.dart';
 import '../../theme/gbt_spacing.dart';
 import '../../theme/gbt_typography.dart';
 import '../common/gbt_image.dart';
+import '../common/gbt_pressable.dart';
 
 /// EN: Event card widget for list display with press animation
 /// KO: 프레스 애니메이션을 포함한 리스트 표시용 이벤트 카드 위젯
-class GBTEventCard extends StatefulWidget {
+class GBTEventCard extends StatelessWidget {
   const GBTEventCard({
     super.key,
     required this.title,
@@ -73,243 +74,227 @@ class GBTEventCard extends StatefulWidget {
   /// KO: 즐겨찾기가 토글되었을 때 콜백
   final VoidCallback? onFavoriteToggle;
 
-  @override
-  State<GBTEventCard> createState() => _GBTEventCardState();
-}
-
-class _GBTEventCardState extends State<GBTEventCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pressController;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _pressController = AnimationController(
-      duration: GBTAnimations.fast,
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: GBTAnimations.pressedScale,
-    ).animate(
-      CurvedAnimation(parent: _pressController, curve: Curves.easeInOut),
-    );
+  /// EN: Build comprehensive semantic label with all event state info
+  /// KO: 모든 이벤트 상태 정보를 포함한 포괄적 시맨틱 라벨 빌드
+  String get _semanticLabel {
+    final parts = <String>[title, subtitle, meta, date];
+    if (dDayLabel != null) parts.add(dDayLabel!);
+    if (isLive) parts.add('라이브 진행 중');
+    if (!isUpcoming) parts.add('종료됨');
+    if (isFavorite) parts.add('즐겨찾기됨');
+    return parts.join(', ');
   }
-
-  @override
-  void dispose() {
-    _pressController.dispose();
-    super.dispose();
-  }
-
-  void _onTapDown(TapDownDetails _) => _pressController.forward();
-  void _onTapUp(TapUpDetails _) => _pressController.reverse();
-  void _onTapCancel() => _pressController.reverse();
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final dDaySuffix = widget.dDayLabel != null ? ' ${widget.dDayLabel}' : '';
 
     return Semantics(
-      label:
-          '${widget.title} ${widget.subtitle} ${widget.meta} ${widget.date}$dDaySuffix',
-      button: widget.onTap != null,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: GestureDetector(
-          onTapDown: widget.onTap != null ? _onTapDown : null,
-          onTapUp: widget.onTap != null ? _onTapUp : null,
-          onTapCancel: widget.onTap != null ? _onTapCancel : null,
-          onTap: widget.onTap != null
-              ? () {
-                  HapticFeedback.lightImpact();
-                  _pressController.reverse();
-                  widget.onTap!();
-                }
-              : null,
-          child: AnimatedContainer(
-            duration: GBTAnimations.normal,
-            curve: GBTAnimations.defaultCurve,
-            decoration: GBTDecorations.card(isDark: isDark),
-            child: Padding(
-              padding: GBTSpacing.paddingMd,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // EN: Date badge with dark mode awareness
-                  // KO: 다크 모드 인식 날짜 배지
-                  _DateBadge(
-                    date: widget.date,
-                    isUpcoming: widget.isUpcoming,
-                    isDark: isDark,
-                    dDayLabel: widget.dDayLabel,
-                  ),
+      label: _semanticLabel,
+      hint: onTap != null ? '탭하면 이벤트 상세로 이동합니다' : null,
+      button: onTap != null,
+      child: GBTPressable(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: GBTAnimations.normal,
+          curve: GBTAnimations.defaultCurve,
+          decoration: GBTDecorations.card(isDark: isDark),
+          child: Padding(
+            padding: GBTSpacing.paddingMd,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // EN: Date badge with dark mode awareness
+                // KO: 다크 모드 인식 날짜 배지
+                _DateBadge(
+                  date: date,
+                  isUpcoming: isUpcoming,
+                  isDark: isDark,
+                  dDayLabel: dDayLabel,
+                ),
 
-                  const SizedBox(width: GBTSpacing.md),
+                const SizedBox(width: GBTSpacing.md),
 
-                  // EN: Event info
-                  // KO: 이벤트 정보
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // EN: Live badge with glow effect
-                        // KO: 글로우 효과가 있는 라이브 배지
-                        if (widget.isLive) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: GBTSpacing.xs,
-                              vertical: 2,
-                            ),
-                            decoration: GBTDecorations.liveBadge(),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // EN: Animated live dot
-                                // KO: 애니메이션 라이브 점
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'LIVE',
-                                  style: GBTTypography.labelSmall.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: GBTSpacing.xs),
-                        ],
-
-                        Text(
-                          widget.title,
-                          style: GBTTypography.titleSmall.copyWith(
-                            color: isDark
-                                ? GBTColors.darkTextPrimary
-                                : GBTColors.textPrimary,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-
-                        const SizedBox(height: GBTSpacing.xxs),
-
-                        Text(
-                          widget.subtitle,
-                          style: GBTTypography.bodySmall.copyWith(
-                            color: isDark
-                                ? const Color(0xFF9B7FD4)
-                                : GBTColors.accent,
-                          ),
-                        ),
-
-                        const SizedBox(height: GBTSpacing.xs),
-
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.location_on_outlined,
-                              size: 14,
-                              color: isDark
-                                  ? GBTColors.darkTextTertiary
-                                  : GBTColors.textTertiary,
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                widget.meta,
-                                style: GBTTypography.labelSmall.copyWith(
-                                  color: isDark
-                                      ? GBTColors.darkTextTertiary
-                                      : GBTColors.textTertiary,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(width: GBTSpacing.sm),
-
-                  // EN: Poster or favorite button
-                  // KO: 포스터 또는 즐겨찾기 버튼
-                  Column(
+                // EN: Event info
+                // KO: 이벤트 정보
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // EN: Poster with rounded corners
-                      // KO: 둥근 모서리 포스터
-                      Container(
-                        width: 60,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? GBTColors.darkSurfaceElevated
-                              : GBTColors.surfaceVariant,
-                          borderRadius:
-                              BorderRadius.circular(GBTSpacing.radiusSm),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: widget.posterUrl != null
-                            ? GBTImage(
-                                imageUrl: widget.posterUrl!,
-                                width: 60,
-                                height: 80,
-                                fit: BoxFit.cover,
-                                borderRadius: BorderRadius.circular(
-                                  GBTSpacing.radiusSm,
+                      // EN: Live badge with glow effect
+                      // KO: 글로우 효과가 있는 라이브 배지
+                      if (isLive) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: GBTSpacing.xs,
+                            vertical: GBTSpacing.xxs,
+                          ),
+                          decoration: GBTDecorations.liveBadge(),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
                                 ),
-                                semanticLabel: '${widget.title} 포스터',
-                              )
-                            : _PosterPlaceholder(isDark: isDark),
+                              ),
+                              const SizedBox(width: GBTSpacing.xs),
+                              Text(
+                                'LIVE',
+                                style: GBTTypography.labelSmall.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: GBTSpacing.xs),
+                      ],
+
+                      Text(
+                        title,
+                        style: GBTTypography.titleSmall.copyWith(
+                          color: isDark
+                              ? GBTColors.darkTextPrimary
+                              : GBTColors.textPrimary,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
 
-                      if (widget.onFavoriteToggle != null) ...[
-                        const SizedBox(height: GBTSpacing.xs),
-                        SizedBox(
-                          width: 32,
-                          height: 32,
-                          child: IconButton(
-                            icon: AnimatedSwitcher(
-                              duration: GBTAnimations.fast,
-                              child: Icon(
-                                widget.isFavorite
-                                    ? Icons.favorite_rounded
-                                    : Icons.favorite_border_rounded,
-                                key: ValueKey(widget.isFavorite),
-                                size: 18,
-                              ),
-                            ),
-                            color: widget.isFavorite
-                                ? GBTColors.favorite
-                                : (isDark
-                                    ? GBTColors.darkTextTertiary
-                                    : GBTColors.textTertiary),
-                            onPressed: () {
-                              HapticFeedback.lightImpact();
-                              widget.onFavoriteToggle!();
-                            },
-                            padding: EdgeInsets.zero,
-                          ),
+                      const SizedBox(height: GBTSpacing.xxs),
+
+                      Text(
+                        subtitle,
+                        style: GBTTypography.bodySmall.copyWith(
+                          color: isDark
+                              ? GBTColors.darkAccent
+                              : GBTColors.accent,
                         ),
-                      ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                      const SizedBox(height: GBTSpacing.xs),
+
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 14,
+                            color: isDark
+                                ? GBTColors.darkTextTertiary
+                                : GBTColors.textTertiary,
+                          ),
+                          const SizedBox(width: GBTSpacing.xs),
+                          Expanded(
+                            child: Text(
+                              meta,
+                              style: GBTTypography.labelSmall.copyWith(
+                                color: isDark
+                                    ? GBTColors.darkTextTertiary
+                                    : GBTColors.textTertiary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                ],
-              ),
+                ),
+
+                const SizedBox(width: GBTSpacing.sm),
+
+                // EN: Poster or favorite button
+                // KO: 포스터 또는 즐겨찾기 버튼
+                Column(
+                  children: [
+                    // EN: Poster with rounded corners
+                    // KO: 둥근 모서리 포스터
+                    Container(
+                      width: 60,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? GBTColors.darkSurfaceElevated
+                            : GBTColors.surfaceVariant,
+                        borderRadius:
+                            BorderRadius.circular(GBTSpacing.radiusSm),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: posterUrl != null
+                          ? GBTImage(
+                              imageUrl: posterUrl!,
+                              width: 60,
+                              height: 80,
+                              fit: BoxFit.cover,
+                              borderRadius: BorderRadius.circular(
+                                GBTSpacing.radiusSm,
+                              ),
+                              semanticLabel: '$title 포스터',
+                            )
+                          : _PosterPlaceholder(isDark: isDark),
+                    ),
+
+                    // EN: Favorite button with 48dp touch target & tooltip
+                    // KO: 48dp 터치 타겟과 툴팁이 있는 즐겨찾기 버튼
+                    if (onFavoriteToggle != null) ...[
+                      const SizedBox(height: GBTSpacing.xs),
+                      Tooltip(
+                        message: isFavorite
+                            ? '즐겨찾기 해제'
+                            : '즐겨찾기 추가',
+                        child: Semantics(
+                          button: true,
+                          label: isFavorite
+                              ? '즐겨찾기 해제'
+                              : '즐겨찾기 추가',
+                          hint: isFavorite
+                              ? '탭하면 즐겨찾기에서 제거합니다'
+                              : '탭하면 즐겨찾기에 추가합니다',
+                          child: SizedBox(
+                            width: GBTSpacing.touchTarget,
+                            height: GBTSpacing.touchTarget,
+                            child: IconButton(
+                              icon: AnimatedSwitcher(
+                                duration: GBTAnimations.fast,
+                                child: Icon(
+                                  isFavorite
+                                      ? Icons.favorite_rounded
+                                      : Icons.favorite_border_rounded,
+                                  key: ValueKey(isFavorite),
+                                  size: GBTSpacing.iconSm,
+                                ),
+                              ),
+                              color: isFavorite
+                                  ? GBTColors.favorite
+                                  : (isDark
+                                      ? GBTColors.darkTextTertiary
+                                      : GBTColors.textTertiary),
+                              onPressed: () {
+                                HapticFeedback.lightImpact();
+                                onFavoriteToggle!();
+                              },
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: GBTSpacing.touchTarget,
+                                minHeight: GBTSpacing.touchTarget,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
             ),
           ),
         ),
@@ -367,10 +352,12 @@ class _DateBadge extends StatelessWidget {
       bgColor = isDark
           ? GBTColors.accent.withValues(alpha: 0.15)
           : GBTColors.accent.withValues(alpha: 0.1);
-      primaryColor = isDark ? const Color(0xFF9B7FD4) : GBTColors.accent;
-      secondaryColor = isDark ? const Color(0xFF9B7FD4) : GBTColors.accent;
+      primaryColor = isDark ? GBTColors.darkAccent : GBTColors.accent;
+      secondaryColor = isDark ? GBTColors.darkAccent : GBTColors.accent;
     } else {
-      bgColor = isDark ? GBTColors.darkSurfaceElevated : GBTColors.surfaceVariant;
+      bgColor = isDark
+          ? GBTColors.darkSurfaceElevated
+          : GBTColors.surfaceVariant;
       primaryColor =
           isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
       secondaryColor =
@@ -400,7 +387,7 @@ class _DateBadge extends StatelessWidget {
             ),
           ),
           if (dDayLabel != null && dDayLabel!.isNotEmpty) ...[
-            const SizedBox(height: 2),
+            const SizedBox(height: GBTSpacing.xxs),
             Text(
               dDayLabel!,
               style: GBTTypography.labelSmall.copyWith(
@@ -417,7 +404,7 @@ class _DateBadge extends StatelessWidget {
 
 /// EN: Featured event card with larger display and press animation
 /// KO: 프레스 애니메이션을 포함한 더 큰 표시의 특집 이벤트 카드
-class GBTFeaturedEventCard extends StatefulWidget {
+class GBTFeaturedEventCard extends StatelessWidget {
   const GBTFeaturedEventCard({
     super.key,
     required this.title,
@@ -437,214 +424,183 @@ class GBTFeaturedEventCard extends StatefulWidget {
   final bool isLive;
   final VoidCallback? onTap;
 
-  @override
-  State<GBTFeaturedEventCard> createState() => _GBTFeaturedEventCardState();
-}
-
-class _GBTFeaturedEventCardState extends State<GBTFeaturedEventCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pressController;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _pressController = AnimationController(
-      duration: GBTAnimations.fast,
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: GBTAnimations.pressedScale,
-    ).animate(
-      CurvedAnimation(parent: _pressController, curve: Curves.easeInOut),
-    );
+  /// EN: Build comprehensive semantic label for featured card
+  /// KO: 특집 카드를 위한 포괄적 시맨틱 라벨 빌드
+  String get _semanticLabel {
+    final parts = <String>['특집 이벤트', title, subtitle, meta, date];
+    if (isLive) parts.add('라이브 진행 중');
+    return parts.join(', ');
   }
-
-  @override
-  void dispose() {
-    _pressController.dispose();
-    super.dispose();
-  }
-
-  void _onTapDown(TapDownDetails _) => _pressController.forward();
-  void _onTapUp(TapUpDetails _) => _pressController.reverse();
-  void _onTapCancel() => _pressController.reverse();
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Semantics(
-      label: 'Featured: ${widget.title} ${widget.subtitle}',
-      button: widget.onTap != null,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: GestureDetector(
-          onTapDown: widget.onTap != null ? _onTapDown : null,
-          onTapUp: widget.onTap != null ? _onTapUp : null,
-          onTapCancel: widget.onTap != null ? _onTapCancel : null,
-          onTap: widget.onTap != null
-              ? () {
-                  HapticFeedback.lightImpact();
-                  _pressController.reverse();
-                  widget.onTap!();
-                }
-              : null,
-          child: AnimatedContainer(
-            duration: GBTAnimations.normal,
-            curve: GBTAnimations.defaultCurve,
-            decoration: GBTDecorations.cardElevated(isDark: isDark),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // EN: Poster with overlay
-                // KO: 오버레이 포스터
-                Stack(
-                  children: [
-                    AspectRatio(
-                      aspectRatio: 16 / 9,
-                      child: widget.posterUrl != null
-                          ? GBTImage(
-                              imageUrl: widget.posterUrl!,
-                              fit: BoxFit.cover,
-                              semanticLabel: '${widget.title} 포스터',
-                            )
-                          : _FeaturedPosterPlaceholder(isDark: isDark),
-                    ),
-                    // EN: Live badge with glow
-                    // KO: 글로우가 있는 라이브 배지
-                    if (widget.isLive)
-                      Positioned(
-                        top: GBTSpacing.sm,
-                        left: GBTSpacing.sm,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: GBTSpacing.sm,
-                            vertical: GBTSpacing.xxs,
-                          ),
-                          decoration: GBTDecorations.liveBadge(),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'LIVE',
-                                style: GBTTypography.labelSmall.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    // EN: Gradient overlay for text readability
-                    // KO: 텍스트 가독성을 위한 그라디언트 오버레이
-                    Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withValues(alpha: 0.5),
-                            ],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            stops: const [0.4, 1.0],
-                          ),
-                        ),
-                      ),
-                    ),
-                    // EN: Date badge on image
-                    // KO: 이미지 위 날짜 배지
+      label: _semanticLabel,
+      hint: onTap != null ? '탭하면 이벤트 상세로 이동합니다' : null,
+      button: onTap != null,
+      child: GBTPressable(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: GBTAnimations.normal,
+          curve: GBTAnimations.defaultCurve,
+          decoration: GBTDecorations.cardElevated(isDark: isDark),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // EN: Poster with overlay
+              // KO: 오버레이 포스터
+              Stack(
+                children: [
+                  AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: posterUrl != null
+                        ? GBTImage(
+                            imageUrl: posterUrl!,
+                            fit: BoxFit.cover,
+                            semanticLabel: '$title 포스터',
+                          )
+                        : _FeaturedPosterPlaceholder(isDark: isDark),
+                  ),
+                  // EN: Live badge with glow
+                  // KO: 글로우가 있는 라이브 배지
+                  if (isLive)
                     Positioned(
-                      bottom: GBTSpacing.sm,
+                      top: GBTSpacing.sm,
                       left: GBTSpacing.sm,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: GBTSpacing.sm,
                           vertical: GBTSpacing.xxs,
                         ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          borderRadius:
-                              BorderRadius.circular(GBTSpacing.radiusXs),
-                        ),
-                        child: Text(
-                          widget.date,
-                          style: GBTTypography.labelSmall.copyWith(
-                            color: Colors.white,
-                          ),
+                        decoration: GBTDecorations.liveBadge(),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: GBTSpacing.xs),
+                            Text(
+                              'LIVE',
+                              style: GBTTypography.labelSmall.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  // EN: Gradient overlay for text readability
+                  // KO: 텍스트 가독성을 위한 그라디언트 오버레이
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.5),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          stops: const [0.4, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // EN: Date badge on image
+                  // KO: 이미지 위 날짜 배지
+                  Positioned(
+                    bottom: GBTSpacing.sm,
+                    left: GBTSpacing.sm,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: GBTSpacing.sm,
+                        vertical: GBTSpacing.xxs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        borderRadius:
+                            BorderRadius.circular(GBTSpacing.radiusXs),
+                      ),
+                      child: Text(
+                        date,
+                        style: GBTTypography.labelSmall.copyWith(
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
 
-                // EN: Content with dark mode colors
-                // KO: 다크 모드 색상이 적용된 콘텐츠
-                Padding(
-                  padding: GBTSpacing.paddingMd,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.title,
-                        style: GBTTypography.titleMedium.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: isDark
-                              ? GBTColors.darkTextPrimary
-                              : GBTColors.textPrimary,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+              // EN: Content with dark mode colors
+              // KO: 다크 모드 색상이 적용된 콘텐츠
+              Padding(
+                padding: GBTSpacing.paddingMd,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GBTTypography.titleMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? GBTColors.darkTextPrimary
+                            : GBTColors.textPrimary,
                       ),
-                      const SizedBox(height: GBTSpacing.xxs),
-                      Text(
-                        widget.subtitle,
-                        style: GBTTypography.bodyMedium.copyWith(
-                          color: isDark
-                              ? const Color(0xFF9B7FD4)
-                              : GBTColors.accent,
-                        ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: GBTSpacing.xxs),
+                    Text(
+                      subtitle,
+                      style: GBTTypography.bodyMedium.copyWith(
+                        color: isDark
+                            ? GBTColors.darkAccent
+                            : GBTColors.accent,
                       ),
-                      const SizedBox(height: GBTSpacing.xs),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on_outlined,
-                            size: 16,
-                            color: isDark
-                                ? GBTColors.darkTextTertiary
-                                : GBTColors.textTertiary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            widget.meta,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: GBTSpacing.xs),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: GBTSpacing.iconXs,
+                          color: isDark
+                              ? GBTColors.darkTextTertiary
+                              : GBTColors.textTertiary,
+                        ),
+                        const SizedBox(width: GBTSpacing.xs),
+                        Expanded(
+                          child: Text(
+                            meta,
                             style: GBTTypography.bodySmall.copyWith(
                               color: isDark
                                   ? GBTColors.darkTextSecondary
                                   : GBTColors.textSecondary,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -684,7 +640,7 @@ class _FeaturedPosterPlaceholder extends StatelessWidget {
       child: Center(
         child: Icon(
           Icons.music_note_rounded,
-          size: 64,
+          size: GBTSpacing.xxxl,
           color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
         ),
       ),

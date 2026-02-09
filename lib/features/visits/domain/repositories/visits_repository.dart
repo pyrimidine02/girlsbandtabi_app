@@ -27,4 +27,11 @@ abstract class VisitsRepository {
     required String placeId,
     bool forceRefresh = false,
   });
+
+  /// EN: Fetch user ranking for a project.
+  /// KO: 프로젝트의 사용자 랭킹을 가져옵니다.
+  Future<Result<UserRanking>> getUserRanking({
+    required String projectId,
+    bool forceRefresh = false,
+  });
 }

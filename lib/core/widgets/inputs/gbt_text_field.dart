@@ -22,6 +22,7 @@ class GBTTextField extends StatefulWidget {
     this.prefixIcon,
     this.suffixIcon,
     this.onSuffixTap,
+    this.suffixTooltip,
     this.obscureText = false,
     this.enabled = true,
     this.readOnly = false,
@@ -71,6 +72,10 @@ class GBTTextField extends StatefulWidget {
   /// EN: Callback when suffix icon is tapped
   /// KO: 접미 아이콘이 탭되었을 때 콜백
   final VoidCallback? onSuffixTap;
+
+  /// EN: Tooltip for suffix icon button
+  /// KO: 접미 아이콘 버튼의 툴팁
+  final String? suffixTooltip;
 
   /// EN: Whether to obscure text (for passwords)
   /// KO: 텍스트를 숨길지 여부 (비밀번호용)
@@ -152,29 +157,40 @@ class _GBTTextFieldState extends State<GBTTextField> {
   @override
   Widget build(BuildContext context) {
     final hasError = widget.errorText != null;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // EN: Build complete semantic label with error/helper state
+    // KO: 오류/도움 상태를 포함한 완전한 시맨틱 라벨 빌드
+    final baseLabel = widget.semanticLabel ?? widget.label ?? '';
+    final errorSuffix = hasError ? ', 오류: ${widget.errorText}' : '';
+    final fullLabel = '$baseLabel$errorSuffix';
 
     return Semantics(
-      label: widget.semanticLabel ?? widget.label,
+      label: fullLabel,
       textField: true,
       enabled: widget.enabled,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // EN: Label
-          // KO: 라벨
+          // EN: Label with dark mode color awareness
+          // KO: 다크 모드 색상 인식 라벨
           if (widget.label != null) ...[
             Text(
               widget.label!,
               style: GBTTypography.labelMedium.copyWith(
-                color: hasError ? GBTColors.error : GBTColors.textSecondary,
+                color: hasError
+                    ? GBTColors.error
+                    : (isDark
+                        ? GBTColors.darkTextSecondary
+                        : GBTColors.textSecondary),
               ),
             ),
             const SizedBox(height: GBTSpacing.xs),
           ],
 
-          // EN: Text field
-          // KO: 텍스트 필드
+          // EN: Text field with dark mode text style
+          // KO: 다크 모드 텍스트 스타일이 적용된 텍스트 필드
           TextFormField(
             controller: widget.controller,
             focusNode: widget.focusNode,
@@ -192,25 +208,36 @@ class _GBTTextFieldState extends State<GBTTextField> {
             onChanged: widget.onChanged,
             onFieldSubmitted: widget.onSubmitted,
             onTap: widget.onTap,
-            style: GBTTypography.bodyMedium,
+            style: GBTTypography.bodyMedium.copyWith(
+              color: isDark
+                  ? GBTColors.darkTextPrimary
+                  : GBTColors.textPrimary,
+            ),
             decoration: InputDecoration(
               hintText: widget.hint,
+              hintStyle: GBTTypography.bodyMedium.copyWith(
+                color: isDark
+                    ? GBTColors.darkTextTertiary
+                    : GBTColors.textTertiary,
+              ),
               errorText: widget.errorText,
               prefixIcon: widget.prefixIcon != null
-                  ? Icon(widget.prefixIcon, size: 20)
+                  ? Icon(widget.prefixIcon, size: GBTSpacing.iconSm)
                   : null,
               suffixIcon: _buildSuffixIcon(),
             ),
           ),
 
-          // EN: Helper text
-          // KO: 도움 텍스트
+          // EN: Helper text with dark mode color awareness
+          // KO: 다크 모드 색상 인식 도움 텍스트
           if (widget.helperText != null && !hasError) ...[
             const SizedBox(height: GBTSpacing.xs),
             Text(
               widget.helperText!,
               style: GBTTypography.bodySmall.copyWith(
-                color: GBTColors.textTertiary,
+                color: isDark
+                    ? GBTColors.darkTextTertiary
+                    : GBTColors.textTertiary,
               ),
             ),
           ],
@@ -219,26 +246,40 @@ class _GBTTextFieldState extends State<GBTTextField> {
     );
   }
 
-  /// EN: Build suffix icon widget
-  /// KO: 접미 아이콘 위젯 빌드
+  /// EN: Build suffix icon widget with tooltip for accessibility
+  /// KO: 접근성을 위한 툴팁이 포함된 접미 아이콘 위젯 빌드
   Widget? _buildSuffixIcon() {
     if (widget.obscureText) {
-      return IconButton(
-        icon: Icon(
-          _isObscured ? Icons.visibility_off : Icons.visibility,
-          size: 20,
+      // EN: Visibility toggle with tooltip
+      // KO: 툴팁이 포함된 가시성 토글
+      return Tooltip(
+        message: _isObscured ? '비밀번호 표시' : '비밀번호 숨기기',
+        child: IconButton(
+          icon: Icon(
+            _isObscured ? Icons.visibility_off : Icons.visibility,
+            size: GBTSpacing.iconSm,
+          ),
+          onPressed: () {
+            setState(() => _isObscured = !_isObscured);
+          },
         ),
-        onPressed: () {
-          setState(() => _isObscured = !_isObscured);
-        },
       );
     }
 
     if (widget.suffixIcon != null) {
-      return IconButton(
-        icon: Icon(widget.suffixIcon, size: 20),
+      final iconButton = IconButton(
+        icon: Icon(widget.suffixIcon, size: GBTSpacing.iconSm),
         onPressed: widget.onSuffixTap,
       );
+      // EN: Wrap with tooltip if provided
+      // KO: 제공된 경우 툴팁으로 감싸기
+      if (widget.suffixTooltip != null) {
+        return Tooltip(
+          message: widget.suffixTooltip!,
+          child: iconButton,
+        );
+      }
+      return iconButton;
     }
 
     return null;

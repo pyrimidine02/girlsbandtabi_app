@@ -97,6 +97,16 @@ class GBTShadows {
     ),
   ];
 
+  /// EN: Primary color glow for purple-accented elements
+  /// KO: 보라색 강조 요소를 위한 기본 색상 글로우
+  static List<BoxShadow> primaryGlow({double opacity = 0.25}) => [
+    BoxShadow(
+      color: GBTColors.primary.withValues(alpha: opacity),
+      blurRadius: 16,
+      offset: const Offset(0, 4),
+    ),
+  ];
+
   // ========================================
   // EN: Dark Mode Shadows (using colored glows)
   // KO: 다크 모드 그림자 (색상 글로우 사용)
@@ -163,6 +173,20 @@ class GBTDecorations {
     border: isDark
         ? Border.all(color: GBTColors.darkBorder, width: 0.5)
         : null,
+  );
+
+  /// EN: Accent card decoration for music-themed cards with primary border
+  /// KO: 기본 색상 테두리가 있는 음악 테마 카드용 강조 카드 데코레이션
+  static BoxDecoration cardAccent({bool isDark = false}) => BoxDecoration(
+    color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surface,
+    borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+    boxShadow: isDark ? GBTShadows.darkSm : GBTShadows.sm,
+    border: Border.all(
+      color: isDark
+          ? GBTColors.primary.withValues(alpha: 0.3)
+          : GBTColors.primary.withValues(alpha: 0.15),
+      width: 1,
+    ),
   );
 
   // ========================================

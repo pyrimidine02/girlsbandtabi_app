@@ -47,6 +47,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     ref.listen<AsyncValue<void>>(authControllerProvider, (previous, next) {
       if (!mounted) return;
       next.whenOrNull(
@@ -78,7 +80,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 Text(
                   '새 계정을 만들어보세요',
                   style: GBTTypography.headlineSmall.copyWith(
-                    color: GBTColors.textPrimary,
+                    // EN: Use theme-aware text color for dark mode
+                    // KO: 다크 모드를 위해 테마 인식 텍스트 색상 사용
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: GBTSpacing.lg),
@@ -120,12 +124,27 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     ),
                     const SizedBox(width: GBTSpacing.sm),
                     SizedBox(
-                      height: 48,
-                      child: OutlinedButton(
-                        onPressed: (_isSendingVerification || _isEmailVerified)
-                            ? null
-                            : _sendVerification,
-                        child: Text(_verificationSent ? '재전송' : '인증번호 발송'),
+                      // EN: Ensure minimum touch target of 48dp
+                      // KO: 최소 터치 타겟 48dp 보장
+                      height: GBTSpacing.touchTarget,
+                      child: Semantics(
+                        button: true,
+                        label: _isSendingVerification
+                            ? '인증 메일 발송 중'
+                            : _isEmailVerified
+                                ? '이메일 인증 완료'
+                                : _verificationSent
+                                    ? '인증번호 재전송'
+                                    : '인증번호 발송',
+                        child: OutlinedButton(
+                          onPressed:
+                              (_isSendingVerification || _isEmailVerified)
+                                  ? null
+                                  : _sendVerification,
+                          child: Text(
+                            _verificationSent ? '재전송' : '인증번호 발송',
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -133,16 +152,33 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 const SizedBox(height: GBTSpacing.sm),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: (_isConfirmingVerification || _isEmailVerified)
-                        ? null
-                        : _confirmVerification,
-                    child: Text(
-                      _isEmailVerified ? '인증 완료' : '인증 확인',
-                      style: GBTTypography.labelLarge.copyWith(
-                        color: _isEmailVerified
-                            ? GBTColors.success
-                            : GBTColors.textSecondary,
+                  child: Semantics(
+                    button: true,
+                    label: _isEmailVerified
+                        ? '이메일 인증이 완료되었습니다'
+                        : _isConfirmingVerification
+                            ? '인증 확인 중'
+                            : '인증 코드를 확인합니다',
+                    child: TextButton(
+                      onPressed:
+                          (_isConfirmingVerification || _isEmailVerified)
+                              ? null
+                              : _confirmVerification,
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(
+                          GBTSpacing.touchTarget,
+                          GBTSpacing.touchTarget,
+                        ),
+                      ),
+                      child: Text(
+                        _isEmailVerified ? '인증 완료' : '인증 확인',
+                        style: GBTTypography.labelLarge.copyWith(
+                          color: _isEmailVerified
+                              ? GBTColors.success
+                              // EN: Use theme-aware secondary text color
+                              // KO: 테마 인식 보조 텍스트 색상 사용
+                              : colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   ),
@@ -194,14 +230,27 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   isLoading: isLoading,
                   isFullWidth: true,
                   onPressed: isLoading ? null : _handleRegister,
+                  semanticLabel: isLoading ? '회원가입 진행 중' : '회원가입',
                 ),
                 const SizedBox(height: GBTSpacing.md),
-                TextButton(
-                  onPressed: () => context.pop(),
-                  child: Text(
-                    '로그인으로 돌아가기',
-                    style: GBTTypography.labelLarge.copyWith(
-                      color: GBTColors.textSecondary,
+                Semantics(
+                  button: true,
+                  label: '로그인 페이지로 돌아가기',
+                  child: TextButton(
+                    onPressed: () => context.pop(),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(
+                        GBTSpacing.touchTarget,
+                        GBTSpacing.touchTarget,
+                      ),
+                    ),
+                    child: Text(
+                      '로그인으로 돌아가기',
+                      style: GBTTypography.labelLarge.copyWith(
+                        // EN: Use theme-aware color for dark mode
+                        // KO: 다크 모드를 위해 테마 인식 색상 사용
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ),

@@ -52,6 +52,7 @@ class GBTButton extends StatefulWidget {
     this.isLoading = false,
     this.isFullWidth = false,
     this.semanticLabel,
+    this.semanticHint,
   });
 
   /// EN: Button label text
@@ -89,6 +90,10 @@ class GBTButton extends StatefulWidget {
   /// EN: Semantic label for accessibility
   /// KO: 접근성을 위한 시맨틱 라벨
   final String? semanticLabel;
+
+  /// EN: Semantic hint for accessibility (e.g. "탭하면 제출합니다")
+  /// KO: 접근성을 위한 시맨틱 힌트 (예: "탭하면 제출합니다")
+  final String? semanticHint;
 
   @override
   State<GBTButton> createState() => _GBTButtonState();
@@ -134,6 +139,11 @@ class _GBTButtonState extends State<GBTButton>
     final buttonStyle = _getButtonStyle();
     final child = _buildChild();
 
+    // EN: Build semantic label including loading state
+    // KO: 로딩 상태를 포함한 시맨틱 라벨 빌드
+    final effectiveLabel = widget.semanticLabel ?? widget.label;
+    final stateLabel = widget.isLoading ? '$effectiveLabel, 로딩 중' : effectiveLabel;
+
     Widget button = switch (widget.variant) {
       GBTButtonVariant.primary ||
       GBTButtonVariant.accent ||
@@ -160,15 +170,20 @@ class _GBTButtonState extends State<GBTButton>
 
     return Semantics(
       button: true,
-      label: widget.semanticLabel ?? widget.label,
+      label: stateLabel,
+      hint: widget.semanticHint,
       enabled: _isEnabled,
-      child: GestureDetector(
-        onTapDown: _isEnabled ? _onTapDown : null,
-        onTapUp: _isEnabled ? _onTapUp : null,
-        onTapCancel: _isEnabled ? _onTapCancel : null,
-        child: ScaleTransition(
-          scale: _scaleAnimation,
-          child: button,
+      // EN: Exclude inner button semantics to avoid double announcement
+      // KO: 이중 음성 안내를 방지하기 위해 내부 버튼 시맨틱 제외
+      child: ExcludeSemantics(
+        child: GestureDetector(
+          onTapDown: _isEnabled ? _onTapDown : null,
+          onTapUp: _isEnabled ? _onTapUp : null,
+          onTapCancel: _isEnabled ? _onTapCancel : null,
+          child: ScaleTransition(
+            scale: _scaleAnimation,
+            child: button,
+          ),
         ),
       ),
     );
@@ -199,7 +214,7 @@ class _GBTButtonState extends State<GBTButton>
   Widget _buildContent() {
     if (widget.icon != null) {
       final iconWidget = Icon(widget.icon, size: _getIconSize());
-      final spacing = SizedBox(width: GBTSpacing.sm);
+      const spacing = SizedBox(width: GBTSpacing.sm);
 
       if (widget.iconPosition == IconPosition.leading) {
         return Row(
@@ -312,13 +327,18 @@ class _GBTButtonState extends State<GBTButton>
     };
   }
 
-  /// EN: Get minimum size based on size
-  /// KO: 크기에 따른 최소 크기 반환
+  /// EN: Get minimum size based on size (all meet 48dp min touch target)
+  /// KO: 크기에 따른 최소 크기 반환 (모두 48dp 최소 터치 타겟 충족)
   Size _getMinimumSize() {
     return switch (widget.size) {
-      GBTButtonSize.small => const Size(64, 32),
-      GBTButtonSize.medium => const Size(88, GBTSpacing.minTouchTarget),
-      GBTButtonSize.large => const Size(120, GBTSpacing.touchTarget),
+      // EN: Small buttons still meet 48dp min height for accessibility
+      // KO: 작은 버튼도 접근성을 위해 48dp 최소 높이를 충족
+      GBTButtonSize.small =>
+        const Size(64, GBTSpacing.minTouchTarget),
+      GBTButtonSize.medium =>
+        const Size(88, GBTSpacing.minTouchTarget),
+      GBTButtonSize.large =>
+        const Size(120, GBTSpacing.touchTarget),
     };
   }
 
@@ -385,7 +405,7 @@ class _GBTIconButtonState extends State<GBTIconButton>
     );
     _scaleAnimation = Tween<double>(
       begin: 1.0,
-      end: 0.85,
+      end: GBTAnimations.pressedScale,
     ).animate(
       CurvedAnimation(parent: _pressController, curve: Curves.easeInOut),
     );
@@ -402,10 +422,12 @@ class _GBTIconButtonState extends State<GBTIconButton>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isEnabled = widget.onPressed != null;
 
+    // EN: All sizes meet 48dp minimum touch target for accessibility
+    // KO: 모든 크기가 접근성을 위해 48dp 최소 터치 타겟을 충족
     final buttonSize = switch (widget.size) {
-      GBTButtonSize.small => 32.0,
-      GBTButtonSize.medium => 40.0,
-      GBTButtonSize.large => 48.0,
+      GBTButtonSize.small => GBTSpacing.touchTarget,
+      GBTButtonSize.medium => GBTSpacing.touchTarget,
+      GBTButtonSize.large => GBTSpacing.touchTarget,
     };
 
     final iconSize = switch (widget.size) {
@@ -414,9 +436,11 @@ class _GBTIconButtonState extends State<GBTIconButton>
       GBTButtonSize.large => 28.0,
     };
 
+    // EN: Use darkPrimary (lighter purple) for primary variant in dark mode
+    // KO: 다크 모드에서 primary 변형에 darkPrimary (밝은 보라) 사용
     final color = switch (widget.variant) {
       GBTButtonVariant.primary => isDark
-          ? GBTColors.darkTextPrimary
+          ? GBTColors.darkPrimary
           : GBTColors.primary,
       GBTButtonVariant.secondary => isDark
           ? GBTColors.darkTextSecondary
@@ -430,7 +454,7 @@ class _GBTIconButtonState extends State<GBTIconButton>
 
     Widget button = Semantics(
       button: true,
-      label: widget.semanticLabel,
+      label: widget.semanticLabel ?? widget.tooltip,
       enabled: isEnabled,
       child: GestureDetector(
         onTapDown: isEnabled
@@ -465,8 +489,12 @@ class _GBTIconButtonState extends State<GBTIconButton>
       ),
     );
 
+    // EN: Always wrap icon buttons in Tooltip for accessibility
+    // KO: 접근성을 위해 아이콘 버튼을 항상 Tooltip으로 감싸기
     if (widget.tooltip != null) {
       button = Tooltip(message: widget.tooltip!, child: button);
+    } else if (widget.semanticLabel != null) {
+      button = Tooltip(message: widget.semanticLabel!, child: button);
     }
 
     return button;

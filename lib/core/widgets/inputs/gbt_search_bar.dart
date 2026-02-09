@@ -116,14 +116,21 @@ class _GBTSearchBarState extends State<GBTSearchBar> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Semantics(
-      label: widget.hint,
+      label: '${widget.hint} 검색 필드',
+      hint: '탭하면 검색어를 입력할 수 있습니다',
       textField: true,
       enabled: widget.enabled,
       child: Container(
         height: GBTSpacing.touchTarget,
         decoration: BoxDecoration(
-          color: GBTColors.surfaceVariant,
+          // EN: Dark mode aware background color
+          // KO: 다크 모드 인식 배경색
+          color: isDark
+              ? GBTColors.darkSurfaceVariant
+              : GBTColors.surfaceVariant,
           borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
         ),
         child: Row(
@@ -132,13 +139,20 @@ class _GBTSearchBarState extends State<GBTSearchBar> {
             // KO: 선행 아이콘 또는 위젯
             Padding(
               padding: const EdgeInsets.only(left: GBTSpacing.md),
-              child:
-                  widget.leading ??
-                  Icon(Icons.search, color: GBTColors.textTertiary, size: 20),
+              child: widget.leading ??
+                  Icon(
+                    Icons.search,
+                    // EN: Dark mode aware icon color
+                    // KO: 다크 모드 인식 아이콘 색상
+                    color: isDark
+                        ? GBTColors.darkTextTertiary
+                        : GBTColors.textTertiary,
+                    size: GBTSpacing.iconSm,
+                  ),
             ),
 
-            // EN: Search input
-            // KO: 검색 입력
+            // EN: Search input with dark mode text style
+            // KO: 다크 모드 텍스트 스타일이 적용된 검색 입력
             Expanded(
               child: TextField(
                 controller: _controller,
@@ -149,12 +163,18 @@ class _GBTSearchBarState extends State<GBTSearchBar> {
                 onChanged: widget.onChanged,
                 onSubmitted: widget.onSubmitted,
                 onTap: widget.onTap,
-                style: GBTTypography.bodyMedium,
+                style: GBTTypography.bodyMedium.copyWith(
+                  color: isDark
+                      ? GBTColors.darkTextPrimary
+                      : GBTColors.textPrimary,
+                ),
                 textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
                   hintText: widget.hint,
                   hintStyle: GBTTypography.bodyMedium.copyWith(
-                    color: GBTColors.textTertiary,
+                    color: isDark
+                        ? GBTColors.darkTextTertiary
+                        : GBTColors.textTertiary,
                   ),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
@@ -164,18 +184,26 @@ class _GBTSearchBarState extends State<GBTSearchBar> {
               ),
             ),
 
-            // EN: Clear button or trailing widget
-            // KO: 지우기 버튼 또는 후행 위젯
+            // EN: Clear button with tooltip, or trailing widget
+            // KO: 툴팁이 있는 지우기 버튼 또는 후행 위젯
             if (_hasText)
-              IconButton(
-                icon: Icon(
-                  Icons.clear,
-                  color: GBTColors.textTertiary,
-                  size: 20,
+              Tooltip(
+                message: '검색어 지우기',
+                child: IconButton(
+                  icon: Icon(
+                    Icons.clear,
+                    color: isDark
+                        ? GBTColors.darkTextTertiary
+                        : GBTColors.textTertiary,
+                    size: GBTSpacing.iconSm,
+                  ),
+                  onPressed: _onClear,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: GBTSpacing.minTouchTarget,
+                    minHeight: GBTSpacing.minTouchTarget,
+                  ),
                 ),
-                onPressed: _onClear,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
               )
             else if (widget.trailing != null)
               Padding(
@@ -194,33 +222,52 @@ class _GBTSearchBarState extends State<GBTSearchBar> {
 /// EN: Tappable search bar for navigation
 /// KO: 네비게이션용 탭 가능한 검색바
 class GBTSearchBarButton extends StatelessWidget {
-  const GBTSearchBarButton({super.key, required this.onTap, this.hint = '검색'});
+  const GBTSearchBarButton({
+    super.key,
+    required this.onTap,
+    this.hint = '검색',
+  });
 
   final VoidCallback onTap;
   final String hint;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Semantics(
       button: true,
-      label: hint,
+      label: '$hint 검색바',
+      hint: '탭하면 검색 화면으로 이동합니다',
       child: GestureDetector(
         onTap: onTap,
         child: Container(
           height: GBTSpacing.touchTarget,
           padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
           decoration: BoxDecoration(
-            color: GBTColors.surfaceVariant,
+            // EN: Dark mode aware background color
+            // KO: 다크 모드 인식 배경색
+            color: isDark
+                ? GBTColors.darkSurfaceVariant
+                : GBTColors.surfaceVariant,
             borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
           ),
           child: Row(
             children: [
-              Icon(Icons.search, color: GBTColors.textTertiary, size: 20),
+              Icon(
+                Icons.search,
+                color: isDark
+                    ? GBTColors.darkTextTertiary
+                    : GBTColors.textTertiary,
+                size: GBTSpacing.iconSm,
+              ),
               const SizedBox(width: GBTSpacing.sm),
               Text(
                 hint,
                 style: GBTTypography.bodyMedium.copyWith(
-                  color: GBTColors.textTertiary,
+                  color: isDark
+                      ? GBTColors.darkTextTertiary
+                      : GBTColors.textTertiary,
                 ),
               ),
             ],

@@ -64,6 +64,7 @@ class GBTImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final resolvedUrl = resolveMediaUrl(imageUrl);
     final cacheWidth =
         width != null && width!.isFinite ? width!.toInt() : null;
@@ -76,8 +77,8 @@ class GBTImage extends StatelessWidget {
       fit: fit,
       memCacheWidth: cacheWidth,
       memCacheHeight: cacheHeight,
-      placeholder: (context, _) => _buildPlaceholder(),
-      errorWidget: (context, _, __) => _buildError(),
+      placeholder: (context, _) => _buildPlaceholder(isDark: isDark),
+      errorWidget: (context, _, __) => _buildError(isDark: isDark),
       imageBuilder: (context, imageProvider) {
         return Image(
           image: imageProvider,
@@ -88,9 +89,11 @@ class GBTImage extends StatelessWidget {
       },
     );
 
+    // EN: Wrap with semantics: label if provided, exclude if decorative
+    // KO: 시맨틱 래핑: 라벨이 있으면 제공, 장식적이면 제외
     final image = semanticLabel != null
         ? Semantics(label: semanticLabel, image: true, child: baseImage)
-        : baseImage;
+        : ExcludeSemantics(child: baseImage);
 
     final resolvedBorderRadius = borderRadius;
     if (resolvedBorderRadius == null) return image;
@@ -98,13 +101,15 @@ class GBTImage extends StatelessWidget {
     return ClipRRect(borderRadius: resolvedBorderRadius, child: image);
   }
 
-  Widget _buildPlaceholder() {
+  /// EN: Build placeholder with dark mode awareness
+  /// KO: 다크 모드 인식 플레이스홀더 빌드
+  Widget _buildPlaceholder({required bool isDark}) {
     if (placeholder != null) return placeholder!;
 
     final container = Container(
       width: width,
       height: height,
-      color: GBTColors.surfaceVariant,
+      color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
     );
 
     if (!useShimmer) return container;
@@ -112,20 +117,22 @@ class GBTImage extends StatelessWidget {
     return GBTShimmer(child: container);
   }
 
-  Widget _buildError() {
+  /// EN: Build error widget with dark mode awareness
+  /// KO: 다크 모드 인식 에러 위젯 빌드
+  Widget _buildError({required bool isDark}) {
     if (errorWidget != null) return errorWidget!;
 
     return Container(
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: GBTColors.surfaceVariant,
+        color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
         borderRadius:
             borderRadius ?? BorderRadius.circular(GBTSpacing.radiusSm),
       ),
       child: Icon(
         Icons.broken_image,
-        color: GBTColors.textTertiary,
+        color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
         size: GBTSpacing.iconLg,
       ),
     );

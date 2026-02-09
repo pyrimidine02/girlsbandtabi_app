@@ -41,7 +41,10 @@ class FavoritesPage extends ConsumerWidget {
         },
         data: (items) {
           if (items.isEmpty) {
-            return const GBTEmptyState(message: '저장된 즐겨찾기가 없습니다');
+            return const GBTEmptyState(
+              icon: Icons.favorite_border,
+              message: '저장된 즐겨찾기가 없습니다.\n마음에 드는 장소나 이벤트를 저장해보세요.',
+            );
           }
 
           return DefaultTabController(
@@ -85,8 +88,18 @@ class _FavoritesList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+
     if (items.isEmpty) {
-      return const Center(child: Text('결과가 없습니다'));
+      return const Center(
+        child: GBTEmptyState(
+          icon: Icons.favorite_border,
+          message: '이 카테고리에 저장된 항목이 없습니다.',
+        ),
+      );
     }
 
     return ListView.builder(
@@ -94,27 +107,43 @@ class _FavoritesList extends StatelessWidget {
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: GBTSpacing.sm),
-          child: ListTile(
-            leading: _FavoriteLeading(imageUrl: item.thumbnailUrl),
-            title: Text(
-              item.title ?? '즐겨찾기 항목',
-              style: GBTTypography.bodyMedium,
-            ),
-            subtitle: Text(
-              _typeLabel(item.type),
-              style: GBTTypography.bodySmall.copyWith(
-                color: GBTColors.textTertiary,
+        return Semantics(
+          label:
+              '즐겨찾기: ${item.title ?? '즐겨찾기 항목'}, '
+              '${_typeLabel(item.type)}',
+          button: true,
+          child: Card(
+            margin: const EdgeInsets.only(bottom: GBTSpacing.sm),
+            child: ListTile(
+              leading: _FavoriteLeading(imageUrl: item.thumbnailUrl),
+              title: Text(
+                item.title ?? '즐겨찾기 항목',
+                style: GBTTypography.bodyMedium,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-            trailing: Text(
-              _typeLabel(item.type),
-              style: GBTTypography.labelSmall.copyWith(
-                color: _typeColor(item.type),
+              subtitle: Text(
+                _typeLabel(item.type),
+                style: GBTTypography.bodySmall.copyWith(color: tertiaryColor),
               ),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: GBTSpacing.xs,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: _typeColor(item.type, isDark: isDark).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
+                ),
+                child: Text(
+                  _typeLabel(item.type),
+                  style: GBTTypography.labelSmall.copyWith(
+                    color: _typeColor(item.type, isDark: isDark),
+                  ),
+                ),
+              ),
+              onTap: () => _openItem(context, item),
             ),
-            onTap: () => _openItem(context, item),
           ),
         );
       },
@@ -129,15 +158,19 @@ class _FavoriteLeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (imageUrl == null || imageUrl!.isEmpty) {
       return Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: GBTColors.surfaceVariant,
+          color: isDark
+              ? GBTColors.darkSurfaceVariant
+              : GBTColors.surfaceVariant,
           borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
         ),
-        child: Icon(Icons.favorite, color: GBTColors.accentPink, size: 20),
+        child: Icon(Icons.favorite, color: GBTColors.secondary, size: 20),
       );
     }
 
@@ -168,13 +201,15 @@ String _typeLabel(FavoriteType type) {
   };
 }
 
-Color _typeColor(FavoriteType type) {
+Color _typeColor(FavoriteType type, {required bool isDark}) {
   return switch (type) {
     FavoriteType.place => GBTColors.accentBlue,
-    FavoriteType.liveEvent => GBTColors.accentPink,
+    FavoriteType.liveEvent => GBTColors.secondary,
     FavoriteType.news => GBTColors.accent,
     FavoriteType.post => GBTColors.secondary,
-    FavoriteType.unknown => GBTColors.textSecondary,
+    FavoriteType.unknown => isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary,
   };
 }
 

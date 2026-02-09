@@ -83,23 +83,27 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
-        title: TextField(
-          controller: _searchController,
-          focusNode: _focusNode,
-          decoration: InputDecoration(
-            hintText: '장소, 이벤트, 밴드 검색...',
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: GBTSpacing.md,
+        title: Semantics(
+          label: '검색어 입력',
+          child: TextField(
+            controller: _searchController,
+            focusNode: _focusNode,
+            decoration: InputDecoration(
+              hintText: '장소, 이벤트, 밴드 검색...',
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: GBTSpacing.md,
+              ),
             ),
+            onChanged: _onQueryChanged,
+            onSubmitted: _onSubmit,
           ),
-          onChanged: _onQueryChanged,
-          onSubmitted: _onSubmit,
         ),
         actions: [
           if (_query.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.clear),
+              tooltip: '검색어 지우기',
               onPressed: () {
                 _searchController.clear();
                 _onQueryChanged('');
@@ -149,6 +153,14 @@ class _RecentSearches extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+
     return ListView(
       padding: GBTSpacing.paddingPage,
       children: [
@@ -168,25 +180,27 @@ class _RecentSearches extends StatelessWidget {
         if (items.isEmpty)
           Text(
             '최근 검색어가 없습니다.',
-            style: GBTTypography.bodySmall.copyWith(
-              color: GBTColors.textSecondary,
-            ),
+            style: GBTTypography.bodySmall.copyWith(color: secondaryColor),
           )
         else
           ...items.map(
-            (item) => ListTile(
-              leading: Icon(Icons.history, color: GBTColors.textTertiary),
-              title: Text(item),
-              trailing: IconButton(
-                icon: Icon(
-                  Icons.close,
-                  size: 18,
-                  color: GBTColors.textTertiary,
+            (item) => Semantics(
+              label: '최근 검색어: $item',
+              child: ListTile(
+                leading: Icon(Icons.history, color: tertiaryColor),
+                title: Text(item, maxLines: 1, overflow: TextOverflow.ellipsis),
+                trailing: IconButton(
+                  icon: Icon(
+                    Icons.close,
+                    size: GBTSpacing.iconSm,
+                    color: tertiaryColor,
+                  ),
+                  tooltip: '$item 검색어 삭제',
+                  onPressed: () => onRemove(item),
                 ),
-                onPressed: () => onRemove(item),
+                contentPadding: EdgeInsets.zero,
+                onTap: () => onSelect(item),
               ),
-              contentPadding: EdgeInsets.zero,
-              onTap: () => onSelect(item),
             ),
           ),
         const SizedBox(height: GBTSpacing.lg),
@@ -200,9 +214,12 @@ class _RecentSearches extends StatelessWidget {
           runSpacing: GBTSpacing.sm,
           children: ['도쿄', '라이브', '2026', '신곡', '콘서트', '앨범']
               .map(
-                (tag) => ActionChip(
-                  label: Text(tag),
-                  onPressed: () => onSelect(tag),
+                (tag) => Semantics(
+                  label: '인기 검색어: $tag',
+                  child: ActionChip(
+                    label: Text(tag),
+                    onPressed: () => onSelect(tag),
+                  ),
                 ),
               )
               .toList(),
@@ -294,18 +311,24 @@ class _SearchResultList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+
     if (items.isEmpty) {
       return ListView(
         padding: GBTSpacing.paddingPage,
         children: [
           Text(
             '"$query" 검색 결과',
-            style: GBTTypography.labelMedium.copyWith(
-              color: GBTColors.textSecondary,
-            ),
+            style: GBTTypography.labelMedium.copyWith(color: secondaryColor),
           ),
           const SizedBox(height: GBTSpacing.md),
-          const GBTEmptyState(message: '검색 결과가 없습니다'),
+          const GBTEmptyState(
+            icon: Icons.search_off,
+            message: '검색 결과가 없습니다.\n다른 키워드로 검색해보세요.',
+          ),
         ],
       );
     }
@@ -315,9 +338,7 @@ class _SearchResultList extends StatelessWidget {
       children: [
         Text(
           '"$query" 검색 결과',
-          style: GBTTypography.labelMedium.copyWith(
-            color: GBTColors.textSecondary,
-          ),
+          style: GBTTypography.labelMedium.copyWith(color: secondaryColor),
         ),
         const SizedBox(height: GBTSpacing.md),
         ...items.map((item) => _SearchResultItem(item: item)),
@@ -335,41 +356,53 @@ class _SearchResultItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final typeLabel = _typeLabel(item.type);
-    final color = _typeColor(item.type);
+    final color = _typeColor(item.type, isDark: isDark);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: GBTSpacing.sm),
-      child: ListTile(
-        leading: _SearchLeading(
-          imageUrl: item.imageUrl,
-          fallbackIcon: _typeIcon(item.type),
-          color: color,
+    return Semantics(
+      label: '$typeLabel: ${item.title}',
+      button: true,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: GBTSpacing.sm),
+        child: ListTile(
+          leading: _SearchLeading(
+            imageUrl: item.imageUrl,
+            fallbackIcon: _typeIcon(item.type),
+            color: color,
+          ),
+          title: Text(
+            item.title,
+            style: GBTTypography.bodyMedium,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Text(
+            _subtitleText(item),
+            style: GBTTypography.bodySmall.copyWith(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? GBTColors.darkTextTertiary
+                  : GBTColors.textTertiary,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: GBTSpacing.xs,
+              vertical: 2,
+            ),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
+            ),
+            child: Text(
+              typeLabel,
+              style: GBTTypography.labelSmall.copyWith(color: color),
+            ),
+          ),
+          onTap: () => _handleTap(context, item),
         ),
-        title: Text(item.title, style: GBTTypography.bodyMedium),
-        subtitle: Text(
-          _subtitleText(item),
-          style: GBTTypography.bodySmall.copyWith(
-            color: GBTColors.textTertiary,
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: GBTSpacing.xs,
-            vertical: 2,
-          ),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
-          ),
-          child: Text(
-            typeLabel,
-            style: GBTTypography.labelSmall.copyWith(color: color),
-          ),
-        ),
-        onTap: () => _handleTap(context, item),
       ),
     );
   }
@@ -441,15 +474,17 @@ IconData _typeIcon(SearchItemType type) {
   };
 }
 
-Color _typeColor(SearchItemType type) {
+Color _typeColor(SearchItemType type, {required bool isDark}) {
   return switch (type) {
     SearchItemType.place => GBTColors.accentBlue,
-    SearchItemType.liveEvent => GBTColors.accentPink,
+    SearchItemType.liveEvent => GBTColors.secondary,
     SearchItemType.news => GBTColors.accent,
     SearchItemType.post => GBTColors.secondary,
     SearchItemType.unit => GBTColors.success,
     SearchItemType.project => GBTColors.warning,
-    SearchItemType.unknown => GBTColors.textSecondary,
+    SearchItemType.unknown => isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary,
   };
 }
 

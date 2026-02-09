@@ -60,6 +60,7 @@ class GBTBottomSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     Widget content = Container(
       constraints: BoxConstraints(
@@ -74,20 +75,25 @@ class GBTBottomSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // EN: Drag handle
-          // KO: 드래그 핸들
-          Container(
-            margin: const EdgeInsets.only(top: GBTSpacing.sm),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: GBTColors.border,
-              borderRadius: BorderRadius.circular(2),
+          // EN: Drag handle with dark mode awareness
+          // KO: 다크 모드 인식 드래그 핸들
+          Semantics(
+            label: '드래그하여 시트를 닫을 수 있습니다',
+            child: Container(
+              margin: const EdgeInsets.only(top: GBTSpacing.sm),
+              width: 40,
+              height: GBTSpacing.xs,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? GBTColors.darkBorder
+                    : GBTColors.border,
+                borderRadius: BorderRadius.circular(GBTSpacing.xxs),
+              ),
             ),
           ),
 
-          // EN: Header
-          // KO: 헤더
+          // EN: Header with title and close button
+          // KO: 제목과 닫기 버튼이 있는 헤더
           if (title != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -103,13 +109,33 @@ class GBTBottomSheet extends StatelessWidget {
                       title!,
                       style: GBTTypography.titleMedium.copyWith(
                         fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? GBTColors.darkTextPrimary
+                            : GBTColors.textPrimary,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: onClose ?? () => Navigator.of(context).pop(),
-                    iconSize: 20,
+                  // EN: Close button with tooltip for accessibility
+                  // KO: 접근성을 위한 툴팁이 있는 닫기 버튼
+                  Tooltip(
+                    message: '닫기',
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.close,
+                        color: isDark
+                            ? GBTColors.darkTextSecondary
+                            : GBTColors.textSecondary,
+                      ),
+                      onPressed:
+                          onClose ?? () => Navigator.of(context).pop(),
+                      iconSize: GBTSpacing.iconSm,
+                      constraints: const BoxConstraints(
+                        minWidth: GBTSpacing.touchTarget,
+                        minHeight: GBTSpacing.touchTarget,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -179,8 +205,8 @@ class GBTActionSheetItem<T> {
   final VoidCallback? onTap;
 }
 
-/// EN: Action item widget
-/// KO: 액션 아이템 위젯
+/// EN: Action item widget with dark mode awareness
+/// KO: 다크 모드 인식 액션 아이템 위젯
 class _ActionItem<T> extends StatelessWidget {
   const _ActionItem({required this.action});
 
@@ -188,26 +214,35 @@ class _ActionItem<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = action.isDestructive
         ? GBTColors.error
-        : GBTColors.textPrimary;
+        : (isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary);
 
-    return ListTile(
-      leading: action.icon != null ? Icon(action.icon, color: color) : null,
-      title: Text(
-        action.label,
-        style: GBTTypography.bodyMedium.copyWith(color: color),
+    return Semantics(
+      button: true,
+      label: action.label,
+      hint: action.isDestructive
+          ? '탭하면 ${action.label} 작업이 실행됩니다 (삭제 동작)'
+          : '탭하면 ${action.label} 작업이 실행됩니다',
+      child: ListTile(
+        leading:
+            action.icon != null ? Icon(action.icon, color: color) : null,
+        title: Text(
+          action.label,
+          style: GBTTypography.bodyMedium.copyWith(color: color),
+        ),
+        onTap: () {
+          action.onTap?.call();
+          Navigator.of(context).pop(action.value);
+        },
       ),
-      onTap: () {
-        action.onTap?.call();
-        Navigator.of(context).pop(action.value);
-      },
     );
   }
 }
 
-/// EN: Cancel item widget
-/// KO: 취소 아이템 위젯
+/// EN: Cancel item widget with dark mode awareness
+/// KO: 다크 모드 인식 취소 아이템 위젯
 class _CancelItem extends StatelessWidget {
   const _CancelItem({required this.label});
 
@@ -215,15 +250,24 @@ class _CancelItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(
-        label,
-        style: GBTTypography.bodyMedium.copyWith(
-          color: GBTColors.textSecondary,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Semantics(
+      button: true,
+      label: label,
+      hint: '탭하면 시트를 닫습니다',
+      child: ListTile(
+        title: Text(
+          label,
+          style: GBTTypography.bodyMedium.copyWith(
+            color: isDark
+                ? GBTColors.darkTextSecondary
+                : GBTColors.textSecondary,
+          ),
+          textAlign: TextAlign.center,
         ),
-        textAlign: TextAlign.center,
+        onTap: () => Navigator.of(context).pop(),
       ),
-      onTap: () => Navigator.of(context).pop(),
     );
   }
 }
@@ -241,53 +285,68 @@ Future<bool?> showGBTConfirmationSheet({
   return showGBTBottomSheet<bool>(
     context: context,
     child: SafeArea(
-      child: Padding(
-        padding: GBTSpacing.paddingPage,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: GBTSpacing.sm),
-            Text(
-              title,
-              style: GBTTypography.titleMedium.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: GBTSpacing.sm),
-            Text(
-              message,
-              style: GBTTypography.bodyMedium.copyWith(
-                color: GBTColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: GBTSpacing.lg),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: Text(cancelLabel),
-                  ),
+      child: Builder(builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+
+        return Padding(
+          padding: GBTSpacing.paddingPage,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: GBTSpacing.sm),
+              Text(
+                title,
+                style: GBTTypography.titleMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: isDark
+                      ? GBTColors.darkTextPrimary
+                      : GBTColors.textPrimary,
                 ),
-                const SizedBox(width: GBTSpacing.md),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    style: isDestructive
-                        ? ElevatedButton.styleFrom(
-                            backgroundColor: GBTColors.error,
-                          )
-                        : null,
-                    child: Text(confirmLabel),
-                  ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: GBTSpacing.sm),
+              Text(
+                message,
+                style: GBTTypography.bodyMedium.copyWith(
+                  color: isDark
+                      ? GBTColors.darkTextSecondary
+                      : GBTColors.textSecondary,
                 ),
-              ],
-            ),
-          ],
-        ),
-      ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: GBTSpacing.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: GBTSpacing.touchTarget,
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: Text(cancelLabel),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: GBTSpacing.md),
+                  Expanded(
+                    child: SizedBox(
+                      height: GBTSpacing.touchTarget,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        style: isDestructive
+                            ? ElevatedButton.styleFrom(
+                                backgroundColor: GBTColors.error,
+                              )
+                            : null,
+                        child: Text(confirmLabel),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }),
     ),
   );
 }

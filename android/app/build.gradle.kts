@@ -20,12 +20,20 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = JavaVersion.VERSION_17.toString()
+    }
+
+    // .env 파일에서 환경변수 로드
+    val envFile = rootProject.file("../.env")
+    val envProperties = Properties().apply {
+        if (envFile.exists()) {
+            envFile.inputStream().use { load(it) }
+        }
     }
 
     defaultConfig {
@@ -37,8 +45,11 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // .env → gradle property → 빈 문자열 순으로 fallback
         manifestPlaceholders["MAPS_API_KEY"] =
-            project.findProperty("MAPS_API_KEY") as String? ?: ""
+            envProperties.getProperty("MAPS_API_KEY")
+                ?: project.findProperty("MAPS_API_KEY") as String?
+                ?: ""
     }
 
     signingConfigs {

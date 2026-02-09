@@ -7,17 +7,35 @@ class VisitEventDto {
     required this.id,
     required this.placeId,
     required this.visitedAt,
+    this.latitude,
+    this.longitude,
+    this.accuracy,
   });
 
   final String id;
   final String placeId;
   final DateTime? visitedAt;
 
+  /// EN: GPS latitude recorded at verification (optional).
+  /// KO: 인증 시 기록된 GPS 위도 (선택적).
+  final double? latitude;
+
+  /// EN: GPS longitude recorded at verification (optional).
+  /// KO: 인증 시 기록된 GPS 경도 (선택적).
+  final double? longitude;
+
+  /// EN: GPS accuracy in meters (optional).
+  /// KO: GPS 정확도 (미터 단위, 선택적).
+  final double? accuracy;
+
   factory VisitEventDto.fromJson(Map<String, dynamic> json) {
     return VisitEventDto(
       id: json['id'] as String? ?? '',
       placeId: json['placeId'] as String? ?? '',
       visitedAt: _dateTime(json['visitedAt']),
+      latitude: _double(json['latitude']),
+      longitude: _double(json['longitude']),
+      accuracy: _double(json['accuracy']),
     );
   }
 
@@ -26,6 +44,9 @@ class VisitEventDto {
       'id': id,
       'placeId': placeId,
       'visitedAt': visitedAt?.toIso8601String(),
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (accuracy != null) 'accuracy': accuracy,
     };
   }
 }
@@ -73,5 +94,12 @@ DateTime? _dateTime(dynamic value) {
   if (value is String && value.isNotEmpty) {
     return DateTime.tryParse(value);
   }
+  return null;
+}
+
+double? _double(dynamic value) {
+  if (value is double) return value;
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value);
   return null;
 }

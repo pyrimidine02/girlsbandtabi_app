@@ -10,10 +10,11 @@ import '../../theme/gbt_decorations.dart';
 import '../../theme/gbt_spacing.dart';
 import '../../theme/gbt_typography.dart';
 import '../common/gbt_image.dart';
+import '../common/gbt_pressable.dart';
 
 /// EN: Place card widget for list/grid display with press animation
 /// KO: 프레스 애니메이션을 포함한 리스트/그리드 표시용 장소 카드 위젯
-class GBTPlaceCard extends StatefulWidget {
+class GBTPlaceCard extends StatelessWidget {
   const GBTPlaceCard({
     super.key,
     required this.name,
@@ -64,218 +65,213 @@ class GBTPlaceCard extends StatefulWidget {
   final VoidCallback? onFavoriteToggle;
 
   @override
-  State<GBTPlaceCard> createState() => _GBTPlaceCardState();
-}
-
-class _GBTPlaceCardState extends State<GBTPlaceCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pressController;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _pressController = AnimationController(
-      duration: GBTAnimations.fast,
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: GBTAnimations.pressedScale,
-    ).animate(
-      CurvedAnimation(parent: _pressController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pressController.dispose();
-    super.dispose();
-  }
-
-  void _onTapDown(TapDownDetails _) => _pressController.forward();
-  void _onTapUp(TapUpDetails _) => _pressController.reverse();
-  void _onTapCancel() => _pressController.reverse();
-
-  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Semantics(
-      label:
-          '${widget.name}, ${widget.location}${widget.distance != null ? ', ${widget.distance}' : ''}',
-      button: widget.onTap != null,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: GestureDetector(
-          onTapDown: widget.onTap != null ? _onTapDown : null,
-          onTapUp: widget.onTap != null ? _onTapUp : null,
-          onTapCancel: widget.onTap != null ? _onTapCancel : null,
-          onTap: widget.onTap != null
-              ? () {
-                  HapticFeedback.lightImpact();
-                  _pressController.reverse();
-                  widget.onTap!();
-                }
-              : null,
-          child: AnimatedContainer(
-            duration: GBTAnimations.normal,
-            curve: GBTAnimations.defaultCurve,
-            decoration: GBTDecorations.card(isDark: isDark),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // EN: Image section with overlay gradient
-                // KO: 오버레이 그라디언트가 있는 이미지 섹션
-                Stack(
-                  children: [
-                    AspectRatio(
-                      aspectRatio: 16 / 10,
-                      child: _buildImage(isDark),
-                    ),
-                    // EN: Bottom gradient for depth
-                    // KO: 깊이감을 위한 하단 그라디언트
-                    Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.transparent,
-                              Colors.transparent,
-                              Colors.black.withValues(alpha: 0.04),
-                            ],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                          ),
-                        ),
-                      ),
-                    ),
-                    // EN: Verified badge
-                    // KO: 인증 배지
-                    if (widget.isVerified)
-                      Positioned(
-                        top: GBTSpacing.sm,
-                        left: GBTSpacing.sm,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: GBTSpacing.xs,
-                            vertical: 2,
-                          ),
-                          decoration: GBTDecorations.verifiedBadge(),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.check_circle,
-                                color: Colors.white,
-                                size: 12,
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                '방문완료',
-                                style: GBTTypography.labelSmall.copyWith(
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    // EN: Favorite button
-                    // KO: 즐겨찾기 버튼
-                    if (widget.onFavoriteToggle != null)
-                      Positioned(
-                        top: GBTSpacing.sm,
-                        right: GBTSpacing.sm,
-                        child: _FavoriteButton(
-                          isFavorite: widget.isFavorite,
-                          onToggle: widget.onFavoriteToggle!,
-                        ),
-                      ),
-                  ],
-                ),
-
-                // EN: Content section
-                // KO: 콘텐츠 섹션
-                Padding(
-                  padding: GBTSpacing.paddingMd,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.name,
-                        style: GBTTypography.titleSmall.copyWith(
-                          color: isDark
-                              ? GBTColors.darkTextPrimary
-                              : GBTColors.textPrimary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: GBTSpacing.xxs),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on_outlined,
-                            size: 14,
-                            color: isDark
-                                ? GBTColors.darkTextTertiary
-                                : GBTColors.textTertiary,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              widget.location,
-                              style: GBTTypography.bodySmall.copyWith(
-                                color: isDark
-                                    ? GBTColors.darkTextSecondary
-                                    : GBTColors.textSecondary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: GBTSpacing.xs),
-                      Row(
-                        children: [
-                          if (widget.distance != null) ...[
-                            Text(
-                              widget.distance!,
-                              style: GBTTypography.labelSmall.copyWith(
-                                color: isDark
-                                    ? GBTColors.darkTextTertiary
-                                    : GBTColors.textTertiary,
-                              ),
-                            ),
-                            const SizedBox(width: GBTSpacing.sm),
+      label: [
+        name,
+        location,
+        if (distance != null) '거리 $distance',
+        if (isVerified) '방문 완료',
+        if (rating != null)
+          '평점 ${rating!.toStringAsFixed(1)}점',
+        if (isFavorite) '즐겨찾기',
+      ].join(', '),
+      hint: onTap != null ? '탭하면 상세 정보를 확인합니다' : null,
+      button: onTap != null,
+      child: GBTPressable(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: GBTAnimations.normal,
+          curve: GBTAnimations.defaultCurve,
+          decoration: GBTDecorations.card(isDark: isDark),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // EN: Image section with overlay gradient
+              // KO: 오버레이 그라디언트가 있는 이미지 섹션
+              Stack(
+                children: [
+                  AspectRatio(
+                    aspectRatio: 16 / 10,
+                    child: _buildImage(isDark),
+                  ),
+                  // EN: Bottom gradient for depth
+                  // KO: 깊이감을 위한 하단 그라디언트
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.transparent,
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.04),
                           ],
-                          if (widget.rating != null) ...[
-                            Icon(
-                              Icons.star_rounded,
-                              size: 14,
-                              color: GBTColors.rating,
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // EN: Verified badge
+                  // KO: 인증 배지
+                  if (isVerified)
+                    Positioned(
+                      top: GBTSpacing.sm,
+                      left: GBTSpacing.sm,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: GBTSpacing.xs,
+                          vertical: 2,
+                        ),
+                        decoration: GBTDecorations.verifiedBadge(),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.check_circle,
+                              color: Colors.white,
+                              size: 12,
                             ),
                             const SizedBox(width: 2),
                             Text(
-                              widget.rating!.toStringAsFixed(1),
+                              '방문완료',
                               style: GBTTypography.labelSmall.copyWith(
-                                color: isDark
-                                    ? GBTColors.darkTextSecondary
-                                    : GBTColors.textSecondary,
-                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
                               ),
                             ),
                           ],
-                        ],
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                  // EN: Favorite button
+                  // KO: 즐겨찾기 버튼
+                  if (onFavoriteToggle != null)
+                    Positioned(
+                      top: GBTSpacing.sm,
+                      right: GBTSpacing.sm,
+                      child: _FavoriteButton(
+                        isFavorite: isFavorite,
+                        onToggle: onFavoriteToggle!,
+                      ),
+                    ),
+                ],
+              ),
+
+              // EN: Content section
+              // KO: 콘텐츠 섹션
+              Padding(
+                padding: GBTSpacing.paddingMd,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: GBTTypography.titleSmall.copyWith(
+                        color: isDark
+                            ? GBTColors.darkTextPrimary
+                            : GBTColors.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: GBTSpacing.xxs),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 14,
+                          color: isDark
+                              ? GBTColors.darkTextTertiary
+                              : GBTColors.textTertiary,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            location,
+                            style: GBTTypography.bodySmall.copyWith(
+                              color: isDark
+                                  ? GBTColors.darkTextSecondary
+                                  : GBTColors.textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: GBTSpacing.xs),
+                    Row(
+                      children: [
+                        if (distance != null) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: GBTSpacing.sm,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withValues(alpha: 0.15)
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(
+                                GBTSpacing.radiusSm,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.near_me,
+                                  size: 12,
+                                  color:
+                                      Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  distance!,
+                                  style: GBTTypography.labelSmall.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: GBTSpacing.sm),
+                        ],
+                        if (rating != null) ...[
+                          Icon(
+                            Icons.star_rounded,
+                            size: 14,
+                            color: GBTColors.rating,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            rating!.toStringAsFixed(1),
+                            style: GBTTypography.labelSmall.copyWith(
+                              color: isDark
+                                  ? GBTColors.darkTextSecondary
+                                  : GBTColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -285,11 +281,11 @@ class _GBTPlaceCardState extends State<GBTPlaceCard>
   /// EN: Build image widget with dark mode placeholder
   /// KO: 다크 모드 플레이스홀더가 있는 이미지 위젯 빌드
   Widget _buildImage(bool isDark) {
-    if (widget.imageUrl != null) {
+    if (imageUrl != null) {
       return GBTImage(
-        imageUrl: widget.imageUrl!,
+        imageUrl: imageUrl!,
         fit: BoxFit.cover,
-        semanticLabel: '${widget.name} 이미지',
+        semanticLabel: '$name 이미지',
       );
     }
     return Container(
@@ -305,8 +301,8 @@ class _GBTPlaceCardState extends State<GBTPlaceCard>
   }
 }
 
-/// EN: Animated favorite button with heart scale effect
-/// KO: 하트 스케일 효과가 있는 애니메이션 즐겨찾기 버튼
+/// EN: Animated favorite button with heart scale effect and 48dp touch target.
+/// KO: 하트 스케일 효과와 48dp 터치 타겟을 가진 애니메이션 즐겨찾기 버튼.
 class _FavoriteButton extends StatefulWidget {
   const _FavoriteButton({required this.isFavorite, required this.onToggle});
 
@@ -365,8 +361,10 @@ class _FavoriteButtonState extends State<_FavoriteButton>
             widget.onToggle();
           },
           customBorder: const CircleBorder(),
+          // EN: Ensure 48dp minimum touch target (20 icon + 14*2 padding = 48)
+          // KO: 48dp 최소 터치 타겟 보장 (20 아이콘 + 14*2 패딩 = 48)
           child: Padding(
-            padding: const EdgeInsets.all(GBTSpacing.xs),
+            padding: const EdgeInsets.all(14),
             child: ScaleTransition(
               scale: _heartScale,
               child: AnimatedSwitcher(
@@ -390,7 +388,7 @@ class _FavoriteButtonState extends State<_FavoriteButton>
 
 /// EN: Horizontal place card for list display with press animation
 /// KO: 프레스 애니메이션을 포함한 리스트 표시용 가로 장소 카드
-class GBTPlaceCardHorizontal extends StatefulWidget {
+class GBTPlaceCardHorizontal extends StatelessWidget {
   const GBTPlaceCardHorizontal({
     super.key,
     required this.name,
@@ -413,190 +411,177 @@ class GBTPlaceCardHorizontal extends StatefulWidget {
   final VoidCallback? onFavoriteToggle;
 
   @override
-  State<GBTPlaceCardHorizontal> createState() =>
-      _GBTPlaceCardHorizontalState();
-}
-
-class _GBTPlaceCardHorizontalState extends State<GBTPlaceCardHorizontal>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pressController;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _pressController = AnimationController(
-      duration: GBTAnimations.fast,
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: GBTAnimations.pressedScale,
-    ).animate(
-      CurvedAnimation(parent: _pressController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pressController.dispose();
-    super.dispose();
-  }
-
-  void _onTapDown(TapDownDetails _) => _pressController.forward();
-  void _onTapUp(TapUpDetails _) => _pressController.reverse();
-  void _onTapCancel() => _pressController.reverse();
-
-  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Semantics(
-      label: '${widget.name}, ${widget.location}',
-      button: widget.onTap != null,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: GestureDetector(
-          onTapDown: widget.onTap != null ? _onTapDown : null,
-          onTapUp: widget.onTap != null ? _onTapUp : null,
-          onTapCancel: widget.onTap != null ? _onTapCancel : null,
-          onTap: widget.onTap != null
-              ? () {
-                  HapticFeedback.lightImpact();
-                  _pressController.reverse();
-                  widget.onTap!();
-                }
-              : null,
-          child: AnimatedContainer(
-            duration: GBTAnimations.normal,
-            curve: GBTAnimations.defaultCurve,
-            decoration: GBTDecorations.card(isDark: isDark),
-            child: Padding(
-              padding: GBTSpacing.paddingMd,
-              child: Row(
-                children: [
-                  // EN: Image with rounded corners
-                  // KO: 둥근 모서리 이미지
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? GBTColors.darkSurfaceElevated
-                          : GBTColors.surfaceVariant,
-                      borderRadius:
-                          BorderRadius.circular(GBTSpacing.radiusSm),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: widget.imageUrl != null
-                        ? GBTImage(
-                            imageUrl: widget.imageUrl!,
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                            semanticLabel: '${widget.name} 이미지',
-                          )
-                        : Icon(
-                            Icons.image_outlined,
-                            color: isDark
-                                ? GBTColors.darkTextTertiary
-                                : GBTColors.textTertiary,
-                          ),
+      label: [
+        name,
+        location,
+        if (distance != null) '거리 $distance',
+        if (isVerified) '방문 완료',
+        if (isFavorite) '즐겨찾기',
+      ].join(', '),
+      hint: onTap != null ? '탭하면 상세 정보를 확인합니다' : null,
+      button: onTap != null,
+      child: GBTPressable(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: GBTAnimations.normal,
+          curve: GBTAnimations.defaultCurve,
+          decoration: GBTDecorations.card(isDark: isDark),
+          child: Padding(
+            padding: GBTSpacing.paddingMd,
+            child: Row(
+              children: [
+                // EN: Image with rounded corners
+                // KO: 둥근 모서리 이미지
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? GBTColors.darkSurfaceElevated
+                        : GBTColors.surfaceVariant,
+                    borderRadius:
+                        BorderRadius.circular(GBTSpacing.radiusSm),
                   ),
+                  clipBehavior: Clip.antiAlias,
+                  child: imageUrl != null
+                      ? GBTImage(
+                          imageUrl: imageUrl!,
+                          width: 96,
+                          height: 96,
+                          fit: BoxFit.cover,
+                          semanticLabel: '$name 이미지',
+                        )
+                      : Icon(
+                          Icons.image_outlined,
+                          color: isDark
+                              ? GBTColors.darkTextTertiary
+                              : GBTColors.textTertiary,
+                        ),
+                ),
 
-                  const SizedBox(width: GBTSpacing.md),
+                const SizedBox(width: GBTSpacing.md),
 
-                  // EN: Content
-                  // KO: 콘텐츠
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                widget.name,
-                                style: GBTTypography.titleSmall.copyWith(
-                                  color: isDark
-                                      ? GBTColors.darkTextPrimary
-                                      : GBTColors.textPrimary,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                // EN: Content
+                // KO: 콘텐츠
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              name,
+                              style: GBTTypography.titleMedium.copyWith(
+                                color: isDark
+                                    ? GBTColors.darkTextPrimary
+                                    : GBTColors.textPrimary,
+                                fontWeight: FontWeight.w600,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            if (widget.isVerified)
-                              Icon(
-                                Icons.check_circle,
-                                size: 16,
-                                color: GBTColors.verified,
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: GBTSpacing.xxs),
-                        Text(
-                          widget.location,
-                          style: GBTTypography.bodySmall.copyWith(
-                            color: isDark
-                                ? GBTColors.darkTextSecondary
-                                : GBTColors.textSecondary,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          if (isVerified)
+                            Icon(
+                              Icons.check_circle,
+                              size: 16,
+                              color: GBTColors.verified,
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: GBTSpacing.xxs),
+                      Text(
+                        location,
+                        style: GBTTypography.bodySmall.copyWith(
+                          color: isDark
+                              ? GBTColors.darkTextSecondary
+                              : GBTColors.textSecondary,
                         ),
-                        if (widget.distance != null) ...[
-                          const SizedBox(height: GBTSpacing.xs),
-                          Row(
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (distance != null) ...[
+                        const SizedBox(height: GBTSpacing.xs),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: GBTSpacing.sm,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? GBTColors.accentBlue
+                                    .withValues(alpha: 0.15)
+                                : GBTColors.accentBlue
+                                    .withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(
+                              GBTSpacing.radiusSm,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                Icons.near_me_outlined,
-                                size: 14,
-                                color: isDark
-                                    ? GBTColors.darkTextTertiary
-                                    : GBTColors.textTertiary,
+                                Icons.near_me,
+                                size: 12,
+                                color: GBTColors.accentBlue,
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                widget.distance!,
+                                distance!,
                                 style: GBTTypography.labelSmall.copyWith(
-                                  color: isDark
-                                      ? GBTColors.darkTextTertiary
-                                      : GBTColors.textTertiary,
+                                  color: GBTColors.accentBlue,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
                           ),
-                        ],
+                        ),
                       ],
-                    ),
+                    ],
                   ),
+                ),
 
-                  // EN: Favorite button
-                  // KO: 즐겨찾기 버튼
-                  if (widget.onFavoriteToggle != null)
-                    IconButton(
-                      icon: AnimatedSwitcher(
-                        duration: GBTAnimations.fast,
-                        child: Icon(
-                          widget.isFavorite
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          key: ValueKey(widget.isFavorite),
-                          color: widget.isFavorite
-                              ? GBTColors.favorite
-                              : (isDark
-                                  ? GBTColors.darkTextTertiary
-                                  : GBTColors.textTertiary),
+                // EN: Favorite button with 48dp touch target
+                // KO: 48dp 터치 타겟의 즐겨찾기 버튼
+                if (onFavoriteToggle != null)
+                  Tooltip(
+                    message: isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가',
+                    child: SizedBox(
+                      width: GBTSpacing.touchTarget,
+                      height: GBTSpacing.touchTarget,
+                      child: IconButton(
+                        icon: AnimatedSwitcher(
+                          duration: GBTAnimations.fast,
+                          child: Icon(
+                            isFavorite
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            key: ValueKey(isFavorite),
+                            color: isFavorite
+                                ? GBTColors.favorite
+                                : (isDark
+                                    ? GBTColors.darkTextTertiary
+                                    : GBTColors.textTertiary),
+                          ),
+                        ),
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          onFavoriteToggle!();
+                        },
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: GBTSpacing.touchTarget,
+                          minHeight: GBTSpacing.touchTarget,
                         ),
                       ),
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        widget.onFavoriteToggle!();
-                      },
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
         ),

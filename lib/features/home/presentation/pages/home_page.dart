@@ -15,6 +15,7 @@ import '../../../../core/widgets/cards/gbt_event_card.dart';
 import '../../../../core/widgets/cards/gbt_place_card.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../application/home_controller.dart';
 import '../../domain/entities/home_summary.dart';
@@ -47,6 +48,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             onPressed: () => context.push('/notifications'),
             tooltip: '알림',
           ),
+          const GBTProfileAction(),
         ],
       ),
       body: RefreshIndicator(
@@ -105,10 +107,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         const SizedBox(height: GBTSpacing.lg),
         if (summary.isEmpty) const GBTEmptyState(message: '표시할 홈 콘텐츠가 없습니다'),
         if (summary.recommendedPlaces.isNotEmpty) ...[
-          _SectionHeader(
-            title: '추천 장소',
-            onSeeAll: () => context.go('/places'),
-          ),
+          _SectionHeader(title: '추천 장소', onSeeAll: () => context.go('/places')),
           const SizedBox(height: GBTSpacing.sm),
           ...summary.recommendedPlaces
               .take(3)
@@ -129,10 +128,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           const SizedBox(height: GBTSpacing.lg),
         ],
         if (summary.trendingLiveEvents.isNotEmpty) ...[
-          _SectionHeader(
-            title: '트렌딩 라이브',
-            onSeeAll: () => context.go('/live'),
-          ),
+          _SectionHeader(title: '트렌딩 라이브', onSeeAll: () => context.go('/live')),
           const SizedBox(height: GBTSpacing.sm),
           ...summary.trendingLiveEvents
               .take(2)
@@ -153,7 +149,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           const SizedBox(height: GBTSpacing.lg),
         ],
         if (summary.latestNews.isNotEmpty) ...[
-          _SectionHeader(title: '최신 소식', onSeeAll: () => context.go('/feed')),
+          _SectionHeader(title: '최신 소식', onSeeAll: () => context.go('/info')),
           const SizedBox(height: GBTSpacing.sm),
           ...summary.latestNews
               .take(3)
@@ -172,27 +168,36 @@ class _WelcomeSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: GBTSpacing.paddingMd,
-      decoration: BoxDecoration(
-        gradient: GBTColors.accentGradient,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '성지순례를 시작하세요!',
-            style: GBTTypography.titleLarge.copyWith(color: Colors.white),
-          ),
-          const SizedBox(height: GBTSpacing.xs),
-          Text(
-            '좋아하는 밴드의 발자취를 따라가보세요',
-            style: GBTTypography.bodyMedium.copyWith(
-              color: Colors.white.withValues(alpha: 0.9),
+    // EN: Use dark-mode-aware gradient for the welcome banner.
+    // KO: 환영 배너에 다크 모드 인식 그라디언트를 사용합니다.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Semantics(
+      label: '성지순례를 시작하세요! 좋아하는 밴드의 발자취를 따라가보세요',
+      child: Container(
+        padding: GBTSpacing.paddingMd,
+        decoration: BoxDecoration(
+          gradient: isDark
+              ? GBTColors.darkAccentGradient
+              : GBTColors.accentGradient,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '성지순례를 시작하세요!',
+              style: GBTTypography.titleLarge.copyWith(color: Colors.white),
             ),
-          ),
-        ],
+            const SizedBox(height: GBTSpacing.xs),
+            Text(
+              '좋아하는 밴드의 발자취를 따라가보세요',
+              style: GBTTypography.bodyMedium.copyWith(
+                color: Colors.white.withValues(alpha: 0.9),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -220,7 +225,7 @@ class _QuickAccessSection extends StatelessWidget {
           child: _QuickAccessCard(
             icon: Icons.calendar_today,
             label: '이벤트',
-            color: GBTColors.accentPink,
+            color: GBTColors.secondary,
             onTap: () => context.go('/live'),
           ),
         ),
@@ -255,23 +260,33 @@ class _QuickAccessCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: color.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-      child: InkWell(
-        onTap: onTap,
+    // EN: Use dark-mode-aware background alpha for the quick access card.
+    // KO: 빠른 접근 카드에 다크 모드 인식 배경 알파를 사용합니다.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Semantics(
+      button: true,
+      label: '$label 바로가기',
+      child: Material(
+        color: color.withValues(alpha: isDark ? 0.2 : 0.1),
         borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        child: Padding(
-          padding: GBTSpacing.paddingMd,
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: GBTSpacing.iconLg),
-              const SizedBox(height: GBTSpacing.xs),
-              Text(
-                label,
-                style: GBTTypography.labelMedium.copyWith(color: color),
-              ),
-            ],
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          child: Padding(
+            padding: GBTSpacing.paddingMd,
+            child: Column(
+              children: [
+                Icon(icon, color: color, size: GBTSpacing.iconLg),
+                const SizedBox(height: GBTSpacing.xs),
+                Text(
+                  label,
+                  style: GBTTypography.labelMedium.copyWith(color: color),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -298,14 +313,17 @@ class _SectionHeader extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
-        TextButton(onPressed: onSeeAll, child: const Text('전체보기')),
+        TextButton(
+          onPressed: onSeeAll,
+          child: Semantics(label: '$title 전체보기', child: const Text('전체보기')),
+        ),
       ],
     );
   }
 }
 
-/// EN: Placeholder list widget for development
-/// KO: 개발용 플레이스홀더 리스트 위젯
+/// EN: News list tile widget for the home page.
+/// KO: 홈 페이지용 뉴스 리스트 타일 위젯.
 class _NewsListTile extends StatelessWidget {
   const _NewsListTile({required this.item});
 
@@ -313,6 +331,19 @@ class _NewsListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // EN: Use theme-aware colors for dark mode compatibility.
+    // KO: 다크 모드 호환성을 위해 테마 인식 색상을 사용합니다.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subtitleColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final placeholderBg = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+    final placeholderIcon = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+
     return Card(
       margin: const EdgeInsets.only(bottom: GBTSpacing.sm),
       child: ListTile(
@@ -324,17 +355,17 @@ class _NewsListTile extends StatelessWidget {
                 height: 56,
                 fit: BoxFit.cover,
                 borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-                semanticLabel: item.title,
+                semanticLabel: '${item.title} 뉴스 썸네일',
                 useShimmer: false,
               )
             : Container(
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: GBTColors.surfaceVariant,
+                  color: placeholderBg,
                   borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
                 ),
-                child: const Icon(Icons.article_outlined),
+                child: Icon(Icons.article_outlined, color: placeholderIcon),
               ),
         title: Text(
           item.title,
@@ -347,12 +378,14 @@ class _NewsListTile extends StatelessWidget {
                 item.summary!,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: GBTTypography.bodySmall.copyWith(
-                  color: GBTColors.textSecondary,
-                ),
+                style: GBTTypography.bodySmall.copyWith(color: subtitleColor),
               )
             : null,
-        trailing: const Icon(Icons.chevron_right),
+        trailing: Icon(
+          Icons.chevron_right,
+          semanticLabel: '뉴스 상세 보기',
+          color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+        ),
       ),
     );
   }

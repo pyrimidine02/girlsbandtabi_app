@@ -57,16 +57,16 @@ class GBTTheme {
       appBarTheme: _darkAppBarTheme,
       bottomNavigationBarTheme: _darkBottomNavTheme,
       cardTheme: _darkCardTheme,
-      elevatedButtonTheme: _elevatedButtonTheme,
-      outlinedButtonTheme: _outlinedButtonTheme,
-      textButtonTheme: _textButtonTheme,
+      elevatedButtonTheme: _darkElevatedButtonTheme,
+      outlinedButtonTheme: _darkOutlinedButtonTheme,
+      textButtonTheme: _darkTextButtonTheme,
       inputDecorationTheme: _darkInputDecorationTheme,
       dividerTheme: _darkDividerTheme,
       chipTheme: _darkChipTheme,
-      floatingActionButtonTheme: _fabTheme,
+      floatingActionButtonTheme: _darkFabTheme,
       bottomSheetTheme: _darkBottomSheetTheme,
       dialogTheme: _darkDialogTheme,
-      snackBarTheme: _snackBarTheme,
+      snackBarTheme: _darkSnackBarTheme,
       tabBarTheme: _darkTabBarTheme,
       scaffoldBackgroundColor: GBTColors.darkBackground,
       splashColor: GBTColors.ripple,
@@ -82,14 +82,14 @@ class GBTTheme {
     brightness: Brightness.light,
     primary: GBTColors.primary,
     onPrimary: GBTColors.textInverse,
-    primaryContainer: GBTColors.surfaceVariant,
-    onPrimaryContainer: GBTColors.textPrimary,
+    primaryContainer: GBTColors.primaryLight,
+    onPrimaryContainer: GBTColors.primaryPressed,
     secondary: GBTColors.secondary,
     onSecondary: GBTColors.textInverse,
-    secondaryContainer: GBTColors.surfaceVariant,
-    onSecondaryContainer: GBTColors.textPrimary,
+    secondaryContainer: GBTColors.secondaryLight,
+    onSecondaryContainer: GBTColors.secondaryPressed,
     tertiary: GBTColors.accent,
-    onTertiary: GBTColors.textInverse,
+    onTertiary: GBTColors.textPrimary,
     error: GBTColors.error,
     onError: GBTColors.textInverse,
     surface: GBTColors.surface,
@@ -104,18 +104,16 @@ class GBTTheme {
 
   static ColorScheme get _darkColorScheme => ColorScheme(
     brightness: Brightness.dark,
-    // EN: Use lighter accent for primary in dark mode for visibility
-    // KO: 다크 모드에서 가시성을 위해 밝은 강조색을 primary로 사용
-    primary: GBTColors.darkTextPrimary,
+    primary: GBTColors.darkPrimary,
     onPrimary: GBTColors.darkBackground,
     primaryContainer: GBTColors.darkSurfaceElevated,
     onPrimaryContainer: GBTColors.darkTextPrimary,
-    secondary: GBTColors.secondary,
-    onSecondary: GBTColors.darkTextPrimary,
+    secondary: GBTColors.darkSecondary,
+    onSecondary: GBTColors.darkBackground,
     secondaryContainer: GBTColors.darkSurfaceVariant,
     onSecondaryContainer: GBTColors.darkTextPrimary,
-    tertiary: GBTColors.accent,
-    onTertiary: GBTColors.darkTextPrimary,
+    tertiary: GBTColors.darkAccent,
+    onTertiary: GBTColors.darkBackground,
     error: GBTColors.error,
     onError: GBTColors.darkTextPrimary,
     surface: GBTColors.darkSurface,
@@ -224,7 +222,7 @@ class GBTTheme {
     backgroundColor: GBTColors.background,
     foregroundColor: GBTColors.textPrimary,
     elevation: 0,
-    scrolledUnderElevation: 1,
+    scrolledUnderElevation: 0.5,
     centerTitle: true,
     titleTextStyle: GBTTypography.titleMedium.copyWith(
       color: GBTColors.textPrimary,
@@ -241,7 +239,7 @@ class GBTTheme {
     backgroundColor: GBTColors.darkSurface,
     foregroundColor: GBTColors.darkTextPrimary,
     elevation: 0,
-    scrolledUnderElevation: 1,
+    scrolledUnderElevation: 0.5,
     centerTitle: true,
     titleTextStyle: GBTTypography.titleMedium.copyWith(
       color: GBTColors.darkTextPrimary,
@@ -260,11 +258,11 @@ class GBTTheme {
   // ========================================
   static BottomNavigationBarThemeData get _lightBottomNavTheme =>
       BottomNavigationBarThemeData(
-        backgroundColor: GBTColors.background,
+        backgroundColor: GBTColors.surface,
         selectedItemColor: GBTColors.primary,
         unselectedItemColor: GBTColors.textTertiary,
         type: BottomNavigationBarType.fixed,
-        elevation: 8,
+        elevation: 0,
         selectedLabelStyle: GBTTypography.labelSmall.copyWith(
           fontWeight: FontWeight.w600,
         ),
@@ -274,7 +272,7 @@ class GBTTheme {
   static BottomNavigationBarThemeData get _darkBottomNavTheme =>
       BottomNavigationBarThemeData(
         backgroundColor: GBTColors.darkSurface,
-        selectedItemColor: GBTColors.darkTextPrimary,
+        selectedItemColor: GBTColors.darkPrimary,
         unselectedItemColor: GBTColors.darkTextTertiary,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
@@ -290,9 +288,10 @@ class GBTTheme {
   // ========================================
   static CardThemeData get _cardTheme => CardThemeData(
     color: GBTColors.surface,
-    elevation: GBTSpacing.elevationSm,
+    elevation: 0,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      side: BorderSide(color: GBTColors.border.withValues(alpha: 0.5)),
     ),
     margin: EdgeInsets.zero,
   );
@@ -302,7 +301,7 @@ class GBTTheme {
     elevation: 0,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-      side: BorderSide(
+      side: const BorderSide(
         color: GBTColors.darkBorderSubtle,
         width: 0.5,
       ),
@@ -319,14 +318,32 @@ class GBTTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: GBTColors.primary,
           foregroundColor: GBTColors.textInverse,
-          elevation: GBTSpacing.elevationSm,
+          elevation: 0,
           padding: const EdgeInsets.symmetric(
             horizontal: GBTSpacing.lg,
             vertical: GBTSpacing.md,
           ),
           minimumSize: const Size(120, GBTSpacing.touchTarget),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          ),
+          textStyle: GBTTypography.button,
+        ),
+      );
+
+  static ElevatedButtonThemeData get _darkElevatedButtonTheme =>
+      ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: GBTColors.darkPrimary,
+          foregroundColor: GBTColors.darkBackground,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(
+            horizontal: GBTSpacing.lg,
+            vertical: GBTSpacing.md,
+          ),
+          minimumSize: const Size(120, GBTSpacing.touchTarget),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
           ),
           textStyle: GBTTypography.button,
         ),
@@ -342,9 +359,26 @@ class GBTTheme {
           ),
           minimumSize: const Size(120, GBTSpacing.touchTarget),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
           ),
           side: const BorderSide(color: GBTColors.border),
+          textStyle: GBTTypography.button,
+        ),
+      );
+
+  static OutlinedButtonThemeData get _darkOutlinedButtonTheme =>
+      OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: GBTColors.darkPrimary,
+          padding: const EdgeInsets.symmetric(
+            horizontal: GBTSpacing.lg,
+            vertical: GBTSpacing.md,
+          ),
+          minimumSize: const Size(120, GBTSpacing.touchTarget),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          ),
+          side: const BorderSide(color: GBTColors.darkBorder),
           textStyle: GBTTypography.button,
         ),
       );
@@ -358,7 +392,22 @@ class GBTTheme {
       ),
       minimumSize: const Size(64, GBTSpacing.minTouchTarget),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      ),
+      textStyle: GBTTypography.button,
+    ),
+  );
+
+  static TextButtonThemeData get _darkTextButtonTheme => TextButtonThemeData(
+    style: TextButton.styleFrom(
+      foregroundColor: GBTColors.darkPrimary,
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.md,
+        vertical: GBTSpacing.sm,
+      ),
+      minimumSize: const Size(64, GBTSpacing.minTouchTarget),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
       ),
       textStyle: GBTTypography.button,
     ),
@@ -373,23 +422,23 @@ class GBTTheme {
     fillColor: GBTColors.surfaceVariant,
     contentPadding: const EdgeInsets.all(GBTSpacing.md),
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
       borderSide: const BorderSide(color: GBTColors.border),
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
       borderSide: const BorderSide(color: GBTColors.border),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
       borderSide: const BorderSide(color: GBTColors.primary, width: 2),
     ),
     errorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
       borderSide: const BorderSide(color: GBTColors.error),
     ),
     focusedErrorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
       borderSide: const BorderSide(color: GBTColors.error, width: 2),
     ),
     hintStyle: GBTTypography.bodyMedium.copyWith(color: GBTColors.textTertiary),
@@ -405,23 +454,23 @@ class GBTTheme {
         fillColor: GBTColors.darkSurfaceVariant,
         contentPadding: const EdgeInsets.all(GBTSpacing.md),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
           borderSide: const BorderSide(color: GBTColors.darkBorder),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
           borderSide: const BorderSide(color: GBTColors.darkBorder),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-          borderSide: const BorderSide(color: GBTColors.secondary, width: 2),
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          borderSide: const BorderSide(color: GBTColors.darkPrimary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
           borderSide: const BorderSide(color: GBTColors.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
           borderSide: const BorderSide(color: GBTColors.error, width: 2),
         ),
         hintStyle: GBTTypography.bodyMedium.copyWith(
@@ -452,7 +501,7 @@ class GBTTheme {
   // ========================================
   static ChipThemeData get _chipTheme => ChipThemeData(
     backgroundColor: GBTColors.surfaceVariant,
-    selectedColor: GBTColors.primary,
+    selectedColor: GBTColors.primaryLight,
     labelStyle: GBTTypography.labelMedium.copyWith(
       color: GBTColors.textSecondary,
     ),
@@ -467,7 +516,7 @@ class GBTTheme {
 
   static ChipThemeData get _darkChipTheme => ChipThemeData(
     backgroundColor: GBTColors.darkSurfaceVariant,
-    selectedColor: GBTColors.secondary,
+    selectedColor: GBTColors.darkSurfaceElevated,
     labelStyle: GBTTypography.labelMedium.copyWith(
       color: GBTColors.darkTextPrimary,
     ),
@@ -494,15 +543,25 @@ class GBTTheme {
         ),
       );
 
+  static FloatingActionButtonThemeData get _darkFabTheme =>
+      FloatingActionButtonThemeData(
+        backgroundColor: GBTColors.darkSecondary,
+        foregroundColor: GBTColors.darkBackground,
+        elevation: GBTSpacing.elevationMd,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
+        ),
+      );
+
   // ========================================
   // EN: Bottom Sheet Theme
   // KO: 바텀 시트 테마
   // ========================================
   static BottomSheetThemeData get _bottomSheetTheme => BottomSheetThemeData(
-    backgroundColor: GBTColors.background,
+    backgroundColor: GBTColors.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
-        top: Radius.circular(GBTSpacing.radiusLg),
+        top: Radius.circular(GBTSpacing.radiusXl),
       ),
     ),
     elevation: GBTSpacing.elevationLg,
@@ -512,7 +571,7 @@ class GBTTheme {
     backgroundColor: GBTColors.darkSurface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
-        top: Radius.circular(GBTSpacing.radiusLg),
+        top: Radius.circular(GBTSpacing.radiusXl),
       ),
     ),
     elevation: GBTSpacing.elevationLg,
@@ -523,7 +582,7 @@ class GBTTheme {
   // KO: 다이얼로그 테마
   // ========================================
   static DialogThemeData get _dialogTheme => DialogThemeData(
-    backgroundColor: GBTColors.background,
+    backgroundColor: GBTColors.surface,
     elevation: GBTSpacing.elevationXl,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
@@ -537,7 +596,7 @@ class GBTTheme {
   );
 
   static DialogThemeData get _darkDialogTheme => DialogThemeData(
-    backgroundColor: GBTColors.darkSurface,
+    backgroundColor: GBTColors.darkSurfaceVariant,
     elevation: GBTSpacing.elevationXl,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
@@ -561,7 +620,18 @@ class GBTTheme {
     ),
     behavior: SnackBarBehavior.floating,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+    ),
+  );
+
+  static SnackBarThemeData get _darkSnackBarTheme => SnackBarThemeData(
+    backgroundColor: GBTColors.darkSurfaceElevated,
+    contentTextStyle: GBTTypography.bodyMedium.copyWith(
+      color: GBTColors.darkTextPrimary,
+    ),
+    behavior: SnackBarBehavior.floating,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
     ),
   );
 
@@ -579,11 +649,11 @@ class GBTTheme {
   );
 
   static TabBarThemeData get _darkTabBarTheme => TabBarThemeData(
-    labelColor: GBTColors.secondary,
+    labelColor: GBTColors.darkPrimary,
     unselectedLabelColor: GBTColors.darkTextTertiary,
     labelStyle: GBTTypography.tabLabel,
     unselectedLabelStyle: GBTTypography.tabLabel,
-    indicatorColor: GBTColors.secondary,
+    indicatorColor: GBTColors.darkPrimary,
     indicatorSize: TabBarIndicatorSize.label,
   );
 }

@@ -95,6 +95,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isAuthenticated = ref.watch(isAuthenticatedProvider);
 
     if (!isAuthenticated) {
@@ -105,29 +106,47 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     }
 
     final state = ref.watch(userProfileControllerProvider);
+    final isBusy = _isSaving || _isUploadingAvatar || _isUploadingCover;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('프로필 수정'),
         actions: [
-          TextButton(
-            onPressed:
-                _isSaving || _isUploadingAvatar || _isUploadingCover
-                    ? null
-                    : _saveProfile,
-            child: Text(
-              '저장',
-              style: GBTTypography.bodyMedium.copyWith(
-                color: _isSaving || _isUploadingAvatar || _isUploadingCover
-                    ? GBTColors.textTertiary
-                    : GBTColors.accent,
+          Semantics(
+            button: true,
+            label: isBusy ? '저장 중' : '프로필 저장',
+            enabled: !isBusy,
+            child: TextButton(
+              onPressed: isBusy ? null : _saveProfile,
+              style: TextButton.styleFrom(
+                minimumSize: const Size(
+                  GBTSpacing.touchTarget,
+                  GBTSpacing.touchTarget,
+                ),
+              ),
+              child: Text(
+                '저장',
+                style: GBTTypography.bodyMedium.copyWith(
+                  // EN: Use theme-aware color for dark mode
+                  // KO: 다크 모드를 위해 테마 인식 색상 사용
+                  color: isBusy
+                      ? colorScheme.onSurfaceVariant
+                      : colorScheme.primary,
+                ),
               ),
             ),
           ),
         ],
       ),
       body: GBTLoadingOverlay(
-        isLoading: _isSaving || _isUploadingAvatar || _isUploadingCover,
+        isLoading: isBusy,
+        message: _isSaving
+            ? '프로필 저장 중...'
+            : _isUploadingAvatar
+                ? '프로필 사진 업로드 중...'
+                : _isUploadingCover
+                    ? '배경 이미지 업로드 중...'
+                    : null,
         child: state.when(
           loading: () => const GBTLoading(message: '프로필을 불러오는 중...'),
           error: (error, _) => Center(
@@ -136,20 +155,44 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('프로필 정보를 불러오지 못했어요', style: GBTTypography.titleSmall),
+                  // EN: Error icon for visual context
+                  // KO: 시각적 맥락을 위한 오류 아이콘
+                  Icon(
+                    Icons.error_outline,
+                    size: GBTSpacing.xxl,
+                    color: colorScheme.error,
+                    semanticLabel: '오류 아이콘',
+                  ),
+                  const SizedBox(height: GBTSpacing.md),
+                  Text(
+                    '프로필 정보를 불러오지 못했어요',
+                    style: GBTTypography.titleSmall.copyWith(
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
                   const SizedBox(height: GBTSpacing.sm),
                   Text(
                     '잠시 후 다시 시도해주세요',
                     style: GBTTypography.bodySmall.copyWith(
-                      color: GBTColors.textSecondary,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: GBTSpacing.lg),
-                  ElevatedButton(
-                    onPressed: () => ref
-                        .read(userProfileControllerProvider.notifier)
-                        .load(forceRefresh: true),
-                    child: const Text('다시 시도'),
+                  Semantics(
+                    button: true,
+                    label: '프로필 정보 다시 불러오기',
+                    child: ElevatedButton(
+                      onPressed: () => ref
+                          .read(userProfileControllerProvider.notifier)
+                          .load(forceRefresh: true),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(
+                          GBTSpacing.touchTarget,
+                          GBTSpacing.touchTarget,
+                        ),
+                      ),
+                      child: const Text('다시 시도'),
+                    ),
                   ),
                 ],
               ),
@@ -314,7 +357,6 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
   }
-
 }
 
 class _ProfileForm extends StatelessWidget {
@@ -342,13 +384,17 @@ class _ProfileForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return ListView(
       padding: GBTSpacing.paddingPage,
       children: [
         Text(
           '배경 이미지',
           style: GBTTypography.labelMedium.copyWith(
-            color: GBTColors.textSecondary,
+            // EN: Use theme-aware secondary text color
+            // KO: 테마 인식 보조 텍스트 색상 사용
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: GBTSpacing.xs),
@@ -359,9 +405,19 @@ class _ProfileForm extends StatelessWidget {
         const SizedBox(height: GBTSpacing.sm),
         Align(
           alignment: Alignment.centerLeft,
-          child: TextButton(
-            onPressed: isUploadingCover ? null : onChangeCover,
-            child: Text(isUploadingCover ? '업로드 중...' : '배경 이미지 변경'),
+          child: Semantics(
+            button: true,
+            label: isUploadingCover ? '배경 이미지 업로드 중' : '배경 이미지 변경',
+            child: TextButton(
+              onPressed: isUploadingCover ? null : onChangeCover,
+              style: TextButton.styleFrom(
+                minimumSize: const Size(
+                  GBTSpacing.touchTarget,
+                  GBTSpacing.touchTarget,
+                ),
+              ),
+              child: Text(isUploadingCover ? '업로드 중...' : '배경 이미지 변경'),
+            ),
           ),
         ),
         const SizedBox(height: GBTSpacing.lg),
@@ -373,9 +429,19 @@ class _ProfileForm extends StatelessWidget {
                 isUploading: isUploadingAvatar,
               ),
               const SizedBox(height: GBTSpacing.sm),
-              TextButton(
-                onPressed: isUploadingAvatar ? null : onChangeAvatar,
-                child: Text(isUploadingAvatar ? '업로드 중...' : '사진 변경'),
+              Semantics(
+                button: true,
+                label: isUploadingAvatar ? '프로필 사진 업로드 중' : '프로필 사진 변경',
+                child: TextButton(
+                  onPressed: isUploadingAvatar ? null : onChangeAvatar,
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(
+                      GBTSpacing.touchTarget,
+                      GBTSpacing.touchTarget,
+                    ),
+                  ),
+                  child: Text(isUploadingAvatar ? '업로드 중...' : '사진 변경'),
+                ),
               ),
             ],
           ),
@@ -384,7 +450,7 @@ class _ProfileForm extends StatelessWidget {
         Text(
           '표시 이름',
           style: GBTTypography.labelMedium.copyWith(
-            color: GBTColors.textSecondary,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: GBTSpacing.xs),
@@ -396,18 +462,24 @@ class _ProfileForm extends StatelessWidget {
               borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
             ),
           ),
+          // EN: Limit display name length to prevent overflow
+          // KO: 오버플로 방지를 위해 표시 이름 길이 제한
+          maxLength: 30,
         ),
         const SizedBox(height: GBTSpacing.lg),
         Text(
           '소개',
           style: GBTTypography.labelMedium.copyWith(
-            color: GBTColors.textSecondary,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: GBTSpacing.xs),
         TextField(
           controller: bioController,
           maxLines: 3,
+          // EN: Limit bio length to prevent overflow
+          // KO: 오버플로 방지를 위해 소개 길이 제한
+          maxLength: 200,
           decoration: InputDecoration(
             hintText: '간단한 소개를 입력하세요',
             border: OutlineInputBorder(
@@ -419,20 +491,34 @@ class _ProfileForm extends StatelessWidget {
         Text(
           '이메일',
           style: GBTTypography.labelMedium.copyWith(
-            color: GBTColors.textSecondary,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: GBTSpacing.xs),
-        Text(profile.email, style: GBTTypography.bodyMedium),
+        Text(
+          profile.email,
+          style: GBTTypography.bodyMedium.copyWith(
+            color: colorScheme.onSurface,
+          ),
+          // EN: Prevent overflow on long email addresses
+          // KO: 긴 이메일 주소에서 오버플로 방지
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         const SizedBox(height: GBTSpacing.lg),
         Text(
           '권한',
           style: GBTTypography.labelMedium.copyWith(
-            color: GBTColors.textSecondary,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: GBTSpacing.xs),
-        Text(profile.role, style: GBTTypography.bodyMedium),
+        Text(
+          profile.role,
+          style: GBTTypography.bodyMedium.copyWith(
+            color: colorScheme.onSurface,
+          ),
+        ),
       ],
     );
   }
@@ -446,14 +532,21 @@ class _ProfileAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final avatar = avatarUrl == null || avatarUrl!.isEmpty
         ? CircleAvatar(
             radius: 40,
-            backgroundColor: GBTColors.surfaceVariant,
+            backgroundColor: isDark
+                ? GBTColors.darkSurfaceVariant
+                : GBTColors.surfaceVariant,
             child: Icon(
               Icons.person,
               size: 40,
-              color: GBTColors.textTertiary,
+              color: isDark
+                  ? GBTColors.darkTextTertiary
+                  : GBTColors.textTertiary,
+              semanticLabel: '기본 프로필 이미지',
             ),
           )
         : ClipOval(
@@ -470,24 +563,31 @@ class _ProfileAvatar extends StatelessWidget {
       return avatar;
     }
 
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        avatar,
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.35),
-            shape: BoxShape.circle,
+    // EN: Dark-mode-aware overlay alpha for upload indicator
+    // KO: 업로드 표시를 위한 다크 모드 인식 오버레이 알파
+    final overlayAlpha = isDark ? 0.5 : 0.35;
+
+    return Semantics(
+      label: '프로필 이미지 업로드 중',
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          avatar,
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: overlayAlpha),
+              shape: BoxShape.circle,
+            ),
           ),
-        ),
-        const SizedBox(
-          width: 28,
-          height: 28,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      ],
+          const SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -503,17 +603,23 @@ class _ProfileCoverPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final preview = ClipRRect(
       borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
       child: coverUrl == null || coverUrl!.isEmpty
           ? Container(
               height: 140,
-              color: GBTColors.surfaceVariant,
+              color: isDark
+                  ? GBTColors.darkSurfaceVariant
+                  : GBTColors.surfaceVariant,
               alignment: Alignment.center,
               child: Text(
                 '배경 이미지 없음',
                 style: GBTTypography.labelSmall.copyWith(
-                  color: GBTColors.textTertiary,
+                  color: isDark
+                      ? GBTColors.darkTextTertiary
+                      : GBTColors.textTertiary,
                 ),
               ),
             )
@@ -530,23 +636,30 @@ class _ProfileCoverPreview extends StatelessWidget {
       return preview;
     }
 
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        preview,
-        Container(
-          height: 140,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+    // EN: Dark-mode-aware overlay alpha for upload indicator
+    // KO: 업로드 표시를 위한 다크 모드 인식 오버레이 알파
+    final overlayAlpha = isDark ? 0.5 : 0.35;
+
+    return Semantics(
+      label: '배경 이미지 업로드 중',
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          preview,
+          Container(
+            height: 140,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: overlayAlpha),
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+            ),
           ),
-        ),
-        const SizedBox(
-          width: 28,
-          height: 28,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      ],
+          const SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -558,25 +671,53 @@ class _LoginRequired extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Center(
       child: Padding(
         padding: GBTSpacing.paddingPage,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.lock_outline, size: 48, color: GBTColors.textTertiary),
+            Icon(
+              Icons.lock_outline,
+              size: GBTSpacing.touchTarget,
+              color: isDark
+                  ? GBTColors.darkTextTertiary
+                  : GBTColors.textTertiary,
+              semanticLabel: '잠금 아이콘',
+            ),
             const SizedBox(height: GBTSpacing.md),
-            Text('로그인이 필요합니다', style: GBTTypography.titleSmall),
+            Text(
+              '로그인이 필요합니다',
+              style: GBTTypography.titleSmall.copyWith(
+                color: colorScheme.onSurface,
+              ),
+            ),
             const SizedBox(height: GBTSpacing.sm),
             Text(
               '프로필을 수정하려면 로그인해주세요.',
               style: GBTTypography.bodySmall.copyWith(
-                color: GBTColors.textSecondary,
+                color: colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: GBTSpacing.lg),
-            ElevatedButton(onPressed: onLogin, child: const Text('로그인')),
+            Semantics(
+              button: true,
+              label: '로그인 페이지로 이동',
+              child: ElevatedButton(
+                onPressed: onLogin,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(
+                    GBTSpacing.touchTarget,
+                    GBTSpacing.touchTarget,
+                  ),
+                ),
+                child: const Text('로그인'),
+              ),
+            ),
           ],
         ),
       ),

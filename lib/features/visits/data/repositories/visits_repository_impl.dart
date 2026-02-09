@@ -9,6 +9,7 @@ import '../../../../core/utils/result.dart';
 import '../../domain/entities/visit_entities.dart';
 import '../../domain/repositories/visits_repository.dart';
 import '../datasources/visits_remote_data_source.dart';
+import '../dto/user_ranking_dto.dart';
 import '../dto/visit_dto.dart';
 
 class VisitsRepositoryImpl implements VisitsRepository {
@@ -135,11 +136,54 @@ class VisitsRepositoryImpl implements VisitsRepository {
       code: 'unknown_visit_summary',
     );
   }
+
+  @override
+  Future<Result<UserRanking>> getUserRanking({
+    required String projectId,
+    bool forceRefresh = false,
+  }) async {
+    final policy = forceRefresh
+        ? CachePolicy.networkFirst
+        : CachePolicy.staleWhileRevalidate;
+
+    try {
+      final cacheResult = await _cacheManager.resolve<UserRankingDto>(
+        key: _rankingCacheKey(projectId),
+        policy: policy,
+        ttl: const Duration(minutes: 5),
+        fetcher: () => _fetchUserRanking(projectId: projectId),
+        toJson: (dto) => dto.toJson(),
+        fromJson: UserRankingDto.fromJson,
+      );
+      return Result.success(UserRanking.fromDto(cacheResult.data));
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  Future<UserRankingDto> _fetchUserRanking({
+    required String projectId,
+  }) async {
+    final result = await _remoteDataSource.fetchUserRanking(
+      projectId: projectId,
+    );
+    if (result is Success<UserRankingDto>) {
+      return result.data;
+    }
+    if (result is Err<UserRankingDto>) {
+      throw result.failure;
+    }
+    throw const UnknownFailure(
+      'Unknown user ranking result',
+      code: 'unknown_user_ranking',
+    );
+  }
 }
 
 String _visitsCacheKey(int page, int size) =>
     'user_visits_page_${page}_size_$size';
 String _summaryCacheKey(String placeId) => 'user_visits_summary_$placeId';
+String _rankingCacheKey(String projectId) => 'user_ranking_$projectId';
 
 Map<String, dynamic> _encodeVisitList(List<VisitEventDto> items) {
   return {

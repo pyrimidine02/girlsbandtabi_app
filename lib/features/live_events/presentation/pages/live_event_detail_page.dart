@@ -67,6 +67,13 @@ class LiveEventDetailPage extends ConsumerWidget {
     WidgetRef ref,
     LiveEventDetail event,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final surfaceVariantColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
     final favoritesState = ref.watch(favoritesControllerProvider);
     final isFavorite = favoritesState.maybeWhen(
       data: (items) => items.any(
@@ -85,10 +92,10 @@ class LiveEventDetailPage extends ConsumerWidget {
               ? GBTImage(
                   imageUrl: event.bannerUrl!,
                   fit: BoxFit.cover,
-                  semanticLabel: event.title,
+                  semanticLabel: '${event.title} 포스터',
                 )
               : Container(
-                  color: GBTColors.surfaceVariant,
+                  color: surfaceVariantColor,
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -102,7 +109,7 @@ class LiveEventDetailPage extends ConsumerWidget {
                         Text(
                           '이벤트 포스터',
                           style: GBTTypography.bodyMedium.copyWith(
-                            color: GBTColors.textSecondary,
+                            color: secondaryColor,
                           ),
                         ),
                       ],
@@ -113,6 +120,7 @@ class LiveEventDetailPage extends ConsumerWidget {
         actions: [
           IconButton(
             icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
+            tooltip: isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가',
             onPressed: () => ref
                 .read(favoritesControllerProvider.notifier)
                 .toggleFavorite(
@@ -123,6 +131,7 @@ class LiveEventDetailPage extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.share),
+            tooltip: '이벤트 공유',
             onPressed: () {
               // EN: TODO: Share event
               // KO: TODO: 이벤트 공유
@@ -136,7 +145,12 @@ class LiveEventDetailPage extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(event.title, style: GBTTypography.headlineSmall),
+              Text(
+                event.title,
+                style: GBTTypography.headlineSmall,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
               const SizedBox(height: GBTSpacing.xs),
               Text(
                 event.status,
@@ -185,9 +199,7 @@ class LiveEventDetailPage extends ConsumerWidget {
               const SizedBox(height: GBTSpacing.sm),
               Text(
                 event.description ?? '공연 정보가 없습니다.',
-                style: GBTTypography.bodyMedium.copyWith(
-                  color: GBTColors.textSecondary,
-                ),
+                style: GBTTypography.bodyMedium.copyWith(color: secondaryColor),
               ),
               const SizedBox(height: GBTSpacing.lg),
               Text(
@@ -200,14 +212,16 @@ class LiveEventDetailPage extends ConsumerWidget {
               Container(
                 padding: GBTSpacing.paddingMd,
                 decoration: BoxDecoration(
-                  color: GBTColors.surfaceVariant,
+                  color: surfaceVariantColor,
                   borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
                 ),
                 child: Text(
                   event.ticketUrl ?? '티켓 정보가 없습니다',
                   style: GBTTypography.bodyMedium.copyWith(
-                    color: GBTColors.textSecondary,
+                    color: secondaryColor,
                   ),
+                  maxLines: 5,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(height: GBTSpacing.xxl),
@@ -234,33 +248,52 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: GBTColors.surfaceVariant,
-            borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    final surfaceVariantColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+
+    return Semantics(
+      label: '$label: $value',
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: surfaceVariantColor,
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+            ),
+            child: Icon(icon, color: secondaryColor, size: 20),
           ),
-          child: Icon(icon, color: GBTColors.textSecondary, size: 20),
-        ),
-        const SizedBox(width: GBTSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: GBTTypography.labelSmall.copyWith(
-                  color: GBTColors.textTertiary,
+          const SizedBox(width: GBTSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GBTTypography.labelSmall.copyWith(
+                    color: tertiaryColor,
+                  ),
                 ),
-              ),
-              Text(value, style: GBTTypography.bodyMedium),
-            ],
+                Text(
+                  value,
+                  style: GBTTypography.bodyMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

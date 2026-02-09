@@ -25,8 +25,11 @@ import '../../domain/entities/feed_entities.dart';
 /// EN: Post detail page widget.
 /// KO: 게시글 상세 페이지 위젯.
 enum _PostAction { edit, delete }
+
 enum _CommentAction { edit, delete }
+
 enum _PostOtherAction { report, blockToggle }
+
 enum _CommentOtherAction { report }
 
 class PostDetailPage extends ConsumerStatefulWidget {
@@ -69,8 +72,8 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
         currentPost != null && currentUserId == currentPost.authorId;
     final blockStatusState =
         !canManagePost && currentPost != null && isAuthenticated
-            ? ref.watch(blockStatusControllerProvider(currentPost.authorId))
-            : null;
+        ? ref.watch(blockStatusControllerProvider(currentPost.authorId))
+        : null;
     final blockStatus = blockStatusState?.maybeWhen(
       data: (value) => value,
       orElse: () => null,
@@ -80,44 +83,37 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     final actions = !isAuthenticated || currentPost == null
         ? null
         : canManagePost
-            ? [
-                PopupMenuButton<_PostAction>(
-                  onSelected: (action) =>
-                      _handlePostAction(context, action, currentPost),
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
-                      value: _PostAction.edit,
-                      child: Text('수정'),
-                    ),
-                    PopupMenuItem(
-                      value: _PostAction.delete,
-                      child: Text('삭제'),
-                    ),
-                  ],
+        ? [
+            PopupMenuButton<_PostAction>(
+              tooltip: '게시글 관리',
+              onSelected: (action) =>
+                  _handlePostAction(context, action, currentPost),
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: _PostAction.edit, child: Text('수정')),
+                PopupMenuItem(value: _PostAction.delete, child: Text('삭제')),
+              ],
+            ),
+          ]
+        : [
+            PopupMenuButton<_PostOtherAction>(
+              tooltip: '게시글 옵션',
+              onSelected: (action) =>
+                  _handlePostOtherAction(context, action, currentPost),
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: _PostOtherAction.report,
+                  child: Text('신고'),
                 ),
-              ]
-            : [
-                PopupMenuButton<_PostOtherAction>(
-                  onSelected: (action) =>
-                      _handlePostOtherAction(context, action, currentPost),
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: _PostOtherAction.report,
-                      child: Text('신고'),
-                    ),
-                    PopupMenuItem(
-                      value: _PostOtherAction.blockToggle,
-                      child: Text(blockLabel),
-                    ),
-                  ],
+                PopupMenuItem(
+                  value: _PostOtherAction.blockToggle,
+                  child: Text(blockLabel),
                 ),
-              ];
+              ],
+            ),
+          ];
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('게시글'),
-        actions: actions,
-      ),
+      appBar: AppBar(title: const Text('게시글'), actions: actions),
       body: state.when(
         loading: () => const GBTLoading(message: '게시글을 불러오는 중...'),
         error: (error, _) {
@@ -172,11 +168,8 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
             postId: post.id,
             comment: comment,
           ),
-          onDeleteComment: (comment) => _confirmDeleteComment(
-            context,
-            postId: post.id,
-            comment: comment,
-          ),
+          onDeleteComment: (comment) =>
+              _confirmDeleteComment(context, postId: post.id, comment: comment),
           onReportComment: (comment) => _showReportFlow(
             context,
             CommunityReportTargetType.comment,
@@ -208,11 +201,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     PostDetail post,
   ) async {
     if (action == _PostOtherAction.report) {
-      await _showReportFlow(
-        context,
-        CommunityReportTargetType.post,
-        post.id,
-      );
+      await _showReportFlow(context, CommunityReportTargetType.post, post.id);
       return;
     }
     if (action == _PostOtherAction.blockToggle) {
@@ -220,15 +209,12 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
   }
 
-  Future<void> _showEditPostSheet(
-    BuildContext context,
-    PostDetail post,
-  ) async {
+  Future<void> _showEditPostSheet(BuildContext context, PostDetail post) async {
     final projectCode = ref.read(selectedProjectKeyProvider);
     if (projectCode == null || projectCode.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('프로젝트를 먼저 선택해주세요')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('프로젝트를 먼저 선택해주세요')));
       return;
     }
     final payload = await showModalBottomSheet<_PostEditPayload>(
@@ -251,9 +237,9 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       await ref
           .read(postDetailControllerProvider(post.id).notifier)
           .load(forceRefresh: true);
-      await ref.read(postListControllerProvider.notifier).load(
-            forceRefresh: true,
-          );
+      await ref
+          .read(postListControllerProvider.notifier)
+          .load(forceRefresh: true);
       if (context.mounted) {
         _showSnackBar(context, '게시글을 수정했어요');
       }
@@ -262,15 +248,12 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
   }
 
-  Future<void> _confirmDeletePost(
-    BuildContext context,
-    PostDetail post,
-  ) async {
+  Future<void> _confirmDeletePost(BuildContext context, PostDetail post) async {
     final projectCode = ref.read(selectedProjectKeyProvider);
     if (projectCode == null || projectCode.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('프로젝트를 먼저 선택해주세요')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('프로젝트를 먼저 선택해주세요')));
       return;
     }
     final confirm = await showDialog<bool>(
@@ -300,12 +283,12 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
 
     if (!context.mounted) return;
     if (result is Success<void>) {
-      await ref.read(postListControllerProvider.notifier).load(
-            forceRefresh: true,
-          );
+      await ref
+          .read(postListControllerProvider.notifier)
+          .load(forceRefresh: true);
       if (context.mounted) {
         _showSnackBar(context, '게시글을 삭제했어요');
-        context.goNamed(AppRoutes.feed);
+        context.goNamed(AppRoutes.board);
       }
     } else if (result is Err<void> && context.mounted) {
       _showSnackBar(context, '게시글을 삭제하지 못했어요');
@@ -325,9 +308,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
         content: TextField(
           controller: controller,
           maxLines: 5,
-          decoration: const InputDecoration(
-            hintText: '댓글 내용을 입력하세요',
-          ),
+          decoration: const InputDecoration(hintText: '댓글 내용을 입력하세요'),
         ),
         actions: [
           TextButton(
@@ -427,10 +408,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
   }
 
-  Future<void> _toggleBlockUser(
-    BuildContext context,
-    String userId,
-  ) async {
+  Future<void> _toggleBlockUser(BuildContext context, String userId) async {
     final controller = ref.read(blockStatusControllerProvider(userId).notifier);
     final result = await controller.toggleBlock();
 
@@ -448,11 +426,11 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     _showSnackBar(context, blockedByMe ? '사용자를 차단했어요' : '차단을 해제했어요');
   }
 
-void _showSnackBar(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(message)),
-  );
-}
+  void _showSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
 }
 
 class _PostDetailContent extends StatelessWidget {
@@ -490,9 +468,10 @@ class _PostDetailContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final authorLabel = post.authorName?.isNotEmpty == true
         ? post.authorName!
-        : post.authorId;
-    final authorAvatarUrl =
-        post.authorAvatarUrl?.isNotEmpty == true ? post.authorAvatarUrl : null;
+        : '익명';
+    final authorAvatarUrl = post.authorAvatarUrl?.isNotEmpty == true
+        ? post.authorAvatarUrl
+        : null;
     final likeStatus = likeState.maybeWhen(
       data: (value) => value,
       orElse: () => null,
@@ -509,8 +488,19 @@ class _PostDetailContent extends StatelessWidget {
       ...post.imageUrls.map(resolveMediaUrl),
       ...embeddedImageUrls.map(resolveMediaUrl),
     }.where((url) => url.isNotEmpty).toList();
-    final isOwnPost =
-        currentUserId != null && currentUserId == post.authorId;
+    final isOwnPost = currentUserId != null && currentUserId == post.authorId;
+
+    // EN: Use theme-aware colors for dark mode compatibility.
+    // KO: 다크 모드 호환성을 위해 테마 인식 색상을 사용합니다.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
+
     return Column(
       children: [
         Expanded(
@@ -522,6 +512,7 @@ class _PostDetailContent extends StatelessWidget {
                   _Avatar(
                     url: authorAvatarUrl,
                     radius: 20,
+                    semanticLabel: '$authorLabel 프로필 사진',
                     onTap: () => onTapAuthor(post.authorId),
                   ),
                   const SizedBox(width: GBTSpacing.sm),
@@ -529,18 +520,25 @@ class _PostDetailContent extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(post.title, style: GBTTypography.titleSmall),
+                        Text(
+                          post.title,
+                          style: GBTTypography.titleSmall,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         const SizedBox(height: 2),
                         Text(
-                          '작성자: $authorLabel',
+                          authorLabel,
                           style: GBTTypography.labelSmall.copyWith(
-                            color: GBTColors.textTertiary,
+                            color: tertiaryColor,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           post.timeAgoLabel,
                           style: GBTTypography.labelSmall.copyWith(
-                            color: GBTColors.textTertiary,
+                            color: tertiaryColor,
                           ),
                         ),
                       ],
@@ -557,20 +555,14 @@ class _PostDetailContent extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: GBTSpacing.md),
-              Text(
-                post.title,
-                style: GBTTypography.bodyMedium.copyWith(height: 1.6),
-              ),
-              if (contentText.isNotEmpty) ...[
-                const SizedBox(height: GBTSpacing.md),
-                Text(
+              if (contentText.isNotEmpty)
+                SelectableText(
                   contentText,
                   style: GBTTypography.bodyMedium.copyWith(
                     height: 1.6,
-                    color: GBTColors.textSecondary,
+                    color: secondaryColor,
                   ),
                 ),
-              ],
               if (mergedImageUrls.isNotEmpty) ...[
                 const SizedBox(height: GBTSpacing.md),
                 Wrap(
@@ -578,15 +570,19 @@ class _PostDetailContent extends StatelessWidget {
                   runSpacing: GBTSpacing.sm,
                   children: mergedImageUrls
                       .map(
-                        (url) => ClipRRect(
-                          borderRadius:
-                              BorderRadius.circular(GBTSpacing.radiusMd),
-                          child: GBTImage(
-                            imageUrl: url,
-                            width: 120,
-                            height: 120,
-                            fit: BoxFit.cover,
-                            semanticLabel: '첨부 이미지',
+                        (url) => Semantics(
+                          label: '첨부 이미지',
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(
+                              GBTSpacing.radiusMd,
+                            ),
+                            child: GBTImage(
+                              imageUrl: url,
+                              width: 120,
+                              height: 120,
+                              fit: BoxFit.cover,
+                              semanticLabel: '첨부 이미지',
+                            ),
                           ),
                         ),
                       )
@@ -594,39 +590,52 @@ class _PostDetailContent extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: GBTSpacing.md),
-              Row(
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      isLiked ? Icons.favorite : Icons.favorite_border,
-                      color: isLiked ? GBTColors.primary : null,
+              Semantics(
+                label:
+                    '좋아요 $likeCount개, '
+                    '${isLiked ? "좋아요 누른 상태" : "좋아요 안 누른 상태"}, '
+                    '댓글 $commentCountLabel개',
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        isLiked ? Icons.favorite : Icons.favorite_border,
+                        color: isLiked ? GBTColors.favorite : null,
+                      ),
+                      tooltip: isLiked ? '좋아요 취소' : '좋아요',
+                      onPressed: onToggleLike,
                     ),
-                    onPressed: onToggleLike,
-                  ),
-                  Text(
-                    likeCount.toString(),
-                    style: GBTTypography.labelMedium.copyWith(
-                      color: GBTColors.textSecondary,
+                    Text(
+                      likeCount.toString(),
+                      style: GBTTypography.labelMedium.copyWith(
+                        color: secondaryColor,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: GBTSpacing.md),
-                  IconButton(
-                    icon: const Icon(Icons.comment_outlined),
-                    onPressed: () {},
-                  ),
-                  Text(
-                    commentCountLabel,
-                    style: GBTTypography.labelMedium.copyWith(
-                      color: GBTColors.textSecondary,
+                    const SizedBox(width: GBTSpacing.md),
+                    IconButton(
+                      icon: const Icon(Icons.comment_outlined),
+                      tooltip: '댓글',
+                      onPressed: () {},
                     ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.bookmark_border),
-                    onPressed: () {},
-                  ),
-                  IconButton(icon: const Icon(Icons.share), onPressed: () {}),
-                ],
+                    Text(
+                      commentCountLabel,
+                      style: GBTTypography.labelMedium.copyWith(
+                        color: secondaryColor,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.bookmark_border),
+                      tooltip: '북마크',
+                      onPressed: () {},
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.share),
+                      tooltip: '공유',
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
               ),
               const Divider(),
               const SizedBox(height: GBTSpacing.md),
@@ -654,7 +663,7 @@ class _PostDetailContent extends StatelessWidget {
             padding: const EdgeInsets.all(GBTSpacing.md),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
-              border: Border(top: BorderSide(color: GBTColors.border)),
+              border: Border(top: BorderSide(color: borderColor)),
             ),
             child: SafeArea(
               child: Row(
@@ -685,6 +694,7 @@ class _PostDetailContent extends StatelessWidget {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.send),
+                    tooltip: isSubmitting ? '댓글 등록 중...' : '댓글 등록',
                     onPressed: isSubmitting ? null : onSubmitComment,
                   ),
                 ],
@@ -696,14 +706,20 @@ class _PostDetailContent extends StatelessWidget {
             padding: const EdgeInsets.all(GBTSpacing.md),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
-              border: Border(top: BorderSide(color: GBTColors.border)),
+              border: Border(top: BorderSide(color: borderColor)),
             ),
             child: SafeArea(
-              child: Text(
-                '댓글을 작성하려면 로그인하세요.',
-                style: GBTTypography.bodySmall.copyWith(
-                  color: GBTColors.textSecondary,
-                ),
+              child: Row(
+                children: [
+                  Icon(Icons.lock_outline, size: 16, color: secondaryColor),
+                  const SizedBox(width: GBTSpacing.sm),
+                  Text(
+                    '댓글을 작성하려면 로그인하세요.',
+                    style: GBTTypography.bodySmall.copyWith(
+                      color: secondaryColor,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -736,9 +752,7 @@ class _PostEditSheetState extends State<_PostEditSheet> {
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.post.title);
-    _contentController = TextEditingController(
-      text: widget.post.content ?? '',
-    );
+    _contentController = TextEditingController(text: widget.post.content ?? '');
   }
 
   @override
@@ -769,12 +783,14 @@ class _PostEditSheetState extends State<_PostEditSheet> {
               controller: _titleController,
               decoration: const InputDecoration(labelText: '제목'),
               maxLines: 1,
+              textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: GBTSpacing.md),
             TextField(
               controller: _contentController,
               decoration: const InputDecoration(labelText: '내용'),
               maxLines: 6,
+              textInputAction: TextInputAction.newline,
             ),
             const SizedBox(height: GBTSpacing.lg),
             SizedBox(
@@ -784,9 +800,9 @@ class _PostEditSheetState extends State<_PostEditSheet> {
                   final title = _titleController.text.trim();
                   final content = _contentController.text.trim();
                   if (title.isEmpty || content.isEmpty) return;
-                  Navigator.of(context).pop(
-                    _PostEditPayload(title: title, content: content),
-                  );
+                  Navigator.of(
+                    context,
+                  ).pop(_PostEditPayload(title: title, content: content));
                 },
                 child: const Text('저장'),
               ),
@@ -799,10 +815,7 @@ class _PostEditSheetState extends State<_PostEditSheet> {
 }
 
 class _ReportPayload {
-  const _ReportPayload({
-    required this.reason,
-    this.description,
-  });
+  const _ReportPayload({required this.reason, this.description});
 
   final CommunityReportReason reason;
   final String? description;
@@ -921,9 +934,7 @@ class _PostCommentsSection extends StatelessWidget {
     return state.when(
       loading: () => const GBTLoading(message: '댓글을 불러오는 중...'),
       error: (error, _) {
-        final message = error is Failure
-            ? error.userMessage
-            : '댓글을 불러오지 못했어요';
+        final message = error is Failure ? error.userMessage : '댓글을 불러오지 못했어요';
         return GBTErrorState(message: message);
       },
       data: (comments) {
@@ -978,10 +989,16 @@ class _CommentItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final authorLabel = comment.authorName?.isNotEmpty == true
         ? comment.authorName!
-        : comment.authorId;
+        : '익명';
     final avatarUrl = comment.authorAvatarUrl?.isNotEmpty == true
         ? comment.authorAvatarUrl
         : null;
+    // EN: Use theme-aware colors for dark mode compatibility.
+    // KO: 다크 모드 호환성을 위해 테마 인식 색상을 사용합니다.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -989,6 +1006,7 @@ class _CommentItem extends StatelessWidget {
         _Avatar(
           url: avatarUrl,
           radius: 16,
+          semanticLabel: '$authorLabel 프로필 사진',
           onTap: () => onTapAuthor(comment.authorId),
         ),
         const SizedBox(width: GBTSpacing.sm),
@@ -998,17 +1016,25 @@ class _CommentItem extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text(authorLabel, style: GBTTypography.labelMedium),
+                  Flexible(
+                    child: Text(
+                      authorLabel,
+                      style: GBTTypography.labelMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                   const SizedBox(width: GBTSpacing.xs),
                   Text(
                     comment.timeAgoLabel,
                     style: GBTTypography.labelSmall.copyWith(
-                      color: GBTColors.textTertiary,
+                      color: tertiaryColor,
                     ),
                   ),
                   if (canManage || canReport) const Spacer(),
                   if (canManage)
                     PopupMenuButton<_CommentAction>(
+                      tooltip: '댓글 관리',
                       onSelected: (action) {
                         if (action == _CommentAction.edit) {
                           onEdit(comment);
@@ -1029,6 +1055,7 @@ class _CommentItem extends StatelessWidget {
                     )
                   else if (canReport)
                     PopupMenuButton<_CommentOtherAction>(
+                      tooltip: '댓글 옵션',
                       onSelected: (_) => onReport(comment),
                       itemBuilder: (context) => const [
                         PopupMenuItem(
@@ -1039,8 +1066,13 @@ class _CommentItem extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(comment.content, style: GBTTypography.bodySmall),
+              const SizedBox(height: GBTSpacing.xs),
+              Text(
+                comment.content,
+                style: GBTTypography.bodySmall,
+                maxLines: 10,
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
           ),
         ),
@@ -1092,8 +1124,7 @@ const _imageExtensions = <String>{
   '.heif',
 };
 
-final _markdownImagePattern =
-    RegExp(r'!\[[^\]]*\]\((https?://[^)\s]+)[^)]*\)');
+final _markdownImagePattern = RegExp(r'!\[[^\]]*\]\((https?://[^)\s]+)[^)]*\)');
 final _htmlImagePattern = RegExp(
   r'''<img[^>]*src=["'](https?://[^"']+)["']''',
   caseSensitive: false,
@@ -1176,27 +1207,37 @@ String _ensureScheme(String value) {
   return value;
 }
 
+/// EN: Avatar widget with accessible touch targets.
+/// KO: 접근 가능한 터치 타겟을 가진 아바타 위젯.
 class _Avatar extends StatelessWidget {
   const _Avatar({
     required this.url,
     required this.radius,
     this.onTap,
+    this.semanticLabel,
   });
 
   final String? url;
   final double radius;
   final VoidCallback? onTap;
+  final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
+    // EN: Use theme-aware placeholder colors.
+    // KO: 테마 인식 플레이스홀더 색상을 사용합니다.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+    final iconColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+
     final fallback = CircleAvatar(
       radius: radius,
-      backgroundColor: GBTColors.surfaceVariant,
-      child: Icon(
-        Icons.person,
-        size: radius,
-        color: GBTColors.textTertiary,
-      ),
+      backgroundColor: bgColor,
+      child: Icon(Icons.person, size: radius, color: iconColor),
     );
 
     final content = (url == null || url!.isEmpty)
@@ -1207,11 +1248,28 @@ class _Avatar extends StatelessWidget {
               width: radius * 2,
               height: radius * 2,
               fit: BoxFit.cover,
-              semanticLabel: '프로필 사진',
+              semanticLabel: semanticLabel ?? '프로필 사진',
             ),
           );
 
     if (onTap == null) return content;
-    return GestureDetector(onTap: onTap, child: content);
+
+    // EN: Ensure minimum 48x48 touch target for accessibility.
+    // KO: 접근성을 위해 최소 48x48 터치 타겟을 보장합니다.
+    return Semantics(
+      button: true,
+      label: semanticLabel ?? '프로필 보기',
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minWidth: GBTSpacing.touchTarget,
+            minHeight: GBTSpacing.touchTarget,
+          ),
+          child: Center(child: content),
+        ),
+      ),
+    );
   }
 }

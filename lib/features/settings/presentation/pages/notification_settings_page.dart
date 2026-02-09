@@ -59,7 +59,9 @@ class NotificationSettingsPage extends ConsumerWidget {
               if (context.mounted) {
                 ScaffoldMessenger.of(
                   context,
-                ).showSnackBar(const SnackBar(content: Text('설정을 저장하지 못했어요')));
+                ).showSnackBar(
+                  const SnackBar(content: Text('설정을 저장하지 못했어요')),
+                );
               }
             }
           },
@@ -87,6 +89,7 @@ class _NotificationSettingsView extends StatelessWidget {
           title: '푸시 알림',
           subtitle: '앱 푸시 알림 수신',
           value: settings.pushEnabled,
+          semanticLabel: '푸시 알림 ${settings.pushEnabled ? "켜짐" : "꺼짐"}',
           onChanged: (value) =>
               onChanged(settings.copyWith(pushEnabled: value)),
         ),
@@ -94,6 +97,7 @@ class _NotificationSettingsView extends StatelessWidget {
           title: '이메일 알림',
           subtitle: '이메일로 알림 수신',
           value: settings.emailEnabled,
+          semanticLabel: '이메일 알림 ${settings.emailEnabled ? "켜짐" : "꺼짐"}',
           onChanged: (value) =>
               onChanged(settings.copyWith(emailEnabled: value)),
         ),
@@ -103,6 +107,8 @@ class _NotificationSettingsView extends StatelessWidget {
           title: '라이브 이벤트',
           subtitle: '다가오는 공연 소식',
           value: settings.liveEventsEnabled,
+          semanticLabel:
+              '라이브 이벤트 알림 ${settings.liveEventsEnabled ? "켜짐" : "꺼짐"}',
           onChanged: (value) =>
               onChanged(settings.copyWith(liveEventsEnabled: value)),
         ),
@@ -110,6 +116,8 @@ class _NotificationSettingsView extends StatelessWidget {
           title: '즐겨찾기',
           subtitle: '즐겨찾기한 장소/콘텐츠 소식',
           value: settings.favoritesEnabled,
+          semanticLabel:
+              '즐겨찾기 알림 ${settings.favoritesEnabled ? "켜짐" : "꺼짐"}',
           onChanged: (value) =>
               onChanged(settings.copyWith(favoritesEnabled: value)),
         ),
@@ -117,6 +125,8 @@ class _NotificationSettingsView extends StatelessWidget {
           title: '댓글',
           subtitle: '댓글/후기 알림',
           value: settings.commentsEnabled,
+          semanticLabel:
+              '댓글 알림 ${settings.commentsEnabled ? "켜짐" : "꺼짐"}',
           onChanged: (value) =>
               onChanged(settings.copyWith(commentsEnabled: value)),
         ),
@@ -132,22 +142,41 @@ class _SettingsSwitchTile extends StatelessWidget {
     required this.subtitle,
     required this.value,
     required this.onChanged,
+    this.semanticLabel,
   });
 
   final String title;
   final String subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
+  final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile(
-      value: value,
-      onChanged: onChanged,
-      title: Text(title, style: GBTTypography.bodyMedium),
-      subtitle: Text(
-        subtitle,
-        style: GBTTypography.bodySmall.copyWith(color: GBTColors.textTertiary),
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Semantics(
+      toggled: value,
+      label: semanticLabel ?? '$title - $subtitle',
+      child: SwitchListTile(
+        value: value,
+        onChanged: onChanged,
+        title: Text(
+          title,
+          style: GBTTypography.bodyMedium.copyWith(
+            // EN: Use theme-aware text color for dark mode
+            // KO: 다크 모드를 위해 테마 인식 텍스트 색상 사용
+            color: colorScheme.onSurface,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: GBTTypography.bodySmall.copyWith(
+            // EN: Use theme-aware tertiary text color
+            // KO: 테마 인식 3차 텍스트 색상 사용
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
     );
   }
@@ -170,7 +199,9 @@ class _SectionHeader extends StatelessWidget {
       child: Text(
         title,
         style: GBTTypography.labelMedium.copyWith(
-          color: GBTColors.textSecondary,
+          // EN: Use theme-aware secondary text color
+          // KO: 테마 인식 보조 텍스트 색상 사용
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -184,25 +215,53 @@ class _LoginRequired extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Center(
       child: Padding(
         padding: GBTSpacing.paddingPage,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.lock_outline, size: 48, color: GBTColors.textTertiary),
+            Icon(
+              Icons.lock_outline,
+              size: GBTSpacing.touchTarget,
+              color: isDark
+                  ? GBTColors.darkTextTertiary
+                  : GBTColors.textTertiary,
+              semanticLabel: '잠금 아이콘',
+            ),
             const SizedBox(height: GBTSpacing.md),
-            Text('로그인이 필요합니다', style: GBTTypography.titleSmall),
+            Text(
+              '로그인이 필요합니다',
+              style: GBTTypography.titleSmall.copyWith(
+                color: colorScheme.onSurface,
+              ),
+            ),
             const SizedBox(height: GBTSpacing.sm),
             Text(
               '알림 설정을 변경하려면 로그인해주세요.',
               style: GBTTypography.bodySmall.copyWith(
-                color: GBTColors.textSecondary,
+                color: colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: GBTSpacing.lg),
-            ElevatedButton(onPressed: onLogin, child: const Text('로그인')),
+            Semantics(
+              button: true,
+              label: '로그인 페이지로 이동',
+              child: ElevatedButton(
+                onPressed: onLogin,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(
+                    GBTSpacing.touchTarget,
+                    GBTSpacing.touchTarget,
+                  ),
+                ),
+                child: const Text('로그인'),
+              ),
+            ),
           ],
         ),
       ),

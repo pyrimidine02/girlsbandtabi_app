@@ -33,6 +33,7 @@
 - Confirm favorites API payload (`targetId`, `targetType`) with backend and adjust mapping if needed.
 - Confirm notification item DTO field mapping (`title/body/category/read`) with backend response and adjust parsing keys if needed.
 - Remove temporary notification category mapping once backend documents all supported category enums.
+- Audit other dark-mode text buttons for contrast and remove local overrides if any exist.
 - Verify community posts/comments pagination contract (`page`/`size` vs `pageable`) and adjust query params if needed.
 - Request backend support for community post image attachments (create/update payload fields + response images list).
 - Remove the post detail plain-URL attachment fallback once the backend preserves markdown or returns explicit `imageUrls`.

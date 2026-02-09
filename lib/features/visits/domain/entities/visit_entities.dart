@@ -4,6 +4,7 @@ library;
 
 import 'package:intl/intl.dart';
 
+import '../../data/dto/user_ranking_dto.dart';
 import '../../data/dto/visit_dto.dart';
 
 class VisitEvent {
@@ -11,17 +12,39 @@ class VisitEvent {
     required this.id,
     required this.placeId,
     required this.visitedAt,
+    this.latitude,
+    this.longitude,
+    this.accuracy,
   });
 
   final String id;
   final String placeId;
   final DateTime? visitedAt;
 
+  /// EN: GPS latitude recorded at verification (optional).
+  /// KO: 인증 시 기록된 GPS 위도 (선택적).
+  final double? latitude;
+
+  /// EN: GPS longitude recorded at verification (optional).
+  /// KO: 인증 시 기록된 GPS 경도 (선택적).
+  final double? longitude;
+
+  /// EN: GPS accuracy in meters (optional).
+  /// KO: GPS 정확도 (미터 단위, 선택적).
+  final double? accuracy;
+
+  /// EN: Whether this visit has GPS coordinates.
+  /// KO: 이 방문에 GPS 좌표가 있는지 여부.
+  bool get hasCoordinates => latitude != null && longitude != null;
+
   factory VisitEvent.fromDto(VisitEventDto dto) {
     return VisitEvent(
       id: dto.id,
       placeId: dto.placeId,
       visitedAt: dto.visitedAt,
+      latitude: dto.latitude,
+      longitude: dto.longitude,
+      accuracy: dto.accuracy,
     );
   }
 
@@ -61,5 +84,41 @@ class VisitSummary {
   String get lastVisitedLabel {
     if (lastVisitedAt == null) return '';
     return DateFormat('yyyy.MM.dd').format(lastVisitedAt!.toLocal());
+  }
+}
+
+/// EN: User ranking entity with visit statistics.
+/// KO: 방문 통계가 포함된 사용자 랭킹 엔티티.
+class UserRanking {
+  const UserRanking({
+    required this.rank,
+    required this.totalVisits,
+    required this.uniquePlaces,
+    required this.totalUsers,
+  });
+
+  /// EN: The user's rank position (1-based).
+  /// KO: 사용자의 순위 (1부터 시작).
+  final int rank;
+
+  /// EN: Total number of visits by the user.
+  /// KO: 사용자의 총 방문 횟수.
+  final int totalVisits;
+
+  /// EN: Number of unique places visited.
+  /// KO: 방문한 고유 장소 수.
+  final int uniquePlaces;
+
+  /// EN: Total number of ranked users.
+  /// KO: 랭킹에 참여한 전체 사용자 수.
+  final int totalUsers;
+
+  factory UserRanking.fromDto(UserRankingDto dto) {
+    return UserRanking(
+      rank: dto.rank,
+      totalVisits: dto.totalVisits,
+      uniquePlaces: dto.uniquePlaces,
+      totalUsers: dto.totalUsers,
+    );
   }
 }

@@ -9,8 +9,8 @@ import '../../theme/gbt_decorations.dart';
 import '../../theme/gbt_spacing.dart';
 import '../../theme/gbt_typography.dart';
 
-/// EN: Loading indicator widget
-/// KO: 로딩 인디케이터 위젯
+/// EN: Loading indicator widget with live region semantics
+/// KO: 라이브 리전 시맨틱을 포함한 로딩 인디케이터 위젯
 class GBTLoading extends StatelessWidget {
   const GBTLoading({super.key, this.message, this.size = 40, this.color});
 
@@ -28,9 +28,14 @@ class GBTLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Center(
       child: Semantics(
         label: message ?? '로딩 중',
+        // EN: Mark as live region so screen readers announce loading state
+        // KO: 스크린 리더가 로딩 상태를 안내하도록 라이브 리전으로 표시
+        liveRegion: true,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -49,7 +54,9 @@ class GBTLoading extends StatelessWidget {
               Text(
                 message!,
                 style: GBTTypography.bodyMedium.copyWith(
-                  color: GBTColors.textSecondary,
+                  color: isDark
+                      ? GBTColors.darkTextSecondary
+                      : GBTColors.textSecondary,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -90,12 +97,16 @@ class GBTLoadingOverlay extends StatelessWidget {
         child,
         if (isLoading)
           Positioned.fill(
-            child: AnimatedOpacity(
-              opacity: isLoading ? 1.0 : 0.0,
-              duration: GBTAnimations.normal,
-              child: Container(
-                color: GBTColors.overlay,
-                child: GBTLoading(message: message),
+            child: Semantics(
+              label: message ?? '로딩 중입니다. 잠시만 기다려주세요.',
+              liveRegion: true,
+              child: AnimatedOpacity(
+                opacity: isLoading ? 1.0 : 0.0,
+                duration: GBTAnimations.normal,
+                child: Container(
+                  color: GBTColors.overlay,
+                  child: GBTLoading(message: message),
+                ),
               ),
             ),
           ),
@@ -140,60 +151,82 @@ class GBTEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // EN: Circular icon container with subtle background
-            // KO: 미세한 배경이 있는 원형 아이콘 컨테이너
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: isDark
-                    ? GBTColors.darkSurfaceElevated
-                    : GBTColors.surfaceAlternate,
-                shape: BoxShape.circle,
+    // EN: Build comprehensive semantic label
+    // KO: 포괄적인 시맨틱 라벨 빌드
+    final semanticParts = <String>[
+      if (title != null) title!,
+      message,
+      if (actionLabel != null) '$actionLabel 버튼 사용 가능',
+    ];
+
+    return Semantics(
+      label: semanticParts.join('. '),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // EN: Circular icon container with subtle background
+              // KO: 미세한 배경이 있는 원형 아이콘 컨테이너
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? GBTColors.darkSurfaceElevated
+                      : GBTColors.surfaceAlternate,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon ?? Icons.inbox_outlined,
+                  size: 36,
+                  color: isDark
+                      ? GBTColors.darkTextTertiary
+                      : GBTColors.textTertiary,
+                ),
               ),
-              child: Icon(
-                icon ?? Icons.inbox_outlined,
-                size: 36,
-                color: isDark
-                    ? GBTColors.darkTextTertiary
-                    : GBTColors.textTertiary,
-              ),
-            ),
-            const SizedBox(height: GBTSpacing.lg),
-            if (title != null) ...[
+              const SizedBox(height: GBTSpacing.lg),
+              if (title != null) ...[
+                Text(
+                  title!,
+                  style: GBTTypography.titleMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? GBTColors.darkTextPrimary
+                        : GBTColors.textPrimary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: GBTSpacing.xs),
+              ],
               Text(
-                title!,
-                style: GBTTypography.titleMedium.copyWith(
-                  fontWeight: FontWeight.w600,
+                message,
+                style: GBTTypography.bodyMedium.copyWith(
+                  color: isDark
+                      ? GBTColors.darkTextSecondary
+                      : GBTColors.textSecondary,
+                  height: 1.5,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: GBTSpacing.xs),
+              if (actionLabel != null && onAction != null) ...[
+                const SizedBox(height: GBTSpacing.lg),
+                Semantics(
+                  button: true,
+                  label: actionLabel,
+                  hint: '탭하면 $actionLabel 작업을 수행합니다',
+                  child: FilledButton.tonal(
+                    onPressed: onAction,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, GBTSpacing.touchTarget),
+                    ),
+                    child: Text(actionLabel!),
+                  ),
+                ),
+              ],
             ],
-            Text(
-              message,
-              style: GBTTypography.bodyMedium.copyWith(
-                color: isDark
-                    ? GBTColors.darkTextSecondary
-                    : GBTColors.textSecondary,
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: GBTSpacing.lg),
-              FilledButton.tonal(
-                onPressed: onAction,
-                child: Text(actionLabel!),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -230,56 +263,82 @@ class GBTErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveTitle = title ?? '문제가 발생했어요';
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // EN: Error icon with tinted background
-            // KO: 색조 배경이 있는 오류 아이콘
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: GBTColors.errorLight,
-                shape: BoxShape.circle,
+    // EN: Build comprehensive semantic label
+    // KO: 포괄적인 시맨틱 라벨 빌드
+    final semanticParts = <String>[
+      effectiveTitle,
+      message,
+      if (onRetry != null) '$retryLabel 버튼 사용 가능',
+    ];
+
+    return Semantics(
+      label: semanticParts.join('. '),
+      liveRegion: true,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // EN: Error icon with tinted background
+              // KO: 색조 배경이 있는 오류 아이콘
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? GBTColors.error.withValues(alpha: 0.15)
+                      : GBTColors.errorLight,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.wifi_off_rounded,
+                  size: 36,
+                  color: GBTColors.error,
+                ),
               ),
-              child: const Icon(
-                Icons.wifi_off_rounded,
-                size: 36,
-                color: GBTColors.error,
-              ),
-            ),
-            const SizedBox(height: GBTSpacing.lg),
-            Text(
-              title ?? '문제가 발생했어요',
-              style: GBTTypography.titleMedium.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: GBTSpacing.xs),
-            Text(
-              message,
-              style: GBTTypography.bodyMedium.copyWith(
-                color: isDark
-                    ? GBTColors.darkTextSecondary
-                    : GBTColors.textSecondary,
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (onRetry != null) ...[
               const SizedBox(height: GBTSpacing.lg),
-              FilledButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded, size: 18),
-                label: Text(retryLabel),
+              Text(
+                effectiveTitle,
+                style: GBTTypography.titleMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: isDark
+                      ? GBTColors.darkTextPrimary
+                      : GBTColors.textPrimary,
+                ),
+                textAlign: TextAlign.center,
               ),
+              const SizedBox(height: GBTSpacing.xs),
+              Text(
+                message,
+                style: GBTTypography.bodyMedium.copyWith(
+                  color: isDark
+                      ? GBTColors.darkTextSecondary
+                      : GBTColors.textSecondary,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (onRetry != null) ...[
+                const SizedBox(height: GBTSpacing.lg),
+                Semantics(
+                  button: true,
+                  label: retryLabel,
+                  hint: '탭하면 다시 시도합니다',
+                  child: FilledButton.icon(
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: Text(retryLabel),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, GBTSpacing.touchTarget),
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -344,28 +403,32 @@ class _GBTShimmerState extends State<GBTShimmer>
     final highlightColor = widget.highlightColor ??
         (isDark ? GBTColors.darkShimmerHighlight : GBTColors.shimmerHighlight);
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        // EN: Sweep from left to right using gradient translation
-        // KO: 그라디언트 이동으로 왼쪽에서 오른쪽으로 스위프
-        final value = _controller.value;
-        final translateX = -1.0 + (3.0 * value);
+    return Semantics(
+      label: '로딩 중',
+      excludeSemantics: true,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          // EN: Sweep from left to right using gradient translation
+          // KO: 그라디언트 이동으로 왼쪽에서 오른쪽으로 스위프
+          final value = _controller.value;
+          final translateX = -1.0 + (3.0 * value);
 
-        return ShaderMask(
-          shaderCallback: (bounds) {
-            return LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [baseColor, highlightColor, baseColor],
-              stops: const [0.0, 0.5, 1.0],
-              transform: _SlidingGradientTransform(translateX),
-            ).createShader(bounds);
-          },
-          blendMode: BlendMode.srcATop,
-          child: widget.child,
-        );
-      },
+          return ShaderMask(
+            shaderCallback: (bounds) {
+              return LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [baseColor, highlightColor, baseColor],
+                stops: const [0.0, 0.5, 1.0],
+                transform: _SlidingGradientTransform(translateX),
+              ).createShader(bounds);
+            },
+            blendMode: BlendMode.srcATop,
+            child: widget.child,
+          );
+        },
+      ),
     );
   }
 }
@@ -406,7 +469,9 @@ class GBTShimmerContainer extends StatelessWidget {
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
+          color: isDark
+              ? GBTColors.darkSurfaceVariant
+              : GBTColors.surfaceVariant,
           borderRadius: BorderRadius.circular(
             borderRadius ?? GBTSpacing.radiusSm,
           ),
@@ -429,7 +494,9 @@ class GBTPlaceCardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant;
+    final bgColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
 
     return GBTShimmer(
       child: Container(
@@ -460,7 +527,8 @@ class GBTPlaceCardSkeleton extends StatelessWidget {
                     width: double.infinity,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius:
+                          BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                   const SizedBox(height: GBTSpacing.sm),
@@ -469,7 +537,8 @@ class GBTPlaceCardSkeleton extends StatelessWidget {
                     width: 140,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius:
+                          BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                   const SizedBox(height: GBTSpacing.sm),
@@ -478,7 +547,8 @@ class GBTPlaceCardSkeleton extends StatelessWidget {
                     width: 80,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius:
+                          BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                 ],
@@ -499,7 +569,9 @@ class GBTEventCardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant;
+    final bgColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
 
     return GBTShimmer(
       child: Container(
@@ -531,7 +603,8 @@ class GBTEventCardSkeleton extends StatelessWidget {
                     width: double.infinity,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius:
+                          BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                   const SizedBox(height: GBTSpacing.sm),
@@ -540,7 +613,8 @@ class GBTEventCardSkeleton extends StatelessWidget {
                     width: 100,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius:
+                          BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                   const SizedBox(height: GBTSpacing.sm),
@@ -549,7 +623,8 @@ class GBTEventCardSkeleton extends StatelessWidget {
                     width: 160,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius:
+                          BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                 ],
@@ -581,7 +656,9 @@ class GBTNewsCardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant;
+    final bgColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
 
     return GBTShimmer(
       child: Container(
@@ -611,7 +688,8 @@ class GBTNewsCardSkeleton extends StatelessWidget {
                     width: double.infinity,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius:
+                          BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                   const SizedBox(height: GBTSpacing.sm),
@@ -620,7 +698,8 @@ class GBTNewsCardSkeleton extends StatelessWidget {
                     width: 180,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius:
+                          BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                   const SizedBox(height: GBTSpacing.sm),
@@ -629,7 +708,8 @@ class GBTNewsCardSkeleton extends StatelessWidget {
                     width: 60,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius:
+                          BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                 ],
@@ -671,16 +751,20 @@ class GBTListSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: padding ?? GBTSpacing.paddingPage,
-      child: Column(
-        children: List.generate(
-          itemCount,
-          (index) => Padding(
-            padding: EdgeInsets.only(
-              bottom: index < itemCount - 1 ? spacing : 0,
+    return Semantics(
+      label: '콘텐츠 로딩 중',
+      excludeSemantics: true,
+      child: Padding(
+        padding: padding ?? GBTSpacing.paddingPage,
+        child: Column(
+          children: List.generate(
+            itemCount,
+            (index) => Padding(
+              padding: EdgeInsets.only(
+                bottom: index < itemCount - 1 ? spacing : 0,
+              ),
+              child: itemBuilder(context),
             ),
-            child: itemBuilder(context),
           ),
         ),
       ),

@@ -47,6 +47,8 @@ class NewsDetailPage extends ConsumerWidget {
   }
 }
 
+/// EN: News detail view widget.
+/// KO: 뉴스 상세 뷰 위젯.
 class _NewsDetailView extends StatelessWidget {
   const _NewsDetailView({required this.news});
 
@@ -55,6 +57,15 @@ class _NewsDetailView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = news.body;
+    // EN: Use theme-aware colors for dark mode compatibility.
+    // KO: 다크 모드 호환성을 위해 테마 인식 색상을 사용합니다.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    final bodyColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
 
     return Scaffold(
       body: CustomScrollView(
@@ -68,6 +79,7 @@ class _NewsDetailView extends StatelessWidget {
             actions: [
               IconButton(
                 icon: const Icon(Icons.bookmark_border),
+                tooltip: '북마크',
                 onPressed: () {
                   // EN: TODO: Toggle bookmark.
                   // KO: TODO: 북마크 토글.
@@ -75,6 +87,7 @@ class _NewsDetailView extends StatelessWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.share),
+                tooltip: '공유',
                 onPressed: () {
                   // EN: TODO: Share news.
                   // KO: TODO: 뉴스 공유.
@@ -88,28 +101,22 @@ class _NewsDetailView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        news.dateLabel,
-                        style: GBTTypography.labelSmall.copyWith(
-                          color: GBTColors.textTertiary,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    news.dateLabel,
+                    style: GBTTypography.labelSmall.copyWith(
+                      color: tertiaryColor,
+                    ),
                   ),
                   const SizedBox(height: GBTSpacing.md),
                   Text(news.title, style: GBTTypography.headlineSmall),
                   const SizedBox(height: GBTSpacing.lg),
                   const Divider(),
                   const SizedBox(height: GBTSpacing.lg),
-                  Text(
-                    content.isNotEmpty
-                        ? content
-                        : '기사 본문을 불러오지 못했어요.',
+                  SelectableText(
+                    content.isNotEmpty ? content : '기사 본문을 불러오지 못했어요.',
                     style: GBTTypography.bodyMedium.copyWith(
                       height: 1.8,
-                      color: GBTColors.textSecondary,
+                      color: bodyColor,
                     ),
                   ),
                   const SizedBox(height: GBTSpacing.xxl),
@@ -123,6 +130,8 @@ class _NewsDetailView extends StatelessWidget {
   }
 }
 
+/// EN: News header image widget with dark-mode-aware placeholder.
+/// KO: 다크 모드 인식 플레이스홀더를 가진 뉴스 헤더 이미지 위젯.
 class _NewsHeaderImage extends StatelessWidget {
   const _NewsHeaderImage({required this.imageUrl});
 
@@ -130,11 +139,19 @@ class _NewsHeaderImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // EN: Use theme-aware placeholder colors.
+    // KO: 테마 인식 플레이스홀더 색상을 사용합니다.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (imageUrl == null || imageUrl!.isEmpty) {
       return Container(
-        color: GBTColors.surfaceVariant,
+        color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
         child: Center(
-          child: Icon(Icons.article, size: 64, color: GBTColors.textTertiary),
+          child: Icon(
+            Icons.article,
+            size: 64,
+            color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+          ),
         ),
       );
     }

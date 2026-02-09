@@ -41,4 +41,25 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
   end
+
+  # Patch apple_maps_flutter: fix [unowned self] crash (AppleMapController.swift:62)
+  # When the map widget disposes, pending FlutterMethodChannel callbacks can fire
+  # after AppleMapController is deallocated, causing swift_abortRetainUnowned.
+  # Fix: replace [unowned self] with [weak self] + guard.
+  # Remove this patch when apple_maps_flutter > 1.4.0 fixes the issue upstream.
+  apple_map_controller = File.join(
+    __dir__, '.symlinks', 'plugins', 'apple_maps_flutter',
+    'ios', 'Classes', 'MapView', 'AppleMapController.swift'
+  )
+  if File.exist?(apple_map_controller)
+    content = File.read(apple_map_controller)
+    if content.include?('[unowned self]')
+      patched = content.gsub(
+        '[unowned self] (call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in',
+        "[weak self] (call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in\n            guard let self = self else { result(FlutterMethodNotImplemented); return }"
+      )
+      File.write(apple_map_controller, patched)
+      Pod::UI.puts "Patched apple_maps_flutter: [unowned self] → [weak self] in AppleMapController.swift"
+    end
+  end
 end

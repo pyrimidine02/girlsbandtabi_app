@@ -32,10 +32,11 @@ class NotificationsPage extends ConsumerWidget {
             onPressed: () => ref
                 .read(notificationsControllerProvider.notifier)
                 .markAllAsRead(),
-            tooltip: '전체 읽음',
+            tooltip: '전체 읽음 처리',
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
+            tooltip: '더보기 메뉴',
             onSelected: (value) {
               if (value == 'settings') {
                 context.push('/settings/notifications');
@@ -68,7 +69,10 @@ class NotificationsPage extends ConsumerWidget {
         },
         data: (items) {
           if (items.isEmpty) {
-            return const GBTEmptyState(message: '새 알림이 없습니다');
+            return const GBTEmptyState(
+              icon: Icons.notifications_none,
+              message: '새 알림이 없습니다.',
+            );
           }
 
           final grouped = _groupBySection(items);
@@ -130,6 +134,8 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(
         GBTSpacing.md,
@@ -137,11 +143,13 @@ class _SectionHeader extends StatelessWidget {
         GBTSpacing.md,
         GBTSpacing.sm,
       ),
-      color: GBTColors.surfaceVariant.withValues(alpha: 0.5),
+      color: isDark
+          ? GBTColors.darkSurfaceVariant.withValues(alpha: 0.5)
+          : GBTColors.surfaceVariant.withValues(alpha: 0.5),
       child: Text(
         title,
         style: GBTTypography.labelMedium.copyWith(
-          color: GBTColors.textSecondary,
+          color: isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -159,36 +167,54 @@ class _NotificationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconData = Icons.notifications;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final iconColor = GBTColors.secondary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
 
-    return ListTile(
-      onTap: onTap,
-      leading: CircleAvatar(
-        radius: 20,
-        backgroundColor: iconColor.withValues(alpha: 0.12),
-        child: Icon(iconData, color: iconColor, size: 20),
-      ),
-      title: Text(
-        item.title,
-        style: GBTTypography.bodyMedium.copyWith(
-          fontWeight: item.isRead ? FontWeight.w400 : FontWeight.w600,
+    // EN: Determine status label for accessibility
+    // KO: 접근성을 위한 상태 라벨 결정
+    final readStatus = item.isRead ? '읽음' : '읽지 않음';
+
+    return Semantics(
+      label: '$readStatus 알림: ${item.title}. ${item.body}',
+      button: true,
+      child: ListTile(
+        onTap: onTap,
+        leading: CircleAvatar(
+          radius: 20,
+          backgroundColor: iconColor.withValues(alpha: 0.12),
+          child: Icon(Icons.notifications, color: iconColor, size: 20),
         ),
-      ),
-      subtitle: Text(
-        item.body,
-        style: GBTTypography.bodySmall.copyWith(color: GBTColors.textTertiary),
-      ),
-      trailing: item.isRead
-          ? null
-          : Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: GBTColors.accent,
-                borderRadius: BorderRadius.circular(4),
+        title: Text(
+          item.title,
+          style: GBTTypography.bodyMedium.copyWith(
+            fontWeight: item.isRead ? FontWeight.w400 : FontWeight.w600,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          item.body,
+          style: GBTTypography.bodySmall.copyWith(color: tertiaryColor),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: item.isRead
+            ? null
+            : Semantics(
+                label: '읽지 않은 알림 표시',
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: GBTColors.accent,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
               ),
-            ),
+      ),
     );
   }
 }

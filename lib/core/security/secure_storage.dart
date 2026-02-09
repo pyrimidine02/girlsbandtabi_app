@@ -127,7 +127,9 @@ class SecureStorage {
   /// KO: 토큰이 만료되었는지 확인
   Future<bool> isTokenExpired() async {
     final expiry = await getTokenExpiry();
-    if (expiry == null) return true;
+    // EN: If expiry is unknown, treat token as valid and rely on refresh/401.
+    // KO: 만료 시간이 없으면 유효하다고 간주하고 갱신/401 처리에 맡깁니다.
+    if (expiry == null) return false;
     return DateTime.now().isAfter(expiry);
   }
 

@@ -26,24 +26,24 @@ class GBTTypography {
   // KO: 디스플레이 스타일 (큰 제목)
   // ========================================
   static TextStyle get displayLarge => _baseStyle.copyWith(
-    fontSize: 57,
-    fontWeight: FontWeight.w700,
-    letterSpacing: -0.25,
-    height: 1.12,
+    fontSize: 40,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -0.5,
+    height: 1.1,
   );
 
   static TextStyle get displayMedium => _baseStyle.copyWith(
-    fontSize: 45,
+    fontSize: 34,
     fontWeight: FontWeight.w700,
-    letterSpacing: 0,
-    height: 1.16,
+    letterSpacing: -0.25,
+    height: 1.14,
   );
 
   static TextStyle get displaySmall => _baseStyle.copyWith(
-    fontSize: 36,
-    fontWeight: FontWeight.w600,
+    fontSize: 28,
+    fontWeight: FontWeight.w700,
     letterSpacing: 0,
-    height: 1.22,
+    height: 1.2,
   );
 
   // ========================================
@@ -51,24 +51,24 @@ class GBTTypography {
   // KO: 헤드라인 스타일 (섹션 헤더)
   // ========================================
   static TextStyle get headlineLarge => _baseStyle.copyWith(
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: FontWeight.w700,
     letterSpacing: 0,
-    height: 1.25,
+    height: 1.23,
   );
 
   static TextStyle get headlineMedium => _baseStyle.copyWith(
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: FontWeight.w600,
     letterSpacing: 0,
-    height: 1.29,
+    height: 1.27,
   );
 
   static TextStyle get headlineSmall => _baseStyle.copyWith(
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: FontWeight.w600,
     letterSpacing: 0,
-    height: 1.33,
+    height: 1.3,
   );
 
   // ========================================

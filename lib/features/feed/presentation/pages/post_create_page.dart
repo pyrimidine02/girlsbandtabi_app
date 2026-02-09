@@ -21,6 +21,8 @@ import '../../domain/entities/feed_entities.dart';
 import '../../../uploads/application/uploads_controller.dart';
 import '../../../uploads/utils/webp_image_converter.dart';
 
+/// EN: Community post creation page widget.
+/// KO: 커뮤니티 게시글 작성 페이지 위젯.
 class PostCreatePage extends ConsumerStatefulWidget {
   const PostCreatePage({super.key});
 
@@ -56,6 +58,10 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
   }
 
   Widget _buildForm(BuildContext context) {
+    // EN: Use theme-aware overlay color for the loading state.
+    // KO: 로딩 상태에 테마 인식 오버레이 색상을 사용합니다.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Stack(
       children: [
         ListView(
@@ -65,12 +71,14 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
               controller: _titleController,
               decoration: const InputDecoration(labelText: '제목'),
               maxLines: 1,
+              textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: GBTSpacing.md),
             TextField(
               controller: _contentController,
               decoration: const InputDecoration(labelText: '내용'),
               maxLines: 8,
+              textInputAction: TextInputAction.newline,
             ),
             const SizedBox(height: GBTSpacing.lg),
             Row(
@@ -78,7 +86,9 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                 Text(
                   '사진',
                   style: GBTTypography.labelMedium.copyWith(
-                    color: GBTColors.textSecondary,
+                    color: isDark
+                        ? GBTColors.darkTextSecondary
+                        : GBTColors.textSecondary,
                   ),
                 ),
                 const Spacer(),
@@ -96,7 +106,12 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                 children: _images
                     .map(
                       (image) => Chip(
-                        label: Text(p.basename(image.path)),
+                        label: Text(
+                          p.basename(image.path),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        deleteButtonTooltipMessage: '사진 제거',
                         onDeleted: _isSubmitting
                             ? null
                             : () {
@@ -109,10 +124,13 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
               const SizedBox(height: GBTSpacing.md),
             ],
             if (_errorMessage != null) ...[
-              Text(
-                _errorMessage!,
-                style: GBTTypography.bodySmall.copyWith(
-                  color: GBTColors.error,
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  _errorMessage!,
+                  style: GBTTypography.bodySmall.copyWith(
+                    color: GBTColors.error,
+                  ),
                 ),
               ),
               const SizedBox(height: GBTSpacing.md),
@@ -126,10 +144,10 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
         ),
         if (_isSubmitting)
           Container(
-            color: Colors.black.withValues(alpha: 0.1),
-            child: const Center(
-              child: GBTLoading(message: '게시글을 등록하는 중...'),
-            ),
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.3)
+                : Colors.black.withValues(alpha: 0.1),
+            child: const Center(child: GBTLoading(message: '게시글을 등록하는 중...')),
           ),
       ],
     );
@@ -141,17 +159,13 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
     if (title.isEmpty || content.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('제목과 내용을 입력해주세요')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('제목과 내용을 입력해주세요')));
       return;
     }
 
     final projectCode = ref.read(selectedProjectKeyProvider);
     if (projectCode == null || projectCode.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('프로젝트를 먼저 선택해주세요')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('프로젝트를 먼저 선택해주세요')));
       return;
     }
 
@@ -186,18 +200,16 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     if (!mounted) return;
 
     if (result is Success<PostDetail>) {
-      await ref.read(postListControllerProvider.notifier).load(
-        forceRefresh: true,
-      );
+      await ref
+          .read(postListControllerProvider.notifier)
+          .load(forceRefresh: true);
       if (!mounted) return;
       router.goNamed(
         AppRoutes.postDetail,
         pathParameters: {'postId': result.data.id},
       );
     } else if (result is Err<PostDetail>) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('게시글을 등록하지 못했어요')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('게시글을 등록하지 못했어요')));
     }
 
     if (!mounted) return;
@@ -257,16 +269,39 @@ String _appendImageMarkdown(String content, List<String> urls) {
   return buffer.toString().trim();
 }
 
+/// EN: Login required message widget with icon and descriptive text.
+/// KO: 아이콘과 설명 텍스트를 포함한 로그인 필요 메시지 위젯.
 class _LoginRequiredMessage extends StatelessWidget {
   const _LoginRequiredMessage();
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Center(
-      child: Text(
-        '로그인 후 게시글을 작성할 수 있어요.',
-        style: GBTTypography.bodyMedium.copyWith(
-          color: GBTColors.textSecondary,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.lock_outline,
+              size: 48,
+              color: isDark
+                  ? GBTColors.darkTextTertiary
+                  : GBTColors.textTertiary,
+            ),
+            const SizedBox(height: GBTSpacing.md),
+            Text(
+              '로그인 후 게시글을 작성할 수 있어요.',
+              style: GBTTypography.bodyMedium.copyWith(
+                color: isDark
+                    ? GBTColors.darkTextSecondary
+                    : GBTColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );

@@ -84,25 +84,63 @@ class _OAuthCallbackPageState extends ConsumerState<OAuthCallbackPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (_failure != null) {
       return Scaffold(
         appBar: AppBar(title: const Text('로그인 실패')),
-        body: Padding(
-          padding: GBTSpacing.paddingPage,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _failure!.userMessage,
-                textAlign: TextAlign.center,
-                style: GBTTypography.bodyMedium,
-              ),
-              const SizedBox(height: GBTSpacing.lg),
-              ElevatedButton(
-                onPressed: () => context.go('/login'),
-                child: const Text('로그인으로 돌아가기'),
-              ),
-            ],
+        body: Center(
+          child: Padding(
+            padding: GBTSpacing.paddingPage,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // EN: Error icon for visual clarity
+                // KO: 시각적 명확성을 위한 오류 아이콘
+                Icon(
+                  Icons.error_outline,
+                  size: GBTSpacing.xxxl,
+                  color: colorScheme.error,
+                  semanticLabel: '로그인 오류',
+                ),
+                const SizedBox(height: GBTSpacing.md),
+                Text(
+                  '로그인에 실패했습니다',
+                  style: GBTTypography.titleMedium.copyWith(
+                    color: colorScheme.onSurface,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: GBTSpacing.sm),
+                Text(
+                  _failure!.userMessage,
+                  textAlign: TextAlign.center,
+                  style: GBTTypography.bodyMedium.copyWith(
+                    // EN: Use theme-aware text color for dark mode
+                    // KO: 다크 모드를 위해 테마 인식 텍스트 색상 사용
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: GBTSpacing.lg),
+                Semantics(
+                  button: true,
+                  label: '로그인 페이지로 돌아가기',
+                  child: ElevatedButton.icon(
+                    onPressed: () => context.go('/login'),
+                    icon: const Icon(Icons.arrow_back, size: 18),
+                    label: const Text('로그인으로 돌아가기'),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(
+                        GBTSpacing.touchTarget,
+                        GBTSpacing.touchTarget,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );

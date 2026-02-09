@@ -71,28 +71,34 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 // EN: App logo and title
                 // KO: 앱 로고 및 제목
                 Center(
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.music_note,
-                        size: 64,
-                        color: colorScheme.primary,
-                      ),
-                      const SizedBox(height: GBTSpacing.md),
-                      Text(
-                        'Girls Band Tabi',
-                        style: GBTTypography.headlineMedium.copyWith(
-                          color: colorScheme.onSurface,
+                  child: Semantics(
+                    // EN: Group logo and title for screen readers
+                    // KO: 스크린 리더를 위해 로고와 제목을 그룹화
+                    label: 'Girls Band Tabi - 성지순례의 시작',
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.music_note,
+                          size: 64,
+                          color: colorScheme.primary,
+                          semanticLabel: 'Girls Band Tabi 로고',
                         ),
-                      ),
-                      const SizedBox(height: GBTSpacing.xs),
-                      Text(
-                        '성지순례의 시작',
-                        style: GBTTypography.bodyMedium.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+                        const SizedBox(height: GBTSpacing.md),
+                        Text(
+                          'Girls Band Tabi',
+                          style: GBTTypography.headlineMedium.copyWith(
+                            color: colorScheme.onSurface,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: GBTSpacing.xs),
+                        Text(
+                          '성지순례의 시작',
+                          style: GBTTypography.bodyMedium.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 
@@ -155,6 +161,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   isLoading: isLoading,
                   isFullWidth: true,
                   onPressed: isLoading ? null : _handleLogin,
+                  semanticLabel: isLoading ? '로그인 진행 중' : '로그인',
                 ),
 
                 const SizedBox(height: GBTSpacing.xxl),
@@ -168,15 +175,32 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      '계정이 없으신가요?',
-                      style: GBTTypography.bodyMedium.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                    Flexible(
+                      child: Text(
+                        '계정이 없으신가요?',
+                        style: GBTTypography.bodyMedium.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    TextButton(
-                      onPressed: () => context.push('/register'),
-                      child: const Text('회원가입'),
+                    Semantics(
+                      button: true,
+                      label: '회원가입 페이지로 이동',
+                      child: TextButton(
+                        onPressed: () => context.push('/register'),
+                        style: TextButton.styleFrom(
+                          minimumSize:
+                              const Size(GBTSpacing.touchTarget,
+                                  GBTSpacing.touchTarget),
+                        ),
+                        child: Text(
+                          '회원가입',
+                          style: GBTTypography.labelLarge.copyWith(
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -186,12 +210,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 // EN: Browse without login
                 // KO: 로그인 없이 둘러보기
                 Center(
-                  child: TextButton(
-                    onPressed: () => context.go('/home'),
-                    child: Text(
-                      '로그인 없이 둘러보기',
-                      style: GBTTypography.bodyMedium.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                  child: Semantics(
+                    button: true,
+                    label: '로그인 없이 앱 둘러보기',
+                    child: TextButton(
+                      onPressed: () => context.go('/home'),
+                      style: TextButton.styleFrom(
+                        minimumSize:
+                            const Size(GBTSpacing.touchTarget,
+                                GBTSpacing.touchTarget),
+                      ),
+                      child: Text(
+                        '로그인 없이 둘러보기',
+                        style: GBTTypography.bodyMedium.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   ),

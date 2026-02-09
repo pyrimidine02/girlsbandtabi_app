@@ -3,6 +3,10 @@
 ## 2026-02-06
 - **COMMUNITY**: Render post attachments even when the backend stores raw R2 URLs in content, and suppress those URLs from the body text.
 - **CONFIG**: Default release builds to the production API base URL while keeping debug builds on localhost.
+- **CONFIG**: Use `10.0.2.2` as the development base URL on Android emulators for local Docker access.
+- **AUTH**: Keep users logged in when token expiry is missing by deferring validity checks to refresh/401 handling.
+- **VERIFICATION**: Sanitize verification error messages to avoid leaking location/distance details and normalize "too far" responses.
+- **THEME**: Fix dark-mode TextButton styling so review upload actions remain visible.
 
 ## 2026-02-05
 - **MEDIA**: Normalize legacy R2 URLs to the public CDN host before loading images.

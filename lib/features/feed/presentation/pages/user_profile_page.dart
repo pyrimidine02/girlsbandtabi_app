@@ -48,13 +48,11 @@ class UserProfilePage extends ConsumerWidget {
     );
     final isMyProfile = myProfile?.id == userId;
     final profile = isMyProfile ? myProfile : publicProfile;
-    final displayName = profile?.displayName ?? userId;
+    final displayName = profile?.displayName ?? '사용자';
     final avatarUrl = profile?.avatarUrl;
     final coverUrl = profile?.coverImageUrl;
     final bio = profile?.bio?.trim();
-    final bioLabel = (bio != null && bio.isNotEmpty)
-        ? bio
-        : '소개가 아직 없습니다.';
+    final bioLabel = (bio != null && bio.isNotEmpty) ? bio : '소개가 아직 없습니다.';
     final blockState = !isMyProfile && isAuthenticated
         ? ref.watch(blockStatusControllerProvider(userId))
         : const AsyncValue<BlockStatus>.loading();
@@ -75,15 +73,10 @@ class UserProfilePage extends ConsumerWidget {
             ? null
             : () async {
                 final result = await ref
-                    .read(
-                      blockStatusControllerProvider(userId).notifier,
-                    )
+                    .read(blockStatusControllerProvider(userId).notifier)
                     .toggleBlock();
                 if (result is Err<void> && context.mounted) {
-                  _showSnackBar(
-                    context,
-                    '차단 상태를 변경하지 못했어요',
-                  );
+                  _showSnackBar(context, '차단 상태를 변경하지 못했어요');
                   return;
                 }
                 final updated = ref
@@ -93,10 +86,7 @@ class UserProfilePage extends ConsumerWidget {
                       orElse: () => false,
                     );
                 if (context.mounted) {
-                  _showSnackBar(
-                    context,
-                    updated ? '사용자를 차단했어요' : '차단을 해제했어요',
-                  );
+                  _showSnackBar(context, updated ? '사용자를 차단했어요' : '차단을 해제했어요');
                 }
               },
         child: Text(blockLabel),
@@ -150,6 +140,8 @@ class UserProfilePage extends ConsumerWidget {
   }
 }
 
+/// EN: Profile avatar widget with dark-mode-aware placeholder.
+/// KO: 다크 모드 인식 플레이스홀더를 가진 프로필 아바타 위젯.
 class _ProfileAvatar extends StatelessWidget {
   const _ProfileAvatar({required this.url, this.radius = 28});
 
@@ -158,13 +150,19 @@ class _ProfileAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // EN: Use theme-aware placeholder colors.
+    // KO: 테마 인식 플레이스홀더 색상을 사용합니다.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (url == null || url!.isEmpty) {
       return CircleAvatar(
         radius: radius,
-        backgroundColor: GBTColors.surfaceVariant,
+        backgroundColor: isDark
+            ? GBTColors.darkSurfaceVariant
+            : GBTColors.surfaceVariant,
         child: Icon(
           Icons.person,
-          color: GBTColors.textTertiary,
+          color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
           size: radius,
         ),
       );
@@ -182,6 +180,8 @@ class _ProfileAvatar extends StatelessWidget {
   }
 }
 
+/// EN: Profile header widget with cover image, avatar, and bio.
+/// KO: 커버 이미지, 아바타, 소개를 포함한 프로필 헤더 위젯.
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({
     required this.coverUrl,
@@ -201,93 +201,116 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: 160,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: coverUrl == null || coverUrl!.isEmpty
-                    ? Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Color(0xFF2F3C4F),
-                              Color(0xFF1C2330),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+    // EN: Use theme-aware colors for dark mode compatibility.
+    // KO: 다크 모드 호환성을 위해 테마 인식 색상을 사용합니다.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+
+    return Semantics(
+      label: '프로필: $displayName. $bioLabel',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 160,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: coverUrl == null || coverUrl!.isEmpty
+                      ? Container(
+                          decoration: BoxDecoration(
+                            gradient: isDark
+                                ? GBTColors.darkSurfaceGradient
+                                : const LinearGradient(
+                                    colors: [
+                                      Color(0xFF2F3C4F),
+                                      Color(0xFF1C2330),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
                           ),
+                        )
+                      : GBTImage(
+                          imageUrl: coverUrl!,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          semanticLabel: '프로필 배경 이미지',
                         ),
-                      )
-                    : GBTImage(
-                        imageUrl: coverUrl!,
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                        semanticLabel: '프로필 배경 이미지',
-                      ),
-              ),
-              Positioned(
-                left: GBTSpacing.md,
-                bottom: -28,
-                child: Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    shape: BoxShape.circle,
-                  ),
-                  child: _ProfileAvatar(url: avatarUrl, radius: 36),
                 ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 36),
-        Padding(
-          padding: GBTSpacing.paddingPage,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      displayName,
-                      style: GBTTypography.titleSmall,
-                      overflow: TextOverflow.ellipsis,
+                Positioned(
+                  left: GBTSpacing.md,
+                  bottom: -28,
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      shape: BoxShape.circle,
                     ),
-                    if (summaryLabel != null) ...[
-                      const SizedBox(height: 4),
+                    child: _ProfileAvatar(url: avatarUrl, radius: 36),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 36),
+          Padding(
+            padding: GBTSpacing.paddingPage,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        summaryLabel!,
-                        style: GBTTypography.labelSmall.copyWith(
-                          color: GBTColors.textSecondary,
+                        displayName,
+                        style: GBTTypography.titleSmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (summaryLabel != null) ...[
+                        const SizedBox(height: GBTSpacing.xs),
+                        Text(
+                          summaryLabel!,
+                          style: GBTTypography.labelSmall.copyWith(
+                            color: secondaryColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
+                      ],
+                      const SizedBox(height: GBTSpacing.sm),
+                      Text(
+                        bioLabel,
+                        style: GBTTypography.bodySmall.copyWith(
+                          color: secondaryColor,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                    const SizedBox(height: 8),
-                    Text(
-                      bioLabel,
-                      style: GBTTypography.bodySmall.copyWith(
-                        color: GBTColors.textSecondary,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              if (action != null) action!,
-            ],
+                if (action != null) ...[
+                  const SizedBox(width: GBTSpacing.sm),
+                  action!,
+                ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
+/// EN: Posts tab showing user's authored posts.
+/// KO: 사용자가 작성한 게시글을 보여주는 탭.
 class _PostsTab extends StatelessWidget {
   const _PostsTab({required this.posts});
 
@@ -305,14 +328,24 @@ class _PostsTab extends StatelessWidget {
       separatorBuilder: (_, __) => const Divider(height: GBTSpacing.md),
       itemBuilder: (context, index) {
         final post = posts[index];
+        // EN: Use theme-aware colors for dark mode compatibility.
+        // KO: 다크 모드 호환성을 위해 테마 인식 색상을 사용합니다.
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final tertiaryColor = isDark
+            ? GBTColors.darkTextTertiary
+            : GBTColors.textTertiary;
+
         return ListTile(
           contentPadding: EdgeInsets.zero,
-          title: Text(post.title, style: GBTTypography.bodyMedium),
+          title: Text(
+            post.title,
+            style: GBTTypography.bodyMedium,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
           subtitle: Text(
             post.timeAgoLabel,
-            style: GBTTypography.labelSmall.copyWith(
-              color: GBTColors.textTertiary,
-            ),
+            style: GBTTypography.labelSmall.copyWith(color: tertiaryColor),
           ),
           onTap: () => context.goToPostDetail(post.id),
         );
@@ -321,6 +354,8 @@ class _PostsTab extends StatelessWidget {
   }
 }
 
+/// EN: Comments tab showing user's authored comments.
+/// KO: 사용자가 작성한 댓글을 보여주는 탭.
 class _CommentsTab extends StatelessWidget {
   const _CommentsTab({required this.comments});
 
@@ -338,14 +373,24 @@ class _CommentsTab extends StatelessWidget {
       separatorBuilder: (_, __) => const Divider(height: GBTSpacing.md),
       itemBuilder: (context, index) {
         final comment = comments[index];
+        // EN: Use theme-aware colors for dark mode compatibility.
+        // KO: 다크 모드 호환성을 위해 테마 인식 색상을 사용합니다.
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final tertiaryColor = isDark
+            ? GBTColors.darkTextTertiary
+            : GBTColors.textTertiary;
+
         return ListTile(
           contentPadding: EdgeInsets.zero,
-          title: Text(comment.content, style: GBTTypography.bodyMedium),
+          title: Text(
+            comment.content,
+            style: GBTTypography.bodyMedium,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
           subtitle: Text(
             comment.timeAgoLabel,
-            style: GBTTypography.labelSmall.copyWith(
-              color: GBTColors.textTertiary,
-            ),
+            style: GBTTypography.labelSmall.copyWith(color: tertiaryColor),
           ),
           onTap: () => context.goToPostDetail(comment.postId),
         );
@@ -355,7 +400,5 @@ class _CommentsTab extends StatelessWidget {
 }
 
 void _showSnackBar(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(message)),
-  );
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }

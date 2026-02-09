@@ -83,6 +83,8 @@ class GBTBottomNav extends StatelessWidget {
                 isSelected: currentIndex == index,
                 isDark: isDark,
                 onTap: () => onTap(index),
+                tabIndex: index,
+                totalTabs: items.length,
               ),
             ),
           ),
@@ -98,12 +100,16 @@ class _BottomNavItem extends StatefulWidget {
     required this.isSelected,
     required this.isDark,
     required this.onTap,
+    required this.tabIndex,
+    required this.totalTabs,
   });
 
   final GBTBottomNavItem item;
   final bool isSelected;
   final bool isDark;
   final VoidCallback onTap;
+  final int tabIndex;
+  final int totalTabs;
 
   @override
   State<_BottomNavItem> createState() => _BottomNavItemState();
@@ -121,7 +127,7 @@ class _BottomNavItemState extends State<_BottomNavItem>
       duration: GBTAnimations.fast,
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(
+    _scaleAnimation = Tween<double>(begin: 1.0, end: GBTAnimations.pressedScale).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
   }
@@ -146,8 +152,10 @@ class _BottomNavItemState extends State<_BottomNavItem>
 
   @override
   Widget build(BuildContext context) {
+    // EN: Use darkPrimary (lighter purple) for selected state in dark mode
+    // KO: 다크 모드에서 선택 상태에 darkPrimary (밝은 보라) 사용
     final selectedColor = widget.isDark
-        ? GBTColors.darkTextPrimary
+        ? GBTColors.darkPrimary
         : GBTColors.primary;
     final unselectedColor = widget.isDark
         ? GBTColors.darkTextTertiary
@@ -156,6 +164,7 @@ class _BottomNavItemState extends State<_BottomNavItem>
 
     return Expanded(
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTapDown: _handleTapDown,
         onTapUp: _handleTapUp,
         onTapCancel: _handleTapCancel,
@@ -164,13 +173,16 @@ class _BottomNavItemState extends State<_BottomNavItem>
           widget.onTap();
         },
         child: ScaleTransition(
-          scale: _scaleAnimation.drive(
-            Tween<double>(begin: 1.0, end: 1.0),
-          ).drive(CurveTween(curve: Curves.easeOut)),
+          scale: _scaleAnimation,
           child: Semantics(
             label: widget.item.semanticLabel ?? widget.item.label,
+            hint: widget.isSelected
+                ? null
+                : '탭하면 ${widget.item.label} 탭으로 이동합니다',
             button: true,
             selected: widget.isSelected,
+            // EN: Provide tab position info for screen readers
+            // KO: 스크린 리더를 위한 탭 위치 정보 제공
             child: AnimatedContainer(
               duration: GBTAnimations.normal,
               curve: GBTAnimations.defaultCurve,
@@ -187,8 +199,10 @@ class _BottomNavItemState extends State<_BottomNavItem>
                     decoration: BoxDecoration(
                       color: widget.isSelected
                           ? (widget.isDark
-                              ? GBTColors.darkSurfaceElevated
-                              : GBTColors.primary.withValues(alpha: 0.08))
+                              ? GBTColors.darkPrimary
+                                  .withValues(alpha: 0.12)
+                              : GBTColors.primary
+                                  .withValues(alpha: 0.08))
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(
                         GBTSpacing.radiusFull,
@@ -207,7 +221,7 @@ class _BottomNavItemState extends State<_BottomNavItem>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: GBTSpacing.xxs),
                   AnimatedDefaultTextStyle(
                     duration: GBTAnimations.normal,
                     curve: GBTAnimations.defaultCurve,

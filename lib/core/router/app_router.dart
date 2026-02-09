@@ -16,7 +16,8 @@ import '../../features/places/presentation/pages/places_map_page.dart';
 import '../../features/places/presentation/pages/place_detail_page.dart';
 import '../../features/live_events/presentation/pages/live_events_page.dart';
 import '../../features/live_events/presentation/pages/live_event_detail_page.dart';
-import '../../features/feed/presentation/pages/feed_page.dart';
+import '../../features/feed/presentation/pages/board_page.dart';
+import '../../features/feed/presentation/pages/info_page.dart';
 import '../../features/feed/presentation/pages/news_detail_page.dart';
 import '../../features/feed/presentation/pages/post_create_page.dart';
 import '../../features/feed/presentation/pages/post_detail_page.dart';
@@ -24,6 +25,7 @@ import '../../features/feed/presentation/pages/user_profile_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/settings/presentation/pages/profile_edit_page.dart';
 import '../../features/settings/presentation/pages/notification_settings_page.dart';
+import '../../features/visits/presentation/pages/visit_detail_page.dart';
 import '../../features/visits/presentation/pages/visit_history_page.dart';
 import '../../features/visits/presentation/pages/visit_stats_page.dart';
 import '../../features/favorites/presentation/pages/favorites_page.dart';
@@ -48,15 +50,20 @@ class AppRoutes {
   static const String placeDetail = 'place-detail';
   static const String live = 'live';
   static const String liveDetail = 'live-detail';
-  static const String feed = 'feed';
+  static const String board = 'board';
+  static const String info = 'info';
   static const String newsDetail = 'news-detail';
   static const String postDetail = 'post-detail';
   static const String postCreate = 'post-create';
   static const String userProfile = 'user-profile';
+
+  // EN: Settings routes (overlay, outside shell)
+  // KO: 설정 라우트 (오버레이, 쉘 외부)
   static const String settings = 'settings';
   static const String profileEdit = 'profile-edit';
   static const String notificationSettings = 'notification-settings';
   static const String visitHistory = 'visit-history';
+  static const String visitDetail = 'visit-detail';
   static const String visitStats = 'visit-stats';
 
   // EN: Overlay routes
@@ -74,8 +81,8 @@ class NavIndex {
   static const int home = 0;
   static const int places = 1;
   static const int live = 2;
-  static const int feed = 3;
-  static const int settings = 4;
+  static const int board = 3;
+  static const int info = 4;
 }
 
 /// EN: GoRouter provider with authentication redirect
@@ -191,23 +198,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // EN: Feed Branch (Index 3)
-          // KO: 피드 분기 (인덱스 3)
+          // EN: Board Branch (Index 3)
+          // KO: 게시판 분기 (인덱스 3)
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/feed',
-                name: AppRoutes.feed,
-                builder: (context, state) => const FeedPage(),
+                path: '/board',
+                name: AppRoutes.board,
+                builder: (context, state) => const BoardPage(),
                 routes: [
-                  GoRoute(
-                    path: 'news/:newsId',
-                    name: AppRoutes.newsDetail,
-                    builder: (context, state) {
-                      final newsId = state.pathParameters['newsId']!;
-                      return NewsDetailPage(newsId: newsId);
-                    },
-                  ),
                   GoRoute(
                     path: 'posts/new',
                     name: AppRoutes.postCreate,
@@ -226,39 +225,87 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // EN: Settings Branch (Index 4)
-          // KO: 설정 분기 (인덱스 4)
+          // EN: Info Branch (Index 4)
+          // KO: 정보 분기 (인덱스 4)
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/settings',
-                name: AppRoutes.settings,
-                builder: (context, state) => const SettingsPage(),
+                path: '/info',
+                name: AppRoutes.info,
+                builder: (context, state) => const InfoPage(),
                 routes: [
                   GoRoute(
-                    path: 'profile',
-                    name: AppRoutes.profileEdit,
-                    builder: (context, state) => const ProfileEditPage(),
-                  ),
-                  GoRoute(
-                    path: 'notifications',
-                    name: AppRoutes.notificationSettings,
-                    builder: (context, state) =>
-                        const NotificationSettingsPage(),
-                  ),
-                  GoRoute(
-                    path: 'visits',
-                    name: AppRoutes.visitHistory,
-                    builder: (context, state) => const VisitHistoryPage(),
-                  ),
-                  GoRoute(
-                    path: 'stats',
-                    name: AppRoutes.visitStats,
-                    builder: (context, state) => const VisitStatsPage(),
+                    path: 'news/:newsId',
+                    name: AppRoutes.newsDetail,
+                    builder: (context, state) {
+                      final newsId = state.pathParameters['newsId']!;
+                      return NewsDetailPage(newsId: newsId);
+                    },
                   ),
                 ],
               ),
             ],
+          ),
+        ],
+      ),
+
+      // EN: Settings routes (overlay, outside shell)
+      // KO: 설정 라우트 (오버레이, 쉘 외부)
+      GoRoute(
+        path: '/settings',
+        name: AppRoutes.settings,
+        builder: (context, state) => const SettingsPage(),
+        routes: [
+          GoRoute(
+            path: 'profile',
+            name: AppRoutes.profileEdit,
+            builder: (context, state) => const ProfileEditPage(),
+          ),
+          GoRoute(
+            path: 'notifications',
+            name: AppRoutes.notificationSettings,
+            builder: (context, state) =>
+                const NotificationSettingsPage(),
+          ),
+          GoRoute(
+            path: 'visits',
+            name: AppRoutes.visitHistory,
+            builder: (context, state) => const VisitHistoryPage(),
+            routes: [
+              GoRoute(
+                path: ':visitId',
+                name: AppRoutes.visitDetail,
+                builder: (context, state) {
+                  final visitId =
+                      state.pathParameters['visitId']!;
+                  final placeId =
+                      state.uri.queryParameters['placeId'] ??
+                          '';
+                  final visitedAt =
+                      state.uri.queryParameters['visitedAt'];
+                  final latStr =
+                      state.uri.queryParameters['latitude'];
+                  final lngStr =
+                      state.uri.queryParameters['longitude'];
+                  return VisitDetailPage(
+                    visitId: visitId,
+                    placeId: placeId,
+                    visitedAt: visitedAt,
+                    latitude: latStr != null
+                        ? double.tryParse(latStr)
+                        : null,
+                    longitude: lngStr != null
+                        ? double.tryParse(lngStr)
+                        : null,
+                  );
+                },
+              ),
+            ],
+          ),
+          GoRoute(
+            path: 'stats',
+            name: AppRoutes.visitStats,
+            builder: (context, state) => const VisitStatsPage(),
           ),
         ],
       ),
@@ -359,6 +406,28 @@ extension AppRouterExtension on BuildContext {
     pushNamed(AppRoutes.userProfile, pathParameters: {'userId': userId});
   }
 
+  /// EN: Navigate to visit detail
+  /// KO: 방문 상세로 이동
+  void goToVisitDetail({
+    required String visitId,
+    required String placeId,
+    String? visitedAt,
+    double? latitude,
+    double? longitude,
+  }) {
+    final queryParams = <String, String>{
+      'placeId': placeId,
+      if (visitedAt != null) 'visitedAt': visitedAt,
+      if (latitude != null) 'latitude': latitude.toString(),
+      if (longitude != null) 'longitude': longitude.toString(),
+    };
+    goNamed(
+      AppRoutes.visitDetail,
+      pathParameters: {'visitId': visitId},
+      queryParameters: queryParams,
+    );
+  }
+
   /// EN: Navigate to search with optional query
   /// KO: 선택적 쿼리와 함께 검색으로 이동
   void goToSearch([String? query]) {
@@ -368,4 +437,8 @@ extension AppRouterExtension on BuildContext {
       goNamed(AppRoutes.search);
     }
   }
+
+  /// EN: Navigate to settings (push overlay on top of shell)
+  /// KO: 설정으로 이동 (쉘 위에 오버레이로 push)
+  void goToSettings() => push('/settings');
 }

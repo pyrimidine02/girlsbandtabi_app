@@ -57,6 +57,19 @@ final userVisitsControllerProvider =
   (ref) => UserVisitsController(ref),
 );
 
+/// EN: Visit summary provider for a specific place.
+/// KO: 특정 장소의 방문 요약 프로바이더.
+final visitSummaryProvider =
+    FutureProvider.family<VisitSummary?, String>((ref, placeId) async {
+  if (placeId.isEmpty) return null;
+  final repository = await ref.read(visitsRepositoryProvider.future);
+  final result = await repository.getVisitSummary(placeId: placeId);
+  if (result is Success<VisitSummary>) {
+    return result.data;
+  }
+  return null;
+});
+
 /// EN: Map of place ID to summary for visit screens.
 /// KO: 방문 화면에서 사용할 장소 요약 맵.
 final visitPlacesMapProvider =
@@ -77,4 +90,23 @@ final visitPlacesMapProvider =
   }
 
   return <String, PlaceSummary>{};
+});
+
+/// EN: User ranking provider for visit statistics.
+/// KO: 방문 통계를 위한 사용자 랭킹 프로바이더.
+final userRankingProvider =
+    FutureProvider<UserRanking?>((ref) async {
+  final projectKey = ref.watch(selectedProjectKeyProvider);
+  final projectId = ref.watch(selectedProjectIdProvider);
+  final resolvedProjectId = projectId?.isNotEmpty == true
+      ? projectId!
+      : (projectKey ?? '');
+  if (resolvedProjectId.isEmpty) return null;
+
+  final repository = await ref.watch(visitsRepositoryProvider.future);
+  final result = await repository.getUserRanking(projectId: resolvedProjectId);
+  if (result is Success<UserRanking>) {
+    return result.data;
+  }
+  return null;
 });

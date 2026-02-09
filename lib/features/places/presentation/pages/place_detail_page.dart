@@ -47,9 +47,7 @@ class PlaceDetailPage extends ConsumerWidget {
           slivers: state.when(
             loading: () => [
               const SliverFillRemaining(
-                child: Center(
-                  child: GBTLoading(message: '장소 정보를 불러오는 중...'),
-                ),
+                child: Center(child: GBTLoading(message: '장소 정보를 불러오는 중...')),
               ),
             ],
             error: (error, _) {
@@ -62,9 +60,7 @@ class PlaceDetailPage extends ConsumerWidget {
                     child: GBTErrorState(
                       message: message,
                       onRetry: () => ref
-                          .read(
-                            placeDetailControllerProvider(placeId).notifier,
-                          )
+                          .read(placeDetailControllerProvider(placeId).notifier)
                           .load(forceRefresh: true),
                     ),
                   ),
@@ -98,6 +94,16 @@ class PlaceDetailPage extends ConsumerWidget {
     WidgetRef ref,
     PlaceDetail place,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    final surfaceVariantColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
     final selection = ref.watch(projectSelectionControllerProvider);
     final favoritesState = ref.watch(favoritesControllerProvider);
     final profileState = ref.watch(userProfileControllerProvider);
@@ -112,10 +118,9 @@ class PlaceDetailPage extends ConsumerWidget {
       orElse: () => false,
     );
     final projectKey = selection.projectKey;
-    final unitsState =
-        projectKey != null && projectKey.isNotEmpty
-            ? ref.watch(projectUnitsControllerProvider(projectKey))
-            : null;
+    final unitsState = projectKey != null && projectKey.isNotEmpty
+        ? ref.watch(projectUnitsControllerProvider(projectKey))
+        : null;
     final guidesState = ref.watch(placeGuidesControllerProvider(place.id));
     final commentsState = ref.watch(placeCommentsControllerProvider(place.id));
 
@@ -128,22 +133,19 @@ class PlaceDetailPage extends ConsumerWidget {
               ? GBTImage(
                   imageUrl: place.heroImageUrl!,
                   fit: BoxFit.cover,
-                  semanticLabel: place.name,
+                  semanticLabel: '${place.name} 사진',
                 )
               : Container(
-                  color: GBTColors.surfaceVariant,
+                  color: surfaceVariantColor,
                   child: Center(
-                    child: Icon(
-                      Icons.image,
-                      size: 64,
-                      color: GBTColors.textTertiary,
-                    ),
+                    child: Icon(Icons.image, size: 64, color: tertiaryColor),
                   ),
                 ),
         ),
         actions: [
           IconButton(
             icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
+            tooltip: isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가',
             onPressed: () {
               ref
                   .read(favoritesControllerProvider.notifier)
@@ -156,6 +158,7 @@ class PlaceDetailPage extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.share),
+            tooltip: '장소 공유',
             onPressed: () {
               // EN: TODO: Share place
               // KO: TODO: 장소 공유
@@ -169,22 +172,25 @@ class PlaceDetailPage extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(place.name, style: GBTTypography.headlineSmall),
+              Text(
+                place.name,
+                style: GBTTypography.headlineSmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
               const SizedBox(height: GBTSpacing.xs),
               Row(
                 children: [
-                  Icon(
-                    Icons.location_on,
-                    size: 16,
-                    color: GBTColors.textSecondary,
-                  ),
+                  Icon(Icons.location_on, size: 16, color: secondaryColor),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       place.address,
                       style: GBTTypography.bodyMedium.copyWith(
-                        color: GBTColors.textSecondary,
+                        color: secondaryColor,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -212,9 +218,7 @@ class PlaceDetailPage extends ConsumerWidget {
               const SizedBox(height: GBTSpacing.sm),
               Text(
                 place.description ?? '소개 정보가 없습니다.',
-                style: GBTTypography.bodyMedium.copyWith(
-                  color: GBTColors.textSecondary,
-                ),
+                style: GBTTypography.bodyMedium.copyWith(color: secondaryColor),
               ),
               const SizedBox(height: GBTSpacing.lg),
               Text(
@@ -228,17 +232,18 @@ class PlaceDetailPage extends ConsumerWidget {
                 Text(
                   '장소 분류 정보가 없습니다.',
                   style: GBTTypography.bodySmall.copyWith(
-                    color: GBTColors.textSecondary,
+                    color: secondaryColor,
                   ),
                 )
               else
                 Wrap(
                   spacing: GBTSpacing.sm,
-                  children: (place.tags.isNotEmpty
-                          ? place.tags
-                          : place.types.map(_formatPlaceType))
-                      .map((category) => Chip(label: Text(category)))
-                      .toList(),
+                  children:
+                      (place.tags.isNotEmpty
+                              ? place.tags
+                              : place.types.map(_formatPlaceType))
+                          .map((category) => Chip(label: Text(category)))
+                          .toList(),
                 ),
               const SizedBox(height: GBTSpacing.lg),
               Text(
@@ -252,7 +257,7 @@ class PlaceDetailPage extends ConsumerWidget {
                 Text(
                   '관련 밴드 정보가 없습니다.',
                   style: GBTTypography.bodySmall.copyWith(
-                    color: GBTColors.textSecondary,
+                    color: secondaryColor,
                   ),
                 )
               else
@@ -265,7 +270,7 @@ class PlaceDetailPage extends ConsumerWidget {
                     return Text(
                       message,
                       style: GBTTypography.bodySmall.copyWith(
-                        color: GBTColors.textSecondary,
+                        color: secondaryColor,
                       ),
                     );
                   },
@@ -274,7 +279,7 @@ class PlaceDetailPage extends ConsumerWidget {
                       return Text(
                         '관련 밴드 정보가 없습니다.',
                         style: GBTTypography.bodySmall.copyWith(
-                          color: GBTColors.textSecondary,
+                          color: secondaryColor,
                         ),
                       );
                     }
@@ -373,29 +378,32 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Expanded(
-      child: Container(
-        padding: GBTSpacing.paddingMd,
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: colorScheme.primary),
-            const SizedBox(height: GBTSpacing.xs),
-            Text(
-              value,
-              style: GBTTypography.titleLarge.copyWith(
-                fontWeight: FontWeight.w700,
+      child: Semantics(
+        label: '$label: $value',
+        child: Container(
+          padding: GBTSpacing.paddingMd,
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: colorScheme.primary),
+              const SizedBox(height: GBTSpacing.xs),
+              Text(
+                value,
+                style: GBTTypography.titleLarge.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-            Text(
-              label,
-              style: GBTTypography.labelSmall.copyWith(
-                color: colorScheme.onSurfaceVariant,
+              Text(
+                label,
+                style: GBTTypography.labelSmall.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -414,15 +422,18 @@ class _GuideSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+
     return state.when(
       loading: () => const GBTLoading(message: '가이드를 불러오는 중...'),
       error: (error, _) {
         if (_isForbidden(error)) {
           return _SectionMessage(message: '아직 준비중입니다.');
         }
-        final message = error is Failure
-            ? error.userMessage
-            : '가이드를 불러오지 못했어요';
+        final message = error is Failure ? error.userMessage : '가이드를 불러오지 못했어요';
         return _SectionMessage(message: message, onRetry: onRetry);
       },
       data: (guides) {
@@ -436,30 +447,38 @@ class _GuideSection extends StatelessWidget {
           separatorBuilder: (_, __) => const Divider(height: GBTSpacing.md),
           itemBuilder: (context, index) {
             final guide = guides[index];
-            return ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(guide.title.isNotEmpty ? guide.title : '가이드'),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (guide.preview.isNotEmpty)
-                    Text(
-                      guide.preview,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  if (guide.updatedAtLabel.isNotEmpty)
-                    Text(
-                      guide.updatedAtLabel,
-                      style: GBTTypography.labelSmall.copyWith(
-                        color: GBTColors.textSecondary,
+            return Semantics(
+              label: '가이드: ${guide.title.isNotEmpty ? guide.title : '가이드'}',
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  guide.title.isNotEmpty ? guide.title : '가이드',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (guide.preview.isNotEmpty)
+                      Text(
+                        guide.preview,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                ],
+                    if (guide.updatedAtLabel.isNotEmpty)
+                      Text(
+                        guide.updatedAtLabel,
+                        style: GBTTypography.labelSmall.copyWith(
+                          color: secondaryColor,
+                        ),
+                      ),
+                  ],
+                ),
+                trailing: guide.hasImages
+                    ? const Icon(Icons.photo_outlined)
+                    : null,
+                onTap: () {},
               ),
-              trailing:
-                  guide.hasImages ? const Icon(Icons.photo_outlined) : null,
-              onTap: () {},
             );
           },
         );
@@ -491,15 +510,18 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+
     return widget.state.when(
       loading: () => const GBTLoading(message: '후기를 불러오는 중...'),
       error: (error, _) {
         if (_isForbidden(error)) {
           return _SectionMessage(message: '아직 준비중입니다.');
         }
-        final message = error is Failure
-            ? error.userMessage
-            : '후기를 불러오지 못했어요';
+        final message = error is Failure ? error.userMessage : '후기를 불러오지 못했어요';
         return _SectionMessage(message: message, onRetry: widget.onRetry);
       },
       data: (comments) {
@@ -513,11 +535,11 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
           separatorBuilder: (_, __) => const Divider(height: GBTSpacing.md),
           itemBuilder: (context, index) {
             final comment = comments[index];
-            final authorLabel =
-                comment.authorId.isNotEmpty ? '방문자' : '익명 방문자';
+            final authorLabel = comment.authorId.isNotEmpty ? '방문자' : '익명 방문자';
             final isApproving = _approvingIds.contains(comment.id);
             final isRejected = _rejectedIds.contains(comment.id);
-            final isFullyApproved = comment.photoUploadIds.isNotEmpty &&
+            final isFullyApproved =
+                comment.photoUploadIds.isNotEmpty &&
                 comment.photoUrls.length >= comment.photoUploadIds.length;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -538,7 +560,7 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
                         Text(
                           comment.createdAtLabel,
                           style: GBTTypography.labelSmall.copyWith(
-                            color: GBTColors.textSecondary,
+                            color: secondaryColor,
                           ),
                         ),
                     ],
@@ -547,7 +569,7 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
                       ? Text(
                           '답글 ${comment.replyCount}',
                           style: GBTTypography.labelSmall.copyWith(
-                            color: GBTColors.textSecondary,
+                            color: secondaryColor,
                           ),
                         )
                       : null,
@@ -566,12 +588,16 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
                               color: Colors.transparent,
                               child: InkWell(
                                 onTap: () => _showPhotoPreview(url),
-                                child: GBTImage(
-                                  imageUrl: url,
-                                  width: 72,
-                                  height: 72,
-                                  fit: BoxFit.cover,
-                                  semanticLabel: '방문 후기 사진',
+                                child: Semantics(
+                                  label: '방문 후기 사진. 탭하여 확대',
+                                  button: true,
+                                  child: GBTImage(
+                                    imageUrl: url,
+                                    width: 72,
+                                    height: 72,
+                                    fit: BoxFit.cover,
+                                    semanticLabel: '방문 후기 사진',
+                                  ),
                                 ),
                               ),
                             ),
@@ -587,23 +613,25 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
                       children: [
                         if (isRejected)
                           Padding(
-                            padding:
-                                const EdgeInsets.only(bottom: GBTSpacing.xs),
+                            padding: const EdgeInsets.only(
+                              bottom: GBTSpacing.xs,
+                            ),
                             child: Text(
                               '반려됨',
                               style: GBTTypography.labelSmall.copyWith(
-                                color: GBTColors.textSecondary,
+                                color: secondaryColor,
                               ),
                             ),
                           )
                         else if (isFullyApproved)
                           Padding(
-                            padding:
-                                const EdgeInsets.only(bottom: GBTSpacing.xs),
+                            padding: const EdgeInsets.only(
+                              bottom: GBTSpacing.xs,
+                            ),
                             child: Text(
                               '승인됨',
                               style: GBTTypography.labelSmall.copyWith(
-                                color: GBTColors.textSecondary,
+                                color: secondaryColor,
                               ),
                             ),
                           ),
@@ -612,23 +640,22 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
                             OutlinedButton(
                               onPressed:
                                   isApproving || isFullyApproved || isRejected
-                                      ? null
-                                      : () => _approvePhotos(
-                                            comment,
-                                            isApproved: true,
-                                          ),
-                              child:
-                                  Text(isApproving ? '처리 중...' : '사진 승인'),
+                                  ? null
+                                  : () => _approvePhotos(
+                                      comment,
+                                      isApproved: true,
+                                    ),
+                              child: Text(isApproving ? '처리 중...' : '사진 승인'),
                             ),
                             const SizedBox(width: GBTSpacing.sm),
                             OutlinedButton(
                               onPressed:
                                   isApproving || isFullyApproved || isRejected
-                                      ? null
-                                      : () => _approvePhotos(
-                                            comment,
-                                            isApproved: false,
-                                          ),
+                                  ? null
+                                  : () => _approvePhotos(
+                                      comment,
+                                      isApproved: false,
+                                    ),
                               child: const Text('사진 반려'),
                             ),
                           ],
@@ -696,9 +723,9 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showPhotoPreview(String url) {
@@ -706,18 +733,21 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.85),
       builder: (context) {
-        return GestureDetector(
-          onTap: () => Navigator.of(context).pop(),
-          child: Dialog(
-            insetPadding: const EdgeInsets.all(GBTSpacing.md),
-            backgroundColor: Colors.transparent,
-            child: InteractiveViewer(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-                child: GBTImage(
-                  imageUrl: url,
-                  fit: BoxFit.contain,
-                  semanticLabel: '방문 후기 사진 확대',
+        return Semantics(
+          label: '사진 확대 보기. 탭하여 닫기',
+          child: GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Dialog(
+              insetPadding: const EdgeInsets.all(GBTSpacing.md),
+              backgroundColor: Colors.transparent,
+              child: InteractiveViewer(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                  child: GBTImage(
+                    imageUrl: url,
+                    fit: BoxFit.contain,
+                    semanticLabel: '방문 후기 사진 확대',
+                  ),
                 ),
               ),
             ),
@@ -736,21 +766,21 @@ class _SectionMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           message,
-          style: GBTTypography.bodySmall.copyWith(
-            color: GBTColors.textSecondary,
-          ),
+          style: GBTTypography.bodySmall.copyWith(color: secondaryColor),
         ),
         if (onRetry != null) ...[
           const SizedBox(height: GBTSpacing.xs),
-          TextButton(
-            onPressed: onRetry,
-            child: const Text('다시 시도'),
-          ),
+          TextButton(onPressed: onRetry, child: const Text('다시 시도')),
         ],
       ],
     );

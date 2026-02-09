@@ -12,6 +12,7 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/widgets/cards/gbt_event_card.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../application/live_events_controller.dart';
 import '../../domain/entities/live_event_entities.dart';
 import '../../../projects/application/projects_controller.dart';
@@ -74,16 +75,15 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
             onPressed: () {
               _showCalendar(eventsState);
             },
-            tooltip: '캘린더',
+            tooltip: '캘린더로 라이브 이벤트 보기',
           ),
           IconButton(
             icon: const Icon(Icons.groups),
-            onPressed: () => _showBandFilter(
-              resolvedProjectKey,
-              selectedBandIds,
-            ),
-            tooltip: '밴드 선택',
+            onPressed: () =>
+                _showBandFilter(resolvedProjectKey, selectedBandIds),
+            tooltip: '밴드 필터 선택',
           ),
+          const GBTProfileAction(),
         ],
       ),
       body: Column(
@@ -100,10 +100,8 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
           _BandFilterBar(
             label: bandLabel,
             hasSelection: selectedBandIds.isNotEmpty,
-            onSelect: () => _showBandFilter(
-              resolvedProjectKey,
-              selectedBandIds,
-            ),
+            onSelect: () =>
+                _showBandFilter(resolvedProjectKey, selectedBandIds),
             onClear: () {
               ref.read(selectedLiveBandIdsProvider.notifier).state = [];
             },
@@ -134,10 +132,7 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
     );
   }
 
-  void _showBandFilter(
-    String projectKey,
-    List<String> selectedBandIds,
-  ) {
+  void _showBandFilter(String projectKey, List<String> selectedBandIds) {
     if (projectKey.isEmpty) return;
     showBandFilterSheet(
       context: context,
@@ -177,14 +172,11 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
   }
 
   void _showCalendar(AsyncValue<List<LiveEventSummary>> state) {
-    final events = state.maybeWhen(
-      data: (items) => items,
-      orElse: () => null,
-    );
+    final events = state.maybeWhen(data: (items) => items, orElse: () => null);
     if (events == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('라이브 정보를 불러오는 중입니다')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('라이브 정보를 불러오는 중입니다')));
       return;
     }
 
@@ -192,13 +184,13 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
     final earliest = events.isEmpty
         ? now.subtract(const Duration(days: 365))
         : events
-            .map((event) => event.showStartTime.toLocal())
-            .reduce((a, b) => a.isBefore(b) ? a : b);
+              .map((event) => event.showStartTime.toLocal())
+              .reduce((a, b) => a.isBefore(b) ? a : b);
     final latest = events.isEmpty
         ? now.add(const Duration(days: 365))
         : events
-            .map((event) => event.showStartTime.toLocal())
-            .reduce((a, b) => a.isAfter(b) ? a : b);
+              .map((event) => event.showStartTime.toLocal())
+              .reduce((a, b) => a.isAfter(b) ? a : b);
     final firstDate = earliest.isBefore(now)
         ? earliest
         : now.subtract(const Duration(days: 365));
@@ -206,8 +198,9 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
         ? latest
         : now.add(const Duration(days: 365));
 
-    final eventDateKeys =
-        events.map((event) => _dateKey(event.showStartTime.toLocal())).toSet();
+    final eventDateKeys = events
+        .map((event) => _dateKey(event.showStartTime.toLocal()))
+        .toSet();
 
     showModalBottomSheet<void>(
       context: context,
@@ -220,13 +213,16 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
         final maxMonth = DateTime(lastDate.year, lastDate.month);
         return StatefulBuilder(
           builder: (context, setModalState) {
-            final filtered = events
-                .where(
-                  (event) =>
-                      _isSameDate(event.showStartTime.toLocal(), selectedDate),
-                )
-                .toList()
-              ..sort((a, b) => a.showStartTime.compareTo(b.showStartTime));
+            final filtered =
+                events
+                    .where(
+                      (event) => _isSameDate(
+                        event.showStartTime.toLocal(),
+                        selectedDate,
+                      ),
+                    )
+                    .toList()
+                  ..sort((a, b) => a.showStartTime.compareTo(b.showStartTime));
             final dateLabel = DateFormat('yyyy.MM.dd').format(selectedDate);
 
             return SafeArea(
@@ -265,10 +261,15 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                         eventDateKeys: eventDateKeys,
                         onSelectDate: (date) {
                           setModalState(() {
-                            selectedDate =
-                                DateTime(date.year, date.month, date.day);
-                            visibleMonth =
-                                DateTime(selectedDate.year, selectedDate.month);
+                            selectedDate = DateTime(
+                              date.year,
+                              date.month,
+                              date.day,
+                            );
+                            visibleMonth = DateTime(
+                              selectedDate.year,
+                              selectedDate.month,
+                            );
                           });
                         },
                         onChangeMonth: (month) {
@@ -283,6 +284,7 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                       child: filtered.isEmpty
                           ? const Center(
                               child: GBTEmptyState(
+                                icon: Icons.event_busy,
                                 message: '해당 날짜에 라이브 이벤트가 없습니다',
                               ),
                             )
@@ -303,7 +305,8 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                                     dDayLabel: event.dDayLabel,
                                     posterUrl: event.bannerUrl,
                                     isLive:
-                                        event.statusLabel.toLowerCase() == 'live',
+                                        event.statusLabel.toLowerCase() ==
+                                        'live',
                                     isUpcoming: event.isUpcoming,
                                     onTap: () =>
                                         context.goToLiveDetail(event.id),
@@ -359,16 +362,15 @@ class _EventList extends StatelessWidget {
         );
       },
       data: (events) {
-        final filtered = events
-            .where((event) => event.isUpcoming == isUpcoming)
-            .toList()
-          ..sort((a, b) {
-            final first = a.showStartTime;
-            final second = b.showStartTime;
-            return isUpcoming
-                ? first.compareTo(second)
-                : second.compareTo(first);
-          });
+        final filtered =
+            events.where((event) => event.isUpcoming == isUpcoming).toList()
+              ..sort((a, b) {
+                final first = a.showStartTime;
+                final second = b.showStartTime;
+                return isUpcoming
+                    ? first.compareTo(second)
+                    : second.compareTo(first);
+              });
 
         if (filtered.isEmpty) {
           return ListView(
@@ -376,6 +378,7 @@ class _EventList extends StatelessWidget {
             children: [
               const SizedBox(height: GBTSpacing.lg),
               GBTEmptyState(
+                icon: isUpcoming ? Icons.event_available : Icons.event_busy,
                 message: isUpcoming ? '예정된 라이브 이벤트가 없습니다' : '완료된 라이브 이벤트가 없습니다',
               ),
             ],
@@ -433,15 +436,16 @@ class _BandFilterBar extends StatelessWidget {
       child: Row(
         children: [
           if (hasSelection)
-            InputChip(
-              label: Text(label),
-              onDeleted: onClear,
+            Semantics(
+              label: '밴드 필터: $label. 삭제하려면 탭하세요',
+              child: InputChip(
+                label: Text(label),
+                onDeleted: onClear,
+                deleteButtonTooltipMessage: '필터 해제',
+              ),
             )
           else
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
           const Spacer(),
           TextButton.icon(
             onPressed: onSelect,
@@ -507,6 +511,7 @@ class _EventCalendar extends StatelessWidget {
           children: [
             IconButton(
               icon: const Icon(Icons.chevron_left),
+              tooltip: '이전 달',
               onPressed: canGoPrev
                   ? () {
                       final prevMonth = DateTime(
@@ -517,12 +522,10 @@ class _EventCalendar extends StatelessWidget {
                     }
                   : null,
             ),
-            Text(
-              monthLabel,
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
+            Text(monthLabel, style: Theme.of(context).textTheme.titleSmall),
             IconButton(
               icon: const Icon(Icons.chevron_right),
+              tooltip: '다음 달',
               onPressed: canGoNext
                   ? () {
                       final nextMonth = DateTime(
@@ -617,48 +620,57 @@ class _CalendarDayCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final background =
-        isSelected ? colorScheme.primary : Colors.transparent;
-    final textColor =
-        isSelected ? colorScheme.onPrimary : colorScheme.onSurface;
-    final dotColor =
-        isSelected ? colorScheme.onPrimary : colorScheme.primary;
+    final background = isSelected ? colorScheme.primary : Colors.transparent;
+    final textColor = isSelected
+        ? colorScheme.onPrimary
+        : colorScheme.onSurface;
+    final dotColor = isSelected ? colorScheme.onPrimary : colorScheme.primary;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          alignment: Alignment.center,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${date.day}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: textColor,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.w400,
-                    ),
-              ),
-              const SizedBox(height: 2),
-              if (hasEvent)
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: dotColor,
-                    shape: BoxShape.circle,
+    // EN: Format date for accessibility label
+    // KO: 접근성 라벨을 위한 날짜 포맷
+    final dateLabel = DateFormat('M월 d일').format(date);
+    final eventLabel = hasEvent ? ', 이벤트 있음' : '';
+    final selectedLabel = isSelected ? ', 선택됨' : '';
+
+    return Semantics(
+      label: '$dateLabel$eventLabel$selectedLabel',
+      button: true,
+      selected: isSelected,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${date.day}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: textColor,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   ),
-                )
-              else
-                const SizedBox(height: 6),
-            ],
+                ),
+                const SizedBox(height: 2),
+                if (hasEvent)
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: dotColor,
+                      shape: BoxShape.circle,
+                    ),
+                  )
+                else
+                  const SizedBox(height: 6),
+              ],
+            ),
           ),
         ),
       ),
