@@ -85,17 +85,22 @@ class GBTPlaceCard extends StatelessWidget {
         child: AnimatedContainer(
           duration: GBTAnimations.normal,
           curve: GBTAnimations.defaultCurve,
-          decoration: GBTDecorations.card(isDark: isDark),
+          // EN: Borderless neutral surface — no shadow, no border
+          // KO: 테두리 없는 뉴트럴 표면 — 그림자·테두리 제거
+          decoration: BoxDecoration(
+            color: isDark ? GBTColors.darkSurface : GBTColors.surface,
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          ),
           clipBehavior: Clip.antiAlias,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // EN: Image section with overlay gradient
-              // KO: 오버레이 그라디언트가 있는 이미지 섹션
+              // EN: Image section with overlay gradient (4:3 aspect ratio)
+              // KO: 오버레이 그라디언트가 있는 이미지 섹션 (4:3 비율)
               Stack(
                 children: [
                   AspectRatio(
-                    aspectRatio: 16 / 10,
+                    aspectRatio: 4 / 3,
                     child: _buildImage(isDark),
                   ),
                   // EN: Bottom gradient for depth
@@ -167,12 +172,15 @@ class GBTPlaceCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // EN: Place name — bodyMedium bold for neutral emphasis
+                    // KO: 장소 이름 — 뉴트럴 강조를 위한 bodyMedium 볼드
                     Text(
                       name,
-                      style: GBTTypography.titleSmall.copyWith(
+                      style: GBTTypography.bodyMedium.copyWith(
                         color: isDark
                             ? GBTColors.darkTextPrimary
                             : GBTColors.textPrimary,
+                        fontWeight: FontWeight.w700,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -205,49 +213,27 @@ class GBTPlaceCard extends StatelessWidget {
                     const SizedBox(height: GBTSpacing.xs),
                     Row(
                       children: [
+                        // EN: Distance inline text — no colored background
+                        // KO: 거리 인라인 텍스트 — 색상 배경 제거
                         if (distance != null) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: GBTSpacing.sm,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
+                          Icon(
+                            Icons.near_me,
+                            size: 12,
+                            color: isDark
+                                ? GBTColors.darkTextTertiary
+                                : GBTColors.textTertiary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            distance!,
+                            style: GBTTypography.labelSmall.copyWith(
                               color: isDark
-                                  ? Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withValues(alpha: 0.15)
-                                  : Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(
-                                GBTSpacing.radiusSm,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.near_me,
-                                  size: 12,
-                                  color:
-                                      Theme.of(context).colorScheme.primary,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  distance!,
-                                  style: GBTTypography.labelSmall.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
+                                  ? GBTColors.darkTextTertiary
+                                  : GBTColors.textTertiary,
                             ),
                           ),
-                          const SizedBox(width: GBTSpacing.sm),
+                          if (rating != null)
+                            const SizedBox(width: GBTSpacing.sm),
                         ],
                         if (rating != null) ...[
                           Icon(
@@ -429,7 +415,12 @@ class GBTPlaceCardHorizontal extends StatelessWidget {
         child: AnimatedContainer(
           duration: GBTAnimations.normal,
           curve: GBTAnimations.defaultCurve,
-          decoration: GBTDecorations.card(isDark: isDark),
+          // EN: Borderless neutral surface — no shadow, no border
+          // KO: 테두리 없는 뉴트럴 표면 — 그림자·테두리 제거
+          decoration: BoxDecoration(
+            color: isDark ? GBTColors.darkSurface : GBTColors.surface,
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          ),
           child: Padding(
             padding: GBTSpacing.paddingMd,
             child: Row(
@@ -474,13 +465,15 @@ class GBTPlaceCardHorizontal extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(
+                            // EN: Place name — bodyMedium bold for neutral emphasis
+                            // KO: 장소 이름 — 뉴트럴 강조를 위한 bodyMedium 볼드
                             child: Text(
                               name,
-                              style: GBTTypography.titleMedium.copyWith(
+                              style: GBTTypography.bodyMedium.copyWith(
                                 color: isDark
                                     ? GBTColors.darkTextPrimary
                                     : GBTColors.textPrimary,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -505,41 +498,30 @@ class GBTPlaceCardHorizontal extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      // EN: Distance inline text — no colored background
+                      // KO: 거리 인라인 텍스트 — 색상 배경 제거
                       if (distance != null) ...[
                         const SizedBox(height: GBTSpacing.xs),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: GBTSpacing.sm,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? GBTColors.accentBlue
-                                    .withValues(alpha: 0.15)
-                                : GBTColors.accentBlue
-                                    .withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(
-                              GBTSpacing.radiusSm,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.near_me,
+                              size: 12,
+                              color: isDark
+                                  ? GBTColors.darkTextTertiary
+                                  : GBTColors.textTertiary,
                             ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.near_me,
-                                size: 12,
-                                color: GBTColors.accentBlue,
+                            const SizedBox(width: 4),
+                            Text(
+                              distance!,
+                              style: GBTTypography.labelSmall.copyWith(
+                                color: isDark
+                                    ? GBTColors.darkTextTertiary
+                                    : GBTColors.textTertiary,
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                distance!,
-                                style: GBTTypography.labelSmall.copyWith(
-                                  color: GBTColors.accentBlue,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ],
                     ],

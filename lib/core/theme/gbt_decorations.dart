@@ -17,33 +17,23 @@ class GBTShadows {
   // KO: 라이트 모드 그림자
   // ========================================
 
-  /// EN: Subtle shadow for cards at rest
-  /// KO: 정지 상태 카드를 위한 미세한 그림자
+  /// EN: Subtle shadow for cards at rest (single layer)
+  /// KO: 정지 상태 카드를 위한 미세한 그림자 (단일 레이어)
   static const List<BoxShadow> sm = [
     BoxShadow(
       color: Color(0x0A000000),
-      blurRadius: 4,
+      blurRadius: 6,
       offset: Offset(0, 1),
-    ),
-    BoxShadow(
-      color: Color(0x06000000),
-      blurRadius: 8,
-      offset: Offset(0, 2),
     ),
   ];
 
-  /// EN: Medium shadow for elevated elements
-  /// KO: 높은 요소를 위한 중간 그림자
+  /// EN: Medium shadow for elevated elements (single layer)
+  /// KO: 높은 요소를 위한 중간 그림자 (단일 레이어)
   static const List<BoxShadow> md = [
     BoxShadow(
       color: Color(0x0D000000),
-      blurRadius: 8,
-      offset: Offset(0, 2),
-    ),
-    BoxShadow(
-      color: Color(0x08000000),
-      blurRadius: 16,
-      offset: Offset(0, 4),
+      blurRadius: 12,
+      offset: Offset(0, 3),
     ),
   ];
 
@@ -153,40 +143,26 @@ class GBTDecorations {
   // KO: 카드 데코레이션
   // ========================================
 
-  /// EN: Default card decoration
-  /// KO: 기본 카드 데코레이션
+  /// EN: Default card decoration — border only, no shadow
+  /// KO: 기본 카드 데코레이션 — 테두리만, 그림자 없음
   static BoxDecoration card({bool isDark = false}) => BoxDecoration(
     color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surface,
     borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-    boxShadow: isDark ? GBTShadows.darkSm : GBTShadows.sm,
-    border: isDark
-        ? Border.all(color: GBTColors.darkBorderSubtle, width: 0.5)
-        : null,
+    border: Border.all(
+      color: isDark ? GBTColors.darkBorderSubtle : GBTColors.border,
+      width: isDark ? 0.5 : 1,
+    ),
   );
 
-  /// EN: Elevated card decoration
-  /// KO: 높은 카드 데코레이션
+  /// EN: Elevated card decoration — subtle single shadow
+  /// KO: 높은 카드 데코레이션 — 미세한 단일 그림자
   static BoxDecoration cardElevated({bool isDark = false}) => BoxDecoration(
     color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface,
     borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-    boxShadow: isDark ? GBTShadows.darkMd : GBTShadows.md,
+    boxShadow: isDark ? GBTShadows.darkSm : GBTShadows.sm,
     border: isDark
         ? Border.all(color: GBTColors.darkBorder, width: 0.5)
         : null,
-  );
-
-  /// EN: Accent card decoration for music-themed cards with primary border
-  /// KO: 기본 색상 테두리가 있는 음악 테마 카드용 강조 카드 데코레이션
-  static BoxDecoration cardAccent({bool isDark = false}) => BoxDecoration(
-    color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surface,
-    borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-    boxShadow: isDark ? GBTShadows.darkSm : GBTShadows.sm,
-    border: Border.all(
-      color: isDark
-          ? GBTColors.primary.withValues(alpha: 0.3)
-          : GBTColors.primary.withValues(alpha: 0.15),
-      width: 1,
-    ),
   );
 
   // ========================================
@@ -248,12 +224,12 @@ class GBTDecorations {
   // KO: 시트 / 모달 데코레이션
   // ========================================
 
-  /// EN: Bottom sheet decoration
-  /// KO: 바텀 시트 데코레이션
+  /// EN: Bottom sheet decoration (16px radius)
+  /// KO: 바텀 시트 데코레이션 (16px 반지름)
   static BoxDecoration bottomSheet({bool isDark = false}) => BoxDecoration(
     color: isDark ? GBTColors.darkSurface : GBTColors.surface,
     borderRadius: const BorderRadius.vertical(
-      top: Radius.circular(GBTSpacing.radiusXl),
+      top: Radius.circular(GBTSpacing.radiusLg),
     ),
     boxShadow: isDark ? GBTShadows.darkLg : GBTShadows.lg,
   );
@@ -264,11 +240,11 @@ class GBTDecorations {
 class GBTAnimations {
   GBTAnimations._();
 
-  // EN: Standard durations
-  // KO: 표준 지속 시간
-  static const Duration fast = Duration(milliseconds: 150);
-  static const Duration normal = Duration(milliseconds: 250);
-  static const Duration slow = Duration(milliseconds: 350);
+  // EN: Standard durations (organic timing)
+  // KO: 표준 지속 시간 (유기적 타이밍)
+  static const Duration fast = Duration(milliseconds: 130);
+  static const Duration normal = Duration(milliseconds: 280);
+  static const Duration slow = Duration(milliseconds: 420);
   static const Duration emphasis = Duration(milliseconds: 500);
 
   // EN: Standard curves

@@ -13,6 +13,7 @@ import '../../../../core/utils/result.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/utils/image_url_extractor.dart';
 import '../../../../core/utils/media_url.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
@@ -482,12 +483,24 @@ class _PostDetailContent extends StatelessWidget {
       commentsState,
       fallback: post.commentCount,
     );
-    final contentText = _stripImageMarkdown(post.content ?? '');
-    final embeddedImageUrls = _extractImageUrls(post.content);
-    final mergedImageUrls = {
-      ...post.imageUrls.map(resolveMediaUrl),
-      ...embeddedImageUrls.map(resolveMediaUrl),
-    }.where((url) => url.isNotEmpty).toList();
+    final contentText = stripImageMarkdown(post.content ?? '');
+    // EN: Use API imageUrls as primary source. Only fall back to embedded
+    //     extraction when the API returns no images, to avoid duplicates.
+    // KO: API imageUrls를 우선 사용. 중복 방지를 위해 API에 이미지가 없을 때만
+    //     콘텐츠에서 추출합니다.
+    final List<String> mergedImageUrls;
+    if (post.imageUrls.isNotEmpty) {
+      mergedImageUrls = post.imageUrls
+          .map(resolveMediaUrl)
+          .where((url) => url.isNotEmpty)
+          .toList();
+    } else {
+      mergedImageUrls = extractImageUrls(post.content)
+          .map(resolveMediaUrl)
+          .where((url) => url.isNotEmpty)
+          .toSet()
+          .toList();
+    }
     final isOwnPost = currentUserId != null && currentUserId == post.authorId;
 
     // EN: Use theme-aware colors for dark mode compatibility.
@@ -565,29 +578,34 @@ class _PostDetailContent extends StatelessWidget {
                 ),
               if (mergedImageUrls.isNotEmpty) ...[
                 const SizedBox(height: GBTSpacing.md),
-                Wrap(
-                  spacing: GBTSpacing.sm,
-                  runSpacing: GBTSpacing.sm,
-                  children: mergedImageUrls
-                      .map(
-                        (url) => Semantics(
-                          label: '첨부 이미지',
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(
-                              GBTSpacing.radiusMd,
-                            ),
-                            child: GBTImage(
-                              imageUrl: url,
-                              width: 120,
-                              height: 120,
-                              fit: BoxFit.cover,
-                              semanticLabel: '첨부 이미지',
-                            ),
-                          ),
+                // EN: Full-width images with tap-to-zoom.
+                // KO: 탭하면 확대되는 풀 와이드 이미지.
+                for (int i = 0; i < mergedImageUrls.length; i++) ...[
+                  if (i > 0) const SizedBox(height: GBTSpacing.sm),
+                  Semantics(
+                    label: '첨부 이미지 ${i + 1}/${mergedImageUrls.length}',
+                    hint: '탭하면 확대합니다',
+                    button: true,
+                    child: GestureDetector(
+                      onTap: () => _showFullScreenImage(
+                        context,
+                        mergedImageUrls,
+                        i,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(
+                          GBTSpacing.radiusMd,
                         ),
-                      )
-                      .toList(),
-                ),
+                        child: GBTImage(
+                          imageUrl: mergedImageUrls[i],
+                          width: double.infinity,
+                          fit: BoxFit.fitWidth,
+                          semanticLabel: '첨부 이미지 ${i + 1}',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
               const SizedBox(height: GBTSpacing.md),
               Semantics(
@@ -1081,6 +1099,108 @@ class _CommentItem extends StatelessWidget {
   }
 }
 
+/// EN: Opens a full-screen zoomable image viewer.
+/// KO: 풀스크린 확대 가능한 이미지 뷰어를 엽니다.
+void _showFullScreenImage(
+  BuildContext context,
+  List<String> imageUrls,
+  int initialIndex,
+) {
+  Navigator.of(context).push(
+    PageRouteBuilder(
+      opaque: false,
+      barrierColor: Colors.black87,
+      barrierDismissible: true,
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return _FullScreenImageViewer(
+          imageUrls: imageUrls,
+          initialIndex: initialIndex,
+        );
+      },
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+    ),
+  );
+}
+
+class _FullScreenImageViewer extends StatefulWidget {
+  const _FullScreenImageViewer({
+    required this.imageUrls,
+    required this.initialIndex,
+  });
+
+  final List<String> imageUrls;
+  final int initialIndex;
+
+  @override
+  State<_FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
+  late final PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasMultiple = widget.imageUrls.length > 1;
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: hasMultiple
+            ? Text(
+                '${_currentIndex + 1} / ${widget.imageUrls.length}',
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              )
+            : null,
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          tooltip: '닫기',
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.imageUrls.length,
+        onPageChanged: (index) => setState(() => _currentIndex = index),
+        itemBuilder: (context, index) {
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => Navigator.of(context).pop(),
+            child: Center(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: GBTImage(
+                  imageUrl: widget.imageUrls[index],
+                  fit: BoxFit.contain,
+                  semanticLabel: '이미지 ${index + 1}',
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 String _commentCountLabel(
   AsyncValue<List<PostComment>> state, {
   int? fallback,
@@ -1089,122 +1209,6 @@ String _commentCountLabel(
     data: (comments) => comments.length.toString(),
     orElse: () => (fallback ?? 0).toString(),
   );
-}
-
-List<String> _extractImageUrls(String? content) {
-  if (content == null || content.isEmpty) return const [];
-  final urls = <String>{};
-  urls.addAll(_extractMarkdownImageUrls(content));
-  urls.addAll(_extractHtmlImageUrls(content));
-  urls.addAll(_extractInlineImageUrls(content));
-  return urls.toList();
-}
-
-String _stripImageMarkdown(String content) {
-  if (content.isEmpty) return content;
-  var sanitized = content
-      .replaceAll(_markdownImagePattern, '')
-      .replaceAll(_htmlImagePattern, '');
-  sanitized = _stripInlineImageUrls(sanitized);
-  sanitized = sanitized.replaceAll(RegExp(r'\n{3,}'), '\n\n');
-  sanitized = sanitized.replaceAll(RegExp(r'[ \t]{2,}'), ' ');
-  return sanitized.trim();
-}
-
-const _publicR2Host = 'r2.pyrimidines.org';
-const _legacyR2Suffix = 'r2.cloudflarestorage.com';
-const _imageExtensions = <String>{
-  '.jpg',
-  '.jpeg',
-  '.png',
-  '.webp',
-  '.gif',
-  '.bmp',
-  '.heic',
-  '.heif',
-};
-
-final _markdownImagePattern = RegExp(r'!\[[^\]]*\]\((https?://[^)\s]+)[^)]*\)');
-final _htmlImagePattern = RegExp(
-  r'''<img[^>]*src=["'](https?://[^"']+)["']''',
-  caseSensitive: false,
-);
-final _urlPattern = RegExp(r'''(https?://[^\s)<>"']+)''');
-final _bareR2Pattern = RegExp(
-  r'''(r2\.pyrimidines\.org/[^\s)<>"']+)''',
-  caseSensitive: false,
-);
-
-List<String> _extractMarkdownImageUrls(String content) {
-  return _markdownImagePattern
-      .allMatches(content)
-      .map((match) => match.group(1) ?? '')
-      .where((url) => url.isNotEmpty)
-      .toList();
-}
-
-List<String> _extractHtmlImageUrls(String content) {
-  return _htmlImagePattern
-      .allMatches(content)
-      .map((match) => match.group(1) ?? '')
-      .where((url) => url.isNotEmpty)
-      .toList();
-}
-
-List<String> _extractInlineImageUrls(String content) {
-  final urls = <String>[];
-  urls.addAll(
-    _urlPattern
-        .allMatches(content)
-        .map((match) => match.group(1) ?? '')
-        .where((url) => _isLikelyImageUrl(url)),
-  );
-  urls.addAll(
-    _bareR2Pattern
-        .allMatches(content)
-        .map((match) => match.group(1) ?? '')
-        .where((url) => _isLikelyImageUrl(_ensureScheme(url))),
-  );
-  return urls;
-}
-
-String _stripInlineImageUrls(String content) {
-  var sanitized = content.replaceAllMapped(_urlPattern, (match) {
-    final url = match.group(1) ?? '';
-    return _isLikelyImageUrl(url) ? '' : url;
-  });
-  sanitized = sanitized.replaceAllMapped(_bareR2Pattern, (match) {
-    final url = match.group(1) ?? '';
-    return _isLikelyImageUrl(_ensureScheme(url)) ? '' : url;
-  });
-  return sanitized;
-}
-
-bool _isLikelyImageUrl(String value) {
-  if (value.isEmpty) return false;
-  final resolvedValue = _ensureScheme(value);
-  final uri = Uri.tryParse(resolvedValue);
-  if (uri == null || uri.host.isEmpty) return false;
-  if (uri.scheme != 'http' && uri.scheme != 'https') return false;
-
-  final normalizedUri = Uri.tryParse(resolveMediaUrl(resolvedValue)) ?? uri;
-  final host = normalizedUri.host.toLowerCase();
-  if (host == _publicR2Host || host.endsWith(_legacyR2Suffix)) {
-    return true;
-  }
-
-  final path = normalizedUri.path.toLowerCase();
-  return _imageExtensions.any(path.endsWith);
-}
-
-String _ensureScheme(String value) {
-  if (value.startsWith('http://') || value.startsWith('https://')) {
-    return value;
-  }
-  if (value.startsWith('r2.pyrimidines.org/')) {
-    return 'https://$value';
-  }
-  return value;
 }
 
 /// EN: Avatar widget with accessible touch targets.

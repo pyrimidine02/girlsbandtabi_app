@@ -26,24 +26,24 @@ class GBTTypography {
   // KO: 디스플레이 스타일 (큰 제목)
   // ========================================
   static TextStyle get displayLarge => _baseStyle.copyWith(
-    fontSize: 40,
-    fontWeight: FontWeight.w800,
-    letterSpacing: -0.5,
-    height: 1.1,
+    fontSize: 32,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0,
+    height: 1.15,
   );
 
   static TextStyle get displayMedium => _baseStyle.copyWith(
-    fontSize: 34,
-    fontWeight: FontWeight.w700,
-    letterSpacing: -0.25,
-    height: 1.14,
-  );
-
-  static TextStyle get displaySmall => _baseStyle.copyWith(
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: FontWeight.w700,
     letterSpacing: 0,
     height: 1.2,
+  );
+
+  static TextStyle get displaySmall => _baseStyle.copyWith(
+    fontSize: 22,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0,
+    height: 1.25,
   );
 
   // ========================================
@@ -51,24 +51,24 @@ class GBTTypography {
   // KO: 헤드라인 스타일 (섹션 헤더)
   // ========================================
   static TextStyle get headlineLarge => _baseStyle.copyWith(
-    fontSize: 26,
-    fontWeight: FontWeight.w700,
-    letterSpacing: 0,
-    height: 1.23,
-  );
-
-  static TextStyle get headlineMedium => _baseStyle.copyWith(
     fontSize: 22,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w700,
     letterSpacing: 0,
     height: 1.27,
   );
 
-  static TextStyle get headlineSmall => _baseStyle.copyWith(
-    fontSize: 20,
-    fontWeight: FontWeight.w600,
+  static TextStyle get headlineMedium => _baseStyle.copyWith(
+    fontSize: 18,
+    fontWeight: FontWeight.w500,
     letterSpacing: 0,
-    height: 1.3,
+    height: 1.33,
+  );
+
+  static TextStyle get headlineSmall => _baseStyle.copyWith(
+    fontSize: 16,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 0,
+    height: 1.38,
   );
 
   // ========================================
@@ -85,14 +85,14 @@ class GBTTypography {
   static TextStyle get titleMedium => _baseStyle.copyWith(
     fontSize: 16,
     fontWeight: FontWeight.w500,
-    letterSpacing: 0.15,
+    letterSpacing: 0,
     height: 1.5,
   );
 
   static TextStyle get titleSmall => _baseStyle.copyWith(
     fontSize: 14,
     fontWeight: FontWeight.w500,
-    letterSpacing: 0.1,
+    letterSpacing: 0,
     height: 1.43,
   );
 
@@ -103,21 +103,21 @@ class GBTTypography {
   static TextStyle get bodyLarge => _baseStyle.copyWith(
     fontSize: 16,
     fontWeight: FontWeight.w400,
-    letterSpacing: 0.5,
+    letterSpacing: 0,
     height: 1.5,
   );
 
   static TextStyle get bodyMedium => _baseStyle.copyWith(
     fontSize: 14,
     fontWeight: FontWeight.w400,
-    letterSpacing: 0.25,
+    letterSpacing: 0,
     height: 1.43,
   );
 
   static TextStyle get bodySmall => _baseStyle.copyWith(
     fontSize: 12,
     fontWeight: FontWeight.w400,
-    letterSpacing: 0.4,
+    letterSpacing: 0,
     height: 1.33,
   );
 
@@ -128,21 +128,21 @@ class GBTTypography {
   static TextStyle get labelLarge => _baseStyle.copyWith(
     fontSize: 14,
     fontWeight: FontWeight.w500,
-    letterSpacing: 0.1,
+    letterSpacing: 0,
     height: 1.43,
   );
 
   static TextStyle get labelMedium => _baseStyle.copyWith(
     fontSize: 12,
     fontWeight: FontWeight.w500,
-    letterSpacing: 0.5,
+    letterSpacing: 0,
     height: 1.33,
   );
 
   static TextStyle get labelSmall => _baseStyle.copyWith(
     fontSize: 11,
     fontWeight: FontWeight.w500,
-    letterSpacing: 0.5,
+    letterSpacing: 0,
     height: 1.45,
   );
 
@@ -153,14 +153,14 @@ class GBTTypography {
   static TextStyle get caption => _baseStyle.copyWith(
     fontSize: 10,
     fontWeight: FontWeight.w400,
-    letterSpacing: 0.5,
+    letterSpacing: 0,
     height: 1.2,
   );
 
   static TextStyle get overline => _baseStyle.copyWith(
     fontSize: 10,
     fontWeight: FontWeight.w500,
-    letterSpacing: 1.5,
+    letterSpacing: 0.5,
     height: 1.6,
   );
 
@@ -176,8 +176,8 @@ class GBTTypography {
 
   static TextStyle get badge => _baseStyle.copyWith(
     fontSize: 10,
-    fontWeight: FontWeight.w600,
-    letterSpacing: 0.5,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 0,
     height: 1.0,
   );
 

@@ -36,7 +36,7 @@ class HomeRepositoryImpl implements HomeRepository {
       final cacheResult = await _cacheManager.resolve<HomeSummaryDto>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: const Duration(minutes: 10),
         fetcher: () => _fetchSummary(projectId, unitIds),
         toJson: (dto) => dto.toJson(),
         fromJson: (json) => HomeSummaryDto.fromJson(json),

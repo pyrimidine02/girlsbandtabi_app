@@ -1,12 +1,11 @@
-/// EN: GBT bottom navigation bar for 5-tab structure with animations.
-/// KO: 애니메이션을 포함한 5탭 구조를 위한 GBT 하단 네비게이션 바.
+/// EN: GBT bottom navigation bar — Spotify/Instagram style simple nav.
+/// KO: Spotify/Instagram 스타일의 심플한 GBT 하단 네비게이션 바.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../theme/gbt_colors.dart';
-import '../../theme/gbt_decorations.dart';
 import '../../theme/gbt_spacing.dart';
 import '../../theme/gbt_typography.dart';
 
@@ -26,8 +25,8 @@ class GBTBottomNavItem {
   final String? semanticLabel;
 }
 
-/// EN: Bottom navigation bar widget with animated selection indicator.
-/// KO: 애니메이션 선택 인디케이터를 포함한 하단 네비게이션 바 위젯.
+/// EN: Bottom navigation bar widget with simple color-change selection.
+/// KO: 간단한 색상 변경 선택을 사용하는 하단 네비게이션 바 위젯.
 class GBTBottomNav extends StatelessWidget {
   const GBTBottomNav({
     super.key,
@@ -94,7 +93,9 @@ class GBTBottomNav extends StatelessWidget {
   }
 }
 
-class _BottomNavItem extends StatefulWidget {
+/// EN: Individual bottom nav item — stateless, color-change only.
+/// KO: 개별 하단 네비 아이템 — 상태 없음, 색상 변경만.
+class _BottomNavItem extends StatelessWidget {
   const _BottomNavItem({
     required this.item,
     required this.isSelected,
@@ -112,131 +113,58 @@ class _BottomNavItem extends StatefulWidget {
   final int totalTabs;
 
   @override
-  State<_BottomNavItem> createState() => _BottomNavItemState();
-}
-
-class _BottomNavItemState extends State<_BottomNavItem>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: GBTAnimations.fast,
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: GBTAnimations.pressedScale).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _handleTapDown(TapDownDetails details) {
-    _controller.forward();
-  }
-
-  void _handleTapUp(TapUpDetails details) {
-    _controller.reverse();
-  }
-
-  void _handleTapCancel() {
-    _controller.reverse();
-  }
-
-  @override
   Widget build(BuildContext context) {
     // EN: Use darkPrimary (lighter purple) for selected state in dark mode
     // KO: 다크 모드에서 선택 상태에 darkPrimary (밝은 보라) 사용
-    final selectedColor = widget.isDark
+    final selectedColor = isDark
         ? GBTColors.darkPrimary
         : GBTColors.primary;
-    final unselectedColor = widget.isDark
+    final unselectedColor = isDark
         ? GBTColors.darkTextTertiary
         : GBTColors.textTertiary;
-    final color = widget.isSelected ? selectedColor : unselectedColor;
+    final color = isSelected ? selectedColor : unselectedColor;
 
     return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: _handleTapDown,
-        onTapUp: _handleTapUp,
-        onTapCancel: _handleTapCancel,
-        onTap: () {
-          HapticFeedback.selectionClick();
-          widget.onTap();
-        },
-        child: ScaleTransition(
-          scale: _scaleAnimation,
-          child: Semantics(
-            label: widget.item.semanticLabel ?? widget.item.label,
-            hint: widget.isSelected
-                ? null
-                : '탭하면 ${widget.item.label} 탭으로 이동합니다',
-            button: true,
-            selected: widget.isSelected,
-            // EN: Provide tab position info for screen readers
-            // KO: 스크린 리더를 위한 탭 위치 정보 제공
-            child: AnimatedContainer(
-              duration: GBTAnimations.normal,
-              curve: GBTAnimations.defaultCurve,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // EN: Animated selection pill indicator
-                  // KO: 애니메이션 선택 필 인디케이터
-                  AnimatedContainer(
-                    duration: GBTAnimations.normal,
-                    curve: GBTAnimations.defaultCurve,
-                    height: 28,
-                    width: widget.isSelected ? 56 : 28,
-                    decoration: BoxDecoration(
-                      color: widget.isSelected
-                          ? (widget.isDark
-                              ? GBTColors.darkPrimary
-                                  .withValues(alpha: 0.12)
-                              : GBTColors.primary
-                                  .withValues(alpha: 0.08))
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(
-                        GBTSpacing.radiusFull,
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: AnimatedSwitcher(
-                      duration: GBTAnimations.fast,
-                      child: Icon(
-                        widget.isSelected
-                            ? widget.item.activeIcon
-                            : widget.item.icon,
-                        key: ValueKey(widget.isSelected),
-                        color: color,
-                        size: widget.isSelected ? 22 : 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: GBTSpacing.xxs),
-                  AnimatedDefaultTextStyle(
-                    duration: GBTAnimations.normal,
-                    curve: GBTAnimations.defaultCurve,
-                    style: GBTTypography.labelSmall.copyWith(
-                      color: color,
-                      fontWeight: widget.isSelected
-                          ? FontWeight.w600
-                          : FontWeight.w400,
-                      fontSize: widget.isSelected ? 11 : 10,
-                    ),
-                    child: Text(widget.item.label),
-                  ),
-                ],
+      child: Semantics(
+        label: item.semanticLabel ?? item.label,
+        hint: isSelected
+            ? null
+            : '탭하면 ${item.label} 탭으로 이동합니다',
+        button: true,
+        selected: isSelected,
+        // EN: Provide tab position info for screen readers
+        // KO: 스크린 리더를 위한 탭 위치 정보 제공
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap();
+          },
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // EN: Fixed 24px icon, active/inactive swap
+              // KO: 고정 24px 아이콘, 활성/비활성 전환
+              Icon(
+                isSelected ? item.activeIcon : item.icon,
+                color: color,
+                size: GBTSpacing.iconMd, // 24px
               ),
-            ),
+              const SizedBox(height: GBTSpacing.xxs),
+              // EN: Fixed 11px label, w500 selected / w400 unselected
+              // KO: 고정 11px 라벨, 선택 시 w500 / 미선택 시 w400
+              Text(
+                item.label,
+                style: GBTTypography.labelSmall.copyWith(
+                  color: color,
+                  fontWeight: isSelected
+                      ? FontWeight.w500
+                      : FontWeight.w400,
+                  fontSize: 11,
+                ),
+              ),
+            ],
           ),
         ),
       ),

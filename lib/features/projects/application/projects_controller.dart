@@ -2,6 +2,8 @@
 /// KO: 프로젝트/유닛/선택 컨트롤러.
 library;
 
+import 'dart:async' show unawaited;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -81,17 +83,23 @@ class ProjectSelectionController extends StateNotifier<ProjectSelectionState> {
       final match = _findProject(projects, storedProjectKey, storedProjectId);
       if (match != null) {
         final resolvedProjectKey = _projectKeyFor(match);
-        // EN: Use stored selection.
-        // KO: 저장된 선택을 사용합니다.
+        // EN: Use stored selection. Update state + providers first, persist in
+        // parallel so the home controller can start loading immediately.
+        // KO: 저장된 선택 사용. state + 프로바이더를 먼저 업데이트하고, 홈
+        // 컨트롤러가 즉시 로드할 수 있도록 저장은 병렬 수행.
         state = ProjectSelectionState(
           projectKey: resolvedProjectKey,
           unitIds: storedUnitIds,
         );
-        await storage.setSelectedProjectKey(resolvedProjectKey);
-        await storage.setSelectedProjectId(match.id);
         _setSelectedProjectKey(resolvedProjectKey);
         _setSelectedProjectId(match.id);
         _setSelectedUnitIdsIfChanged(storedUnitIds);
+        // EN: Fire-and-forget parallel persist — don't block the UI.
+        // KO: fire-and-forget 병렬 저장 — UI를 차단하지 않음.
+        unawaited(Future.wait([
+          storage.setSelectedProjectKey(resolvedProjectKey),
+          storage.setSelectedProjectId(match.id),
+        ]));
         return;
       }
     }
@@ -118,19 +126,23 @@ class ProjectSelectionController extends StateNotifier<ProjectSelectionState> {
   }
 
   Future<void> selectProject(String? projectKey, {String? projectId}) async {
-    final storage = await _ref.read(localStorageProvider.future);
-    await storage.setSelectedProjectKey(projectKey ?? '');
-    if (projectId != null && projectId.isNotEmpty) {
-      await storage.setSelectedProjectId(projectId);
-      _setSelectedProjectId(projectId);
-    } else {
-      await storage.setSelectedProjectId('');
-      _setSelectedProjectId(null);
-    }
-    await storage.setSelectedUnitIds([]);
+    // EN: Update state + providers immediately, persist in parallel.
+    // KO: state + 프로바이더를 즉시 업데이트하고, 저장은 병렬 수행.
     state = state.copyWith(projectKey: projectKey, unitIds: []);
     _setSelectedProjectKey(projectKey);
+    _setSelectedProjectId(
+      (projectId != null && projectId.isNotEmpty) ? projectId : null,
+    );
     _setSelectedUnitIdsIfChanged(const []);
+
+    final storage = await _ref.read(localStorageProvider.future);
+    unawaited(Future.wait([
+      storage.setSelectedProjectKey(projectKey ?? ''),
+      storage.setSelectedProjectId(
+        (projectId != null && projectId.isNotEmpty) ? projectId : '',
+      ),
+      storage.setSelectedUnitIds([]),
+    ]));
   }
 
   Future<void> selectUnits(List<String> unitIds) async {

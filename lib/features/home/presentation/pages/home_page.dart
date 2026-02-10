@@ -1,5 +1,5 @@
-/// EN: Home page with summary content and quick access
-/// KO: 요약 콘텐츠와 빠른 접근을 제공하는 홈 페이지
+/// EN: Home page — Spotify-style layout with greeting header, carousels, and compact news
+/// KO: 홈 페이지 — 인사말 헤더, 캐러셀, 컴팩트 뉴스를 갖춘 Spotify 스타일 레이아웃
 library;
 
 import 'package:flutter/material.dart';
@@ -11,17 +11,20 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
-import '../../../../core/widgets/cards/gbt_event_card.dart';
-import '../../../../core/widgets/cards/gbt_place_card.dart';
+import '../../../../core/widgets/cards/gbt_event_card_carousel.dart';
+import '../../../../core/widgets/cards/gbt_place_card_carousel.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/layout/gbt_carousel_section.dart';
+import '../../../../core/widgets/layout/gbt_greeting_header.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
+import '../../../projects/application/projects_controller.dart';
 import '../../application/home_controller.dart';
 import '../../domain/entities/home_summary.dart';
 
-/// EN: Home page widget
-/// KO: 홈 페이지 위젯
+/// EN: Home page widget — CustomScrollView with greeting header + carousels
+/// KO: 홈 페이지 위젯 — 인사말 헤더 + 캐러셀을 갖춘 CustomScrollView
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
@@ -32,11 +35,22 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
+    // EN: Eagerly initialize project selection — prevents deadlock where
+    // HomeController waits for selectedProjectKey but ProjectSelector only
+    // renders after content loads.
+    // KO: 프로젝트 선택을 즉시 초기화 — HomeController가 selectedProjectKey를
+    // 기다리지만 ProjectSelector가 콘텐츠 로드 후에만 렌더링되는 데드락 방지.
+    ref.watch(projectSelectionControllerProvider);
     final state = ref.watch(homeControllerProvider);
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text('Girls Band Tabi'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -54,6 +68,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       body: RefreshIndicator(
         onRefresh: () =>
             ref.read(homeControllerProvider.notifier).load(forceRefresh: true),
+        edgeOffset: MediaQuery.of(context).padding.top + kToolbarHeight,
         child: state.when(
           loading: () => _buildLoading(),
           error: (error, _) => _buildError(error),
@@ -64,238 +79,232 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildLoading() {
-    return ListView(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: GBTSpacing.paddingPage,
-      children: const [
-        _WelcomeSection(),
-        SizedBox(height: GBTSpacing.md),
-        ProjectSelector(),
-        SizedBox(height: GBTSpacing.lg),
-        GBTLoading(message: '홈 정보를 불러오는 중...'),
+      slivers: [
+        // EN: Spacer for SliverAppBar overlap
+        // KO: SliverAppBar 겹침을 위한 스페이서
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: MediaQuery.of(context).padding.top + kToolbarHeight,
+          ),
+        ),
+        // EN: Greeting header shimmer placeholder
+        // KO: 인사말 헤더 쉬머 플레이스홀더
+        SliverToBoxAdapter(
+          child: GBTShimmer(
+            child: Container(
+              height: 100,
+              color: isDark
+                  ? GBTColors.darkSurfaceVariant
+                  : GBTColors.primaryLight,
+            ),
+          ),
+        ),
+        const SliverToBoxAdapter(
+          child: SizedBox(height: GBTSpacing.sectionSpacingLg),
+        ),
+        // EN: Carousel shimmer placeholders
+        // KO: 캐러셀 쉬머 플레이스홀더
+        SliverToBoxAdapter(
+          child: _buildCarouselShimmer(isDark),
+        ),
+        const SliverToBoxAdapter(
+          child: SizedBox(height: GBTSpacing.sectionSpacingLg),
+        ),
+        SliverToBoxAdapter(
+          child: _buildCarouselShimmer(isDark),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCarouselShimmer(bool isDark) {
+    final bgColor =
+        isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: GBTSpacing.pageHorizontal,
+          ),
+          child: GBTShimmer(
+            child: Container(
+              height: 22,
+              width: 120,
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: GBTSpacing.sm),
+        SizedBox(
+          height: 160,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(
+              horizontal: GBTSpacing.pageHorizontal,
+            ),
+            itemCount: 4,
+            separatorBuilder: (_, __) =>
+                const SizedBox(width: GBTSpacing.carouselItemGap),
+            itemBuilder: (_, __) => GBTShimmer(
+              child: Container(
+                width: 160,
+                height: 160,
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildError(Object error) {
     final message = error is Failure ? error.userMessage : '홈 정보를 불러오지 못했어요';
-    return ListView(
+    return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: GBTSpacing.paddingPage,
-      children: [
-        const SizedBox(height: GBTSpacing.xl),
-        GBTErrorState(
-          message: message,
-          onRetry: () => ref
-              .read(homeControllerProvider.notifier)
-              .load(forceRefresh: true),
+      slivers: [
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: MediaQuery.of(context).padding.top + kToolbarHeight,
+          ),
+        ),
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: GBTErrorState(
+            message: message,
+            onRetry: () => ref
+                .read(homeControllerProvider.notifier)
+                .load(forceRefresh: true),
+          ),
         ),
       ],
     );
   }
 
   Widget _buildContent(HomeSummary summary) {
-    return ListView(
-      padding: GBTSpacing.paddingPage,
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        const _WelcomeSection(),
-        const SizedBox(height: GBTSpacing.md),
-        const ProjectSelector(),
-        const SizedBox(height: GBTSpacing.lg),
-        const _QuickAccessSection(),
-        const SizedBox(height: GBTSpacing.lg),
-        if (summary.isEmpty) const GBTEmptyState(message: '표시할 홈 콘텐츠가 없습니다'),
-        if (summary.recommendedPlaces.isNotEmpty) ...[
-          _SectionHeader(title: '추천 장소', onSeeAll: () => context.go('/places')),
-          const SizedBox(height: GBTSpacing.sm),
-          ...summary.recommendedPlaces
-              .take(3)
-              .map(
-                (place) => Padding(
-                  padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
-                  child: GBTPlaceCardHorizontal(
-                    name: place.name,
-                    location: place.location,
-                    imageUrl: place.imageUrl,
-                    distance: place.distanceLabel,
-                    isVerified: place.isVerified,
-                    isFavorite: place.isFavorite,
-                    onTap: () => context.goToPlaceDetail(place.id),
-                  ),
-                ),
-              ),
-          const SizedBox(height: GBTSpacing.lg),
-        ],
-        if (summary.trendingLiveEvents.isNotEmpty) ...[
-          _SectionHeader(title: '트렌딩 라이브', onSeeAll: () => context.go('/live')),
-          const SizedBox(height: GBTSpacing.sm),
-          ...summary.trendingLiveEvents
-              .take(2)
-              .map(
-                (event) => Padding(
-                  padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
-                  child: GBTEventCard(
-                    title: event.title,
-                    subtitle: event.artistName,
-                    meta: event.venue,
-                    date: event.dateLabel,
-                    posterUrl: event.posterUrl,
-                    isLive: event.isLive,
-                    onTap: () => context.goToLiveDetail(event.id),
-                  ),
-                ),
-              ),
-          const SizedBox(height: GBTSpacing.lg),
-        ],
-        if (summary.latestNews.isNotEmpty) ...[
-          _SectionHeader(title: '최신 소식', onSeeAll: () => context.go('/info')),
-          const SizedBox(height: GBTSpacing.sm),
-          ...summary.latestNews
-              .take(3)
-              .map((news) => _NewsListTile(item: news)),
-          const SizedBox(height: GBTSpacing.xl),
-        ],
-      ],
-    );
-  }
-}
-
-/// EN: Welcome section widget
-/// KO: 환영 섹션 위젯
-class _WelcomeSection extends StatelessWidget {
-  const _WelcomeSection();
-
-  @override
-  Widget build(BuildContext context) {
-    // EN: Use dark-mode-aware gradient for the welcome banner.
-    // KO: 환영 배너에 다크 모드 인식 그라디언트를 사용합니다.
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Semantics(
-      label: '성지순례를 시작하세요! 좋아하는 밴드의 발자취를 따라가보세요',
-      child: Container(
-        padding: GBTSpacing.paddingMd,
-        decoration: BoxDecoration(
-          gradient: isDark
-              ? GBTColors.darkAccentGradient
-              : GBTColors.accentGradient,
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '성지순례를 시작하세요!',
-              style: GBTTypography.titleLarge.copyWith(color: Colors.white),
-            ),
-            const SizedBox(height: GBTSpacing.xs),
-            Text(
-              '좋아하는 밴드의 발자취를 따라가보세요',
-              style: GBTTypography.bodyMedium.copyWith(
-                color: Colors.white.withValues(alpha: 0.9),
-              ),
-            ),
-          ],
-        ),
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
       ),
-    );
-  }
-}
-
-/// EN: Quick access section widget
-/// KO: 빠른 접근 섹션 위젯
-class _QuickAccessSection extends StatelessWidget {
-  const _QuickAccessSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _QuickAccessCard(
-            icon: Icons.place,
-            label: '근처 장소',
-            color: GBTColors.accentBlue,
-            onTap: () => context.go('/places'),
-          ),
+      slivers: [
+        // 1. GBTGreetingHeader (includes SafeArea + AppBar space)
+        const SliverToBoxAdapter(
+          child: GBTGreetingHeader(),
         ),
-        const SizedBox(width: GBTSpacing.sm),
-        Expanded(
-          child: _QuickAccessCard(
-            icon: Icons.calendar_today,
-            label: '이벤트',
-            color: GBTColors.secondary,
-            onTap: () => context.go('/live'),
-          ),
-        ),
-        const SizedBox(width: GBTSpacing.sm),
-        Expanded(
-          child: _QuickAccessCard(
-            icon: Icons.favorite,
-            label: '즐겨찾기',
-            color: GBTColors.error,
-            onTap: () => context.push('/favorites'),
-          ),
-        ),
-      ],
-    );
-  }
-}
 
-/// EN: Quick access card widget
-/// KO: 빠른 접근 카드 위젯
-class _QuickAccessCard extends StatelessWidget {
-  const _QuickAccessCard({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    // EN: Use dark-mode-aware background alpha for the quick access card.
-    // KO: 빠른 접근 카드에 다크 모드 인식 배경 알파를 사용합니다.
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Semantics(
-      button: true,
-      label: '$label 바로가기',
-      child: Material(
-        color: color.withValues(alpha: isDark ? 0.2 : 0.1),
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        // 2. ProjectSelector — edge-to-edge avatar row (Blip style)
+        const SliverToBoxAdapter(
           child: Padding(
-            padding: GBTSpacing.paddingMd,
-            child: Column(
-              children: [
-                Icon(icon, color: color, size: GBTSpacing.iconLg),
-                const SizedBox(height: GBTSpacing.xs),
-                Text(
-                  label,
-                  style: GBTTypography.labelMedium.copyWith(color: color),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+            padding: EdgeInsets.only(top: GBTSpacing.lg),
+            child: ProjectSelector(),
           ),
         ),
-      ),
+
+        // EN: Empty state
+        // KO: 빈 상태
+        if (summary.isEmpty)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.only(top: GBTSpacing.xl),
+              child: GBTEmptyState(message: '표시할 홈 콘텐츠가 없습니다'),
+            ),
+          ),
+
+        // 3. Recommended places carousel
+        if (summary.recommendedPlaces.isNotEmpty) ...[
+          const SliverToBoxAdapter(
+            child: SizedBox(height: GBTSpacing.sectionSpacingLg),
+          ),
+          SliverToBoxAdapter(
+            child: GBTCarouselSection(
+              title: '추천 장소',
+              itemCount: summary.recommendedPlaces.length,
+              itemHeight: 220,
+              onSeeAll: () => context.go('/places'),
+              itemBuilder: (context, index) {
+                final place = summary.recommendedPlaces[index];
+                return GBTPlaceCardCarousel(
+                  name: place.name,
+                  location: place.location,
+                  imageUrl: place.imageUrl,
+                  onTap: () => context.goToPlaceDetail(place.id),
+                );
+              },
+            ),
+          ),
+        ],
+
+        // 4. Trending live events carousel
+        if (summary.trendingLiveEvents.isNotEmpty) ...[
+          const SliverToBoxAdapter(
+            child: SizedBox(height: GBTSpacing.sectionSpacingLg),
+          ),
+          SliverToBoxAdapter(
+            child: GBTCarouselSection(
+              title: '트렌딩 라이브',
+              itemCount: summary.trendingLiveEvents.length,
+              itemHeight: 220,
+              onSeeAll: () => context.go('/live'),
+              itemBuilder: (context, index) {
+                final event = summary.trendingLiveEvents[index];
+                return GBTEventCardCarousel(
+                  title: event.title,
+                  date: event.dateLabel,
+                  posterUrl: event.posterUrl,
+                  isLive: event.isLive,
+                  onTap: () => context.goToLiveDetail(event.id),
+                );
+              },
+            ),
+          ),
+        ],
+
+        // 5. Latest news — compact borderless list
+        if (summary.latestNews.isNotEmpty) ...[
+          const SliverToBoxAdapter(
+            child: SizedBox(height: GBTSpacing.sectionSpacingLg),
+          ),
+          SliverToBoxAdapter(
+            child: _SectionHeader(
+              title: '최신 소식',
+              onSeeAll: () => context.go('/info'),
+            ),
+          ),
+          SliverList.builder(
+            itemCount: summary.latestNews.take(5).length,
+            itemBuilder: (context, index) {
+              final news = summary.latestNews[index];
+              return _CompactNewsTile(item: news);
+            },
+          ),
+        ],
+
+        // 6. Bottom spacing
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: GBTSpacing.xxl + MediaQuery.of(context).padding.bottom,
+          ),
+        ),
+      ],
     );
   }
 }
 
-/// EN: Section header widget
-/// KO: 섹션 헤더 위젯
+/// EN: Section header widget — headlineLarge style
+/// KO: 섹션 헤더 위젯 — headlineLarge 스타일
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.title, required this.onSeeAll});
 
@@ -304,87 +313,135 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: GBTTypography.titleMedium.copyWith(
-            fontWeight: FontWeight.w600,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.pageHorizontal,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: GBTTypography.headlineLarge.copyWith(
+              color: isDark
+                  ? GBTColors.darkTextPrimary
+                  : GBTColors.textPrimary,
+            ),
           ),
-        ),
-        TextButton(
-          onPressed: onSeeAll,
-          child: Semantics(label: '$title 전체보기', child: const Text('전체보기')),
-        ),
-      ],
+          Semantics(
+            label: '$title 전체보기',
+            button: true,
+            child: TextButton(
+              onPressed: onSeeAll,
+              child: Text(
+                '전체보기',
+                style: GBTTypography.bodySmall.copyWith(
+                  color: isDark
+                      ? GBTColors.darkPrimary
+                      : GBTColors.primary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-/// EN: News list tile widget for the home page.
-/// KO: 홈 페이지용 뉴스 리스트 타일 위젯.
-class _NewsListTile extends StatelessWidget {
-  const _NewsListTile({required this.item});
+/// EN: Compact borderless news tile — 56x56 thumbnail + title, no Card wrapper
+/// KO: 컴팩트 무테두리 뉴스 타일 — 56x56 썸네일 + 제목, Card 래퍼 없음
+class _CompactNewsTile extends StatelessWidget {
+  const _CompactNewsTile({required this.item});
 
   final HomeNewsItem item;
 
   @override
   Widget build(BuildContext context) {
-    // EN: Use theme-aware colors for dark mode compatibility.
-    // KO: 다크 모드 호환성을 위해 테마 인식 색상을 사용합니다.
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final subtitleColor = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
-    final placeholderBg = isDark
-        ? GBTColors.darkSurfaceVariant
-        : GBTColors.surfaceVariant;
-    final placeholderIcon = isDark
-        ? GBTColors.darkTextTertiary
-        : GBTColors.textTertiary;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: GBTSpacing.sm),
-      child: ListTile(
+    return Semantics(
+      label: item.title,
+      hint: '탭하면 뉴스 상세로 이동합니다',
+      button: true,
+      child: InkWell(
         onTap: () => context.goToNewsDetail(item.id),
-        leading: item.imageUrl != null
-            ? GBTImage(
-                imageUrl: item.imageUrl!,
-                width: 56,
-                height: 56,
-                fit: BoxFit.cover,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: GBTSpacing.pageHorizontal,
+            vertical: GBTSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              // EN: 56x56 thumbnail
+              // KO: 56x56 썸네일
+              ClipRRect(
                 borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-                semanticLabel: '${item.title} 뉴스 썸네일',
-                useShimmer: false,
-              )
-            : Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: placeholderBg,
-                  borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+                child: SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: item.imageUrl != null
+                      ? GBTImage(
+                          imageUrl: item.imageUrl!,
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                          semanticLabel: '${item.title} 뉴스 썸네일',
+                          useShimmer: false,
+                        )
+                      : Container(
+                          color: isDark
+                              ? GBTColors.darkSurfaceVariant
+                              : GBTColors.primaryLight,
+                          child: Icon(
+                            Icons.article_outlined,
+                            color: isDark
+                                ? GBTColors.darkTextTertiary
+                                : GBTColors.primaryMuted,
+                            size: 24,
+                          ),
+                        ),
                 ),
-                child: Icon(Icons.article_outlined, color: placeholderIcon),
               ),
-        title: Text(
-          item.title,
-          style: GBTTypography.bodyMedium,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: item.summary != null
-            ? Text(
-                item.summary!,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: GBTTypography.bodySmall.copyWith(color: subtitleColor),
-              )
-            : null,
-        trailing: Icon(
-          Icons.chevron_right,
-          semanticLabel: '뉴스 상세 보기',
-          color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+              const SizedBox(width: GBTSpacing.md),
+              // EN: Title + optional summary
+              // KO: 제목 + 선택적 요약
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      item.title,
+                      style: GBTTypography.bodyMedium.copyWith(
+                        color: isDark
+                            ? GBTColors.darkTextPrimary
+                            : GBTColors.textPrimary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (item.summary != null) ...[
+                      const SizedBox(height: GBTSpacing.xxs),
+                      Text(
+                        item.summary!,
+                        style: GBTTypography.bodySmall.copyWith(
+                          color: isDark
+                              ? GBTColors.darkTextSecondary
+                              : GBTColors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

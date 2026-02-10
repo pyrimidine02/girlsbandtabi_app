@@ -12,8 +12,12 @@ import '../../theme/gbt_typography.dart';
 import '../common/gbt_image.dart';
 import '../common/gbt_pressable.dart';
 
-/// EN: Event card widget for list display with press animation
-/// KO: 프레스 애니메이션을 포함한 리스트 표시용 이벤트 카드 위젯
+/// EN: Event card widget for list display with press animation.
+///     Uses a bottom-divider style instead of elevated card shadow
+///     for a neutral-first, content-focused layout.
+/// KO: 프레스 애니메이션을 포함한 리스트 표시용 이벤트 카드 위젯.
+///     뉴트럴 우선, 콘텐츠 중심 레이아웃을 위해 카드 그림자 대신
+///     하단 구분선 스타일을 사용합니다.
 class GBTEventCard extends StatelessWidget {
   const GBTEventCard({
     super.key,
@@ -98,7 +102,19 @@ class GBTEventCard extends StatelessWidget {
         child: AnimatedContainer(
           duration: GBTAnimations.normal,
           curve: GBTAnimations.defaultCurve,
-          decoration: GBTDecorations.card(isDark: isDark),
+          // EN: Bottom-divider style — no shadow, neutral surface with
+          //     a thin bottom border for visual separation in lists.
+          // KO: 하단 구분선 스타일 — 그림자 없이 뉴트럴 표면과
+          //     리스트 내 시각적 분리를 위한 얇은 하단 테두리.
+          decoration: BoxDecoration(
+            color: isDark ? GBTColors.darkSurface : GBTColors.surface,
+            border: Border(
+              bottom: BorderSide(
+                color: isDark ? GBTColors.darkBorder : GBTColors.divider,
+                width: 0.5,
+              ),
+            ),
+          ),
           child: Padding(
             padding: GBTSpacing.paddingMd,
             child: Row(
@@ -169,12 +185,16 @@ class GBTEventCard extends StatelessWidget {
 
                       const SizedBox(height: GBTSpacing.xxs),
 
+                      // EN: Subtitle uses neutral secondary text color
+                      //     (was accent/amber, now neutral for content-first design)
+                      // KO: 자막은 뉴트럴 보조 텍스트 색상을 사용
+                      //     (이전 액센트/앰버에서 콘텐츠 우선 디자인을 위해 뉴트럴로 변경)
                       Text(
                         subtitle,
                         style: GBTTypography.bodySmall.copyWith(
                           color: isDark
-                              ? GBTColors.darkAccent
-                              : GBTColors.accent,
+                              ? GBTColors.darkTextSecondary
+                              : GBTColors.textSecondary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -216,11 +236,11 @@ class GBTEventCard extends StatelessWidget {
                 // KO: 포스터 또는 즐겨찾기 버튼
                 Column(
                   children: [
-                    // EN: Poster with rounded corners
-                    // KO: 둥근 모서리 포스터
+                    // EN: Poster with rounded corners (80x106, larger for visual weight)
+                    // KO: 둥근 모서리 포스터 (80x106, 시각적 비중을 위해 더 큰 크기)
                     Container(
-                      width: 60,
-                      height: 80,
+                      width: 80,
+                      height: 106,
                       decoration: BoxDecoration(
                         color: isDark
                             ? GBTColors.darkSurfaceElevated
@@ -232,8 +252,8 @@ class GBTEventCard extends StatelessWidget {
                       child: posterUrl != null
                           ? GBTImage(
                               imageUrl: posterUrl!,
-                              width: 60,
-                              height: 80,
+                              width: 80,
+                              height: 106,
                               fit: BoxFit.cover,
                               borderRadius: BorderRadius.circular(
                                 GBTSpacing.radiusSm,
@@ -303,8 +323,12 @@ class GBTEventCard extends StatelessWidget {
   }
 }
 
-/// EN: Date badge widget with dark mode support
-/// KO: 다크 모드를 지원하는 날짜 배지 위젯
+/// EN: Date badge widget — plain text, no colored background.
+///     Displays day number and month in neutral tones for a
+///     content-first, neutral design system.
+/// KO: 날짜 배지 위젯 — 색상 배경 없이 텍스트만 표시.
+///     콘텐츠 우선, 뉴트럴 디자인 시스템에 맞게
+///     일 번호와 월을 뉴트럴 톤으로 표시합니다.
 class _DateBadge extends StatelessWidget {
   const _DateBadge({
     required this.date,
@@ -342,33 +366,37 @@ class _DateBadge extends StatelessWidget {
       }
     }
 
-    // EN: Compute colors based on upcoming state and dark mode
-    // KO: 예정 상태와 다크 모드에 따른 색상 계산
-    final Color bgColor;
-    final Color primaryColor;
-    final Color secondaryColor;
+    // EN: Neutral text colors — upcoming uses primary/secondary text,
+    //     past events use tertiary (dimmed) text for visual hierarchy.
+    // KO: 뉴트럴 텍스트 색상 — 예정 이벤트는 기본/보조 텍스트 사용,
+    //     지난 이벤트는 시각적 계층을 위해 3차(흐린) 텍스트 사용.
+    final Color dayColor;
+    final Color monthColor;
+    final Color dDayColor;
 
     if (isUpcoming) {
-      bgColor = isDark
-          ? GBTColors.accent.withValues(alpha: 0.15)
-          : GBTColors.accent.withValues(alpha: 0.1);
-      primaryColor = isDark ? GBTColors.darkAccent : GBTColors.accent;
-      secondaryColor = isDark ? GBTColors.darkAccent : GBTColors.accent;
-    } else {
-      bgColor = isDark
-          ? GBTColors.darkSurfaceElevated
-          : GBTColors.surfaceVariant;
-      primaryColor =
+      dayColor =
+          isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+      monthColor =
           isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
-      secondaryColor =
+      dDayColor =
+          isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+    } else {
+      dayColor =
+          isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+      monthColor =
+          isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+      dDayColor =
           isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
     }
 
     return Container(
       width: 60,
       padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
+      // EN: Transparent background — no accent tint, plain text only
+      // KO: 투명 배경 — 액센트 틴트 없이 텍스트만 표시
       decoration: BoxDecoration(
-        color: bgColor,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
       ),
       child: Column(
@@ -376,14 +404,14 @@ class _DateBadge extends StatelessWidget {
           Text(
             day.isEmpty ? '00' : day.padLeft(2, '0'),
             style: GBTTypography.headlineSmall.copyWith(
-              color: primaryColor,
+              color: dayColor,
               fontWeight: FontWeight.w700,
             ),
           ),
           Text(
             month.isEmpty ? '월' : '$month월',
             style: GBTTypography.labelSmall.copyWith(
-              color: secondaryColor,
+              color: monthColor,
             ),
           ),
           if (dDayLabel != null && dDayLabel!.isNotEmpty) ...[
@@ -391,7 +419,7 @@ class _DateBadge extends StatelessWidget {
             Text(
               dDayLabel!,
               style: GBTTypography.labelSmall.copyWith(
-                color: primaryColor,
+                color: dDayColor,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -402,8 +430,10 @@ class _DateBadge extends StatelessWidget {
   }
 }
 
-/// EN: Featured event card with larger display and press animation
-/// KO: 프레스 애니메이션을 포함한 더 큰 표시의 특집 이벤트 카드
+/// EN: Featured event card with larger display and press animation.
+///     Subtitle uses neutral secondary text color for content-first design.
+/// KO: 프레스 애니메이션을 포함한 더 큰 표시의 특집 이벤트 카드.
+///     콘텐츠 우선 디자인을 위해 자막에 뉴트럴 보조 텍스트 색상을 사용합니다.
 class GBTFeaturedEventCard extends StatelessWidget {
   const GBTFeaturedEventCard({
     super.key,
@@ -562,12 +592,16 @@ class GBTFeaturedEventCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: GBTSpacing.xxs),
+                    // EN: Subtitle uses neutral secondary text color
+                    //     (was accent/amber, now neutral for content-first design)
+                    // KO: 자막은 뉴트럴 보조 텍스트 색상을 사용
+                    //     (이전 액센트/앰버에서 콘텐츠 우선 디자인을 위해 뉴트럴로 변경)
                     Text(
                       subtitle,
                       style: GBTTypography.bodyMedium.copyWith(
                         color: isDark
-                            ? GBTColors.darkAccent
-                            : GBTColors.accent,
+                            ? GBTColors.darkTextSecondary
+                            : GBTColors.textSecondary,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

@@ -170,7 +170,13 @@ class _FavoriteLeading extends StatelessWidget {
               : GBTColors.surfaceVariant,
           borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
         ),
-        child: Icon(Icons.favorite, color: GBTColors.secondary, size: 20),
+        child: Icon(
+          Icons.favorite,
+          // EN: Use neutral tertiary instead of brand secondary.
+          // KO: 브랜드 보조색 대신 뉴트럴 tertiary를 사용합니다.
+          color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+          size: 20,
+        ),
       );
     }
 
@@ -201,16 +207,10 @@ String _typeLabel(FavoriteType type) {
   };
 }
 
+/// EN: Returns neutral color for type badge — decorative only, no brand colors.
+/// KO: 타입 배지용 뉴트럴 색상 반환 — 장식용이므로 브랜드 색상을 사용하지 않습니다.
 Color _typeColor(FavoriteType type, {required bool isDark}) {
-  return switch (type) {
-    FavoriteType.place => GBTColors.accentBlue,
-    FavoriteType.liveEvent => GBTColors.secondary,
-    FavoriteType.news => GBTColors.accent,
-    FavoriteType.post => GBTColors.secondary,
-    FavoriteType.unknown => isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary,
-  };
+  return isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
 }
 
 void _openItem(BuildContext context, FavoriteItem item) {

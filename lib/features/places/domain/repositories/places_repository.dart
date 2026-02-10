@@ -75,6 +75,7 @@ abstract class PlacesRepository {
     required double neLat,
     required double neLng,
     List<String> unitIds = const [],
+    bool forceRefresh = false,
   });
 
   /// EN: Get nearby places relative to a coordinate.
@@ -85,6 +86,7 @@ abstract class PlacesRepository {
     required double longitude,
     double? radiusKm,
     List<String> unitIds = const [],
+    bool forceRefresh = false,
   });
 
   /// EN: Get published guides for a place.

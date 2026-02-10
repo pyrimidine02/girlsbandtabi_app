@@ -57,6 +57,8 @@ class PostSummaryDto {
     required this.authorId,
     required this.title,
     required this.createdAt,
+    this.imageUrls = const [],
+    this.content,
     this.authorName,
     this.authorAvatarUrl,
     this.commentCount,
@@ -68,6 +70,8 @@ class PostSummaryDto {
   final String authorId;
   final String title;
   final DateTime createdAt;
+  final List<String> imageUrls;
+  final String? content;
   final String? authorName;
   final String? authorAvatarUrl;
   final int? commentCount;
@@ -90,6 +94,8 @@ class PostSummaryDto {
       authorId: json['authorId'] as String? ?? '',
       title: json['title'] as String? ?? '',
       createdAt: _dateTime(json['createdAt']),
+      imageUrls: _imageUrls(json['images'] ?? json['imageUrls']),
+      content: json['content'] as String?,
       authorName: resolvedAuthorName,
       authorAvatarUrl: resolvedAvatarUrl,
       commentCount: _intOrNull(
@@ -115,6 +121,8 @@ class PostSummaryDto {
       'authorId': authorId,
       'title': title,
       'createdAt': createdAt.toIso8601String(),
+      if (imageUrls.isNotEmpty) 'imageUrls': imageUrls,
+      if (content != null) 'content': content,
       if (authorName != null) 'authorName': authorName,
       if (authorAvatarUrl != null) 'authorAvatarUrl': authorAvatarUrl,
       if (commentCount != null) 'commentCount': commentCount,

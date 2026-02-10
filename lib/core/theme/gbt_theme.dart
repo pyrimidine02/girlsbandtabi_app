@@ -84,10 +84,12 @@ class GBTTheme {
     onPrimary: GBTColors.textInverse,
     primaryContainer: GBTColors.primaryLight,
     onPrimaryContainer: GBTColors.primaryPressed,
-    secondary: GBTColors.secondary,
+    // EN: Secondary mapped to neutral for default usage; pink reserved for explicit use.
+    // KO: Secondary는 기본 사용시 뉴트럴로 매핑; 핑크는 명시적 사용 시에만.
+    secondary: GBTColors.textSecondary,
     onSecondary: GBTColors.textInverse,
-    secondaryContainer: GBTColors.secondaryLight,
-    onSecondaryContainer: GBTColors.secondaryPressed,
+    secondaryContainer: GBTColors.surfaceVariant,
+    onSecondaryContainer: GBTColors.textPrimary,
     tertiary: GBTColors.accent,
     onTertiary: GBTColors.textPrimary,
     error: GBTColors.error,
@@ -108,7 +110,9 @@ class GBTTheme {
     onPrimary: GBTColors.darkBackground,
     primaryContainer: GBTColors.darkSurfaceElevated,
     onPrimaryContainer: GBTColors.darkTextPrimary,
-    secondary: GBTColors.darkSecondary,
+    // EN: Secondary neutral for dark mode.
+    // KO: 다크 모드용 뉴트럴 Secondary.
+    secondary: GBTColors.darkTextSecondary,
     onSecondary: GBTColors.darkBackground,
     secondaryContainer: GBTColors.darkSurfaceVariant,
     onSecondaryContainer: GBTColors.darkTextPrimary,
@@ -219,7 +223,7 @@ class GBTTheme {
   // KO: 앱바 테마
   // ========================================
   static AppBarTheme get _lightAppBarTheme => AppBarTheme(
-    backgroundColor: GBTColors.background,
+    backgroundColor: GBTColors.surface,
     foregroundColor: GBTColors.textPrimary,
     elevation: 0,
     scrolledUnderElevation: 0.5,
@@ -236,7 +240,7 @@ class GBTTheme {
   );
 
   static AppBarTheme get _darkAppBarTheme => AppBarTheme(
-    backgroundColor: GBTColors.darkSurface,
+    backgroundColor: GBTColors.darkBackground,
     foregroundColor: GBTColors.darkTextPrimary,
     elevation: 0,
     scrolledUnderElevation: 0.5,
@@ -271,7 +275,7 @@ class GBTTheme {
 
   static BottomNavigationBarThemeData get _darkBottomNavTheme =>
       BottomNavigationBarThemeData(
-        backgroundColor: GBTColors.darkSurface,
+        backgroundColor: GBTColors.darkBackground,
         selectedItemColor: GBTColors.darkPrimary,
         unselectedItemColor: GBTColors.darkTextTertiary,
         type: BottomNavigationBarType.fixed,
@@ -535,9 +539,9 @@ class GBTTheme {
   // ========================================
   static FloatingActionButtonThemeData get _fabTheme =>
       FloatingActionButtonThemeData(
-        backgroundColor: GBTColors.secondary,
+        backgroundColor: GBTColors.primary,
         foregroundColor: GBTColors.textInverse,
-        elevation: GBTSpacing.elevationMd,
+        elevation: GBTSpacing.elevationSm,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
         ),
@@ -545,9 +549,9 @@ class GBTTheme {
 
   static FloatingActionButtonThemeData get _darkFabTheme =>
       FloatingActionButtonThemeData(
-        backgroundColor: GBTColors.darkSecondary,
+        backgroundColor: GBTColors.darkPrimary,
         foregroundColor: GBTColors.darkBackground,
-        elevation: GBTSpacing.elevationMd,
+        elevation: GBTSpacing.elevationSm,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
         ),
@@ -561,17 +565,17 @@ class GBTTheme {
     backgroundColor: GBTColors.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
-        top: Radius.circular(GBTSpacing.radiusXl),
+        top: Radius.circular(GBTSpacing.radiusLg),
       ),
     ),
     elevation: GBTSpacing.elevationLg,
   );
 
   static BottomSheetThemeData get _darkBottomSheetTheme => BottomSheetThemeData(
-    backgroundColor: GBTColors.darkSurface,
+    backgroundColor: GBTColors.darkBackground,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
-        top: Radius.circular(GBTSpacing.radiusXl),
+        top: Radius.circular(GBTSpacing.radiusLg),
       ),
     ),
     elevation: GBTSpacing.elevationLg,
@@ -614,13 +618,13 @@ class GBTTheme {
   // KO: 스낵바 테마
   // ========================================
   static SnackBarThemeData get _snackBarTheme => SnackBarThemeData(
-    backgroundColor: GBTColors.primary,
+    backgroundColor: GBTColors.textPrimary,
     contentTextStyle: GBTTypography.bodyMedium.copyWith(
       color: GBTColors.textInverse,
     ),
     behavior: SnackBarBehavior.floating,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
     ),
   );
 

@@ -30,16 +30,18 @@ class LiveEventsRepositoryImpl implements LiveEventsRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _listCacheKey(projectId, unitIds, page, size);
+    // EN: Use staleWhileRevalidate — show cache instantly, refresh in background.
+    // KO: staleWhileRevalidate 사용 — 캐시 즉시 표시, 백그라운드 갱신.
     final policy = forceRefresh
         ? CachePolicy.networkFirst
-        : CachePolicy.networkFirst;
+        : CachePolicy.staleWhileRevalidate;
 
     try {
       final cacheResult = await _cacheManager
           .resolve<List<LiveEventSummaryDto>>(
             key: cacheKey,
             policy: policy,
-            ttl: const Duration(minutes: 5),
+            ttl: const Duration(minutes: 10),
             fetcher: () => _fetchLiveEvents(projectId, unitIds, page, size),
             toJson: (dtos) => {'items': dtos.map((e) => e.toJson()).toList()},
             fromJson: (json) {
@@ -72,15 +74,17 @@ class LiveEventsRepositoryImpl implements LiveEventsRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _detailCacheKey(projectId, eventId);
+    // EN: Use staleWhileRevalidate for event detail — show cached data first.
+    // KO: 이벤트 상세에 staleWhileRevalidate 사용 — 캐시 데이터 먼저 표시.
     final policy = forceRefresh
         ? CachePolicy.networkFirst
-        : CachePolicy.networkFirst;
+        : CachePolicy.staleWhileRevalidate;
 
     try {
       final cacheResult = await _cacheManager.resolve<LiveEventDetailDto>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: const Duration(minutes: 10),
         fetcher: () => _fetchLiveEventDetail(projectId, eventId),
         toJson: (dto) => dto.toJson(),
         fromJson: (json) => LiveEventDetailDto.fromJson(json),

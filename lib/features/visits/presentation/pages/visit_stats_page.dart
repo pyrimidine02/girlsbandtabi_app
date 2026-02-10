@@ -236,14 +236,22 @@ class _RankingBanner extends StatelessWidget {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: GBTColors.accent.withValues(alpha: 0.1),
+                    // EN: Use neutral surface for rank circle background.
+                    // KO: 순위 원형 배경에 뉴트럴 표면 색상을 사용합니다.
+                    color: isDark
+                        ? GBTColors.darkSurfaceElevated
+                        : GBTColors.surfaceVariant,
                     shape: BoxShape.circle,
                   ),
                   child: Center(
                     child: Text(
                       '${ranking.rank}',
                       style: GBTTypography.headlineMedium.copyWith(
-                        color: GBTColors.accent,
+                        // EN: Use primary text color for data-focused rank number.
+                        // KO: 데이터 중심 순위 번호에 기본 텍스트 색상을 사용합니다.
+                        color: isDark
+                            ? GBTColors.darkTextPrimary
+                            : GBTColors.textPrimary,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -274,7 +282,11 @@ class _RankingBanner extends StatelessWidget {
                 ),
                 Icon(
                   Icons.emoji_events,
-                  color: GBTColors.accent,
+                  // EN: Use neutral icon color for trophy instead of accent.
+                  // KO: 트로피 아이콘에 액센트 대신 뉴트럴 색상을 사용합니다.
+                  color: isDark
+                      ? GBTColors.darkTextSecondary
+                      : GBTColors.textSecondary,
                   size: 28,
                 ),
               ],
@@ -393,7 +405,14 @@ class _StatCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: GBTColors.accent),
+            // EN: Use neutral icon color for stat cards instead of accent.
+            // KO: 통계 카드 아이콘에 액센트 대신 뉴트럴 색상을 사용합니다.
+            Icon(
+              icon,
+              color: isDark
+                  ? GBTColors.darkTextSecondary
+                  : GBTColors.textSecondary,
+            ),
             const SizedBox(height: GBTSpacing.sm),
             Text(
               title,

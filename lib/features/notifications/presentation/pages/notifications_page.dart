@@ -168,7 +168,11 @@ class _NotificationItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final iconColor = GBTColors.secondary;
+    // EN: Use neutral icon color instead of brand secondary.
+    // KO: 브랜드 보조색 대신 뉴트럴 아이콘 색상을 사용합니다.
+    final iconColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
     final tertiaryColor = isDark
         ? GBTColors.darkTextTertiary
         : GBTColors.textTertiary;
@@ -209,7 +213,9 @@ class _NotificationItem extends StatelessWidget {
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: GBTColors.accent,
+                    // EN: Use primary purple for unread dot (CTA/status indicator).
+                    // KO: 읽지 않음 점에는 기본 보라색 사용 (CTA/상태 표시).
+                    color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),

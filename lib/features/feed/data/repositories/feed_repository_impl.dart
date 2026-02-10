@@ -100,15 +100,17 @@ class FeedRepositoryImpl implements FeedRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _postListCacheKey(projectCode, page, size);
+    // EN: Use staleWhileRevalidate — show cached posts instantly.
+    // KO: staleWhileRevalidate 사용 — 캐시된 게시글 즉시 표시.
     final policy = forceRefresh
         ? CachePolicy.networkFirst
-        : CachePolicy.networkFirst;
+        : CachePolicy.staleWhileRevalidate;
 
     try {
       final cacheResult = await _cacheManager.resolve<List<PostSummaryDto>>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 3),
+        ttl: const Duration(minutes: 5),
         fetcher: () => _fetchPosts(projectCode, page, size),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {
@@ -140,15 +142,17 @@ class FeedRepositoryImpl implements FeedRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _postDetailCacheKey(projectCode, postId);
+    // EN: Use staleWhileRevalidate for post detail — show cached content first.
+    // KO: 게시글 상세에 staleWhileRevalidate 사용 — 캐시 콘텐츠 먼저 표시.
     final policy = forceRefresh
         ? CachePolicy.networkFirst
-        : CachePolicy.networkFirst;
+        : CachePolicy.staleWhileRevalidate;
 
     try {
       final cacheResult = await _cacheManager.resolve<PostDetailDto>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 3),
+        ttl: const Duration(minutes: 5),
         fetcher: () => _fetchPostDetail(projectCode, postId),
         toJson: (dto) => dto.toJson(),
         fromJson: (json) => PostDetailDto.fromJson(json),
@@ -268,15 +272,17 @@ class FeedRepositoryImpl implements FeedRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _postCommentsCacheKey(projectCode, postId, page, size);
+    // EN: Use staleWhileRevalidate for comments — show cached comments first.
+    // KO: 댓글에 staleWhileRevalidate 사용 — 캐시 댓글 먼저 표시.
     final policy = forceRefresh
         ? CachePolicy.networkFirst
-        : CachePolicy.networkFirst;
+        : CachePolicy.staleWhileRevalidate;
 
     try {
       final cacheResult = await _cacheManager.resolve<List<PostCommentDto>>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 2),
+        ttl: const Duration(minutes: 3),
         fetcher: () => _fetchPostComments(projectCode, postId, page, size),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {
@@ -418,15 +424,17 @@ class FeedRepositoryImpl implements FeedRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _postsByAuthorCacheKey(projectCode, userId, page, size);
+    // EN: Use staleWhileRevalidate for author posts — show cached data first.
+    // KO: 작성자별 게시글에 staleWhileRevalidate 사용 — 캐시 먼저 표시.
     final policy = forceRefresh
         ? CachePolicy.networkFirst
-        : CachePolicy.networkFirst;
+        : CachePolicy.staleWhileRevalidate;
 
     try {
       final cacheResult = await _cacheManager.resolve<List<PostSummaryDto>>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 3),
+        ttl: const Duration(minutes: 5),
         fetcher: () => _fetchPostsByAuthor(projectCode, userId, page, size),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {
@@ -460,15 +468,17 @@ class FeedRepositoryImpl implements FeedRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _commentsByAuthorCacheKey(projectCode, userId, page, size);
+    // EN: Use staleWhileRevalidate for author comments — show cached data first.
+    // KO: 작성자별 댓글에 staleWhileRevalidate 사용 — 캐시 먼저 표시.
     final policy = forceRefresh
         ? CachePolicy.networkFirst
-        : CachePolicy.networkFirst;
+        : CachePolicy.staleWhileRevalidate;
 
     try {
       final cacheResult = await _cacheManager.resolve<List<PostCommentDto>>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 2),
+        ttl: const Duration(minutes: 3),
         fetcher: () => _fetchCommentsByAuthor(projectCode, userId, page, size),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {

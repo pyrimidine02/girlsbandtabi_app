@@ -221,18 +221,11 @@ class _ProfileHeader extends StatelessWidget {
                 Positioned.fill(
                   child: coverUrl == null || coverUrl!.isEmpty
                       ? Container(
-                          decoration: BoxDecoration(
-                            gradient: isDark
-                                ? GBTColors.darkSurfaceGradient
-                                : const LinearGradient(
-                                    colors: [
-                                      Color(0xFF2F3C4F),
-                                      Color(0xFF1C2330),
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                          ),
+                          // EN: Use solid neutral surface color instead of deprecated gradient.
+                          // KO: 더 이상 사용하지 않는 그라디언트 대신 단색 뉴트럴 표면 색상을 사용합니다.
+                          color: isDark
+                              ? GBTColors.darkSurfaceVariant
+                              : GBTColors.surfaceAlternate,
                         )
                       : GBTImage(
                           imageUrl: coverUrl!,

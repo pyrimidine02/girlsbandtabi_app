@@ -13,7 +13,9 @@ import '../data/repositories/home_repository_impl.dart';
 class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
   HomeController(this._ref) : super(const AsyncLoading()) {
     _ref.listen<String?>(selectedProjectKeyProvider, (_, __) {
-      load(forceRefresh: true);
+      // EN: Use cache on project switch — no forced network round-trip.
+      // KO: 프로젝트 전환 시 캐시 사용 — 강제 네트워크 호출 없음.
+      load();
     });
   }
 
@@ -24,8 +26,6 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
   Future<void> load({bool forceRefresh = false}) async {
     final selectedProjectKey = _ref.read(selectedProjectKeyProvider);
     if (selectedProjectKey == null || selectedProjectKey.isEmpty) {
-      // EN: Wait for project selection before loading.
-      // KO: 로드 전 프로젝트 선택을 기다립니다.
       return;
     }
 
@@ -38,7 +38,12 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
 
     _lastProjectKey = selectedProjectKey;
     _isLoading = true;
-    state = const AsyncLoading();
+
+    // EN: Keep previous data visible while loading (no full-screen spinner).
+    // KO: 로딩 중 이전 데이터를 유지합니다 (전체 화면 스피너 없음).
+    if (!state.hasValue) {
+      state = const AsyncLoading();
+    }
 
     final repository = await _ref.read(homeRepositoryProvider.future);
     final projectKey = selectedProjectKey;
@@ -76,5 +81,9 @@ final homeRepositoryProvider = FutureProvider<HomeRepository>((ref) async {
 /// KO: 홈 컨트롤러 프로바이더.
 final homeControllerProvider =
     StateNotifierProvider<HomeController, AsyncValue<HomeSummary>>((ref) {
-      return HomeController(ref)..load();
+      // EN: Don't call load() here — selectedProjectKey is always null at
+      // construction time. The listener triggers load() once project is selected.
+      // KO: 여기서 load() 호출 불필요 — 생성 시점에 selectedProjectKey는 항상 null.
+      // 리스너가 프로젝트 선택 후 load()를 트리거함.
+      return HomeController(ref);
     });

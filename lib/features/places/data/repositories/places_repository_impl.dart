@@ -38,6 +38,8 @@ class PlacesRepositoryImpl implements PlacesRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _listCacheKey(projectId, unitIds, page, size);
+    // EN: Use cacheFirst — place location data is essentially static.
+    // KO: cacheFirst 사용 — 장소 위치 데이터는 사실상 정적 데이터.
     final policy = forceRefresh
         ? CachePolicy.networkFirst
         : CachePolicy.cacheFirst;
@@ -46,7 +48,7 @@ class PlacesRepositoryImpl implements PlacesRepository {
       final cacheResult = await _cacheManager.resolve<List<PlaceSummaryDto>>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 30),
+        ttl: const Duration(hours: 24),
         fetcher: () => _fetchPlaces(projectId, unitIds, page, size),
         toJson: (dtos) => {'items': dtos.map((e) => e.toJson()).toList()},
         fromJson: (json) {
@@ -79,6 +81,8 @@ class PlacesRepositoryImpl implements PlacesRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _allCacheKey(projectId, unitIds);
+    // EN: Use cacheFirst — place location data is essentially static.
+    // KO: cacheFirst 사용 — 장소 위치 데이터는 사실상 정적 데이터.
     final policy = forceRefresh
         ? CachePolicy.networkFirst
         : CachePolicy.cacheFirst;
@@ -87,7 +91,7 @@ class PlacesRepositoryImpl implements PlacesRepository {
       final cacheResult = await _cacheManager.resolve<List<PlaceSummaryDto>>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 30),
+        ttl: const Duration(hours: 24),
         fetcher: () => _fetchAllPlaces(projectId, unitIds),
         toJson: (dtos) => {'items': dtos.map((e) => e.toJson()).toList()},
         fromJson: (json) {
@@ -132,7 +136,7 @@ class PlacesRepositoryImpl implements PlacesRepository {
       final cacheResult = await _cacheManager.resolve<RegionFilterOptionsDto>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(hours: 6),
+        ttl: const Duration(hours: 24),
         fetcher:
             () => _fetchRegionFilterOptions(
               projectId,
@@ -161,16 +165,45 @@ class PlacesRepositoryImpl implements PlacesRepository {
     int size = 20,
     List<String> sort = const [],
   }) async {
+    final regions = regionCodes.join(',');
+    final types = placeTypes.isEmpty ? 'all' : placeTypes.join(',');
+    final units = unitIds.isEmpty ? 'all' : unitIds.join(',');
+    final sortKey = sort.isEmpty ? 'default' : sort.join(',');
+    final cacheKey =
+        'places_region:$projectId:$regions:$includeChildren:$types:$units:$sortKey';
+    // EN: Use cacheFirst — place location data is essentially static.
+    // KO: cacheFirst 사용 — 장소 위치 데이터는 사실상 정적 데이터.
+    const policy = CachePolicy.cacheFirst;
+
     try {
-      final dtos = await _fetchAllPlacesByRegionFilter(
-        projectId: projectId,
-        regionCodes: regionCodes,
-        includeChildren: includeChildren,
-        placeTypes: placeTypes,
-        unitIds: unitIds,
-        sort: sort,
+      final cacheResult = await _cacheManager.resolve<List<PlaceSummaryDto>>(
+        key: cacheKey,
+        policy: policy,
+        ttl: const Duration(hours: 24),
+        fetcher: () => _fetchAllPlacesByRegionFilter(
+          projectId: projectId,
+          regionCodes: regionCodes,
+          includeChildren: includeChildren,
+          placeTypes: placeTypes,
+          unitIds: unitIds,
+          sort: sort,
+        ),
+        toJson: (dtos) => {'items': dtos.map((e) => e.toJson()).toList()},
+        fromJson: (json) {
+          final items = json['items'];
+          if (items is List) {
+            return items
+                .whereType<Map<String, dynamic>>()
+                .map(PlaceSummaryDto.fromJson)
+                .toList();
+          }
+          return <PlaceSummaryDto>[];
+        },
       );
-      final entities = dtos.map((dto) => PlaceSummary.fromDto(dto)).toList();
+
+      final entities = cacheResult.data
+          .map((dto) => PlaceSummary.fromDto(dto))
+          .toList();
       return Result.success(entities);
     } catch (e, stackTrace) {
       return Result.failure(ErrorHandler.mapException(e, stackTrace));
@@ -183,25 +216,46 @@ class PlacesRepositoryImpl implements PlacesRepository {
     required String regionCode,
     bool includeChildren = true,
   }) async {
+    final cacheKey =
+        'region_bounds:$projectId:$regionCode:$includeChildren';
+    // EN: Use cacheFirst — region bounds are static geographic data.
+    // KO: cacheFirst 사용 — 지역 경계는 정적 지리 데이터.
+    const policy = CachePolicy.cacheFirst;
+
     try {
-      final result = await _remoteDataSource.fetchRegionMapBounds(
-        projectId: projectId,
-        regionCode: regionCode,
-        includeChildren: includeChildren,
+      final cacheResult = await _cacheManager.resolve<RegionMapBoundsDto>(
+        key: cacheKey,
+        policy: policy,
+        ttl: const Duration(hours: 24),
+        fetcher: () => _fetchRegionMapBoundsDto(projectId, regionCode, includeChildren),
+        toJson: (dto) => dto.toJson(),
+        fromJson: (json) => RegionMapBoundsDto.fromJson(json),
       );
 
-      if (result is Success<RegionMapBoundsDto>) {
-        return Result.success(RegionMapBounds.fromDto(result.data));
-      }
-      if (result is Err<RegionMapBoundsDto>) {
-        return Result.failure(result.failure);
-      }
-      return Result.failure(
-        const UnknownFailure('Unknown region bounds result'),
-      );
+      return Result.success(RegionMapBounds.fromDto(cacheResult.data));
     } catch (e, stackTrace) {
       return Result.failure(ErrorHandler.mapException(e, stackTrace));
     }
+  }
+
+  Future<RegionMapBoundsDto> _fetchRegionMapBoundsDto(
+    String projectId,
+    String regionCode,
+    bool includeChildren,
+  ) async {
+    final result = await _remoteDataSource.fetchRegionMapBounds(
+      projectId: projectId,
+      regionCode: regionCode,
+      includeChildren: includeChildren,
+    );
+
+    if (result is Success<RegionMapBoundsDto>) {
+      return result.data;
+    }
+    if (result is Err<RegionMapBoundsDto>) {
+      throw result.failure;
+    }
+    throw const UnknownFailure('Unknown region bounds result');
   }
 
   @override
@@ -211,15 +265,17 @@ class PlacesRepositoryImpl implements PlacesRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _detailCacheKey(projectId, placeId);
+    // EN: Use staleWhileRevalidate for place detail — show cached data first.
+    // KO: 장소 상세에 staleWhileRevalidate 사용 — 캐시 먼저 표시.
     final policy = forceRefresh
         ? CachePolicy.networkFirst
-        : CachePolicy.networkFirst;
+        : CachePolicy.staleWhileRevalidate;
 
     try {
       final cacheResult = await _cacheManager.resolve<PlaceDetailDto>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 10),
+        ttl: const Duration(minutes: 15),
         fetcher: () => _fetchPlaceDetail(projectId, placeId),
         toJson: (dto) => dto.toJson(),
         fromJson: (json) => PlaceDetailDto.fromJson(json),
@@ -247,28 +303,45 @@ class PlacesRepositoryImpl implements PlacesRepository {
     required double neLat,
     required double neLng,
     List<String> unitIds = const [],
+    bool forceRefresh = false,
   }) async {
+    final units = unitIds.isEmpty ? 'all' : unitIds.join(',');
+    // EN: Round coordinates to 3 decimals (~111m) for stable cache keys.
+    // KO: 안정적인 캐시 키를 위해 좌표를 소수점 3자리로 반올림 (~111m).
+    final sw = '${swLat.toStringAsFixed(3)},${swLng.toStringAsFixed(3)}';
+    final ne = '${neLat.toStringAsFixed(3)},${neLng.toStringAsFixed(3)}';
+    final cacheKey = 'places_bounds:$projectId:$sw:$ne:$units';
+    // EN: Use cacheFirst — place locations rarely change.
+    // KO: cacheFirst 사용 — 장소 위치는 거의 변경되지 않음.
+    final policy = forceRefresh
+        ? CachePolicy.networkFirst
+        : CachePolicy.cacheFirst;
+
     try {
-      final result = await _remoteDataSource.fetchPlacesWithinBounds(
-        projectId: projectId,
-        swLat: swLat,
-        swLng: swLng,
-        neLat: neLat,
-        neLng: neLng,
-        unitIds: unitIds,
+      final cacheResult = await _cacheManager.resolve<List<PlaceSummaryDto>>(
+        key: cacheKey,
+        policy: policy,
+        ttl: const Duration(hours: 24),
+        fetcher: () => _fetchPlacesWithinBounds(
+          projectId, swLat, swLng, neLat, neLng, unitIds,
+        ),
+        toJson: (dtos) => {'items': dtos.map((e) => e.toJson()).toList()},
+        fromJson: (json) {
+          final items = json['items'];
+          if (items is List) {
+            return items
+                .whereType<Map<String, dynamic>>()
+                .map(PlaceSummaryDto.fromJson)
+                .toList();
+          }
+          return <PlaceSummaryDto>[];
+        },
       );
 
-      if (result is Success<List<PlaceSummaryDto>>) {
-        final entities =
-            result.data.map((dto) => PlaceSummary.fromDto(dto)).toList();
-        return Result.success(entities);
-      }
-      if (result is Err<List<PlaceSummaryDto>>) {
-        return Result.failure(result.failure);
-      }
-      return Result.failure(
-        const UnknownFailure('Unknown within-bounds result'),
-      );
+      final entities = cacheResult.data
+          .map((dto) => PlaceSummary.fromDto(dto))
+          .toList();
+      return Result.success(entities);
     } catch (e, stackTrace) {
       return Result.failure(ErrorHandler.mapException(e, stackTrace));
     }
@@ -281,27 +354,45 @@ class PlacesRepositoryImpl implements PlacesRepository {
     required double longitude,
     double? radiusKm,
     List<String> unitIds = const [],
+    bool forceRefresh = false,
   }) async {
+    final units = unitIds.isEmpty ? 'all' : unitIds.join(',');
+    // EN: Round coordinates to 3 decimals (~111m) for stable cache keys.
+    // KO: 안정적인 캐시 키를 위해 좌표를 소수점 3자리로 반올림 (~111m).
+    final coords = '${latitude.toStringAsFixed(3)},${longitude.toStringAsFixed(3)}';
+    final radius = radiusKm?.toStringAsFixed(1) ?? 'default';
+    final cacheKey = 'places_nearby:$projectId:$coords:$radius:$units';
+    // EN: Use cacheFirst — place locations rarely change.
+    // KO: cacheFirst 사용 — 장소 위치는 거의 변경되지 않음.
+    final policy = forceRefresh
+        ? CachePolicy.networkFirst
+        : CachePolicy.cacheFirst;
+
     try {
-      final result = await _remoteDataSource.fetchNearbyPlaces(
-        projectId: projectId,
-        latitude: latitude,
-        longitude: longitude,
-        radiusKm: radiusKm,
-        unitIds: unitIds,
+      final cacheResult = await _cacheManager.resolve<List<PlaceSummaryDto>>(
+        key: cacheKey,
+        policy: policy,
+        ttl: const Duration(hours: 24),
+        fetcher: () => _fetchNearbyPlaces(
+          projectId, latitude, longitude, radiusKm, unitIds,
+        ),
+        toJson: (dtos) => {'items': dtos.map((e) => e.toJson()).toList()},
+        fromJson: (json) {
+          final items = json['items'];
+          if (items is List) {
+            return items
+                .whereType<Map<String, dynamic>>()
+                .map(PlaceSummaryDto.fromJson)
+                .toList();
+          }
+          return <PlaceSummaryDto>[];
+        },
       );
 
-      if (result is Success<List<PlaceSummaryDto>>) {
-        final entities =
-            result.data.map((dto) => PlaceSummary.fromDto(dto)).toList();
-        return Result.success(entities);
-      }
-      if (result is Err<List<PlaceSummaryDto>>) {
-        return Result.failure(result.failure);
-      }
-      return Result.failure(
-        const UnknownFailure('Unknown nearby result'),
-      );
+      final entities = cacheResult.data
+          .map((dto) => PlaceSummary.fromDto(dto))
+          .toList();
+      return Result.success(entities);
     } catch (e, stackTrace) {
       return Result.failure(ErrorHandler.mapException(e, stackTrace));
     }
@@ -531,6 +622,56 @@ class PlacesRepositoryImpl implements PlacesRepository {
     }
 
     return all;
+  }
+
+  Future<List<PlaceSummaryDto>> _fetchPlacesWithinBounds(
+    String projectId,
+    double swLat,
+    double swLng,
+    double neLat,
+    double neLng,
+    List<String> unitIds,
+  ) async {
+    final result = await _remoteDataSource.fetchPlacesWithinBounds(
+      projectId: projectId,
+      swLat: swLat,
+      swLng: swLng,
+      neLat: neLat,
+      neLng: neLng,
+      unitIds: unitIds,
+    );
+
+    if (result is Success<List<PlaceSummaryDto>>) {
+      return result.data;
+    }
+    if (result is Err<List<PlaceSummaryDto>>) {
+      throw result.failure;
+    }
+    throw const UnknownFailure('Unknown within-bounds result');
+  }
+
+  Future<List<PlaceSummaryDto>> _fetchNearbyPlaces(
+    String projectId,
+    double latitude,
+    double longitude,
+    double? radiusKm,
+    List<String> unitIds,
+  ) async {
+    final result = await _remoteDataSource.fetchNearbyPlaces(
+      projectId: projectId,
+      latitude: latitude,
+      longitude: longitude,
+      radiusKm: radiusKm,
+      unitIds: unitIds,
+    );
+
+    if (result is Success<List<PlaceSummaryDto>>) {
+      return result.data;
+    }
+    if (result is Err<List<PlaceSummaryDto>>) {
+      throw result.failure;
+    }
+    throw const UnknownFailure('Unknown nearby result');
   }
 
   Future<List<PlaceGuideSummaryDto>> _fetchPlaceGuides(

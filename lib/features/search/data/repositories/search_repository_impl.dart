@@ -27,15 +27,17 @@ class SearchRepositoryImpl implements SearchRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _cacheKey(query);
+    // EN: Use staleWhileRevalidate — show cached search results instantly.
+    // KO: staleWhileRevalidate 사용 — 캐시된 검색 결과 즉시 표시.
     final policy = forceRefresh
         ? CachePolicy.networkFirst
-        : CachePolicy.networkFirst;
+        : CachePolicy.staleWhileRevalidate;
 
     try {
       final cacheResult = await _cacheManager.resolve<List<SearchItemDto>>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 2),
+        ttl: const Duration(minutes: 5),
         fetcher: () => _fetchSearch(query),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {

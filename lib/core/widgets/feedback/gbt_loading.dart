@@ -44,7 +44,7 @@ class GBTLoading extends StatelessWidget {
               height: size,
               child: CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  color ?? GBTColors.accent,
+                  color ?? GBTColors.textTertiary,
                 ),
                 strokeWidth: 3,
               ),
@@ -170,17 +170,17 @@ class GBTEmptyState extends StatelessWidget {
               // EN: Circular icon container with subtle background
               // KO: 미세한 배경이 있는 원형 아이콘 컨테이너
               Container(
-                width: 80,
-                height: 80,
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
                   color: isDark
-                      ? GBTColors.darkSurfaceElevated
-                      : GBTColors.surfaceAlternate,
+                      ? GBTColors.darkSurfaceVariant
+                      : GBTColors.surfaceVariant,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   icon ?? Icons.inbox_outlined,
-                  size: 36,
+                  size: 28,
                   color: isDark
                       ? GBTColors.darkTextTertiary
                       : GBTColors.textTertiary,
@@ -285,8 +285,8 @@ class GBTErrorState extends StatelessWidget {
               // EN: Error icon with tinted background
               // KO: 색조 배경이 있는 오류 아이콘
               Container(
-                width: 80,
-                height: 80,
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
                   color: isDark
                       ? GBTColors.error.withValues(alpha: 0.15)
@@ -295,7 +295,7 @@ class GBTErrorState extends StatelessWidget {
                 ),
                 child: const Icon(
                   Icons.wifi_off_rounded,
-                  size: 36,
+                  size: 28,
                   color: GBTColors.error,
                 ),
               ),

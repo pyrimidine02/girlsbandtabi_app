@@ -41,8 +41,8 @@ class MainScaffold extends StatelessWidget {
             label: '게시판',
           ),
           GBTBottomNavItem(
-            icon: Icons.info_outlined,
-            activeIcon: Icons.info,
+            icon: Icons.auto_stories_outlined,
+            activeIcon: Icons.auto_stories,
             label: '정보',
           ),
         ],

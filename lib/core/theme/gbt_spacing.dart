@@ -10,16 +10,23 @@ class GBTSpacing {
   GBTSpacing._();
 
   // ========================================
-  // EN: Base Scale (8px grid)
-  // KO: 기본 스케일 (8px 그리드)
+  // EN: Base Scale (8px grid + organic off-grid values)
+  // KO: 기본 스케일 (8px 그리드 + 유기적 오프그리드 값)
   // ========================================
   static const double none = 0.0; // 0px
   static const double xxs = 2.0; // 2px  - Micro spacing
   static const double xs = 4.0; // 4px  - Extra small
+  static const double xs2 = 6.0; // 6px  - Off-grid
   static const double sm = 8.0; // 8px  - Small
+  static const double sm2 = 10.0; // 10px - Off-grid
+  static const double md2 = 14.0; // 14px - Off-grid
   static const double md = 16.0; // 16px - Medium (base)
+  static const double md3 = 18.0; // 18px - Off-grid
+  static const double lg2 = 20.0; // 20px - Off-grid
   static const double lg = 24.0; // 24px - Large
+  static const double lg3 = 28.0; // 28px - Off-grid
   static const double xl = 32.0; // 32px - Extra large
+  static const double xl2 = 40.0; // 40px - Off-grid
   static const double xxl = 48.0; // 48px - 2x Extra large
   static const double xxxl = 64.0; // 64px - Maximum
 
@@ -35,7 +42,10 @@ class GBTSpacing {
   static const double listItemSpacing = 12.0;
 
   static const double sectionSpacing = 24.0;
+  static const double sectionSpacingLg = 32.0;
   static const double sectionMargin = 32.0;
+
+  static const double carouselItemGap = 12.0;
 
   static const double formFieldSpacing = 16.0;
   static const double formGroupSpacing = 24.0;
@@ -133,13 +143,6 @@ class GBTSpacing {
   static const EdgeInsets paddingPage = EdgeInsets.symmetric(
     horizontal: pageHorizontal,
     vertical: pageVertical,
-  );
-
-  static const EdgeInsets paddingCard = EdgeInsets.all(cardPadding);
-
-  static const EdgeInsets paddingListItem = EdgeInsets.symmetric(
-    horizontal: md,
-    vertical: sm,
   );
 
   // ========================================

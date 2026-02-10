@@ -103,7 +103,11 @@ class LiveEventDetailPage extends ConsumerWidget {
                         Icon(
                           Icons.music_note,
                           size: 64,
-                          color: GBTColors.accent,
+                          // EN: Neutral icon color for placeholder
+                          // KO: 플레이스홀더용 뉴트럴 아이콘 색상
+                          color: isDark
+                              ? GBTColors.darkTextTertiary
+                              : GBTColors.textTertiary,
                         ),
                         const SizedBox(height: GBTSpacing.md),
                         Text(
@@ -155,7 +159,9 @@ class LiveEventDetailPage extends ConsumerWidget {
               Text(
                 event.status,
                 style: GBTTypography.titleMedium.copyWith(
-                  color: GBTColors.accent,
+                  // EN: Neutral secondary color for status text
+                  // KO: 상태 텍스트에 뉴트럴 보조 색상
+                  color: secondaryColor,
                 ),
               ),
               const SizedBox(height: GBTSpacing.lg),

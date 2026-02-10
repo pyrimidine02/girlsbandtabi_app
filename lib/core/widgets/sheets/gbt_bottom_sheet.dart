@@ -75,18 +75,18 @@ class GBTBottomSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // EN: Drag handle with dark mode awareness
-          // KO: 다크 모드 인식 드래그 핸들
+          // EN: Drag handle with neutral color for light/dark
+          // KO: 라이트/다크용 뉴트럴 색상 드래그 핸들
           Semantics(
             label: '드래그하여 시트를 닫을 수 있습니다',
             child: Container(
               margin: const EdgeInsets.only(top: GBTSpacing.sm),
-              width: 40,
+              width: 36,
               height: GBTSpacing.xs,
               decoration: BoxDecoration(
                 color: isDark
-                    ? GBTColors.darkBorder
-                    : GBTColors.border,
+                    ? GBTColors.darkTextTertiary
+                    : GBTColors.textDisabled,
                 borderRadius: BorderRadius.circular(GBTSpacing.xxs),
               ),
             ),

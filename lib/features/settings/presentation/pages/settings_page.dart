@@ -54,7 +54,7 @@ class SettingsPage extends ConsumerWidget {
           _SectionHeader(title: '나의 활동'),
           _SettingsItem(
             icon: Icons.favorite,
-            iconColor: GBTColors.error,
+            iconColor: const Color(0xFFEF4444),
             title: '즐겨찾기',
             subtitle: '저장한 장소와 이벤트',
             semanticLabel: '즐겨찾기 - 저장한 장소와 이벤트',
@@ -62,7 +62,7 @@ class SettingsPage extends ConsumerWidget {
           ),
           _SettingsItem(
             icon: Icons.check_circle,
-            iconColor: GBTColors.success,
+            iconColor: const Color(0xFF10B981),
             title: '방문 기록',
             subtitle: '인증한 장소 확인',
             semanticLabel: '방문 기록 - 인증한 장소 확인',
@@ -70,7 +70,7 @@ class SettingsPage extends ConsumerWidget {
           ),
           _SettingsItem(
             icon: Icons.bar_chart,
-            iconColor: GBTColors.accentBlue,
+            iconColor: const Color(0xFF3B82F6),
             title: '통계',
             subtitle: '나의 성지순례 통계',
             semanticLabel: '통계 - 나의 성지순례 통계',
@@ -83,7 +83,7 @@ class SettingsPage extends ConsumerWidget {
             _SectionHeader(title: '계정'),
             _SettingsItem(
               icon: Icons.person,
-              iconColor: GBTColors.accent,
+              iconColor: const Color(0xFF8B5CF6),
               title: '프로필 수정',
               subtitle: '표시 이름/프로필 관리',
               semanticLabel: '프로필 수정 - 표시 이름 및 프로필 관리',
@@ -91,6 +91,7 @@ class SettingsPage extends ConsumerWidget {
             ),
             _SettingsItem(
               icon: Icons.logout,
+              iconColor: const Color(0xFFEF4444),
               title: '로그아웃',
               subtitle: '계정에서 로그아웃',
               semanticLabel: '로그아웃 - 계정에서 로그아웃합니다',
@@ -113,7 +114,7 @@ class SettingsPage extends ConsumerWidget {
             _SectionHeader(title: '알림'),
             _SettingsItem(
               icon: Icons.notifications,
-              iconColor: GBTColors.secondary,
+              iconColor: const Color(0xFFF59E0B),
               title: '알림 설정',
               subtitle: '푸시/이메일 알림 관리',
               semanticLabel: '알림 설정 - 푸시 및 이메일 알림 관리',
@@ -124,7 +125,7 @@ class SettingsPage extends ConsumerWidget {
           _SectionHeader(title: '앱 환경'),
           _SettingsItem(
             icon: Icons.dark_mode,
-            iconColor: GBTColors.accent,
+            iconColor: const Color(0xFF6366F1),
             title: '테마',
             subtitle: _themeLabel(themeMode),
             semanticLabel: '테마 설정 - 현재 ${_themeLabel(themeMode)}',
@@ -132,7 +133,7 @@ class SettingsPage extends ConsumerWidget {
           ),
           _SettingsItem(
             icon: Icons.language,
-            iconColor: GBTColors.accentBlue,
+            iconColor: const Color(0xFF0D9488),
             title: '언어',
             subtitle: '한국어',
             semanticLabel: '언어 설정 - 현재 한국어',
@@ -142,7 +143,7 @@ class SettingsPage extends ConsumerWidget {
           _SectionHeader(title: '지원'),
           _SettingsItem(
             icon: Icons.help,
-            iconColor: GBTColors.textSecondary,
+            iconColor: const Color(0xFF3B82F6),
             title: '도움말',
             semanticLabel: '도움말',
             onTap: () {
@@ -152,7 +153,7 @@ class SettingsPage extends ConsumerWidget {
           ),
           _SettingsItem(
             icon: Icons.feedback,
-            iconColor: GBTColors.textSecondary,
+            iconColor: const Color(0xFFEC4899),
             title: '피드백 보내기',
             semanticLabel: '피드백 보내기',
             onTap: () {
@@ -162,7 +163,6 @@ class SettingsPage extends ConsumerWidget {
           ),
           _SettingsItem(
             icon: Icons.description,
-            iconColor: GBTColors.textSecondary,
             title: '이용약관',
             semanticLabel: '이용약관',
             onTap: () {
@@ -172,7 +172,6 @@ class SettingsPage extends ConsumerWidget {
           ),
           _SettingsItem(
             icon: Icons.privacy_tip,
-            iconColor: GBTColors.textSecondary,
             title: '개인정보 처리방침',
             semanticLabel: '개인정보 처리방침',
             onTap: () {
@@ -473,28 +472,27 @@ class _SettingsItem extends StatelessWidget {
     required this.icon,
     required this.title,
     this.subtitle,
-    this.iconColor,
     required this.onTap,
     this.semanticLabel,
+    this.iconColor,
   });
 
   final IconData icon;
   final String title;
   final String? subtitle;
-  final Color? iconColor;
   final VoidCallback onTap;
   final String? semanticLabel;
+  /// EN: Optional individual icon color — falls back to neutral if null.
+  /// KO: 선택적 개별 아이콘 색상 — null이면 뉴트럴 폴백.
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
-    final effectiveIconColor = iconColor ??
-        (isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary);
 
-    // EN: Dark-mode-aware shadow alpha values
-    // KO: 다크 모드 인식 그림자 알파값
-    final iconBgAlpha = isDark ? 0.25 : 0.1;
+    final resolvedIconColor = iconColor ??
+        (isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary);
 
     return Semantics(
       button: true,
@@ -504,12 +502,14 @@ class _SettingsItem extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: effectiveIconColor.withValues(alpha: iconBgAlpha),
+            color: isDark
+                ? GBTColors.darkSurfaceVariant
+                : GBTColors.surfaceVariant,
             borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
           ),
           child: Icon(
             icon,
-            color: effectiveIconColor,
+            color: resolvedIconColor,
             size: GBTSpacing.iconSm,
           ),
         ),

@@ -10,6 +10,8 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/utils/image_url_extractor.dart';
+import '../../../../core/utils/media_url.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
@@ -139,6 +141,18 @@ class _CommunityPostCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final tertiaryColor =
         isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    // EN: Resolve first image URL for thumbnail (fallback: extract from content).
+    // KO: 썸네일용 첫 번째 이미지 URL을 해석합니다 (폴백: 콘텐츠에서 추출).
+    final String? firstImageUrl;
+    if (post.imageUrls.isNotEmpty) {
+      firstImageUrl = resolveMediaUrl(post.imageUrls.first);
+    } else {
+      final contentImages = extractImageUrls(post.content)
+          .map(resolveMediaUrl)
+          .where((url) => url.isNotEmpty);
+      firstImageUrl = contentImages.isNotEmpty ? contentImages.first : null;
+    }
+
     return Card(
       margin: EdgeInsets.zero,
       child: InkWell(
@@ -186,14 +200,35 @@ class _CommunityPostCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: GBTSpacing.sm),
-              Text(
-                post.title,
-                style: GBTTypography.bodyMedium,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+              // EN: Title row with optional thumbnail on the right.
+              // KO: 오른쪽에 선택적 썸네일이 있는 제목 행.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      post.title,
+                      style: GBTTypography.bodyMedium,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (firstImageUrl != null) ...[
+                    const SizedBox(width: GBTSpacing.md),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+                      child: GBTImage(
+                        imageUrl: firstImageUrl,
+                        width: 64,
+                        height: 64,
+                        fit: BoxFit.cover,
+                        semanticLabel: '${post.title} 첨부 이미지',
+                      ),
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: GBTSpacing.sm),
-              const SizedBox(height: GBTSpacing.xs),
               Semantics(
                 label: '좋아요 $likeCount개, 댓글 $commentCount개',
                 child: Row(

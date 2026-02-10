@@ -474,18 +474,10 @@ IconData _typeIcon(SearchItemType type) {
   };
 }
 
+/// EN: Returns neutral color for type badge — decorative only, no brand colors.
+/// KO: 타입 배지용 뉴트럴 색상 반환 — 장식용이므로 브랜드 색상을 사용하지 않습니다.
 Color _typeColor(SearchItemType type, {required bool isDark}) {
-  return switch (type) {
-    SearchItemType.place => GBTColors.accentBlue,
-    SearchItemType.liveEvent => GBTColors.secondary,
-    SearchItemType.news => GBTColors.accent,
-    SearchItemType.post => GBTColors.secondary,
-    SearchItemType.unit => GBTColors.success,
-    SearchItemType.project => GBTColors.warning,
-    SearchItemType.unknown => isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary,
-  };
+  return isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
 }
 
 String _subtitleText(SearchItem item) {

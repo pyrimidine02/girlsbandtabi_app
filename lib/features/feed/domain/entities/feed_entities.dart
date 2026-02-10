@@ -81,6 +81,8 @@ class PostSummary {
     required this.authorId,
     required this.title,
     required this.createdAt,
+    this.imageUrls = const [],
+    this.content,
     this.authorName,
     this.authorAvatarUrl,
     this.commentCount,
@@ -92,6 +94,8 @@ class PostSummary {
   final String authorId;
   final String title;
   final DateTime createdAt;
+  final List<String> imageUrls;
+  final String? content;
   final String? authorName;
   final String? authorAvatarUrl;
   final int? commentCount;
@@ -106,6 +110,8 @@ class PostSummary {
       authorId: dto.authorId,
       title: dto.title,
       createdAt: dto.createdAt,
+      imageUrls: dto.imageUrls,
+      content: dto.content,
       authorName: dto.authorName,
       authorAvatarUrl: dto.authorAvatarUrl,
       commentCount: dto.commentCount,
