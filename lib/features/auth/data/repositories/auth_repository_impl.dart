@@ -2,7 +2,10 @@
 /// KO: 인증 리포지토리 구현체.
 library;
 
+import 'dart:convert';
+
 import '../../../../core/error/failure.dart';
+import '../../../../core/logging/app_logger.dart';
 import '../../../../core/security/secure_storage.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/auth_tokens.dart';
@@ -126,6 +129,15 @@ class AuthRepositoryImpl implements AuthRepository {
         await _secureStorage.saveTokenExpiry(expiry);
       }
 
+      final newUserId = _extractUserId(tokenResponse.accessToken);
+      if (newUserId != null && newUserId.isNotEmpty) {
+        final previousUserId = await _secureStorage.getUserId();
+        if (previousUserId == null || previousUserId != newUserId) {
+          await _secureStorage.clearVerificationKeys();
+        }
+        await _secureStorage.saveUserId(newUserId);
+      }
+
       return Result.success(AuthTokens.fromResponse(tokenResponse));
     }
 
@@ -136,5 +148,33 @@ class AuthRepositoryImpl implements AuthRepository {
     return Result.failure(
       const UnknownFailure('Unknown auth result', code: 'unknown_result'),
     );
+  }
+
+  String? _extractUserId(String accessToken) {
+    try {
+      final parts = accessToken.split('.');
+      if (parts.length < 2) return null;
+      final normalized = base64.normalize(parts[1]);
+      final payload = utf8.decode(base64Url.decode(normalized));
+      final jsonValue = jsonDecode(payload);
+      if (jsonValue is Map<String, dynamic>) {
+        final sub = jsonValue['sub'];
+        return sub is String ? sub : null;
+      }
+      return null;
+    } catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to parse access token subject',
+        data: e,
+        tag: 'AuthRepository',
+      );
+      AppLogger.error(
+        'Access token parse error',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'AuthRepository',
+      );
+      return null;
+    }
   }
 }

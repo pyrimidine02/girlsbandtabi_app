@@ -1,5 +1,70 @@
 # Changelog
 
+## 2026-02-12
+### Phase 1-3: Foundation, Visual Hierarchy, Navigation
+- **UI/UX**: Add stagger animations (fade + slide) to homepage news list with 80ms delays for smooth visual flow.
+- **UI/UX**: Implement Hero transitions for place images, event posters, and news images between list/carousel and detail pages.
+- **UI/UX**: Add custom page transitions (Material 3 fade-through for details, shared-axis-Y for settings) to GoRouter.
+- **ANIMATIONS**: Create GBTStaggerAnimations utility for consistent list animation timing with max 12-item limit.
+- **ANIMATIONS**: Add GBTHeroTags for consistent Hero tag generation across place/news/event images.
+- **ANIMATIONS**: Implement GBTPageTransitions with fadeThrough() and sharedAxisY() builders for smooth navigation.
+- **ACCESSIBILITY**: Add A11yScalableText widget with text scale clamping (1.0-2.0x) to prevent layout overflow.
+- **ACCESSIBILITY**: Implement A11yAnnouncer for screen reader announcements (success, error, general).
+- **THEME**: Define GBTSemanticColors for consistent color usage (teal for distance, pink for live badges, green for verification).
+- **THEME**: Update section spacing from 24px to responsive 32/40/48px (mobile/tablet/desktop) for improved readability.
+- **CARDS**: Enhance place cards with teal-colored distance badges using semantic colors and Hero tags for transitions.
+- **CARDS**: Add subtle shadows (light mode only) to carousel place cards for better visual hierarchy.
+- **CARDS**: Update live event badges from red to pink (#EC4899) with glowing effect and pulsing dot animation.
+- **CARDS**: Add required placeId/eventId parameters to all card components for Hero transition support.
+- **PAGES**: Wrap images in PlaceDetailPage, NewsDetailPage, and LiveEventDetailPage with Hero widgets for smooth transitions.
+- **SPACING**: Use GBTResponsiveSpacing utility on homepage for adaptive section spacing across device sizes.
+- **PERFORMANCE**: Respect prefers-reduced-motion in StaggeredListItem animation controller.
+
+### Phase 4: Accessibility Enhancements (WCAG AA Compliance)
+- **ACCESSIBILITY**: Add A11yHeading wrapper to homepage section headers for proper heading hierarchy (h2 level).
+- **ACCESSIBILITY**: Implement automatic error announcements in GBTTextField using didUpdateWidget lifecycle method.
+- **ACCESSIBILITY**: Add success/error announcements to verification sheet for screen reader feedback.
+- **ACCESSIBILITY**: Enhance semantic labels and ARIA support throughout interactive components.
+- **TESTING**: Add comprehensive unit tests for A11yScalableText and A11yAnnouncer utilities.
+
+### Phase 5: Performance Optimization
+- **PERFORMANCE**: Create ThemedBuilder widget and ThemedContextExtension for efficient theme access (reduces Theme.of(context) calls).
+- **PERFORMANCE**: Remove redundant Builder widgets in places_map_page that unnecessarily re-check brightness.
+- **PERFORMANCE**: Apply const constructors to 10+ widgets (SizedBox, EdgeInsets, BorderRadius, Offset) across card components.
+- **PERFORMANCE**: Optimize EdgeInsets.zero to const EdgeInsets.all(0) in button padding for canonicalization.
+- **PERFORMANCE**: Change BorderRadius.circular() to const BorderRadius.all() in 8 locations for compile-time optimization.
+- **PERFORMANCE**: Use ThemedContextExtension (context.textPrimary, context.textSecondary, etc.) for cleaner theme-aware code.
+- **PERFORMANCE**: Replace repeated Theme.of(context).brightness checks with single isDark parameter in _RegionOptionTile.
+- **STARTUP**: Avoid blocking the first frame by moving local storage + auth bootstrap to a non-blocking task after `runApp`.
+- **IOS**: Build the native map view only when the Places tab is active to avoid offstage iOS platform view assertions.
+- **IOS**: Defer connectivity overlay updates to the next frame to avoid iOS semantics parentData assertions.
+- **ANIMATIONS**: Move staggered list animation setup to dependencies phase to avoid MediaQuery access in initState.
+- **NAV**: Defer nav index provider sync to post-frame to avoid Riverpod build-time mutations.
+- **VERIFICATION**: Always include required location fields and optional mock fields in verification token payloads, using capture timestamp.
+- **UI/UX**: Emphasize place distance in horizontal list cards with teal semantic badges.
+- **UI/UX**: Emphasize live event D-day labels with accent pill styling for upcoming events.
+- **COMMUNITY**: De-duplicate post detail images by normalizing URLs and avoiding bare R2 double extraction.
+- **CI**: Add Xcode Cloud post-clone script to run CocoaPods install for iOS archives.
+- **CODE QUALITY**: Follow Google Code Style + Effective Dart with bilingual EN/KO comments throughout all new code.
+
+## 2026-02-11
+- **VERIFICATION**: Align verification requests with OpenAPI by sending JWE `token` payloads (plus `verificationMethod`/`evidence`) instead of raw location fields.
+- **TESTING**: Updated verification repository tests to match the new token-based request contract.
+- **VERIFICATION**: Accept PEM/base64 public keys for JWE generation and fall back to RSA-OAEP-256 when config reports `dir` with asymmetric keys.
+- **VERIFICATION**: Build a signed JWS (RS256) then encrypt it into a JWE (RSA-OAEP-256) to match server-side expectations.
+- **VERIFICATION**: Register per-device public keys and sign JWS payloads with stored private keys.
+- **VERIFICATION**: Emit a claims JWS (JSON payload) for nested JWS→JWE verification tokens.
+- **VERIFICATION**: Align JWS claims with the server `LocationClaim` schema (remove nonce/exp and set `isMocked`).
+- **VERIFICATION**: Localize duplicate/simulated/invalid token failures in the verification sheet without exposing sensitive details.
+- **AUTH**: Clear auth-scoped caches on login/logout to avoid showing stale profile data across accounts.
+- **VERIFICATION**: Reset device verification keys when the authenticated user changes so JWS registration matches the active account.
+- **VERIFICATION**: Auto-clear and re-register device keys once when the backend reports "JWS key not found".
+- **VISITS**: Refresh visit history/ranking after successful place verification so new records appear immediately.
+- **VISITS**: Fetch visit detail (with location) from the new visit detail endpoint and keep list responses location-free.
+- **UI**: Render the offline banner as an overlay to avoid layout shifts.
+- **THEME**: Switch the primary palette to a pastel tone and align gradients/ripple colors.
+- **SETTINGS**: Return to the previous route (or `/home` fallback) when the settings back button has no stack to pop.
+
 ## 2026-02-06
 - **COMMUNITY**: Render post attachments even when the backend stores raw R2 URLs in content, and suppress those URLs from the body text.
 - **CONFIG**: Default release builds to the production API base URL while keeping debug builds on localhost.
@@ -7,6 +72,8 @@
 - **AUTH**: Keep users logged in when token expiry is missing by deferring validity checks to refresh/401 handling.
 - **VERIFICATION**: Sanitize verification error messages to avoid leaking location/distance details and normalize "too far" responses.
 - **THEME**: Fix dark-mode TextButton styling so review upload actions remain visible.
+- **VERIFICATION**: Simplify repository provider to sync and remove stale DTO artifacts to unblock codegen/analyzer.
+- **IOS**: Build simulator with `use_frameworks! :linkage => :static` to avoid missing `Flutter.framework` during link.
 
 ## 2026-02-05
 - **MEDIA**: Normalize legacy R2 URLs to the public CDN host before loading images.

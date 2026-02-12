@@ -4,24 +4,30 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../theme/gbt_animations.dart';
 import '../../theme/gbt_colors.dart';
 import '../../theme/gbt_spacing.dart';
 import '../../theme/gbt_typography.dart';
 import '../common/gbt_image.dart';
 
 /// EN: Compact place card for horizontal carousel display.
-///     Square image (1:1) with name and location below. No border, no shadow.
+///     Square image (1:1) with name and location below. No border, subtle shadow in light mode.
 /// KO: 수평 캐러셀 표시용 컴팩트 장소 카드.
-///     정사각형 이미지(1:1) + 아래에 이름과 위치. 테두리 없음, 그림자 없음.
+///     정사각형 이미지(1:1) + 아래에 이름과 위치. 테두리 없음, 라이트 모드에서 부드러운 그림자.
 class GBTPlaceCardCarousel extends StatelessWidget {
   const GBTPlaceCardCarousel({
     super.key,
+    required this.placeId,
     required this.name,
     required this.location,
     this.imageUrl,
     this.width = 160,
     this.onTap,
   });
+
+  /// EN: Place ID for Hero tag
+  /// KO: Hero 태그용 장소 ID
+  final String placeId;
 
   /// EN: Place name
   /// KO: 장소 이름
@@ -59,14 +65,32 @@ class GBTPlaceCardCarousel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // EN: Square image with rounded corners
-              // KO: 둥근 모서리 정사각형 이미지
-              AspectRatio(
-                aspectRatio: 1,
-                child: ClipRRect(
-                  borderRadius:
-                      BorderRadius.circular(GBTSpacing.radiusMd),
-                  child: _buildImage(isDark),
+              // EN: Square image with rounded corners, shadow, and Hero animation
+              // KO: 둥근 모서리, 그림자, Hero 애니메이션이 있는 정사각형 이미지
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                  // EN: Subtle shadow in light mode only
+                  // KO: 라이트 모드에서만 부드러운 그림자
+                  boxShadow: isDark
+                      ? null
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                ),
+                child: Hero(
+                  tag: GBTHeroTags.placeImage(placeId),
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                      child: _buildImage(isDark),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: GBTSpacing.sm),

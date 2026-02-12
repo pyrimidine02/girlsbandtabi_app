@@ -20,10 +20,7 @@ class NotificationsRemoteDataSource {
   }) {
     return _apiClient.get<List<NotificationItemDto>>(
       ApiEndpoints.notifications,
-      queryParameters: {
-        'page': page,
-        'size': size,
-      },
+      queryParameters: {'page': page, 'size': size},
       fromJson: (json) {
         if (json is List) {
           return json

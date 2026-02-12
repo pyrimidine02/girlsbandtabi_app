@@ -45,11 +45,7 @@ class ApiClient {
     );
 
     _dio.interceptors.addAll([
-      _AuthInterceptor(
-        _secureStorage,
-        _dio,
-        onUnauthorized: _onUnauthorized,
-      ),
+      _AuthInterceptor(_secureStorage, _dio, onUnauthorized: _onUnauthorized),
       _LoggingInterceptor(),
     ]);
   }
@@ -316,9 +312,9 @@ class _AuthInterceptor extends Interceptor {
       }
       final details = data['details'];
       if (details is List) {
-        return details
-            .whereType<String>()
-            .any((detail) => detail.toLowerCase().contains('csrf'));
+        return details.whereType<String>().any(
+          (detail) => detail.toLowerCase().contains('csrf'),
+        );
       }
       if (details is String && details.toLowerCase().contains('csrf')) {
         return true;
@@ -408,16 +404,10 @@ class _LoggingInterceptor extends Interceptor {
 
     AppLogger.network(options.method, options.uri.toString(), tag: 'Request');
     if (options.queryParameters.isNotEmpty) {
-      AppLogger.debug(
-        'Query: ${options.queryParameters}',
-        tag: 'Request',
-      );
+      AppLogger.debug('Query: ${options.queryParameters}', tag: 'Request');
     }
     if (options.data != null) {
-      AppLogger.debug(
-        'Body: ${_sanitizeData(options.data)}',
-        tag: 'Request',
-      );
+      AppLogger.debug('Body: ${_sanitizeData(options.data)}', tag: 'Request');
     }
 
     handler.next(options);
@@ -438,10 +428,7 @@ class _LoggingInterceptor extends Interceptor {
       tag: 'Response',
     );
     if (response.data != null) {
-      AppLogger.debug(
-        'Body: ${_sanitizeData(response.data)}',
-        tag: 'Response',
-      );
+      AppLogger.debug('Body: ${_sanitizeData(response.data)}', tag: 'Response');
     }
 
     handler.next(response);

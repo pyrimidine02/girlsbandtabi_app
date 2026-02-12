@@ -34,17 +34,13 @@ class HomeSummaryDto {
   Map<String, dynamic> toJson() {
     return {
       'recommendedPlaces': recommendedPlaces.map((e) => e.toJson()).toList(),
-      'trendingLiveEvents':
-          trendingLiveEvents.map((e) => e.toJson()).toList(),
+      'trendingLiveEvents': trendingLiveEvents.map((e) => e.toJson()).toList(),
       'latestNews': latestNews.map((e) => e.toJson()).toList(),
     };
   }
 }
 
-List<T> _parseList<T>(
-  dynamic raw,
-  T Function(Map<String, dynamic>) parser,
-) {
+List<T> _parseList<T>(dynamic raw, T Function(Map<String, dynamic>) parser) {
   if (raw is! List) return <T>[];
   return raw.whereType<Map<String, dynamic>>().map(parser).toList();
 }

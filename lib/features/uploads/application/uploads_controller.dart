@@ -139,8 +139,9 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
         '503' => true,
         'INTERNAL_SERVER_ERROR' => true,
         '404' => true,
-        _ => failure.message.toLowerCase().contains('upload') &&
-            failure.message.toLowerCase().contains('disabled'),
+        _ =>
+          failure.message.toLowerCase().contains('upload') &&
+              failure.message.toLowerCase().contains('disabled'),
       };
     }
     return false;
@@ -207,8 +208,9 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
 
 /// EN: Uploads repository provider.
 /// KO: 업로드 리포지토리 프로바이더.
-final uploadsRepositoryProvider =
-    FutureProvider<UploadsRepository>((ref) async {
+final uploadsRepositoryProvider = FutureProvider<UploadsRepository>((
+  ref,
+) async {
   final apiClient = ref.watch(apiClientProvider);
   final cacheManager = await ref.watch(cacheManagerProvider.future);
   return UploadsRepositoryImpl(
@@ -220,8 +222,8 @@ final uploadsRepositoryProvider =
 /// EN: Uploads controller provider.
 /// KO: 업로드 컨트롤러 프로바이더.
 final uploadsControllerProvider =
-    StateNotifierProvider<UploadsController, AsyncValue<List<UploadInfo>>>(
-  (ref) {
-    return UploadsController(ref);
-  },
-);
+    StateNotifierProvider<UploadsController, AsyncValue<List<UploadInfo>>>((
+      ref,
+    ) {
+      return UploadsController(ref);
+    });

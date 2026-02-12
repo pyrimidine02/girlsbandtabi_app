@@ -2,6 +2,8 @@
 /// KO: 앱 진입점
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -53,19 +55,36 @@ Future<void> main() async {
   // KO: 사전 초기화를 위한 프로바이더 컨테이너 생성
   final container = ProviderContainer();
 
-  // EN: Pre-initialize local storage
-  // KO: 로컬 저장소 사전 초기화
-  await container.read(localStorageProvider.future);
-
-  // EN: Check authentication status
-  // KO: 인증 상태 확인
-  await container.read(authStateProvider.notifier).checkAuthStatus();
-
-  AppLogger.info('App initialization complete', tag: 'Main');
-
   // EN: Run the app with Riverpod
   // KO: Riverpod과 함께 앱 실행
   runApp(
     UncontrolledProviderScope(container: container, child: const GBTApp()),
   );
+
+  // EN: Bootstrap critical services without blocking the first frame.
+  // KO: 첫 프레임을 막지 않도록 핵심 서비스를 부트스트랩합니다.
+  unawaited(_bootstrap(container));
+}
+
+/// EN: Non-blocking bootstrap for storage + auth checks.
+/// KO: 스토리지 + 인증 확인을 위한 논블로킹 부트스트랩.
+Future<void> _bootstrap(ProviderContainer container) async {
+  try {
+    // EN: Pre-initialize local storage.
+    // KO: 로컬 저장소 사전 초기화.
+    await container.read(localStorageProvider.future);
+
+    // EN: Check authentication status.
+    // KO: 인증 상태 확인.
+    await container.read(authStateProvider.notifier).checkAuthStatus();
+
+    AppLogger.info('App initialization complete', tag: 'Main');
+  } catch (error, stackTrace) {
+    AppLogger.error(
+      'App bootstrap failed',
+      error: error,
+      stackTrace: stackTrace,
+      tag: 'Main',
+    );
+  }
 }

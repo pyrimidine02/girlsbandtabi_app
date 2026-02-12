@@ -79,33 +79,59 @@ class GBTApp extends ConsumerWidget {
 
 /// EN: Wrapper widget for connectivity status display
 /// KO: 연결 상태 표시를 위한 래퍼 위젯
-class _ConnectivityWrapper extends ConsumerWidget {
+class _ConnectivityWrapper extends ConsumerStatefulWidget {
   const _ConnectivityWrapper({required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final connectivityAsync = ref.watch(connectivityStatusProvider);
+  ConsumerState<_ConnectivityWrapper> createState() =>
+      _ConnectivityWrapperState();
+}
 
-    return Column(
+class _ConnectivityWrapperState extends ConsumerState<_ConnectivityWrapper> {
+  bool _isOffline = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isOffline = _resolveOffline(ref.read(connectivityStatusProvider));
+  }
+
+  bool _resolveOffline(AsyncValue<ConnectivityStatus> value) {
+    return value.valueOrNull == ConnectivityStatus.offline;
+  }
+
+  void _scheduleOfflineUpdate(bool isOffline) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _isOffline == isOffline) return;
+      setState(() => _isOffline = isOffline);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isOfflineNow =
+        _resolveOffline(ref.watch(connectivityStatusProvider));
+    if (isOfflineNow != _isOffline) {
+      _scheduleOfflineUpdate(isOfflineNow);
+    }
+
+    // EN: Keep Positioned wrapper stable to avoid parentData dirty during
+    // semantics flush — only swap the content inside.
+    // KO: semantics flush 중 parentData dirty를 방지하기 위해 Positioned 래퍼를
+    // 안정적으로 유지 — 내부 콘텐츠만 교체.
+    return Stack(
       children: [
-        // EN: Offline banner
-        // KO: 오프라인 배너
-        connectivityAsync.when(
-          data: (status) {
-            if (status == ConnectivityStatus.offline) {
-              return _OfflineBanner();
-            }
-            return const SizedBox.shrink();
-          },
-          loading: () => const SizedBox.shrink(),
-          error: (_, __) => const SizedBox.shrink(),
+        Positioned.fill(child: widget.child),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: _isOffline
+              ? IgnorePointer(child: _OfflineBanner())
+              : const SizedBox.shrink(),
         ),
-
-        // EN: Main content
-        // KO: 메인 콘텐츠
-        Expanded(child: child),
       ],
     );
   }

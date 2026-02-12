@@ -89,7 +89,8 @@ class PlaceDetail {
   factory PlaceDetail.fromDto(PlaceDetailDto dto, {PlaceStatsDto? stats}) {
     final imageUrls = dto.images.map((image) => image.url).toList();
     final heroImageUrl =
-        dto.primaryImage?.url ?? (imageUrls.isNotEmpty ? imageUrls.first : null);
+        dto.primaryImage?.url ??
+        (imageUrls.isNotEmpty ? imageUrls.first : null);
 
     return PlaceDetail(
       id: dto.id,

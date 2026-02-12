@@ -63,9 +63,7 @@ class GBTBottomNav extends StatelessWidget {
         // KO: 미세한 분리를 위한 상단 테두리 라인
         border: Border(
           top: BorderSide(
-            color: isDark
-                ? GBTColors.darkBorderSubtle
-                : GBTColors.border,
+            color: isDark ? GBTColors.darkBorderSubtle : GBTColors.border,
             width: 0.5,
           ),
         ),
@@ -116,9 +114,7 @@ class _BottomNavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     // EN: Use darkPrimary (lighter purple) for selected state in dark mode
     // KO: 다크 모드에서 선택 상태에 darkPrimary (밝은 보라) 사용
-    final selectedColor = isDark
-        ? GBTColors.darkPrimary
-        : GBTColors.primary;
+    final selectedColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
     final unselectedColor = isDark
         ? GBTColors.darkTextTertiary
         : GBTColors.textTertiary;
@@ -127,9 +123,7 @@ class _BottomNavItem extends StatelessWidget {
     return Expanded(
       child: Semantics(
         label: item.semanticLabel ?? item.label,
-        hint: isSelected
-            ? null
-            : '탭하면 ${item.label} 탭으로 이동합니다',
+        hint: isSelected ? null : '탭하면 ${item.label} 탭으로 이동합니다',
         button: true,
         selected: isSelected,
         // EN: Provide tab position info for screen readers
@@ -158,9 +152,7 @@ class _BottomNavItem extends StatelessWidget {
                 item.label,
                 style: GBTTypography.labelSmall.copyWith(
                   color: color,
-                  fontWeight: isSelected
-                      ? FontWeight.w500
-                      : FontWeight.w400,
+                  fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
                   fontSize: 11,
                 ),
               ),

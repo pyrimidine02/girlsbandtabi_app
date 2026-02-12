@@ -25,7 +25,8 @@ Future<void> uploadToPresignedUrl({
         'Content-Length': bytes.length,
         ...headers,
       },
-      validateStatus: (status) => status != null && status >= 200 && status < 300,
+      validateStatus: (status) =>
+          status != null && status >= 200 && status < 300,
     ),
   );
 

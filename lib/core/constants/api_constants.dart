@@ -19,7 +19,8 @@ class ApiEndpoints {
   static const String register = '$apiVersion/auth/register';
   static const String refresh = '$apiVersion/auth/refresh';
   static const String logout = '$apiVersion/auth/logout';
-  static const String emailVerifications = '$apiVersion/auth/email-verifications';
+  static const String emailVerifications =
+      '$apiVersion/auth/email-verifications';
   static const String emailVerificationsConfirm =
       '$apiVersion/auth/email-verifications/confirm';
   static String oauthCallback(String provider) =>
@@ -32,13 +33,12 @@ class ApiEndpoints {
   static const String userMe = '$apiVersion/users/me';
   static const String userVisits = '$apiVersion/users/me/visits';
   static const String userVisitsSummary = '$apiVersion/users/me/visits/summary';
+  static String userVisitDetail(String visitId) => '$userVisits/$visitId';
   static const String usersSearch = '$apiVersion/users/search';
   static String userProfile(String userId) => '$apiVersion/users/$userId';
-  static String userBlocked(String userId) =>
-      '${userProfile(userId)}/blocked';
+  static String userBlocked(String userId) => '${userProfile(userId)}/blocked';
   static const String userBlocks = '$apiVersion/users/me/blocks';
-  static String userBlock(String targetUserId) =>
-      '$userBlocks/$targetUserId';
+  static String userBlock(String targetUserId) => '$userBlocks/$targetUserId';
 
   // ============================================================
   // EN: Favorites endpoints (8.14)
@@ -61,6 +61,7 @@ class ApiEndpoints {
   static const String verificationConfig = '$apiVersion/verification/config';
   static const String verificationChallenge =
       '$apiVersion/verification/challenge';
+  static const String verificationKeys = '$apiVersion/verification/keys';
 
   // ============================================================
   // EN: Home/Search endpoints (8.4)
@@ -108,8 +109,7 @@ class ApiEndpoints {
       '$apiVersion/places/$placeId/photos';
   static String placePhotosBatch(String placeId) =>
       '${placePhotos(placeId)}/batch';
-  static String placePhotosAll(String placeId) =>
-      '${placePhotos(placeId)}/all';
+  static String placePhotosAll(String placeId) => '${placePhotos(placeId)}/all';
   static String placePhotosFeatured(String placeId) =>
       '${placePhotos(placeId)}/featured';
   static String placePhotosPending(String placeId) =>
@@ -127,8 +127,7 @@ class ApiEndpoints {
       '$apiVersion/places/$placeId/guides';
   static String placeGuidesBatch(String placeId) =>
       '${placeGuides(placeId)}/batch';
-  static String placeGuidesAll(String placeId) =>
-      '${placeGuides(placeId)}/all';
+  static String placeGuidesAll(String placeId) => '${placeGuides(placeId)}/all';
   static String placeGuide(String placeId, String guideId) =>
       '${placeGuides(placeId)}/$guideId';
   static String placeGuidePreview(String placeId, String guideId) =>
@@ -266,8 +265,7 @@ class ApiEndpoints {
     String projectCode,
     String postId,
     String commentId,
-  ) =>
-      '${postComments(projectCode, postId)}/$commentId';
+  ) => '${postComments(projectCode, postId)}/$commentId';
   static String postLike(String projectCode, String postId) =>
       '${post(projectCode, postId)}/like';
   static String postsByAuthor(String projectCode, String userId) =>
@@ -278,8 +276,7 @@ class ApiEndpoints {
   // EN: Community reports endpoints.
   // KO: 커뮤니티 신고 엔드포인트.
   static const String communityReports = '$apiVersion/community/reports';
-  static const String communityReportsMe =
-      '$apiVersion/community/reports/me';
+  static const String communityReportsMe = '$apiVersion/community/reports/me';
   static String communityReport(String reportId) =>
       '$communityReports/$reportId';
 
@@ -295,8 +292,7 @@ class ApiEndpoints {
   // EN: Upload endpoints (8.18)
   // KO: 업로드 엔드포인트 (8.18)
   // ============================================================
-  static const String uploadsPresignedUrl =
-      '$apiVersion/uploads/presigned-url';
+  static const String uploadsPresignedUrl = '$apiVersion/uploads/presigned-url';
   static const String uploadsDirect = '$apiVersion/uploads';
   static String uploadsConfirm(String uploadId) =>
       '$apiVersion/uploads/$uploadId/confirm';
@@ -317,14 +313,12 @@ class ApiEndpoints {
     String projectId,
     String placeId,
     String imageId,
-  ) =>
-      '${placeImagesLink(projectId, placeId)}/$imageId';
+  ) => '${placeImagesLink(projectId, placeId)}/$imageId';
   static String placeImagePrimary(
     String projectId,
     String placeId,
     String imageId,
-  ) =>
-      '${placeImageDelete(projectId, placeId, imageId)}:primary';
+  ) => '${placeImageDelete(projectId, placeId, imageId)}:primary';
   static String placeImagesReorder(String projectId, String placeId) =>
       '${placeImagesLink(projectId, placeId)}:reorder';
 
@@ -334,21 +328,16 @@ class ApiEndpoints {
     String projectId,
     String newsId,
     String imageId,
-  ) =>
-      '${newsImagesLink(projectId, newsId)}/$imageId';
+  ) => '${newsImagesLink(projectId, newsId)}/$imageId';
   static String newsImagePrimary(
     String projectId,
     String newsId,
     String imageId,
-  ) =>
-      '${newsImageDelete(projectId, newsId, imageId)}:primary';
+  ) => '${newsImageDelete(projectId, newsId, imageId)}:primary';
   static String newsImagesReorder(String projectId, String newsId) =>
       '${newsImagesLink(projectId, newsId)}:reorder';
 
-  static String liveEventBannerLink(
-    String projectId,
-    String liveEventId,
-  ) =>
+  static String liveEventBannerLink(String projectId, String liveEventId) =>
       '${liveEvent(projectId, liveEventId)}/banner';
 
   // ============================================================
@@ -371,8 +360,7 @@ class ApiEndpoints {
   static const String adminUsers = '$apiVersion/admin/users';
   static String adminUserRole(String userId) => '$adminUsers/$userId/role';
   static const String adminTokensRevoke = '$apiVersion/admin/tokens/revoke';
-  static String projectRoles(String projectId) =>
-      '${project(projectId)}/roles';
+  static String projectRoles(String projectId) => '${project(projectId)}/roles';
   static String projectRolesGrant(String projectId) =>
       '${projectRoles(projectId)}/grant';
   static String projectRolesRevoke(String projectId) =>
@@ -417,8 +405,10 @@ class ApiEndpoints {
   static String adminPlaceVisitsAnomalies(String projectId, String placeId) =>
       '${adminPlaceVisits(projectId, placeId)}/anomalies';
   static String adminPlaceVisitModerate(
-          String projectId, String placeId, String visitId) =>
-      '${adminPlaceVisits(projectId, placeId)}/$visitId/moderate';
+    String projectId,
+    String placeId,
+    String visitId,
+  ) => '${adminPlaceVisits(projectId, placeId)}/$visitId/moderate';
   static String adminLiveEvents(String projectId) =>
       '${project(projectId)}/admin/live-events';
   static String adminPlaceUnitsReplace(String projectId, String placeId) =>
@@ -428,15 +418,13 @@ class ApiEndpoints {
   static String adminLiveEventUnitsReplace(
     String projectId,
     String liveEventId,
-  ) =>
-      '${project(projectId)}/admin/live-events/$liveEventId/units:replace';
+  ) => '${project(projectId)}/admin/live-events/$liveEventId/units:replace';
 
   // ============================================================
   // EN: Admin SSE endpoints (8.24)
   // KO: 어드민 SSE 엔드포인트 (8.24)
   // ============================================================
-  static const String adminStreamActivity =
-      '$apiVersion/admin/stream/activity';
+  static const String adminStreamActivity = '$apiVersion/admin/stream/activity';
   static const String adminEventsStream = '$apiVersion/admin/events/stream';
 
   // ============================================================

@@ -20,51 +20,27 @@ class GBTShadows {
   /// EN: Subtle shadow for cards at rest (single layer)
   /// KO: 정지 상태 카드를 위한 미세한 그림자 (단일 레이어)
   static const List<BoxShadow> sm = [
-    BoxShadow(
-      color: Color(0x0A000000),
-      blurRadius: 6,
-      offset: Offset(0, 1),
-    ),
+    BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 1)),
   ];
 
   /// EN: Medium shadow for elevated elements (single layer)
   /// KO: 높은 요소를 위한 중간 그림자 (단일 레이어)
   static const List<BoxShadow> md = [
-    BoxShadow(
-      color: Color(0x0D000000),
-      blurRadius: 12,
-      offset: Offset(0, 3),
-    ),
+    BoxShadow(color: Color(0x0D000000), blurRadius: 12, offset: Offset(0, 3)),
   ];
 
   /// EN: Large shadow for modals/sheets
   /// KO: 모달/시트를 위한 큰 그림자
   static const List<BoxShadow> lg = [
-    BoxShadow(
-      color: Color(0x14000000),
-      blurRadius: 16,
-      offset: Offset(0, 4),
-    ),
-    BoxShadow(
-      color: Color(0x0A000000),
-      blurRadius: 32,
-      offset: Offset(0, 8),
-    ),
+    BoxShadow(color: Color(0x14000000), blurRadius: 16, offset: Offset(0, 4)),
+    BoxShadow(color: Color(0x0A000000), blurRadius: 32, offset: Offset(0, 8)),
   ];
 
   /// EN: Extra large shadow for floating elements
   /// KO: 플로팅 요소를 위한 초대형 그림자
   static const List<BoxShadow> xl = [
-    BoxShadow(
-      color: Color(0x1A000000),
-      blurRadius: 24,
-      offset: Offset(0, 8),
-    ),
-    BoxShadow(
-      color: Color(0x0F000000),
-      blurRadius: 48,
-      offset: Offset(0, 16),
-    ),
+    BoxShadow(color: Color(0x1A000000), blurRadius: 24, offset: Offset(0, 8)),
+    BoxShadow(color: Color(0x0F000000), blurRadius: 48, offset: Offset(0, 16)),
   ];
 
   /// EN: Colored glow shadow for accent elements
@@ -105,31 +81,19 @@ class GBTShadows {
   /// EN: Subtle border glow for dark mode cards
   /// KO: 다크 모드 카드를 위한 미세한 테두리 글로우
   static const List<BoxShadow> darkSm = [
-    BoxShadow(
-      color: Color(0x33000000),
-      blurRadius: 4,
-      offset: Offset(0, 1),
-    ),
+    BoxShadow(color: Color(0x33000000), blurRadius: 4, offset: Offset(0, 1)),
   ];
 
   /// EN: Medium glow for dark mode
   /// KO: 다크 모드를 위한 중간 글로우
   static const List<BoxShadow> darkMd = [
-    BoxShadow(
-      color: Color(0x40000000),
-      blurRadius: 12,
-      offset: Offset(0, 4),
-    ),
+    BoxShadow(color: Color(0x40000000), blurRadius: 12, offset: Offset(0, 4)),
   ];
 
   /// EN: Large glow for dark mode modals
   /// KO: 다크 모드 모달을 위한 큰 글로우
   static const List<BoxShadow> darkLg = [
-    BoxShadow(
-      color: Color(0x66000000),
-      blurRadius: 24,
-      offset: Offset(0, 8),
-    ),
+    BoxShadow(color: Color(0x66000000), blurRadius: 24, offset: Offset(0, 8)),
   ];
 }
 
@@ -160,9 +124,7 @@ class GBTDecorations {
     color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface,
     borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
     boxShadow: isDark ? GBTShadows.darkSm : GBTShadows.sm,
-    border: isDark
-        ? Border.all(color: GBTColors.darkBorder, width: 0.5)
-        : null,
+    border: isDark ? Border.all(color: GBTColors.darkBorder, width: 0.5) : null,
   );
 
   // ========================================
@@ -233,28 +195,4 @@ class GBTDecorations {
     ),
     boxShadow: isDark ? GBTShadows.darkLg : GBTShadows.lg,
   );
-}
-
-/// EN: Animation constants for consistent motion
-/// KO: 일관된 모션을 위한 애니메이션 상수
-class GBTAnimations {
-  GBTAnimations._();
-
-  // EN: Standard durations (organic timing)
-  // KO: 표준 지속 시간 (유기적 타이밍)
-  static const Duration fast = Duration(milliseconds: 130);
-  static const Duration normal = Duration(milliseconds: 280);
-  static const Duration slow = Duration(milliseconds: 420);
-  static const Duration emphasis = Duration(milliseconds: 500);
-
-  // EN: Standard curves
-  // KO: 표준 커브
-  static const Curve defaultCurve = Curves.easeOutCubic;
-  static const Curve bounceCurve = Curves.easeOutBack;
-  static const Curve emphasizedCurve = Curves.easeInOutCubicEmphasized;
-
-  // EN: Press animation scale factor
-  // KO: 프레스 애니메이션 스케일 팩터
-  static const double pressedScale = 0.97;
-  static const double hoverScale = 1.02;
 }

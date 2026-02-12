@@ -39,7 +39,10 @@ class VerificationConfigDto {
 }
 
 class VerificationChallengeDto {
-  const VerificationChallengeDto({required this.nonce, required this.expiresAt});
+  const VerificationChallengeDto({
+    required this.nonce,
+    required this.expiresAt,
+  });
 
   final String nonce;
   final DateTime expiresAt;
@@ -47,7 +50,8 @@ class VerificationChallengeDto {
   factory VerificationChallengeDto.fromJson(Map<String, dynamic> json) {
     final expiresAtRaw = _string(json, ['expiresAt', 'expires_at']) ?? '';
     final parsedExpiresAt =
-        DateTime.tryParse(expiresAtRaw) ?? DateTime.fromMillisecondsSinceEpoch(0);
+        DateTime.tryParse(expiresAtRaw) ??
+        DateTime.fromMillisecondsSinceEpoch(0);
     return VerificationChallengeDto(
       nonce: _string(json, ['nonce', 'token', 'challengeToken']) ?? '',
       expiresAt: parsedExpiresAt,
@@ -62,26 +66,17 @@ class VerificationChallengeDto {
 class VerificationRequestDto {
   const VerificationRequestDto({
     this.token,
-    this.latitude,
-    this.longitude,
-    this.accuracy,
     this.verificationMethod,
     this.evidence,
   });
 
   final String? token;
-  final double? latitude;
-  final double? longitude;
-  final double? accuracy;
   final String? verificationMethod;
   final String? evidence;
 
   Map<String, dynamic> toJson() {
     return {
       if (token != null) 'token': token,
-      if (latitude != null) 'latitude': latitude,
-      if (longitude != null) 'longitude': longitude,
-      if (accuracy != null) 'accuracy': accuracy,
       if (verificationMethod != null) 'verificationMethod': verificationMethod,
       if (evidence != null) 'evidence': evidence,
     };
@@ -108,11 +103,64 @@ class VerificationResultDto {
   }
 
   Map<String, dynamic> toJson() {
+    return {'placeId': placeId, 'liveEventId': liveEventId, 'result': result};
+  }
+}
+
+class VerificationKeyRegisterRequestDto {
+  const VerificationKeyRegisterRequestDto({
+    required this.keyId,
+    required this.deviceId,
+    this.publicKeyJwk,
+    this.publicKeyPem,
+  });
+
+  final String keyId;
+  final String deviceId;
+  final Map<String, dynamic>? publicKeyJwk;
+  final String? publicKeyPem;
+
+  Map<String, dynamic> toJson() {
     return {
-      'placeId': placeId,
-      'liveEventId': liveEventId,
-      'result': result,
+      'keyId': keyId,
+      'deviceId': deviceId,
+      if (publicKeyJwk != null) 'publicKeyJwk': publicKeyJwk,
+      if (publicKeyPem != null) 'publicKeyPem': publicKeyPem,
     };
+  }
+}
+
+class VerificationDeviceKeyDto {
+  const VerificationDeviceKeyDto({
+    required this.keyId,
+    required this.deviceId,
+    required this.algorithm,
+    required this.isActive,
+    required this.createdAt,
+    this.lastUsedAt,
+    this.revokedAt,
+  });
+
+  final String keyId;
+  final String deviceId;
+  final String algorithm;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime? lastUsedAt;
+  final DateTime? revokedAt;
+
+  factory VerificationDeviceKeyDto.fromJson(Map<String, dynamic> json) {
+    return VerificationDeviceKeyDto(
+      keyId: _string(json, ['keyId']) ?? '',
+      deviceId: _string(json, ['deviceId']) ?? '',
+      algorithm: _string(json, ['algorithm']) ?? '',
+      isActive: json['isActive'] == true,
+      createdAt:
+          _dateTime(json, ['createdAt']) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      lastUsedAt: _dateTime(json, ['lastUsedAt']),
+      revokedAt: _dateTime(json, ['revokedAt']),
+    );
   }
 }
 
@@ -130,6 +178,17 @@ int? _int(Map<String, dynamic> json, List<String> keys) {
     if (value is int) return value;
     if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value);
+  }
+  return null;
+}
+
+DateTime? _dateTime(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value is String) {
+      final parsed = DateTime.tryParse(value);
+      if (parsed != null) return parsed;
+    }
   }
   return null;
 }

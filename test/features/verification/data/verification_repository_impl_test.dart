@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart' hide VerificationResult;
 
-import 'package:girlsbandtabi_app/core/location/location_service.dart';
 import 'package:girlsbandtabi_app/core/utils/result.dart';
 import 'package:girlsbandtabi_app/features/verification/data/datasources/verification_remote_data_source.dart';
 import 'package:girlsbandtabi_app/features/verification/data/dto/verification_dto.dart';
@@ -11,29 +10,22 @@ import 'package:girlsbandtabi_app/features/verification/domain/entities/verifica
 class MockVerificationRemoteDataSource extends Mock
     implements VerificationRemoteDataSource {}
 
-class MockLocationService extends Mock implements LocationService {}
-
 void main() {
   setUpAll(() {
     registerFallbackValue(const VerificationRequestDto());
+    registerFallbackValue(
+      const VerificationKeyRegisterRequestDto(
+        keyId: 'key',
+        deviceId: 'device',
+        publicKeyJwk: {'kty': 'RSA'},
+      ),
+    );
   });
 
-  test('verifyPlace sends location payload from LocationService', () async {
+  test('verifyPlace forwards token payload to remote data source', () async {
     final remoteDataSource = MockVerificationRemoteDataSource();
-    final locationService = MockLocationService();
     final repository = VerificationRepositoryImpl(
       remoteDataSource: remoteDataSource,
-      locationService: locationService,
-    );
-
-    when(
-      () => locationService.getCurrentLocation(),
-    ).thenAnswer(
-      (_) async => const LocationSnapshot(
-        latitude: 35.0,
-        longitude: 139.0,
-        accuracy: 12.3,
-      ),
     );
 
     when(
@@ -51,6 +43,8 @@ void main() {
     final result = await repository.verifyPlace(
       projectId: 'project-1',
       placeId: 'place-1',
+      token: 'token-1',
+      verificationMethod: 'AUTO',
     );
 
     expect(result, isA<Success<VerificationResult>>());
@@ -65,18 +59,15 @@ void main() {
             ).captured.single
             as VerificationRequestDto;
 
-    expect(capturedRequest.latitude, 35.0);
-    expect(capturedRequest.longitude, 139.0);
-    expect(capturedRequest.accuracy, 12.3);
-    expect(capturedRequest.token, isNull);
+    expect(capturedRequest.token, 'token-1');
+    expect(capturedRequest.verificationMethod, 'AUTO');
   });
 
-  test('verifyLiveEvent uses verificationMethod without location lookup', () async {
+  test('verifyLiveEvent forwards verificationMethod to remote data source',
+      () async {
     final remoteDataSource = MockVerificationRemoteDataSource();
-    final locationService = MockLocationService();
     final repository = VerificationRepositoryImpl(
       remoteDataSource: remoteDataSource,
-      locationService: locationService,
     );
 
     when(
@@ -98,7 +89,6 @@ void main() {
     );
 
     expect(result, isA<Success<VerificationResult>>());
-    verifyNever(() => locationService.getCurrentLocation());
 
     final capturedRequest =
         verify(
@@ -111,5 +101,52 @@ void main() {
             as VerificationRequestDto;
 
     expect(capturedRequest.verificationMethod, 'MANUAL');
+  });
+
+  test('registerDeviceKey forwards JWK payload to remote data source',
+      () async {
+    final remoteDataSource = MockVerificationRemoteDataSource();
+    final repository = VerificationRepositoryImpl(
+      remoteDataSource: remoteDataSource,
+    );
+
+    when(
+      () => remoteDataSource.registerDeviceKey(
+        request: any(named: 'request'),
+      ),
+    ).thenAnswer(
+      (_) async => Result.success(
+        VerificationDeviceKeyDto(
+          keyId: 'device-key-1',
+          deviceId: 'ios-15-pro-001',
+          algorithm: 'RS256',
+          isActive: true,
+          createdAt: DateTime.parse('2026-02-11T13:10:00+09:00'),
+          lastUsedAt: null,
+          revokedAt: null,
+        ),
+      ),
+    );
+
+    final result = await repository.registerDeviceKey(
+      keyId: 'device-key-1',
+      deviceId: 'ios-15-pro-001',
+      publicKeyJwk: const {'kty': 'RSA', 'kid': 'device-key-1'},
+    );
+
+    expect(result, isA<Success<VerificationDeviceKey>>());
+
+    final capturedRequest =
+        verify(
+              () => remoteDataSource.registerDeviceKey(
+                request: captureAny(named: 'request'),
+              ),
+            ).captured.single
+            as VerificationKeyRegisterRequestDto;
+
+    expect(capturedRequest.keyId, 'device-key-1');
+    expect(capturedRequest.deviceId, 'ios-15-pro-001');
+    expect(capturedRequest.publicKeyJwk, isNotNull);
+    expect(capturedRequest.publicKeyPem, isNull);
   });
 }

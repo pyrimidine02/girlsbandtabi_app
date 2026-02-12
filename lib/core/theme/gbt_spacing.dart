@@ -41,8 +41,9 @@ class GBTSpacing {
   static const double listItemPadding = 16.0;
   static const double listItemSpacing = 12.0;
 
-  static const double sectionSpacing = 24.0;
-  static const double sectionSpacingLg = 32.0;
+  static const double sectionSpacing = 32.0;
+  static const double sectionSpacingLg = 40.0;
+  static const double sectionSpacingXl = 48.0;
   static const double sectionMargin = 32.0;
 
   static const double carouselItemGap = 12.0;
@@ -193,6 +194,17 @@ class GBTResponsiveSpacing {
       mobile: GBTSpacing.pageHorizontal,
       tablet: GBTSpacing.lg,
       desktop: GBTSpacing.xl,
+    );
+  }
+
+  /// EN: Get responsive section spacing based on screen size
+  /// KO: 화면 크기에 따른 반응형 섹션 간격 반환
+  static double responsiveSectionSpacing(BuildContext context) {
+    return GBTResponsiveSpacing.responsive(
+      context,
+      mobile: GBTSpacing.sectionSpacing,
+      tablet: GBTSpacing.sectionSpacingLg,
+      desktop: GBTSpacing.sectionSpacingXl,
     );
   }
 

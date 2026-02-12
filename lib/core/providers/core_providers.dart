@@ -114,6 +114,12 @@ final selectedUnitIdsProvider = StateProvider<List<String>>((ref) {
   return [];
 });
 
+/// EN: Current bottom navigation index.
+/// KO: 현재 하단 네비게이션 인덱스.
+final currentNavIndexProvider = StateProvider<int>((ref) {
+  return 0;
+});
+
 // ========================================
 // EN: Auth State Providers
 // KO: 인증 상태 프로바이더

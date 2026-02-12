@@ -157,9 +157,7 @@ class _PlaceNameShimmer extends StatelessWidget {
       height: 16,
       width: 120,
       decoration: BoxDecoration(
-        color: isDark
-            ? GBTColors.darkSurfaceVariant
-            : GBTColors.surfaceVariant,
+        color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
         borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
       ),
     );

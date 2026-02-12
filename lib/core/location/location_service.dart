@@ -13,11 +13,15 @@ class LocationSnapshot {
     required this.latitude,
     required this.longitude,
     required this.accuracy,
+    required this.isMocked,
+    required this.timestamp,
   });
 
   final double latitude;
   final double longitude;
   final double accuracy;
+  final bool isMocked;
+  final DateTime timestamp;
 }
 
 /// EN: Service for resolving current device location with permission checks.
@@ -64,6 +68,8 @@ class LocationService {
       latitude: position.latitude,
       longitude: position.longitude,
       accuracy: position.accuracy,
+      isMocked: position.isMocked,
+      timestamp: position.timestamp ?? DateTime.now(),
     );
   }
 }

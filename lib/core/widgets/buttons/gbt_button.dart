@@ -5,8 +5,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../theme/gbt_animations.dart';
 import '../../theme/gbt_colors.dart';
-import '../../theme/gbt_decorations.dart';
 import '../../theme/gbt_spacing.dart';
 import '../../theme/gbt_typography.dart';
 
@@ -114,8 +114,7 @@ class GBTButton extends StatelessWidget {
     // EN: Build semantic label including loading state
     // KO: 로딩 상태를 포함한 시맨틱 라벨 빌드
     final effectiveLabel = semanticLabel ?? label;
-    final stateLabel =
-        isLoading ? '$effectiveLabel, 로딩 중' : effectiveLabel;
+    final stateLabel = isLoading ? '$effectiveLabel, 로딩 중' : effectiveLabel;
 
     Widget button = switch (variant) {
       GBTButtonVariant.primary ||
@@ -169,8 +168,9 @@ class GBTButton extends StatelessWidget {
               height: _getIconSize(),
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                valueColor:
-                    AlwaysStoppedAnimation<Color>(_getForegroundColor()),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  _getForegroundColor(),
+                ),
               ),
             )
           : _buildContent(),
@@ -303,12 +303,9 @@ class GBTButton extends StatelessWidget {
     return switch (size) {
       // EN: Small buttons map to same 48dp height as medium for consistency
       // KO: 일관성을 위해 small 버튼도 medium과 같은 48dp 높이로 매핑
-      GBTButtonSize.small =>
-        const Size(88, GBTSpacing.minTouchTarget),
-      GBTButtonSize.medium =>
-        const Size(88, GBTSpacing.minTouchTarget),
-      GBTButtonSize.large =>
-        const Size(120, GBTSpacing.touchTarget),
+      GBTButtonSize.small => const Size(88, GBTSpacing.minTouchTarget),
+      GBTButtonSize.medium => const Size(88, GBTSpacing.minTouchTarget),
+      GBTButtonSize.large => const Size(120, GBTSpacing.touchTarget),
     };
   }
 

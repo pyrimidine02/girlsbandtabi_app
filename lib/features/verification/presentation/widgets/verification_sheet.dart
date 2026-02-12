@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/accessibility/a11y_wrapper.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -78,6 +79,15 @@ class _VerificationSheetState extends ConsumerState<VerificationSheet> {
               final message = error is Failure
                   ? _buildVerificationErrorMessage(error)
                   : '인증에 실패했습니다';
+
+              // EN: Announce error to screen reader
+              // KO: 스크린 리더에 에러 공지
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  A11yAnnouncer.announceError(context, message);
+                }
+              });
+
               return Column(
                 children: [
                   Text(
@@ -99,6 +109,14 @@ class _VerificationSheetState extends ConsumerState<VerificationSheet> {
             },
             data: (result) {
               if (result != null) {
+                // EN: Announce success to screen reader
+                // KO: 스크린 리더에 성공 공지
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    A11yAnnouncer.announceSuccess(context, '장소 인증이 완료되었습니다');
+                  }
+                });
+
                 _maybeOpenReview(context);
                 return Column(
                   children: [
@@ -199,6 +217,18 @@ String? _normalizeVerificationMessage(String message, String? code) {
     return '현재 위치가 장소에서 너무 멀어요';
   }
   final lower = raw.toLowerCase();
+  if (lower.contains('duplicate verification request') ||
+      lower.contains('duplicate request')) {
+    return '이미 인증 요청이 처리 중이에요. 잠시 후 다시 시도해 주세요';
+  }
+  if (lower.contains('simulated locations are not allowed') ||
+      lower.contains('simulated location') ||
+      lower.contains('mocked location')) {
+    return '모의 위치는 사용할 수 없어요. 실제 위치로 시도해 주세요';
+  }
+  if (lower.contains('invalid location token')) {
+    return '인증 정보가 유효하지 않아요. 다시 시도해 주세요';
+  }
   if (lower.contains('too far')) {
     return '현재 위치가 장소에서 너무 멀어요';
   }
@@ -216,8 +246,10 @@ bool _containsLocationLeak(String message) {
   if (lower.contains('distance')) {
     return true;
   }
-  final distancePattern =
-      RegExp(r'\b\d+(\.\d+)?\s*(m|meter|meters)\b', caseSensitive: false);
+  final distancePattern = RegExp(
+    r'\b\d+(\.\d+)?\s*(m|meter|meters)\b',
+    caseSensitive: false,
+  );
   if (distancePattern.hasMatch(message)) return true;
   final coordinatePattern = RegExp(r'-?\d{1,3}\.\d{4,}');
   return coordinatePattern.hasMatch(message);

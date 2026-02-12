@@ -156,9 +156,9 @@ class ErrorHandler {
     if (data is Map<String, dynamic>) {
       final details = data['details'];
       if (details is List) {
-        return details
-            .whereType<String>()
-            .any((detail) => detail.toLowerCase().contains('csrf'));
+        return details.whereType<String>().any(
+          (detail) => detail.toLowerCase().contains('csrf'),
+        );
       }
       if (details is String && details.toLowerCase().contains('csrf')) {
         return true;

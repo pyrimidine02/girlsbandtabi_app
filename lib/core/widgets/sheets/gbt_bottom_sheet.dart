@@ -128,8 +128,7 @@ class GBTBottomSheet extends StatelessWidget {
                             ? GBTColors.darkTextSecondary
                             : GBTColors.textSecondary,
                       ),
-                      onPressed:
-                          onClose ?? () => Navigator.of(context).pop(),
+                      onPressed: onClose ?? () => Navigator.of(context).pop(),
                       iconSize: GBTSpacing.iconSm,
                       constraints: const BoxConstraints(
                         minWidth: GBTSpacing.touchTarget,
@@ -226,8 +225,7 @@ class _ActionItem<T> extends StatelessWidget {
           ? '탭하면 ${action.label} 작업이 실행됩니다 (삭제 동작)'
           : '탭하면 ${action.label} 작업이 실행됩니다',
       child: ListTile(
-        leading:
-            action.icon != null ? Icon(action.icon, color: color) : null,
+        leading: action.icon != null ? Icon(action.icon, color: color) : null,
         title: Text(
           action.label,
           style: GBTTypography.bodyMedium.copyWith(color: color),
@@ -285,68 +283,70 @@ Future<bool?> showGBTConfirmationSheet({
   return showGBTBottomSheet<bool>(
     context: context,
     child: SafeArea(
-      child: Builder(builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
+      child: Builder(
+        builder: (context) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
 
-        return Padding(
-          padding: GBTSpacing.paddingPage,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: GBTSpacing.sm),
-              Text(
-                title,
-                style: GBTTypography.titleMedium.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: isDark
-                      ? GBTColors.darkTextPrimary
-                      : GBTColors.textPrimary,
+          return Padding(
+            padding: GBTSpacing.paddingPage,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: GBTSpacing.sm),
+                Text(
+                  title,
+                  style: GBTTypography.titleMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? GBTColors.darkTextPrimary
+                        : GBTColors.textPrimary,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: GBTSpacing.sm),
-              Text(
-                message,
-                style: GBTTypography.bodyMedium.copyWith(
-                  color: isDark
-                      ? GBTColors.darkTextSecondary
-                      : GBTColors.textSecondary,
+                const SizedBox(height: GBTSpacing.sm),
+                Text(
+                  message,
+                  style: GBTTypography.bodyMedium.copyWith(
+                    color: isDark
+                        ? GBTColors.darkTextSecondary
+                        : GBTColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: GBTSpacing.lg),
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: GBTSpacing.touchTarget,
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: Text(cancelLabel),
+                const SizedBox(height: GBTSpacing.lg),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: GBTSpacing.touchTarget,
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: Text(cancelLabel),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: GBTSpacing.md),
-                  Expanded(
-                    child: SizedBox(
-                      height: GBTSpacing.touchTarget,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        style: isDestructive
-                            ? ElevatedButton.styleFrom(
-                                backgroundColor: GBTColors.error,
-                              )
-                            : null,
-                        child: Text(confirmLabel),
+                    const SizedBox(width: GBTSpacing.md),
+                    Expanded(
+                      child: SizedBox(
+                        height: GBTSpacing.touchTarget,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          style: isDestructive
+                              ? ElevatedButton.styleFrom(
+                                  backgroundColor: GBTColors.error,
+                                )
+                              : null,
+                          child: Text(confirmLabel),
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      }),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     ),
   );
 }

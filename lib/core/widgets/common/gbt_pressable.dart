@@ -5,7 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../theme/gbt_decorations.dart';
+import '../../theme/gbt_animations.dart';
 
 /// EN: Wraps a child widget with a consistent press-scale animation.
 /// Respects the user's reduced motion accessibility setting.
@@ -71,9 +71,7 @@ class _GBTPressableState extends State<GBTPressable>
     _scaleAnimation = Tween<double>(
       begin: 1.0,
       end: widget.scaleEnd,
-    ).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -122,10 +120,7 @@ class _GBTPressableState extends State<GBTPressable>
       onTapCancel: _onTapCancel,
       onTap: _onTap,
       behavior: HitTestBehavior.opaque,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: widget.child,
-      ),
+      child: ScaleTransition(scale: _scaleAnimation, child: widget.child),
     );
   }
 }

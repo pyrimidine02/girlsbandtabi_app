@@ -4,8 +4,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../theme/gbt_animations.dart';
 import '../../theme/gbt_colors.dart';
-import '../../theme/gbt_decorations.dart';
 import '../../theme/gbt_spacing.dart';
 import '../../theme/gbt_typography.dart';
 
@@ -398,9 +398,11 @@ class _GBTShimmerState extends State<GBTShimmer>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = widget.baseColor ??
+    final baseColor =
+        widget.baseColor ??
         (isDark ? GBTColors.darkShimmerBase : GBTColors.shimmerBase);
-    final highlightColor = widget.highlightColor ??
+    final highlightColor =
+        widget.highlightColor ??
         (isDark ? GBTColors.darkShimmerHighlight : GBTColors.shimmerHighlight);
 
     return Semantics(
@@ -527,8 +529,7 @@ class GBTPlaceCardSkeleton extends StatelessWidget {
                     width: double.infinity,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius:
-                          BorderRadius.circular(GBTSpacing.radiusXs),
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                   const SizedBox(height: GBTSpacing.sm),
@@ -537,8 +538,7 @@ class GBTPlaceCardSkeleton extends StatelessWidget {
                     width: 140,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius:
-                          BorderRadius.circular(GBTSpacing.radiusXs),
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                   const SizedBox(height: GBTSpacing.sm),
@@ -547,8 +547,7 @@ class GBTPlaceCardSkeleton extends StatelessWidget {
                     width: 80,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius:
-                          BorderRadius.circular(GBTSpacing.radiusXs),
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                 ],
@@ -603,8 +602,7 @@ class GBTEventCardSkeleton extends StatelessWidget {
                     width: double.infinity,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius:
-                          BorderRadius.circular(GBTSpacing.radiusXs),
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                   const SizedBox(height: GBTSpacing.sm),
@@ -613,8 +611,7 @@ class GBTEventCardSkeleton extends StatelessWidget {
                     width: 100,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius:
-                          BorderRadius.circular(GBTSpacing.radiusXs),
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                   const SizedBox(height: GBTSpacing.sm),
@@ -623,8 +620,7 @@ class GBTEventCardSkeleton extends StatelessWidget {
                     width: 160,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius:
-                          BorderRadius.circular(GBTSpacing.radiusXs),
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                 ],
@@ -688,8 +684,7 @@ class GBTNewsCardSkeleton extends StatelessWidget {
                     width: double.infinity,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius:
-                          BorderRadius.circular(GBTSpacing.radiusXs),
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                   const SizedBox(height: GBTSpacing.sm),
@@ -698,8 +693,7 @@ class GBTNewsCardSkeleton extends StatelessWidget {
                     width: 180,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius:
-                          BorderRadius.circular(GBTSpacing.radiusXs),
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                   const SizedBox(height: GBTSpacing.sm),
@@ -708,8 +702,7 @@ class GBTNewsCardSkeleton extends StatelessWidget {
                     width: 60,
                     decoration: BoxDecoration(
                       color: bgColor,
-                      borderRadius:
-                          BorderRadius.circular(GBTSpacing.radiusXs),
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
                     ),
                   ),
                 ],

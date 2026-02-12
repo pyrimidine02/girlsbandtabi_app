@@ -38,8 +38,7 @@ class SearchItem {
     final title = _string(item, ['title', 'name', 'headline']) ?? '검색 결과';
     final subtitle = _string(item, ['subtitle', 'summary', 'description']);
     final imageUrl = _string(item, ['imageUrl', 'thumbnailUrl', 'image']);
-    final category =
-        _string(item, ['category', 'tag', 'group']) ?? dto.type;
+    final category = _string(item, ['category', 'tag', 'group']) ?? dto.type;
     final publishedAt = _dateTime(item, ['publishedAt', 'createdAt', 'date']);
 
     return SearchItem(

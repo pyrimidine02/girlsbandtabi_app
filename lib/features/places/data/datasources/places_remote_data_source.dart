@@ -50,10 +50,8 @@ class PlacesRemoteDataSource {
         'minPlaceCount': minPlaceCount,
         'hierarchical': hierarchical,
       },
-      fromJson:
-          (json) => RegionFilterOptionsDto.fromJson(
-            json as Map<String, dynamic>,
-          ),
+      fromJson: (json) =>
+          RegionFilterOptionsDto.fromJson(json as Map<String, dynamic>),
     );
   }
 
@@ -97,10 +95,8 @@ class PlacesRemoteDataSource {
         'regionCode': regionCode,
         'includeChildren': includeChildren,
       },
-      fromJson:
-          (json) => RegionMapBoundsDto.fromJson(
-            json as Map<String, dynamic>,
-          ),
+      fromJson: (json) =>
+          RegionMapBoundsDto.fromJson(json as Map<String, dynamic>),
     );
   }
 
@@ -154,8 +150,9 @@ class PlacesRemoteDataSource {
       ApiEndpoints.placeComments(placeId),
       data: request.toJson(),
       fromJson: (json) {
-        final response =
-            PlaceCommentResponseDto.fromJson(json as Map<String, dynamic>);
+        final response = PlaceCommentResponseDto.fromJson(
+          json as Map<String, dynamic>,
+        );
         return response.comment;
       },
     );
@@ -230,18 +227,18 @@ class PlacesRemoteDataSource {
     }
 
     final visitCount = visitsResult is Success<Map<String, dynamic>>
-        ? _extractPlaceCount(
-            visitsResult.data,
-            placeId,
-            const ['totalVisits', 'visitCount', 'count'],
-          )
+        ? _extractPlaceCount(visitsResult.data, placeId, const [
+            'totalVisits',
+            'visitCount',
+            'count',
+          ])
         : null;
     final favoriteCount = likesResult is Success<Map<String, dynamic>>
-        ? _extractPlaceCount(
-            likesResult.data,
-            placeId,
-            const ['favoriteCount', 'likeCount', 'count'],
-          )
+        ? _extractPlaceCount(likesResult.data, placeId, const [
+            'favoriteCount',
+            'likeCount',
+            'count',
+          ])
         : null;
 
     return Result.success(

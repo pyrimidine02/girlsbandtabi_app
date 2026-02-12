@@ -4,7 +4,9 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cache/cache_manager.dart';
 import '../../../core/error/failure.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
 import '../data/datasources/auth_remote_data_source.dart';
@@ -20,14 +22,17 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     required AuthRepository repository,
     required AuthStateNotifier authStateNotifier,
     required AuthOAuthService oauthService,
+    required Future<CacheManager> cacheManagerFuture,
   }) : _repository = repository,
        _authStateNotifier = authStateNotifier,
        _oauthService = oauthService,
+       _cacheManagerFuture = cacheManagerFuture,
        super(const AsyncData(null));
 
   final AuthRepository _repository;
   final AuthStateNotifier _authStateNotifier;
   final AuthOAuthService _oauthService;
+  final Future<CacheManager> _cacheManagerFuture;
 
   /// EN: Login with username/password.
   /// KO: 사용자명/비밀번호 로그인.
@@ -112,12 +117,14 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
       state = AsyncError(result.failure, StackTrace.current);
       return;
     }
+    await _clearAuthScopedCaches();
     _authStateNotifier.setUnauthenticated();
     state = const AsyncData(null);
   }
 
   Future<Result<void>> _handleAuthResult(Result<dynamic> result) async {
     if (result is Success<dynamic>) {
+      await _clearAuthScopedCaches();
       _authStateNotifier.setAuthenticated();
       state = const AsyncData(null);
       return const Result.success(null);
@@ -136,6 +143,28 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     return Result.failure(
       const UnknownFailure('Unknown auth result', code: 'unknown_auth_result'),
     );
+  }
+
+  /// EN: Clear caches that must not leak across accounts.
+  /// KO: 계정 간 노출되면 안 되는 캐시를 초기화합니다.
+  Future<void> _clearAuthScopedCaches() async {
+    try {
+      final cacheManager = await _cacheManagerFuture;
+      await cacheManager.remove('user_profile');
+      await cacheManager.remove('notification_settings');
+    } catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to clear auth-scoped caches',
+        data: e,
+        tag: 'AuthController',
+      );
+      AppLogger.error(
+        'Auth-scoped cache clear error',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'AuthController',
+      );
+    }
   }
 }
 
@@ -163,9 +192,11 @@ final authControllerProvider =
       final repository = ref.watch(authRepositoryProvider);
       final authStateNotifier = ref.read(authStateProvider.notifier);
       final oauthService = ref.watch(authOAuthServiceProvider);
+      final cacheManagerFuture = ref.watch(cacheManagerProvider.future);
       return AuthController(
         repository: repository,
         authStateNotifier: authStateNotifier,
         oauthService: oauthService,
+        cacheManagerFuture: cacheManagerFuture,
       );
     });

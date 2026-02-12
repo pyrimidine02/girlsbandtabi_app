@@ -55,12 +55,11 @@ class _InfoPageState extends ConsumerState<InfoPage>
           controller: _tabController,
           isScrollable: true,
           tabAlignment: TabAlignment.start,
-          indicatorColor:
-              isDark ? GBTColors.darkPrimary : GBTColors.primary,
-          labelColor:
-              isDark ? GBTColors.darkPrimary : GBTColors.primary,
-          unselectedLabelColor:
-              isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
+          indicatorColor: isDark ? GBTColors.darkPrimary : GBTColors.primary,
+          labelColor: isDark ? GBTColors.darkPrimary : GBTColors.primary,
+          unselectedLabelColor: isDark
+              ? GBTColors.darkTextSecondary
+              : GBTColors.textSecondary,
           labelStyle: GBTTypography.labelLarge,
           unselectedLabelStyle: GBTTypography.labelLarge,
           tabs: const [
@@ -120,8 +119,7 @@ class _NewsTab extends ConsumerWidget {
         ],
       ),
       error: (error, _) {
-        final message =
-            error is Failure ? error.userMessage : '뉴스를 불러오지 못했어요';
+        final message = error is Failure ? error.userMessage : '뉴스를 불러오지 못했어요';
         return ListView(
           padding: GBTSpacing.paddingPage,
           children: [
@@ -207,8 +205,7 @@ class _UnitsTab extends ConsumerWidget {
         ],
       ),
       error: (error, _) {
-        final message =
-            error is Failure ? error.userMessage : '유닛을 불러오지 못했어요';
+        final message = error is Failure ? error.userMessage : '유닛을 불러오지 못했어요';
         return ListView(
           padding: GBTSpacing.paddingPage,
           children: [
@@ -216,9 +213,7 @@ class _UnitsTab extends ConsumerWidget {
             GBTErrorState(
               message: message,
               onRetry: () => ref
-                  .read(
-                    projectUnitsControllerProvider(projectKey).notifier,
-                  )
+                  .read(projectUnitsControllerProvider(projectKey).notifier)
                   .load(forceRefresh: true),
             ),
           ],
@@ -243,8 +238,9 @@ class _UnitsTab extends ConsumerWidget {
           itemCount: units.length,
           itemBuilder: (context, index) {
             final unit = units[index];
-            final paletteColor = _avatarPalette[
-                unit.displayName.hashCode.abs() % _avatarPalette.length];
+            final paletteColor =
+                _avatarPalette[unit.displayName.hashCode.abs() %
+                    _avatarPalette.length];
 
             return Card(
               margin: const EdgeInsets.only(bottom: GBTSpacing.sm),
@@ -261,10 +257,7 @@ class _UnitsTab extends ConsumerWidget {
                     ),
                   ),
                 ),
-                title: Text(
-                  unit.displayName,
-                  style: GBTTypography.titleSmall,
-                ),
+                title: Text(unit.displayName, style: GBTTypography.titleSmall),
                 subtitle: Text(
                   unit.code,
                   style: GBTTypography.bodySmall.copyWith(
@@ -336,8 +329,9 @@ class _NewsCard extends StatelessWidget {
     // EN: Use theme-aware colors for dark mode compatibility.
     // KO: 다크 모드 호환성을 위해 테마 인식 색상을 사용합니다.
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tertiaryColor =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -404,8 +398,7 @@ class _NewsThumbnail extends StatelessWidget {
         ),
         child: Icon(
           Icons.image,
-          color:
-              isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+          color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
         ),
       );
     }

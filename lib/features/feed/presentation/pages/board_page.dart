@@ -129,8 +129,9 @@ class _CommunityPostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authorLabel =
-        post.authorName?.isNotEmpty == true ? post.authorName! : '익명';
+    final authorLabel = post.authorName?.isNotEmpty == true
+        ? post.authorName!
+        : '익명';
     final avatarUrl = post.authorAvatarUrl?.isNotEmpty == true
         ? post.authorAvatarUrl
         : null;
@@ -139,17 +140,18 @@ class _CommunityPostCard extends StatelessWidget {
     // EN: Use theme-aware colors for dark mode compatibility.
     // KO: 다크 모드 호환성을 위해 테마 인식 색상을 사용합니다.
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tertiaryColor =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
     // EN: Resolve first image URL for thumbnail (fallback: extract from content).
     // KO: 썸네일용 첫 번째 이미지 URL을 해석합니다 (폴백: 콘텐츠에서 추출).
     final String? firstImageUrl;
     if (post.imageUrls.isNotEmpty) {
       firstImageUrl = resolveMediaUrl(post.imageUrls.first);
     } else {
-      final contentImages = extractImageUrls(post.content)
-          .map(resolveMediaUrl)
-          .where((url) => url.isNotEmpty);
+      final contentImages = extractImageUrls(
+        post.content,
+      ).map(resolveMediaUrl).where((url) => url.isNotEmpty);
       firstImageUrl = contentImages.isNotEmpty ? contentImages.first : null;
     }
 
@@ -285,10 +287,12 @@ class _Avatar extends StatelessWidget {
     // EN: Use theme-aware placeholder colors.
     // KO: 테마 인식 플레이스홀더 색상을 사용합니다.
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor =
-        isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant;
-    final iconColor =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final bgColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+    final iconColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
 
     final fallback = CircleAvatar(
       radius: radius,

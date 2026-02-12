@@ -75,10 +75,7 @@ class FavoritesController
       return result;
     }
 
-    final result = await repository.addFavorite(
-      entityId: entityId,
-      type: type,
-    );
+    final result = await repository.addFavorite(entityId: entityId, type: type);
     if (result is Success<FavoriteItem>) {
       await load(forceRefresh: true);
       return const Result.success(null);

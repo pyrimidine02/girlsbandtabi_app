@@ -41,8 +41,7 @@ class _PlaceReviewSheetState extends ConsumerState<PlaceReviewSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final canSubmit =
-        !_isSubmitting && _controller.text.trim().isNotEmpty;
+    final canSubmit = !_isSubmitting && _controller.text.trim().isNotEmpty;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -116,9 +115,7 @@ class _PlaceReviewSheetState extends ConsumerState<PlaceReviewSheet> {
           if (_errorMessage != null) ...[
             Text(
               _errorMessage!,
-              style: GBTTypography.bodySmall.copyWith(
-                color: GBTColors.error,
-              ),
+              style: GBTTypography.bodySmall.copyWith(color: GBTColors.error),
             ),
             const SizedBox(height: GBTSpacing.sm),
           ],

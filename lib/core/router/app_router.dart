@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/core_providers.dart';
+import '../theme/gbt_animations.dart';
 import '../../shared/main_scaffold.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
@@ -166,9 +167,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: ':placeId',
                     name: AppRoutes.placeDetail,
-                    builder: (context, state) {
+                    pageBuilder: (context, state) {
                       final placeId = state.pathParameters['placeId']!;
-                      return PlaceDetailPage(placeId: placeId);
+                      return CustomTransitionPage(
+                        key: state.pageKey,
+                        child: PlaceDetailPage(placeId: placeId),
+                        transitionsBuilder: GBTPageTransitions.fadeThrough(),
+                        transitionDuration: GBTAnimations.normal,
+                      );
                     },
                   ),
                 ],
@@ -188,9 +194,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: ':eventId',
                     name: AppRoutes.liveDetail,
-                    builder: (context, state) {
+                    pageBuilder: (context, state) {
                       final eventId = state.pathParameters['eventId']!;
-                      return LiveEventDetailPage(eventId: eventId);
+                      return CustomTransitionPage(
+                        key: state.pageKey,
+                        child: LiveEventDetailPage(eventId: eventId),
+                        transitionsBuilder: GBTPageTransitions.fadeThrough(),
+                        transitionDuration: GBTAnimations.normal,
+                      );
                     },
                   ),
                 ],
@@ -237,9 +248,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'news/:newsId',
                     name: AppRoutes.newsDetail,
-                    builder: (context, state) {
+                    pageBuilder: (context, state) {
                       final newsId = state.pathParameters['newsId']!;
-                      return NewsDetailPage(newsId: newsId);
+                      return CustomTransitionPage(
+                        key: state.pageKey,
+                        child: NewsDetailPage(newsId: newsId),
+                        transitionsBuilder: GBTPageTransitions.fadeThrough(),
+                        transitionDuration: GBTAnimations.normal,
+                      );
                     },
                   ),
                 ],
@@ -254,7 +270,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings',
         name: AppRoutes.settings,
-        builder: (context, state) => const SettingsPage(),
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: const SettingsPage(),
+            transitionsBuilder: GBTPageTransitions.sharedAxisY(),
+            transitionDuration: GBTAnimations.normal,
+          );
+        },
         routes: [
           GoRoute(
             path: 'profile',
@@ -264,8 +287,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'notifications',
             name: AppRoutes.notificationSettings,
-            builder: (context, state) =>
-                const NotificationSettingsPage(),
+            builder: (context, state) => const NotificationSettingsPage(),
           ),
           GoRoute(
             path: 'visits',
@@ -276,27 +298,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: ':visitId',
                 name: AppRoutes.visitDetail,
                 builder: (context, state) {
-                  final visitId =
-                      state.pathParameters['visitId']!;
-                  final placeId =
-                      state.uri.queryParameters['placeId'] ??
-                          '';
-                  final visitedAt =
-                      state.uri.queryParameters['visitedAt'];
-                  final latStr =
-                      state.uri.queryParameters['latitude'];
-                  final lngStr =
-                      state.uri.queryParameters['longitude'];
+                  final visitId = state.pathParameters['visitId']!;
+                  final placeId = state.uri.queryParameters['placeId'] ?? '';
+                  final visitedAt = state.uri.queryParameters['visitedAt'];
+                  final latStr = state.uri.queryParameters['latitude'];
+                  final lngStr = state.uri.queryParameters['longitude'];
                   return VisitDetailPage(
                     visitId: visitId,
                     placeId: placeId,
                     visitedAt: visitedAt,
-                    latitude: latStr != null
-                        ? double.tryParse(latStr)
-                        : null,
-                    longitude: lngStr != null
-                        ? double.tryParse(lngStr)
-                        : null,
+                    latitude: latStr != null ? double.tryParse(latStr) : null,
+                    longitude: lngStr != null ? double.tryParse(lngStr) : null,
                   );
                 },
               ),
@@ -440,5 +452,13 @@ extension AppRouterExtension on BuildContext {
 
   /// EN: Navigate to settings (push overlay on top of shell)
   /// KO: 설정으로 이동 (쉘 위에 오버레이로 push)
-  void goToSettings() => push('/settings');
+  void goToSettings() {
+    final router = GoRouter.of(this);
+    final currentUri = router.routeInformationProvider.value.uri;
+    final settingsUri = Uri(
+      path: '/settings',
+      queryParameters: {'from': currentUri.toString()},
+    );
+    push(settingsUri.toString());
+  }
 }

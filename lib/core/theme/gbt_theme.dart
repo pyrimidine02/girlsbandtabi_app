@@ -81,7 +81,7 @@ class GBTTheme {
   static ColorScheme get _lightColorScheme => ColorScheme(
     brightness: Brightness.light,
     primary: GBTColors.primary,
-    onPrimary: GBTColors.textInverse,
+    onPrimary: GBTColors.textPrimary,
     primaryContainer: GBTColors.primaryLight,
     onPrimaryContainer: GBTColors.primaryPressed,
     // EN: Secondary mapped to neutral for default usage; pink reserved for explicit use.
@@ -305,10 +305,7 @@ class GBTTheme {
     elevation: 0,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-      side: const BorderSide(
-        color: GBTColors.darkBorderSubtle,
-        width: 0.5,
-      ),
+      side: const BorderSide(color: GBTColors.darkBorderSubtle, width: 0.5),
     ),
     margin: EdgeInsets.zero,
   );

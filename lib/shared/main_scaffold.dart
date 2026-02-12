@@ -3,21 +3,47 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/providers/core_providers.dart';
 import '../core/widgets/navigation/gbt_bottom_nav.dart';
 
 /// EN: Main scaffold widget with stateful navigation shell
 /// KO: 상태 유지 네비게이션 쉘을 포함한 메인 스캐폴드 위젯
-class MainScaffold extends StatelessWidget {
+class MainScaffold extends ConsumerStatefulWidget {
   const MainScaffold({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
   @override
+  ConsumerState<MainScaffold> createState() => _MainScaffoldState();
+}
+
+class _MainScaffoldState extends ConsumerState<MainScaffold> {
+  int? _lastSyncedIndex;
+  bool _syncScheduled = false;
+
+  void _scheduleSync(int index) {
+    if (_syncScheduled) return;
+    _syncScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncScheduled = false;
+      if (!mounted || _lastSyncedIndex == index) return;
+      _lastSyncedIndex = index;
+      ref.read(currentNavIndexProvider.notifier).state = index;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final currentIndex = widget.navigationShell.currentIndex;
+    if (_lastSyncedIndex != currentIndex) {
+      _scheduleSync(currentIndex);
+    }
+
     return Scaffold(
-      body: navigationShell,
+      body: widget.navigationShell,
       bottomNavigationBar: GBTBottomNav(
         items: const [
           GBTBottomNavItem(
@@ -46,7 +72,7 @@ class MainScaffold extends StatelessWidget {
             label: '정보',
           ),
         ],
-        currentIndex: navigationShell.currentIndex,
+        currentIndex: currentIndex,
         onTap: (index) => _onTap(context, index),
       ),
     );
@@ -55,11 +81,13 @@ class MainScaffold extends StatelessWidget {
   /// EN: Handle bottom navigation tap
   /// KO: 하단 네비게이션 탭 처리
   void _onTap(BuildContext context, int index) {
-    navigationShell.goBranch(
+    widget.navigationShell.goBranch(
       index,
       // EN: Navigate to initial location if tapping current tab
       // KO: 현재 탭을 탭하면 초기 위치로 이동
-      initialLocation: index == navigationShell.currentIndex,
+      initialLocation: index == widget.navigationShell.currentIndex,
     );
+    _lastSyncedIndex = index;
+    ref.read(currentNavIndexProvider.notifier).state = index;
   }
 }

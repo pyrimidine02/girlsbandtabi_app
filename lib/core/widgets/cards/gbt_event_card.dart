@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../theme/gbt_animations.dart';
 import '../../theme/gbt_colors.dart';
 import '../../theme/gbt_decorations.dart';
 import '../../theme/gbt_spacing.dart';
@@ -21,6 +22,7 @@ import '../common/gbt_pressable.dart';
 class GBTEventCard extends StatelessWidget {
   const GBTEventCard({
     super.key,
+    required this.eventId,
     required this.title,
     required this.subtitle,
     required this.meta,
@@ -33,6 +35,10 @@ class GBTEventCard extends StatelessWidget {
     this.onTap,
     this.onFavoriteToggle,
   });
+
+  /// EN: Event ID for Hero tag
+  /// KO: Hero 태그용 이벤트 ID
+  final String eventId;
 
   /// EN: Event title
   /// KO: 이벤트 제목
@@ -137,26 +143,33 @@ class GBTEventCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // EN: Live badge with glow effect
-                      // KO: 글로우 효과가 있는 라이브 배지
+                      // EN: Live badge with pink glow effect
+                      // KO: 핑크 글로우 효과가 있는 라이브 배지
                       if (isLive) ...[
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: GBTSpacing.xs,
                             vertical: GBTSpacing.xxs,
                           ),
-                          decoration: GBTDecorations.liveBadge(),
+                          decoration: BoxDecoration(
+                            color: GBTColors.secondary,
+                            borderRadius: BorderRadius.circular(
+                              GBTSpacing.radiusXs,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: GBTColors.secondary.withValues(
+                                  alpha: 0.4,
+                                ),
+                                blurRadius: 8,
+                                spreadRadius: 0,
+                              ),
+                            ],
+                          ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
+                              _PulsingDot(),
                               const SizedBox(width: GBTSpacing.xs),
                               Text(
                                 'LIVE',
@@ -236,8 +249,8 @@ class GBTEventCard extends StatelessWidget {
                 // KO: 포스터 또는 즐겨찾기 버튼
                 Column(
                   children: [
-                    // EN: Poster with rounded corners (80x106, larger for visual weight)
-                    // KO: 둥근 모서리 포스터 (80x106, 시각적 비중을 위해 더 큰 크기)
+                    // EN: Poster with rounded corners and Hero animation (80x106)
+                    // KO: 둥근 모서리와 Hero 애니메이션이 있는 포스터 (80x106)
                     Container(
                       width: 80,
                       height: 106,
@@ -245,20 +258,24 @@ class GBTEventCard extends StatelessWidget {
                         color: isDark
                             ? GBTColors.darkSurfaceElevated
                             : GBTColors.surfaceVariant,
-                        borderRadius:
-                            BorderRadius.circular(GBTSpacing.radiusSm),
+                        borderRadius: BorderRadius.circular(
+                          GBTSpacing.radiusSm,
+                        ),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: posterUrl != null
-                          ? GBTImage(
-                              imageUrl: posterUrl!,
-                              width: 80,
-                              height: 106,
-                              fit: BoxFit.cover,
-                              borderRadius: BorderRadius.circular(
-                                GBTSpacing.radiusSm,
+                          ? Hero(
+                              tag: GBTHeroTags.eventPoster(eventId),
+                              child: GBTImage(
+                                imageUrl: posterUrl!,
+                                width: 80,
+                                height: 106,
+                                fit: BoxFit.cover,
+                                borderRadius: BorderRadius.circular(
+                                  GBTSpacing.radiusSm,
+                                ),
+                                semanticLabel: '$title 포스터',
                               ),
-                              semanticLabel: '$title 포스터',
                             )
                           : _PosterPlaceholder(isDark: isDark),
                     ),
@@ -268,14 +285,10 @@ class GBTEventCard extends StatelessWidget {
                     if (onFavoriteToggle != null) ...[
                       const SizedBox(height: GBTSpacing.xs),
                       Tooltip(
-                        message: isFavorite
-                            ? '즐겨찾기 해제'
-                            : '즐겨찾기 추가',
+                        message: isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가',
                         child: Semantics(
                           button: true,
-                          label: isFavorite
-                              ? '즐겨찾기 해제'
-                              : '즐겨찾기 추가',
+                          label: isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가',
                           hint: isFavorite
                               ? '탭하면 즐겨찾기에서 제거합니다'
                               : '탭하면 즐겨찾기에 추가합니다',
@@ -296,13 +309,13 @@ class GBTEventCard extends StatelessWidget {
                               color: isFavorite
                                   ? GBTColors.favorite
                                   : (isDark
-                                      ? GBTColors.darkTextTertiary
-                                      : GBTColors.textTertiary),
+                                        ? GBTColors.darkTextTertiary
+                                        : GBTColors.textTertiary),
                               onPressed: () {
                                 HapticFeedback.lightImpact();
                                 onFavoriteToggle!();
                               },
-                              padding: EdgeInsets.zero,
+                              padding: const EdgeInsets.all(0),
                               constraints: const BoxConstraints(
                                 minWidth: GBTSpacing.touchTarget,
                                 minHeight: GBTSpacing.touchTarget,
@@ -373,21 +386,22 @@ class _DateBadge extends StatelessWidget {
     final Color dayColor;
     final Color monthColor;
     final Color dDayColor;
+    final Color dDayBackground;
 
     if (isUpcoming) {
-      dayColor =
-          isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-      monthColor =
-          isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
-      dDayColor =
-          isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+      dayColor = isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+      monthColor = isDark
+          ? GBTColors.darkTextSecondary
+          : GBTColors.textSecondary;
+      dDayColor = GBTColors.secondary;
+      dDayBackground = GBTColors.secondary.withValues(
+        alpha: isDark ? 0.22 : 0.14,
+      );
     } else {
-      dayColor =
-          isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
-      monthColor =
-          isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
-      dDayColor =
-          isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+      dayColor = isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+      monthColor = isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+      dDayColor = isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+      dDayBackground = Colors.transparent;
     }
 
     return Container(
@@ -410,17 +424,25 @@ class _DateBadge extends StatelessWidget {
           ),
           Text(
             month.isEmpty ? '월' : '$month월',
-            style: GBTTypography.labelSmall.copyWith(
-              color: monthColor,
-            ),
+            style: GBTTypography.labelSmall.copyWith(color: monthColor),
           ),
           if (dDayLabel != null && dDayLabel!.isNotEmpty) ...[
             const SizedBox(height: GBTSpacing.xxs),
-            Text(
-              dDayLabel!,
-              style: GBTTypography.labelSmall.copyWith(
-                color: dDayColor,
-                fontWeight: FontWeight.w600,
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: GBTSpacing.xs,
+                vertical: 2,
+              ),
+              decoration: BoxDecoration(
+                color: dDayBackground,
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
+              ),
+              child: Text(
+                dDayLabel!,
+                style: GBTTypography.labelSmall.copyWith(
+                  color: dDayColor,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -437,6 +459,7 @@ class _DateBadge extends StatelessWidget {
 class GBTFeaturedEventCard extends StatelessWidget {
   const GBTFeaturedEventCard({
     super.key,
+    required this.eventId,
     required this.title,
     required this.subtitle,
     required this.meta,
@@ -445,6 +468,10 @@ class GBTFeaturedEventCard extends StatelessWidget {
     this.isLive = false,
     this.onTap,
   });
+
+  /// EN: Event ID for Hero tag
+  /// KO: Hero 태그용 이벤트 ID
+  final String eventId;
 
   final String title;
   final String subtitle;
@@ -480,22 +507,25 @@ class GBTFeaturedEventCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // EN: Poster with overlay
-              // KO: 오버레이 포스터
+              // EN: Poster with overlay and Hero animation
+              // KO: 오버레이와 Hero 애니메이션이 있는 포스터
               Stack(
                 children: [
                   AspectRatio(
                     aspectRatio: 16 / 9,
                     child: posterUrl != null
-                        ? GBTImage(
-                            imageUrl: posterUrl!,
-                            fit: BoxFit.cover,
-                            semanticLabel: '$title 포스터',
+                        ? Hero(
+                            tag: GBTHeroTags.eventPoster(eventId),
+                            child: GBTImage(
+                              imageUrl: posterUrl!,
+                              fit: BoxFit.cover,
+                              semanticLabel: '$title 포스터',
+                            ),
                           )
                         : _FeaturedPosterPlaceholder(isDark: isDark),
                   ),
-                  // EN: Live badge with glow
-                  // KO: 글로우가 있는 라이브 배지
+                  // EN: Live badge with pink glow
+                  // KO: 핑크 글로우가 있는 라이브 배지
                   if (isLive)
                     Positioned(
                       top: GBTSpacing.sm,
@@ -505,18 +535,23 @@ class GBTFeaturedEventCard extends StatelessWidget {
                           horizontal: GBTSpacing.sm,
                           vertical: GBTSpacing.xxs,
                         ),
-                        decoration: GBTDecorations.liveBadge(),
+                        decoration: BoxDecoration(
+                          color: GBTColors.secondary,
+                          borderRadius: BorderRadius.circular(
+                            GBTSpacing.radiusXs,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: GBTColors.secondary.withValues(alpha: 0.4),
+                              blurRadius: 8,
+                              spreadRadius: 0,
+                            ),
+                          ],
+                        ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
+                            const _PulsingDot(),
                             const SizedBox(width: GBTSpacing.xs),
                             Text(
                               'LIVE',
@@ -559,8 +594,9 @@ class GBTFeaturedEventCard extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.5),
-                        borderRadius:
-                            BorderRadius.circular(GBTSpacing.radiusXs),
+                        borderRadius: BorderRadius.circular(
+                          GBTSpacing.radiusXs,
+                        ),
                       ),
                       child: Text(
                         date,
@@ -676,6 +712,56 @@ class _FeaturedPosterPlaceholder extends StatelessWidget {
           Icons.music_note_rounded,
           size: GBTSpacing.xxxl,
           color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+        ),
+      ),
+    );
+  }
+}
+
+/// EN: Pulsing dot animation for live badge
+/// KO: 라이브 배지용 펄싱 도트 애니메이션
+class _PulsingDot extends StatefulWidget {
+  const _PulsingDot();
+
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _animation = Tween<double>(
+      begin: 0.4,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _animation,
+      child: Container(
+        width: 6,
+        height: 6,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
         ),
       ),
     );

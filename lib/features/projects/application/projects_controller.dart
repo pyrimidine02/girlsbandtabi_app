@@ -96,10 +96,12 @@ class ProjectSelectionController extends StateNotifier<ProjectSelectionState> {
         _setSelectedUnitIdsIfChanged(storedUnitIds);
         // EN: Fire-and-forget parallel persist — don't block the UI.
         // KO: fire-and-forget 병렬 저장 — UI를 차단하지 않음.
-        unawaited(Future.wait([
-          storage.setSelectedProjectKey(resolvedProjectKey),
-          storage.setSelectedProjectId(match.id),
-        ]));
+        unawaited(
+          Future.wait([
+            storage.setSelectedProjectKey(resolvedProjectKey),
+            storage.setSelectedProjectId(match.id),
+          ]),
+        );
         return;
       }
     }
@@ -136,13 +138,15 @@ class ProjectSelectionController extends StateNotifier<ProjectSelectionState> {
     _setSelectedUnitIdsIfChanged(const []);
 
     final storage = await _ref.read(localStorageProvider.future);
-    unawaited(Future.wait([
-      storage.setSelectedProjectKey(projectKey ?? ''),
-      storage.setSelectedProjectId(
-        (projectId != null && projectId.isNotEmpty) ? projectId : '',
-      ),
-      storage.setSelectedUnitIds([]),
-    ]));
+    unawaited(
+      Future.wait([
+        storage.setSelectedProjectKey(projectKey ?? ''),
+        storage.setSelectedProjectId(
+          (projectId != null && projectId.isNotEmpty) ? projectId : '',
+        ),
+        storage.setSelectedUnitIds([]),
+      ]),
+    );
   }
 
   Future<void> selectUnits(List<String> unitIds) async {
@@ -189,8 +193,9 @@ class ProjectSelectionController extends StateNotifier<ProjectSelectionState> {
     // KO: 동일한 유닛 리스트 방출을 막아 중복 호출을 방지합니다.
     final current = _ref.read(selectedUnitIdsProvider);
     if (!listEquals(current, unitIds)) {
-      _ref.read(selectedUnitIdsProvider.notifier).state =
-          List<String>.from(unitIds);
+      _ref.read(selectedUnitIdsProvider.notifier).state = List<String>.from(
+        unitIds,
+      );
     }
   }
 }

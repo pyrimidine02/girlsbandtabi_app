@@ -23,10 +23,7 @@ class FeedRemoteDataSource {
   }) {
     return _apiClient.get<List<NewsSummaryDto>>(
       ApiEndpoints.news(projectId),
-      queryParameters: {
-        'page': page,
-        'size': size,
-      },
+      queryParameters: {'page': page, 'size': size},
       fromJson: (json) => _decodeList(json, NewsSummaryDto.fromJson),
     );
   }
@@ -50,10 +47,7 @@ class FeedRemoteDataSource {
   }) {
     return _apiClient.get<List<PostSummaryDto>>(
       ApiEndpoints.posts(projectCode),
-      queryParameters: {
-        'page': page,
-        'size': size,
-      },
+      queryParameters: {'page': page, 'size': size},
       fromJson: (json) => _decodeList(json, PostSummaryDto.fromJson),
     );
   }
@@ -68,10 +62,7 @@ class FeedRemoteDataSource {
   }) {
     return _apiClient.get<List<PostSummaryDto>>(
       ApiEndpoints.postsByAuthor(projectCode, userId),
-      queryParameters: {
-        'page': page,
-        'size': size,
-      },
+      queryParameters: {'page': page, 'size': size},
       fromJson: (json) => _decodeList(json, PostSummaryDto.fromJson),
     );
   }
@@ -135,10 +126,7 @@ class FeedRemoteDataSource {
   }) {
     return _apiClient.get<List<PostCommentDto>>(
       ApiEndpoints.postComments(projectCode, postId),
-      queryParameters: {
-        'page': page,
-        'size': size,
-      },
+      queryParameters: {'page': page, 'size': size},
       fromJson: (json) => _decodeList(json, PostCommentDto.fromJson),
     );
   }
@@ -153,10 +141,7 @@ class FeedRemoteDataSource {
   }) {
     return _apiClient.get<List<PostCommentDto>>(
       ApiEndpoints.commentsByAuthor(projectCode, userId),
-      queryParameters: {
-        'page': page,
-        'size': size,
-      },
+      queryParameters: {'page': page, 'size': size},
       fromJson: (json) => _decodeList(json, PostCommentDto.fromJson),
     );
   }

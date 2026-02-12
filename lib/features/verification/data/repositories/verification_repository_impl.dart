@@ -4,7 +4,6 @@ library;
 
 import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
-import '../../../../core/location/location_service.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/verification_entities.dart';
 import '../../domain/repositories/verification_repository.dart';
@@ -14,12 +13,9 @@ import '../dto/verification_dto.dart';
 class VerificationRepositoryImpl implements VerificationRepository {
   VerificationRepositoryImpl({
     required VerificationRemoteDataSource remoteDataSource,
-    required LocationService locationService,
-  })  : _remoteDataSource = remoteDataSource,
-        _locationService = locationService;
+  }) : _remoteDataSource = remoteDataSource;
 
   final VerificationRemoteDataSource _remoteDataSource;
-  final LocationService _locationService;
 
   @override
   Future<Result<VerificationConfig>> getConfig() async {
@@ -73,9 +69,16 @@ class VerificationRepositoryImpl implements VerificationRepository {
   Future<Result<VerificationResult>> verifyPlace({
     required String projectId,
     required String placeId,
+    String? token,
+    String? verificationMethod,
+    String? evidence,
   }) async {
     try {
-      final request = await _buildRequest();
+      final request = _buildRequest(
+        token: token,
+        verificationMethod: verificationMethod,
+        evidence: evidence,
+      );
       final result = await _remoteDataSource.verifyPlace(
         projectId: projectId,
         placeId: placeId,
@@ -106,9 +109,15 @@ class VerificationRepositoryImpl implements VerificationRepository {
     required String projectId,
     required String liveEventId,
     String? verificationMethod,
+    String? token,
+    String? evidence,
   }) async {
     try {
-      final request = await _buildRequest(verificationMethod: verificationMethod);
+      final request = _buildRequest(
+        token: token,
+        verificationMethod: verificationMethod,
+        evidence: evidence,
+      );
       final result = await _remoteDataSource.verifyLiveEvent(
         projectId: projectId,
         liveEventId: liveEventId,
@@ -134,18 +143,52 @@ class VerificationRepositoryImpl implements VerificationRepository {
     }
   }
 
-  Future<VerificationRequestDto> _buildRequest({
-    String? verificationMethod,
+  @override
+  Future<Result<VerificationDeviceKey>> registerDeviceKey({
+    required String keyId,
+    required String deviceId,
+    Map<String, dynamic>? publicKeyJwk,
+    String? publicKeyPem,
   }) async {
-    if (verificationMethod != null && verificationMethod.isNotEmpty) {
-      return VerificationRequestDto(verificationMethod: verificationMethod);
-    }
+    try {
+      final request = VerificationKeyRegisterRequestDto(
+        keyId: keyId,
+        deviceId: deviceId,
+        publicKeyJwk: publicKeyJwk,
+        publicKeyPem: publicKeyPem,
+      );
+      final result = await _remoteDataSource.registerDeviceKey(
+        request: request,
+      );
 
-    final location = await _locationService.getCurrentLocation();
+      if (result is Success<VerificationDeviceKeyDto>) {
+        return Result.success(VerificationDeviceKey.fromDto(result.data));
+      }
+      if (result is Err<VerificationDeviceKeyDto>) {
+        return Result.failure(result.failure);
+      }
+
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown device key registration result',
+          code: 'unknown_device_key_registration',
+        ),
+      );
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  VerificationRequestDto _buildRequest({
+    String? token,
+    String? verificationMethod,
+    String? evidence,
+  }) {
     return VerificationRequestDto(
-      latitude: location.latitude,
-      longitude: location.longitude,
-      accuracy: location.accuracy,
+      token: token,
+      verificationMethod: verificationMethod,
+      evidence: evidence,
     );
   }
 }

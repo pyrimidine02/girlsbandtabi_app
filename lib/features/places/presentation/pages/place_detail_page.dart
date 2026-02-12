@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
@@ -130,10 +131,13 @@ class PlaceDetailPage extends ConsumerWidget {
         pinned: true,
         flexibleSpace: FlexibleSpaceBar(
           background: place.heroImageUrl != null
-              ? GBTImage(
-                  imageUrl: place.heroImageUrl!,
-                  fit: BoxFit.cover,
-                  semanticLabel: '${place.name} 사진',
+              ? Hero(
+                  tag: GBTHeroTags.placeImage(place.id),
+                  child: GBTImage(
+                    imageUrl: place.heroImageUrl!,
+                    fit: BoxFit.cover,
+                    semanticLabel: '${place.name} 사진',
+                  ),
                 )
               : Container(
                   color: surfaceVariantColor,

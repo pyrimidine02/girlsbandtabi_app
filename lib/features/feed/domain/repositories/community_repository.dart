@@ -17,9 +17,7 @@ abstract class CommunityRepository {
 
   /// EN: Check block status for a user.
   /// KO: 사용자 차단 상태를 확인합니다.
-  Future<Result<BlockStatus>> getBlockStatus({
-    required String userId,
-  });
+  Future<Result<BlockStatus>> getBlockStatus({required String userId});
 
   /// EN: Block a user.
   /// KO: 사용자를 차단합니다.
@@ -30,7 +28,5 @@ abstract class CommunityRepository {
 
   /// EN: Unblock a user.
   /// KO: 사용자를 차단 해제합니다.
-  Future<Result<void>> unblockUser({
-    required String targetUserId,
-  });
+  Future<Result<void>> unblockUser({required String targetUserId});
 }

@@ -14,9 +14,7 @@ class CommunityRemoteDataSource {
 
   /// EN: Create a community report.
   /// KO: 커뮤니티 신고를 생성합니다.
-  Future<Result<void>> createReport({
-    required ReportCreateRequestDto request,
-  }) {
+  Future<Result<void>> createReport({required ReportCreateRequestDto request}) {
     return _apiClient.post<void>(
       ApiEndpoints.communityReports,
       data: request.toJson(),
@@ -26,9 +24,7 @@ class CommunityRemoteDataSource {
 
   /// EN: Check block status for a user.
   /// KO: 특정 사용자 차단 상태를 확인합니다.
-  Future<Result<BlockCheckDto>> checkBlockStatus({
-    required String userId,
-  }) {
+  Future<Result<BlockCheckDto>> checkBlockStatus({required String userId}) {
     return _apiClient.get<BlockCheckDto>(
       ApiEndpoints.userBlocked(userId),
       fromJson: (json) => BlockCheckDto.fromJson(json as Map<String, dynamic>),
@@ -37,9 +33,7 @@ class CommunityRemoteDataSource {
 
   /// EN: Block a user.
   /// KO: 사용자를 차단합니다.
-  Future<Result<void>> blockUser({
-    required BlockCreateRequestDto request,
-  }) {
+  Future<Result<void>> blockUser({required BlockCreateRequestDto request}) {
     return _apiClient.post<void>(
       ApiEndpoints.userBlocks,
       data: request.toJson(),

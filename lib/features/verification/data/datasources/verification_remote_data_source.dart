@@ -53,4 +53,15 @@ class VerificationRemoteDataSource {
           VerificationResultDto.fromJson(json as Map<String, dynamic>),
     );
   }
+
+  Future<Result<VerificationDeviceKeyDto>> registerDeviceKey({
+    required VerificationKeyRegisterRequestDto request,
+  }) {
+    return _apiClient.post<VerificationDeviceKeyDto>(
+      ApiEndpoints.verificationKeys,
+      data: request.toJson(),
+      fromJson: (json) =>
+          VerificationDeviceKeyDto.fromJson(json as Map<String, dynamic>),
+    );
+  }
 }

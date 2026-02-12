@@ -16,10 +16,6 @@ class RegisterRequest {
   final String nickname;
 
   Map<String, dynamic> toJson() {
-    return {
-      'username': username,
-      'password': password,
-      'nickname': nickname,
-    };
+    return {'username': username, 'password': password, 'nickname': nickname};
   }
 }

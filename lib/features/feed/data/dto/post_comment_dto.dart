@@ -71,10 +71,7 @@ class PostCreateRequestDto {
   final String content;
 
   Map<String, dynamic> toJson() {
-    return {
-      'title': title,
-      'content': content,
-    };
+    return {'title': title, 'content': content};
   }
 }
 

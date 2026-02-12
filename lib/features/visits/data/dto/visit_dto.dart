@@ -7,6 +7,34 @@ class VisitEventDto {
     required this.id,
     required this.placeId,
     required this.visitedAt,
+  });
+
+  final String id;
+  final String placeId;
+  final DateTime? visitedAt;
+
+  factory VisitEventDto.fromJson(Map<String, dynamic> json) {
+    return VisitEventDto(
+      id: json['id'] as String? ?? '',
+      placeId: json['placeId'] as String? ?? '',
+      visitedAt: _dateTime(json['visitedAt']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'placeId': placeId,
+      'visitedAt': visitedAt?.toIso8601String(),
+    };
+  }
+}
+
+class VisitEventDetailDto {
+  const VisitEventDetailDto({
+    required this.id,
+    required this.placeId,
+    required this.visitedAt,
     this.latitude,
     this.longitude,
     this.accuracy,
@@ -28,8 +56,8 @@ class VisitEventDto {
   /// KO: GPS 정확도 (미터 단위, 선택적).
   final double? accuracy;
 
-  factory VisitEventDto.fromJson(Map<String, dynamic> json) {
-    return VisitEventDto(
+  factory VisitEventDetailDto.fromJson(Map<String, dynamic> json) {
+    return VisitEventDetailDto(
       id: json['id'] as String? ?? '',
       placeId: json['placeId'] as String? ?? '',
       visitedAt: _dateTime(json['visitedAt']),

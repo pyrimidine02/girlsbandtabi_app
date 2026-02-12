@@ -60,3 +60,35 @@ class VerificationResult {
     );
   }
 }
+
+class VerificationDeviceKey {
+  const VerificationDeviceKey({
+    required this.keyId,
+    required this.deviceId,
+    required this.algorithm,
+    required this.isActive,
+    required this.createdAt,
+    this.lastUsedAt,
+    this.revokedAt,
+  });
+
+  final String keyId;
+  final String deviceId;
+  final String algorithm;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime? lastUsedAt;
+  final DateTime? revokedAt;
+
+  factory VerificationDeviceKey.fromDto(VerificationDeviceKeyDto dto) {
+    return VerificationDeviceKey(
+      keyId: dto.keyId,
+      deviceId: dto.deviceId,
+      algorithm: dto.algorithm,
+      isActive: dto.isActive,
+      createdAt: dto.createdAt,
+      lastUsedAt: dto.lastUsedAt,
+      revokedAt: dto.revokedAt,
+    );
+  }
+}

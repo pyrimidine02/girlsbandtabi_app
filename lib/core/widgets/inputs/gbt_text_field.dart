@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../accessibility/a11y_wrapper.dart';
 import '../../theme/gbt_colors.dart';
 import '../../theme/gbt_spacing.dart';
 import '../../theme/gbt_typography.dart';
@@ -147,11 +148,31 @@ class GBTTextField extends StatefulWidget {
 
 class _GBTTextFieldState extends State<GBTTextField> {
   bool _isObscured = true;
+  String? _previousErrorText;
 
   @override
   void initState() {
     super.initState();
     _isObscured = widget.obscureText;
+    _previousErrorText = widget.errorText;
+  }
+
+  @override
+  void didUpdateWidget(GBTTextField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // EN: Announce error to screen reader when errorText changes
+    // KO: errorText가 변경될 때 스크린 리더에 에러 공지
+    if (widget.errorText != _previousErrorText &&
+        widget.errorText != null &&
+        widget.errorText!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          A11yAnnouncer.announceError(context, widget.errorText!);
+        }
+      });
+    }
+    _previousErrorText = widget.errorText;
   }
 
   @override
@@ -182,8 +203,8 @@ class _GBTTextFieldState extends State<GBTTextField> {
                 color: hasError
                     ? GBTColors.error
                     : (isDark
-                        ? GBTColors.darkTextSecondary
-                        : GBTColors.textSecondary),
+                          ? GBTColors.darkTextSecondary
+                          : GBTColors.textSecondary),
               ),
             ),
             const SizedBox(height: GBTSpacing.xs),
@@ -209,9 +230,7 @@ class _GBTTextFieldState extends State<GBTTextField> {
             onFieldSubmitted: widget.onSubmitted,
             onTap: widget.onTap,
             style: GBTTypography.bodyMedium.copyWith(
-              color: isDark
-                  ? GBTColors.darkTextPrimary
-                  : GBTColors.textPrimary,
+              color: isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
             ),
             decoration: InputDecoration(
               hintText: widget.hint,
@@ -274,10 +293,7 @@ class _GBTTextFieldState extends State<GBTTextField> {
       // EN: Wrap with tooltip if provided
       // KO: 제공된 경우 툴팁으로 감싸기
       if (widget.suffixTooltip != null) {
-        return Tooltip(
-          message: widget.suffixTooltip!,
-          child: iconButton,
-        );
+        return Tooltip(message: widget.suffixTooltip!, child: iconButton);
       }
       return iconButton;
     }

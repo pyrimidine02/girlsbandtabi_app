@@ -35,9 +35,7 @@ class SettingsRemoteDataSource {
     String? bio,
     String? coverImageUrl,
   }) {
-    final payload = <String, dynamic>{
-      'displayName': displayName,
-    };
+    final payload = <String, dynamic>{'displayName': displayName};
     if (avatarUrl != null) {
       payload['avatarUrl'] = avatarUrl;
     }

@@ -17,6 +17,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/cards/gbt_place_card.dart';
+import '../../../../core/widgets/common/themed_builder.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/inputs/gbt_search_bar.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
@@ -104,6 +105,8 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
     final selectedRegionCodes = ref.watch(selectedPlaceRegionCodesProvider);
     final selectedBandIds = ref.watch(selectedPlaceBandIdsProvider);
     final listMode = ref.watch(placeListModeProvider);
+    final currentNavIndex = ref.watch(currentNavIndexProvider);
+    final isTabActive = currentNavIndex == NavIndex.places;
     final projectKey = ref.watch(selectedProjectKeyProvider);
     final projectId = ref.watch(selectedProjectIdProvider);
     final resolvedProjectKey = projectKey?.isNotEmpty == true
@@ -126,9 +129,11 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
     //     a disposed GoogleMapController during build.
     // KO: 빌드 중 dispose된 GoogleMapController 사용을 방지하기 위해
     //     프레임 이후에 카메라 센터링을 예약합니다.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _maybeCenterOnMap(places);
-    });
+    if (isTabActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _maybeCenterOnMap(places);
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -171,6 +176,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
               zoom: _currentZoom,
               bottomPadding: MediaQuery.of(context).size.height * 0.35,
               isDarkMode: isDarkMode,
+              isTabActive: isTabActive,
               initialTarget: _pendingCenterTarget ?? _userLocation,
               onAppleMapCreated: (controller) {
                 _appleMapController = controller;
@@ -244,8 +250,9 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
               return Container(
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(GBTSpacing.radiusLg),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(GBTSpacing.radiusLg),
+                    topRight: Radius.circular(GBTSpacing.radiusLg),
                   ),
                   boxShadow: [
                     BoxShadow(
@@ -426,10 +433,10 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                         ),
                       ),
                     ),
-                    SliverToBoxAdapter(
+                    const SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.only(top: GBTSpacing.sm),
-                        child: const Divider(height: 1),
+                        padding: EdgeInsets.only(top: GBTSpacing.sm),
+                        child: Divider(height: 1),
                       ),
                     ),
 
@@ -659,24 +666,18 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                       title: Text('전체'),
                     ),
                     if (options.popularRegions.isNotEmpty) ...[
+                      // EN: Use context extension instead of Builder for theme
+                      // KO: Builder 대신 context 확장을 사용하여 테마 접근
                       Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: GBTSpacing.lg,
                           vertical: GBTSpacing.xs,
                         ),
-                        child: Builder(
-                          builder: (context) {
-                            final sectionIsDark =
-                                Theme.of(context).brightness == Brightness.dark;
-                            return Text(
-                              '인기 지역',
-                              style: GBTTypography.labelSmall.copyWith(
-                                color: sectionIsDark
-                                    ? GBTColors.darkTextSecondary
-                                    : GBTColors.textSecondary,
-                              ),
-                            );
-                          },
+                        child: Text(
+                          '인기 지역',
+                          style: GBTTypography.labelSmall.copyWith(
+                            color: context.textSecondary,
+                          ),
                         ),
                       ),
                       ...options.popularRegions.map(
@@ -684,24 +685,18 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                       ),
                     ],
                     if (options.countries.isNotEmpty) ...[
+                      // EN: Use context extension instead of Builder for theme
+                      // KO: Builder 대신 context 확장을 사용하여 테마 접근
                       Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: GBTSpacing.lg,
                           vertical: GBTSpacing.xs,
                         ),
-                        child: Builder(
-                          builder: (context) {
-                            final sectionIsDark =
-                                Theme.of(context).brightness == Brightness.dark;
-                            return Text(
-                              '국가',
-                              style: GBTTypography.labelSmall.copyWith(
-                                color: sectionIsDark
-                                    ? GBTColors.darkTextSecondary
-                                    : GBTColors.textSecondary,
-                              ),
-                            );
-                          },
+                        child: Text(
+                          '국가',
+                          style: GBTTypography.labelSmall.copyWith(
+                            color: context.textSecondary,
+                          ),
                         ),
                       ),
                       ...options.countries.map(
@@ -941,11 +936,11 @@ class _PlacesSliverList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return state.when(
-      loading: () => SliverToBoxAdapter(
+      loading: () => const SliverToBoxAdapter(
         child: Padding(
           padding: GBTSpacing.paddingHorizontalMd,
           child: Column(
-            children: const [
+            children: [
               SizedBox(height: GBTSpacing.lg),
               GBTLoading(message: '장소를 불러오는 중...'),
             ],
@@ -1025,6 +1020,7 @@ class _PlacesMapView extends StatelessWidget {
     required this.zoom,
     required this.bottomPadding,
     required this.isDarkMode,
+    required this.isTabActive,
     required this.onAppleMapCreated,
     required this.onGoogleMapCreated,
     required this.onCameraMove,
@@ -1038,6 +1034,7 @@ class _PlacesMapView extends StatelessWidget {
   final double zoom;
   final double bottomPadding;
   final bool isDarkMode;
+  final bool isTabActive;
   final ValueChanged<amaps.AppleMapController> onAppleMapCreated;
   final ValueChanged<gmaps.GoogleMapController> onGoogleMapCreated;
   final ValueChanged<double> onCameraMove;
@@ -1051,6 +1048,9 @@ class _PlacesMapView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!isTabActive) {
+      return const SizedBox.shrink();
+    }
     final route = ModalRoute.of(context);
     final isActiveRoute = route?.isCurrent ?? true;
     if (!isActiveRoute) {
@@ -1230,17 +1230,14 @@ class _RegionOptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // EN: Use context extension for efficient theme access
+    // KO: 효율적인 테마 접근을 위해 context 확장 사용
     return RadioListTile<String?>(
       value: option.code,
       title: Text(option.name),
       subtitle: Text(
         '장소 ${option.placeCount}개',
-        style: GBTTypography.labelSmall.copyWith(
-          color: isDark
-              ? GBTColors.darkTextTertiary
-              : GBTColors.textTertiary,
-        ),
+        style: GBTTypography.labelSmall.copyWith(color: context.textTertiary),
       ),
     );
   }

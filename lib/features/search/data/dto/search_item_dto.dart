@@ -3,10 +3,7 @@
 library;
 
 class SearchItemDto {
-  const SearchItemDto({
-    required this.type,
-    required this.item,
-  });
+  const SearchItemDto({required this.type, required this.item});
 
   final String type;
   final Map<String, dynamic> item;
@@ -14,10 +11,7 @@ class SearchItemDto {
   factory SearchItemDto.fromJson(Map<String, dynamic> json) {
     final item = json['item'];
     final itemMap = item is Map<String, dynamic> ? item : <String, dynamic>{};
-    return SearchItemDto(
-      type: _string(json, ['type']) ?? '',
-      item: itemMap,
-    );
+    return SearchItemDto(type: _string(json, ['type']) ?? '', item: itemMap);
   }
 
   Map<String, dynamic> toJson() {

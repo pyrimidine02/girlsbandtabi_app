@@ -132,7 +132,10 @@ class _FavoritesList extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: _typeColor(item.type, isDark: isDark).withValues(alpha: 0.1),
+                  color: _typeColor(
+                    item.type,
+                    isDark: isDark,
+                  ).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
                 ),
                 child: Text(

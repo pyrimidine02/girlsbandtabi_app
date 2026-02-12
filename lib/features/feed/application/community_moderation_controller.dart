@@ -13,8 +13,7 @@ import '../domain/entities/community_moderation.dart';
 import '../domain/repositories/community_repository.dart';
 
 class BlockStatusController extends StateNotifier<AsyncValue<BlockStatus>> {
-  BlockStatusController(this._ref, this.userId)
-    : super(const AsyncLoading()) {
+  BlockStatusController(this._ref, this.userId) : super(const AsyncLoading()) {
     load();
   }
 
@@ -92,9 +91,10 @@ final communityRepositoryProvider = FutureProvider<CommunityRepository>((ref) {
 /// EN: Block status controller provider.
 /// KO: 차단 상태 컨트롤러 프로바이더.
 final blockStatusControllerProvider =
-    StateNotifierProvider.family<BlockStatusController, AsyncValue<BlockStatus>, String>((
-      ref,
-      userId,
-    ) {
+    StateNotifierProvider.family<
+      BlockStatusController,
+      AsyncValue<BlockStatus>,
+      String
+    >((ref, userId) {
       return BlockStatusController(ref, userId);
     });

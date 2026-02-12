@@ -22,15 +22,14 @@ const _imageExtensions = <String>{
   '.heif',
 };
 
-final _markdownImagePattern =
-    RegExp(r'!\[[^\]]*\]\((https?://[^)\s]+)[^)]*\)');
+final _markdownImagePattern = RegExp(r'!\[[^\]]*\]\((https?://[^)\s]+)[^)]*\)');
 final _htmlImagePattern = RegExp(
   r'''<img[^>]*src=["'](https?://[^"']+)["']''',
   caseSensitive: false,
 );
 final _urlPattern = RegExp(r'''(https?://[^\s)<>"']+)''');
 final _bareR2Pattern = RegExp(
-  r'''(r2\.pyrimidines\.org/[^\s)<>"']+)''',
+  r'''(?<!https://)(?<!http://)(r2\.pyrimidines\.org/[^\s)<>"']+)''',
   caseSensitive: false,
 );
 

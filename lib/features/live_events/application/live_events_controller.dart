@@ -49,7 +49,6 @@ class LiveEventsListController
       state = AsyncError(result.failure, StackTrace.current);
     }
   }
-
 }
 
 class LiveEventDetailController
@@ -84,7 +83,6 @@ class LiveEventDetailController
       state = AsyncError(result.failure, StackTrace.current);
     }
   }
-
 }
 
 /// EN: Live events repository provider.

@@ -12,14 +12,14 @@ class GBTColors {
   GBTColors._();
 
   // ========================================
-  // EN: Primary Brand Colors (Indigo — vibrant music/fandom)
-  // KO: 기본 브랜드 색상 (인디고 — 생동감 있는 음악/팬덤)
+  // EN: Primary Brand Colors (Pastel periwinkle — soft, friendly tone)
+  // KO: 기본 브랜드 색상 (파스텔 페리윙클 — 부드러운 톤)
   // ========================================
-  static const Color primary = Color(0xFF6366F1);
-  static const Color primaryLight = Color(0xFFE0E7FF);
-  static const Color primaryHover = Color(0xFF4F46E5);
-  static const Color primaryPressed = Color(0xFF4338CA);
-  static const Color primaryMuted = Color(0xFFC7D2FE);
+  static const Color primary = Color(0xFFA6B1FF);
+  static const Color primaryLight = Color(0xFFF0F2FF);
+  static const Color primaryHover = Color(0xFF94A3FF);
+  static const Color primaryPressed = Color(0xFF7F90FF);
+  static const Color primaryMuted = Color(0xFFD9DFFF);
 
   // EN: Secondary (Pink — girl group energy)
   // KO: 보조 (핑크 — 걸그룹 에너지)
@@ -60,7 +60,7 @@ class GBTColors {
   // KO: 테두리 및 구분선 색상 (뉴트럴)
   // ========================================
   static const Color border = Color(0xFFE0E0E0);
-  static const Color borderFocused = Color(0xFF6366F1);
+  static const Color borderFocused = primary;
   static const Color divider = Color(0xFFE0E0E0);
 
   // ========================================
@@ -96,9 +96,9 @@ class GBTColors {
   // EN: Passes WCAG AA (4.5:1) on darkSurface (#121212).
   // KO: darkSurface (#121212) 위에서 WCAG AA(4.5:1) 충족.
   static const Color darkTextTertiary = Color(0xFF808080);
-  // EN: Dark primary indigo — lighter for WCAG AA compliance on dark surfaces.
-  // KO: 다크 모드 기본 인디고 — 다크 표면 위 WCAG AA 준수를 위해 밝게.
-  static const Color darkPrimary = Color(0xFF818CF8);
+  // EN: Dark primary pastel — light enough for dark surfaces.
+  // KO: 다크 모드 기본 파스텔 — 다크 표면 위에서도 충분히 밝게.
+  static const Color darkPrimary = Color(0xFFB8C2FF);
   static const Color darkSecondary = Color(0xFFF472B6);
   static const Color darkAccent = Color(0xFFFBBF24);
   static const Color darkBorder = Color(0xFF2C2C2C);
@@ -108,7 +108,7 @@ class GBTColors {
   // EN: Interactive Colors
   // KO: 인터랙티브 색상
   // ========================================
-  static const Color ripple = Color(0x146366F1);
+  static const Color ripple = Color(0x14A6B1FF);
   static const Color overlay = Color(0x80000000);
   static const Color scrim = Color(0x52000000);
 
@@ -126,7 +126,7 @@ class GBTColors {
   // KO: 그라디언트 정의
   // ========================================
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+    colors: [primary, primaryHover],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -158,7 +158,7 @@ class GBTColors {
   /// EN: Greeting header gradient — solid indigo (light mode)
   /// KO: 인사말 헤더 그라디언트 — 단색 인디고 (라이트 모드)
   static const LinearGradient greetingGradient = LinearGradient(
-    colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+    colors: [primary, primaryHover],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
@@ -166,7 +166,7 @@ class GBTColors {
   /// EN: Greeting header gradient — solid deep indigo (dark mode)
   /// KO: 인사말 헤더 그라디언트 — 단색 딥 인디고 (다크 모드)
   static const LinearGradient darkGreetingGradient = LinearGradient(
-    colors: [Color(0xFF4338CA), Color(0xFF312E81)],
+    colors: [Color(0xFF7F90FF), Color(0xFF6B7CFF)],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
@@ -247,5 +247,111 @@ extension GBTColorExtension on Color {
     return hsl
         .withLightness((hsl.lightness - amount).clamp(0.0, 1.0))
         .toColor();
+  }
+}
+
+/// EN: Semantic color mappings for consistent UI/UX across the application.
+/// Provides meaningful color assignments based on UI/UX Pro Max analysis,
+/// ensuring clear visual hierarchy and intentional color usage.
+///
+/// KO: 애플리케이션 전반의 일관된 UI/UX를 위한 의미론적 색상 매핑.
+/// UI/UX Pro Max 분석 기반의 의미 있는 색상 할당을 제공하며,
+/// 명확한 시각적 계층 구조와 의도적인 색상 사용을 보장합니다.
+class GBTSemanticColors {
+  GBTSemanticColors._();
+
+  // ========================================
+  // EN: Badge & Status Indicators
+  // KO: 배지 및 상태 표시기
+  // ========================================
+
+  /// EN: Verified badge color (green) — indicates authenticated/verified status
+  /// KO: 인증 배지 색상 (그린) — 인증됨/확인됨 상태 표시
+  static const Color badgeVerified = GBTColors.verified; // #10B981
+
+  /// EN: Live badge color (red) — indicates live/active status
+  /// KO: 라이브 배지 색상 (레드) — 라이브/활성 상태 표시
+  static const Color badgeLive = GBTColors.live; // #EF4444
+
+  /// EN: Info badge color (blue) — general informational badges
+  /// KO: 정보 배지 색상 (블루) — 일반 정보 배지
+  static const Color badgeInfo = GBTColors.accentBlue; // #3B82F6
+
+  /// EN: Warning badge color (amber) — alerts and warnings
+  /// KO: 경고 배지 색상 (엠버) — 경고 및 주의사항
+  static const Color badgeWarning = GBTColors.warning; // #F59E0B
+
+  // ========================================
+  // EN: Metadata & Auxiliary Information
+  // KO: 메타데이터 및 보조 정보
+  // ========================================
+
+  /// EN: Distance metadata color (teal) — location distance indicators
+  /// KO: 거리 메타데이터 색상 (틸) — 위치 거리 표시기
+  static const Color metadataDistance = GBTColors.accentTeal; // #14B8A6
+
+  /// EN: Rating metadata color (amber) — star ratings and scores
+  /// KO: 평점 메타데이터 색상 (엠버) — 별점 및 점수
+  static const Color metadataRating = GBTColors.rating; // #F59E0B
+
+  // ========================================
+  // EN: Interactive Elements (Call-to-Action)
+  // KO: 인터랙티브 요소 (콜 투 액션)
+  // ========================================
+
+  /// EN: Primary CTA color (periwinkle) — main action buttons
+  /// KO: 주요 CTA 색상 (페리윙클) — 기본 액션 버튼
+  static const Color ctaPrimary = GBTColors.primary; // #A6B1FF
+
+  /// EN: Secondary CTA color (pink) — high-energy emphasis actions
+  /// Provides strong visual weight for important secondary actions
+  /// KO: 보조 CTA 색상 (핑크) — 고에너지 강조 액션
+  /// 중요한 보조 액션에 강한 시각적 무게 제공
+  static const Color ctaSecondary = GBTColors.secondary; // #EC4899
+
+  /// EN: Emphasis CTA color (amber) — general emphasis and highlights
+  /// KO: 일반 강조 CTA 색상 (엠버) — 일반 강조 및 하이라이트
+  static const Color ctaEmphasis = GBTColors.accent; // #F59E0B
+
+  // ========================================
+  // EN: Dark Mode Overrides (Enhanced Visibility)
+  // KO: 다크 모드 재정의 (가시성 향상)
+  // ========================================
+
+  /// EN: Dark mode distance color (bright teal) — improved contrast on dark surfaces
+  /// KO: 다크 모드 거리 색상 (밝은 틸) — 다크 표면에서 개선된 대비
+  static const Color darkMetadataDistance = Color(0xFF2DD4BF);
+
+  /// EN: Dark mode info color (bright blue) — improved contrast on dark surfaces
+  /// KO: 다크 모드 정보 색상 (밝은 블루) — 다크 표면에서 개선된 대비
+  static const Color darkAccentBlue = Color(0xFF60A5FA);
+
+  /// EN: Dark mode verified color (bright green) — improved contrast on dark surfaces
+  /// KO: 다크 모드 인증 색상 (밝은 그린) — 다크 표면에서 개선된 대비
+  static const Color darkVerified = Color(0xFF34D399);
+
+  // ========================================
+  // EN: Helper Methods for Context-Aware Colors
+  // KO: 컨텍스트 인식 색상을 위한 헬퍼 메서드
+  // ========================================
+
+  /// EN: Get distance color based on theme brightness
+  /// KO: 테마 밝기에 따른 거리 색상 반환
+  static Color getDistanceColor(Brightness brightness) {
+    return brightness == Brightness.dark
+        ? darkMetadataDistance
+        : metadataDistance;
+  }
+
+  /// EN: Get info badge color based on theme brightness
+  /// KO: 테마 밝기에 따른 정보 배지 색상 반환
+  static Color getInfoColor(Brightness brightness) {
+    return brightness == Brightness.dark ? darkAccentBlue : badgeInfo;
+  }
+
+  /// EN: Get verified badge color based on theme brightness
+  /// KO: 테마 밝기에 따른 인증 배지 색상 반환
+  static Color getVerifiedColor(Brightness brightness) {
+    return brightness == Brightness.dark ? darkVerified : badgeVerified;
   }
 }

@@ -22,7 +22,8 @@ class NotificationItemDto {
   factory NotificationItemDto.fromJson(Map<String, dynamic> json) {
     final createdAtRaw = json['createdAt'] as String? ?? '';
     final parsedCreatedAt =
-        DateTime.tryParse(createdAtRaw) ?? DateTime.fromMillisecondsSinceEpoch(0);
+        DateTime.tryParse(createdAtRaw) ??
+        DateTime.fromMillisecondsSinceEpoch(0);
 
     return NotificationItemDto(
       id: _string(json, ['id', 'notificationId']) ?? '',

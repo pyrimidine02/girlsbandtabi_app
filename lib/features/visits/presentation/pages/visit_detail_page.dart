@@ -42,16 +42,24 @@ class VisitDetailPage extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final placesMapState = ref.watch(visitPlacesMapProvider);
     final summaryState = ref.watch(visitSummaryProvider(placeId));
+    final detailState = ref.watch(visitDetailProvider(visitId));
     final place = placesMapState.valueOrNull?[placeId];
+    final detail = detailState.valueOrNull;
 
     // EN: Determine map coordinates with fallback strategy.
     // KO: 폴백 전략으로 지도 좌표를 결정합니다.
-    final hasVerificationCoords = latitude != null && longitude != null;
-    final mapLat = latitude ?? place?.latitude;
-    final mapLng = longitude ?? place?.longitude;
+    final detailLat = detail?.latitude;
+    final detailLng = detail?.longitude;
+    final hasVerificationCoords =
+        (detailLat != null && detailLng != null) ||
+        (latitude != null && longitude != null);
+    final mapLat = detailLat ?? latitude ?? place?.latitude;
+    final mapLng = detailLng ?? longitude ?? place?.longitude;
     final hasMapCoords = mapLat != null && mapLng != null;
 
-    final visitedAtFormatted = _formatVisitedAt(visitedAt);
+    final visitedAtFormatted = _formatVisitedAt(
+      detail?.visitedAt?.toIso8601String() ?? visitedAt,
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('방문 상세')),
@@ -211,8 +219,7 @@ class _VisitLocationMap extends StatelessWidget {
   }
 
   Widget _buildMap(String pinLabel) {
-    final isApple =
-        !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    final isApple = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
     if (isApple) {
       return amaps.AppleMap(
@@ -401,17 +408,13 @@ class _InfoRow extends StatelessWidget {
         Icon(
           icon,
           size: GBTSpacing.iconSm,
-          color: isDark
-              ? GBTColors.darkTextTertiary
-              : GBTColors.textTertiary,
+          color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
         ),
         const SizedBox(width: GBTSpacing.sm),
         Text(
           label,
           style: GBTTypography.bodySmall.copyWith(
-            color: isDark
-                ? GBTColors.darkTextTertiary
-                : GBTColors.textTertiary,
+            color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
           ),
         ),
         const SizedBox(width: GBTSpacing.sm),
@@ -493,8 +496,7 @@ class _PlaceInfoSection extends StatelessWidget {
                     color: isDark
                         ? GBTColors.darkSurfaceVariant
                         : GBTColors.surfaceVariant,
-                    borderRadius:
-                        BorderRadius.circular(GBTSpacing.radiusXs),
+                    borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
                   ),
                 ),
               ),
@@ -507,8 +509,7 @@ class _PlaceInfoSection extends StatelessWidget {
                     color: isDark
                         ? GBTColors.darkSurfaceVariant
                         : GBTColors.surfaceVariant,
-                    borderRadius:
-                        BorderRadius.circular(GBTSpacing.radiusXs),
+                    borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
                   ),
                 ),
               ),
@@ -524,9 +525,7 @@ class _PlaceInfoSection extends StatelessWidget {
       return Text(
         '장소 정보를 불러올 수 없습니다',
         style: GBTTypography.bodyMedium.copyWith(
-          color: isDark
-              ? GBTColors.darkTextSecondary
-              : GBTColors.textSecondary,
+          color: isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
         ),
       );
     }
@@ -597,10 +596,7 @@ class _PlaceInfoSection extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _VisitStatsSection extends StatelessWidget {
-  const _VisitStatsSection({
-    required this.summaryState,
-    required this.isDark,
-  });
+  const _VisitStatsSection({required this.summaryState, required this.isDark});
 
   final AsyncValue<VisitSummary?> summaryState;
   final bool isDark;
@@ -712,9 +708,7 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(GBTSpacing.sm),
       decoration: BoxDecoration(
-        color: isDark
-            ? GBTColors.darkSurfaceVariant
-            : GBTColors.surfaceVariant,
+        color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
         borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
       ),
       child: Column(
@@ -722,9 +716,7 @@ class _StatCard extends StatelessWidget {
           Icon(
             icon,
             size: GBTSpacing.iconSm,
-            color: isDark
-                ? GBTColors.darkTextTertiary
-                : GBTColors.textTertiary,
+            color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
           ),
           const SizedBox(height: GBTSpacing.xs),
           Text(

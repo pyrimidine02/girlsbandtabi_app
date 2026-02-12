@@ -25,8 +25,7 @@ class OAuthButtonsSection extends ConsumerWidget {
           children: [
             const Expanded(child: Divider()),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: GBTSpacing.sm),
+              padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.sm),
               child: Text(
                 '소셜 로그인',
                 style: GBTTypography.labelMedium.copyWith(
@@ -56,9 +55,9 @@ class OAuthButtonsSection extends ConsumerWidget {
   }
 
   void _showInfo(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('소셜 로그인은 준비 중입니다')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('소셜 로그인은 준비 중입니다')));
   }
 }
 
@@ -78,12 +77,13 @@ class _GoogleSignInButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final bgColor =
-        isDark ? const Color(0xFF131314) : const Color(0xFFFFFFFF);
-    final borderColor =
-        isDark ? const Color(0xFF8E918F) : const Color(0xFF747775);
-    final textColor =
-        isDark ? const Color(0xFFE3E3E3) : const Color(0xFF1F1F1F);
+    final bgColor = isDark ? const Color(0xFF131314) : const Color(0xFFFFFFFF);
+    final borderColor = isDark
+        ? const Color(0xFF8E918F)
+        : const Color(0xFF747775);
+    final textColor = isDark
+        ? const Color(0xFFE3E3E3)
+        : const Color(0xFF1F1F1F);
 
     return Semantics(
       button: true,
@@ -220,9 +220,7 @@ class _XSignInButton extends StatelessWidget {
                 SizedBox(
                   width: 20,
                   height: 20,
-                  child: CustomPaint(
-                    painter: _XLogoPainter(color: textColor),
-                  ),
+                  child: CustomPaint(painter: _XLogoPainter(color: textColor)),
                 ),
                 const SizedBox(width: 12),
                 Text(

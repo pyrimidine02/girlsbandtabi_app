@@ -60,7 +60,8 @@ class NewsDetail {
 
   factory NewsDetail.fromDto(NewsDetailDto dto) {
     final images = dto.images.map((image) => image.url).toList();
-    final cover = dto.coverImage?.url ?? (images.isNotEmpty ? images.first : null);
+    final cover =
+        dto.coverImage?.url ?? (images.isNotEmpty ? images.first : null);
 
     return NewsDetail(
       id: dto.id,

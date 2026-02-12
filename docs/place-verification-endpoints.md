@@ -42,14 +42,11 @@
 ## 스키마
 
 ### VerificationRequest
-> **요구사항**: `token` 또는 `latitude` + `longitude` 중 하나는 반드시 필요합니다.
+> **요구사항**: 중첩 JWS(JWS→JWE) 토큰(`token`) 전달이 기본입니다.
 
 | 필드 | 타입 | 필수 | 설명 |
 |---|---|---|---|
-| `token` | string or null | N | 위치 토큰(JWE). 제공 시 우선 사용됨 |
-| `latitude` | number or null | N | 위도 (token 없이 테스트 시 사용) |
-| `longitude` | number or null | N | 경도 (token 없이 테스트 시 사용) |
-| `accuracy` | number or null | N | 정확도(m). 낮을수록 정확 |
+| `token` | string | Y | JWS(RS256) → JWE(RSA-OAEP-256)로 생성된 위치 토큰 |
 | `verificationMethod` | string or null | N | 검증 방식 힌트 (예: `MANUAL`) |
 | `evidence` | string or null | N | 증빙 데이터(예약 필드) |
 
@@ -58,7 +55,7 @@
 |---|---|---|---|
 | `jweAlg` | string | Y | JWE 알고리즘 (`RSA-OAEP-256` 또는 `dir`) |
 | `jwsAlg` | string | Y | JWS 알고리즘 (`RS256` 또는 `none`) |
-| `publicKeys` | string[] | Y | JWS 검증 공개키(PEM) 목록 |
+| `publicKeys` | string[] | Y | JWE 암호화용 공개키(PEM) 목록 |
 | `toleranceMeters` | number | Y | 허용 거리(m) |
 | `timeSkewSec` | number | Y | 허용 시간 오차(초) |
 
@@ -82,7 +79,37 @@
 
 ## 엔드포인트
 
-### 1) GET `/api/v1/verification/config`
+### 1) POST `/api/v1/verification/keys`
+- **Auth**: 로그인 필요
+- **설명**: 디바이스 공개키 등록 (JWS 검증용)
+- **Request**: `keyId`, `deviceId`, `publicKeyJwk` 또는 `publicKeyPem`
+- **Response**: 등록된 키 정보
+
+예시 요청 (JWK):
+```json
+{
+  "keyId": "device-key-1",
+  "deviceId": "ios-15-pro-001",
+  "publicKeyJwk": {
+    "kty": "RSA",
+    "kid": "device-key-1",
+    "alg": "RS256",
+    "n": "base64url-modulus",
+    "e": "AQAB"
+  }
+}
+```
+
+예시 요청 (PEM):
+```json
+{
+  "keyId": "device-key-1",
+  "deviceId": "ios-15-pro-001",
+  "publicKeyPem": "-----BEGIN PUBLIC KEY-----\\n...\\n-----END PUBLIC KEY-----"
+}
+```
+
+### 2) GET `/api/v1/verification/config`
 - **Auth**: Public
 - **Response**: `ApiResponse<VerificationConfigDto>`
 
@@ -111,7 +138,7 @@
 }
 ```
 
-### 2) GET `/api/v1/verification/challenge`
+### 3) GET `/api/v1/verification/challenge`
 - **Auth**: Public
 - **Response**: `ApiResponse<ChallengeDto>`
 
@@ -137,7 +164,31 @@
 }
 ```
 
-### 3) POST `/api/v1/projects/{projectId}/places/{placeId}/verification`
+### 4) 중첩 JWS 생성
+JWS 헤더 필수:
+- `alg`: `RS256`
+- `kid`: 등록된 `keyId`
+
+JWS 페이로드 예시:
+```json
+{
+  "lat": 35.6895,
+  "lon": 139.6917,
+  "accuracyM": 10.0,
+  "timestamp": 1739212800,
+  "isMocked": false
+}
+```
+
+### 5) JWE 생성
+JWE 헤더 예시:
+- `alg`: `RSA-OAEP-256`
+- `enc`: `A256GCM`
+- `cty`: `JWT` (권장)
+
+JWE payload = JWS 문자열
+
+### 6) POST `/api/v1/projects/{projectId}/places/{placeId}/verification`
 - **Auth**: 로그인 필요
 - **Path Params**:
   - `projectId`: 프로젝트 식별자(슬러그/코드)
@@ -149,8 +200,7 @@
 예시 요청:
 ```json
 {
-  "token": "<JWE_TOKEN>",
-  "accuracy": 12.5
+  "token": "<JWE_TOKEN>"
 }
 ```
 
@@ -176,7 +226,7 @@
 }
 ```
 
-### 4) POST `/api/v1/projects/{projectId}/live-events/{liveEventId}/verification`
+### 7) POST `/api/v1/projects/{projectId}/live-events/{liveEventId}/verification`
 - **Auth**: 로그인 필요
 - **Path Params**:
   - `projectId`: 프로젝트 식별자(슬러그/코드)

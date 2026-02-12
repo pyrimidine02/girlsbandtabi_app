@@ -32,22 +32,14 @@ class Project {
 }
 
 class Unit {
-  const Unit({
-    required this.id,
-    required this.code,
-    required this.displayName,
-  });
+  const Unit({required this.id, required this.code, required this.displayName});
 
   final String id;
   final String code;
   final String displayName;
 
   factory Unit.fromDto(UnitDto dto) {
-    return Unit(
-      id: dto.id,
-      code: dto.code,
-      displayName: dto.displayName,
-    );
+    return Unit(id: dto.id, code: dto.code, displayName: dto.displayName);
   }
 }
 
@@ -60,10 +52,7 @@ class ProjectSelectionState {
   final String? projectKey;
   final List<String> unitIds;
 
-  ProjectSelectionState copyWith({
-    String? projectKey,
-    List<String>? unitIds,
-  }) {
+  ProjectSelectionState copyWith({String? projectKey, List<String>? unitIds}) {
     return ProjectSelectionState(
       projectKey: projectKey ?? this.projectKey,
       unitIds: unitIds ?? this.unitIds,

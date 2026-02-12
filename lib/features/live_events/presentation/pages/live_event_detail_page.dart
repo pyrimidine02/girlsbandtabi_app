@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
@@ -89,10 +90,13 @@ class LiveEventDetailPage extends ConsumerWidget {
         pinned: true,
         flexibleSpace: FlexibleSpaceBar(
           background: event.bannerUrl != null
-              ? GBTImage(
-                  imageUrl: event.bannerUrl!,
-                  fit: BoxFit.cover,
-                  semanticLabel: '${event.title} 포스터',
+              ? Hero(
+                  tag: GBTHeroTags.eventPoster(event.id),
+                  child: GBTImage(
+                    imageUrl: event.bannerUrl!,
+                    fit: BoxFit.cover,
+                    semanticLabel: '${event.title} 포스터',
+                  ),
                 )
               : Container(
                   color: surfaceVariantColor,

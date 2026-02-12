@@ -125,8 +125,11 @@ String _formatDDay(DateTime dateTime) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final localDateTime = dateTime.toLocal();
-  final eventDate =
-      DateTime(localDateTime.year, localDateTime.month, localDateTime.day);
+  final eventDate = DateTime(
+    localDateTime.year,
+    localDateTime.month,
+    localDateTime.day,
+  );
   final diff = eventDate.difference(today).inDays;
   if (diff == 0) {
     return 'D-day';

@@ -66,9 +66,9 @@ class PlaceRegionSummaryDto {
     final hierarchy = <RegionHierarchyNodeDto>[];
     if (hierarchyRaw is List) {
       hierarchy.addAll(
-        hierarchyRaw
-            .whereType<Map<String, dynamic>>()
-            .map(RegionHierarchyNodeDto.fromJson),
+        hierarchyRaw.whereType<Map<String, dynamic>>().map(
+          RegionHierarchyNodeDto.fromJson,
+        ),
       );
     }
 
@@ -192,9 +192,7 @@ class PlaceDetailDto {
     final images = <ImageMetaDto>[];
     if (imagesRaw is List) {
       images.addAll(
-        imagesRaw
-            .whereType<Map<String, dynamic>>()
-            .map(ImageMetaDto.fromJson),
+        imagesRaw.whereType<Map<String, dynamic>>().map(ImageMetaDto.fromJson),
       );
     }
 
@@ -209,9 +207,7 @@ class PlaceDetailDto {
       address: json['address'] as String?,
       tags: _stringList(json['tags']),
       primaryImage: json['primaryImage'] is Map<String, dynamic>
-          ? ImageMetaDto.fromJson(
-              json['primaryImage'] as Map<String, dynamic>,
-            )
+          ? ImageMetaDto.fromJson(json['primaryImage'] as Map<String, dynamic>)
           : null,
       images: images,
       regionSummary: json['regionSummary'] is Map<String, dynamic>

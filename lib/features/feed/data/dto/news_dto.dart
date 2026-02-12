@@ -68,9 +68,7 @@ class NewsDetailDto {
     final images = <ImageMetaDto>[];
     if (imagesRaw is List) {
       images.addAll(
-        imagesRaw
-            .whereType<Map<String, dynamic>>()
-            .map(ImageMetaDto.fromJson),
+        imagesRaw.whereType<Map<String, dynamic>>().map(ImageMetaDto.fromJson),
       );
     }
 

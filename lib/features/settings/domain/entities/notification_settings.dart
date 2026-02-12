@@ -19,8 +19,7 @@ class NotificationSettings {
   static const String categoryFavorites = 'FAVORITE';
   static const String categoryComments = 'COMMENT';
 
-  bool get liveEventsEnabled =>
-      _hasCategory(categories, categoryLiveEvents);
+  bool get liveEventsEnabled => _hasCategory(categories, categoryLiveEvents);
   bool get favoritesEnabled => _hasCategory(categories, categoryFavorites);
   bool get commentsEnabled => _hasCategory(categories, categoryComments);
 
@@ -41,11 +40,7 @@ class NotificationSettings {
       _toggleCategory(updatedCategories, categoryFavorites, favoritesEnabled);
     }
     if (commentsEnabled != null) {
-      _toggleCategory(
-        updatedCategories,
-        categoryComments,
-        commentsEnabled,
-      );
+      _toggleCategory(updatedCategories, categoryComments, commentsEnabled);
     }
 
     return NotificationSettings(
@@ -80,11 +75,7 @@ bool _hasCategory(List<String> categories, String target) {
   return categories.any((value) => value.toUpperCase() == target);
 }
 
-void _toggleCategory(
-  List<String> categories,
-  String target,
-  bool enabled,
-) {
+void _toggleCategory(List<String> categories, String target, bool enabled) {
   final existingIndex = categories.indexWhere(
     (value) => value.toUpperCase() == target,
   );

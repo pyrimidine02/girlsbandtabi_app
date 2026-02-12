@@ -28,6 +28,13 @@ abstract class VisitsRepository {
     bool forceRefresh = false,
   });
 
+  /// EN: Fetch visit detail by visit ID.
+  /// KO: 방문 ID로 방문 상세를 가져옵니다.
+  Future<Result<VisitEvent>> getVisitDetail({
+    required String visitId,
+    bool forceRefresh = false,
+  });
+
   /// EN: Fetch user ranking for a project.
   /// KO: 프로젝트의 사용자 랭킹을 가져옵니다.
   Future<Result<UserRanking>> getUserRanking({

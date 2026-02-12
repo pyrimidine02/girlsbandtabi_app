@@ -66,10 +66,10 @@ class GBTImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final resolvedUrl = resolveMediaUrl(imageUrl);
-    final cacheWidth =
-        width != null && width!.isFinite ? width!.toInt() : null;
-    final cacheHeight =
-        height != null && height!.isFinite ? height!.toInt() : null;
+    final cacheWidth = width != null && width!.isFinite ? width!.toInt() : null;
+    final cacheHeight = height != null && height!.isFinite
+        ? height!.toInt()
+        : null;
     final baseImage = CachedNetworkImage(
       imageUrl: resolvedUrl,
       width: width,

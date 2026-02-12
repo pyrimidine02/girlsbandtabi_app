@@ -24,7 +24,8 @@ class ImageMetaDto {
   factory ImageMetaDto.fromJson(Map<String, dynamic> json) {
     final uploadedAtRaw = json['uploadedAt'] as String? ?? '';
     final parsedUploadedAt =
-        DateTime.tryParse(uploadedAtRaw) ?? DateTime.fromMillisecondsSinceEpoch(0);
+        DateTime.tryParse(uploadedAtRaw) ??
+        DateTime.fromMillisecondsSinceEpoch(0);
 
     return ImageMetaDto(
       imageId: json['imageId'] as String? ?? '',

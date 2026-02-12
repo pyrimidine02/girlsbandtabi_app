@@ -42,9 +42,7 @@ class VisitsRepositoryImpl implements VisitsRepository {
         fromJson: _decodeVisitList,
       );
 
-      final entities = cacheResult.data
-          .map(VisitEvent.fromDto)
-          .toList();
+      final entities = cacheResult.data.map(VisitEvent.fromDto).toList();
       return Result.success(entities);
     } catch (e, stackTrace) {
       return Result.failure(ErrorHandler.mapException(e, stackTrace));
@@ -103,6 +101,30 @@ class VisitsRepositoryImpl implements VisitsRepository {
     }
   }
 
+  @override
+  Future<Result<VisitEvent>> getVisitDetail({
+    required String visitId,
+    bool forceRefresh = false,
+  }) async {
+    final policy = forceRefresh
+        ? CachePolicy.networkFirst
+        : CachePolicy.staleWhileRevalidate;
+
+    try {
+      final cacheResult = await _cacheManager.resolve<VisitEventDetailDto>(
+        key: _detailCacheKey(visitId),
+        policy: policy,
+        ttl: const Duration(minutes: 5),
+        fetcher: () => _fetchVisitDetail(visitId: visitId),
+        toJson: (dto) => dto.toJson(),
+        fromJson: (json) => VisitEventDetailDto.fromJson(json),
+      );
+      return Result.success(VisitEvent.fromDetailDto(cacheResult.data));
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
   Future<List<VisitEventDto>> _fetchVisits({
     required int page,
     required int size,
@@ -120,6 +142,22 @@ class VisitsRepositoryImpl implements VisitsRepository {
     throw const UnknownFailure(
       'Unknown visit list result',
       code: 'unknown_visit_list',
+    );
+  }
+
+  Future<VisitEventDetailDto> _fetchVisitDetail({
+    required String visitId,
+  }) async {
+    final result = await _remoteDataSource.fetchVisitDetail(visitId: visitId);
+    if (result is Success<VisitEventDetailDto>) {
+      return result.data;
+    }
+    if (result is Err<VisitEventDetailDto>) {
+      throw result.failure;
+    }
+    throw const UnknownFailure(
+      'Unknown visit detail result',
+      code: 'unknown_visit_detail',
     );
   }
 
@@ -161,9 +199,7 @@ class VisitsRepositoryImpl implements VisitsRepository {
     }
   }
 
-  Future<UserRankingDto> _fetchUserRanking({
-    required String projectId,
-  }) async {
+  Future<UserRankingDto> _fetchUserRanking({required String projectId}) async {
     final result = await _remoteDataSource.fetchUserRanking(
       projectId: projectId,
     );
@@ -183,12 +219,11 @@ class VisitsRepositoryImpl implements VisitsRepository {
 String _visitsCacheKey(int page, int size) =>
     'user_visits_page_${page}_size_$size';
 String _summaryCacheKey(String placeId) => 'user_visits_summary_$placeId';
+String _detailCacheKey(String visitId) => 'user_visit_detail_$visitId';
 String _rankingCacheKey(String projectId) => 'user_ranking_$projectId';
 
 Map<String, dynamic> _encodeVisitList(List<VisitEventDto> items) {
-  return {
-    'items': items.map((item) => item.toJson()).toList(),
-  };
+  return {'items': items.map((item) => item.toJson()).toList()};
 }
 
 List<VisitEventDto> _decodeVisitList(Map<String, dynamic> json) {

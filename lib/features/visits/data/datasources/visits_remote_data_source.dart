@@ -29,15 +29,24 @@ class VisitsRemoteDataSource {
 
   /// EN: Fetch visit summary for a place.
   /// KO: 특정 장소의 방문 요약을 조회합니다.
-  Future<Result<VisitSummaryDto>> fetchVisitSummary({
-    required String placeId,
-  }) {
+  Future<Result<VisitSummaryDto>> fetchVisitSummary({required String placeId}) {
     return _apiClient.get<VisitSummaryDto>(
       ApiEndpoints.userVisitsSummary,
       queryParameters: {'placeId': placeId},
-      fromJson: (json) => VisitSummaryDto.fromJson(
-        json as Map<String, dynamic>,
-      ),
+      fromJson: (json) =>
+          VisitSummaryDto.fromJson(json as Map<String, dynamic>),
+    );
+  }
+
+  /// EN: Fetch visit detail by visit ID.
+  /// KO: 방문 ID로 방문 상세를 조회합니다.
+  Future<Result<VisitEventDetailDto>> fetchVisitDetail({
+    required String visitId,
+  }) {
+    return _apiClient.get<VisitEventDetailDto>(
+      ApiEndpoints.userVisitDetail(visitId),
+      fromJson: (json) =>
+          VisitEventDetailDto.fromJson(json as Map<String, dynamic>),
     );
   }
 

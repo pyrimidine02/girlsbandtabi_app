@@ -129,53 +129,49 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
                   )
                 else
                   Column(
-                    children: stats.topPlaces
-                        .map(
-                          (item) {
-                            final placeFound =
-                                placeMap.containsKey(item.placeId);
-                            final showLoading = placesLoading && !placeFound;
-                            final placeName =
-                                _resolvePlaceName(placeMap, item.placeId);
-                            return Semantics(
-                              label: showLoading
-                                  ? '장소 이름 로딩 중, 방문 ${item.count}회'
-                                  : '$placeName, 방문 ${item.count}회',
-                              button: true,
-                              child: ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: showLoading
-                                    ? Container(
-                                        height: 16,
-                                        width: 120,
-                                        decoration: BoxDecoration(
-                                          color: isDark
-                                              ? GBTColors.darkSurfaceVariant
-                                              : GBTColors.surfaceVariant,
-                                          borderRadius: BorderRadius.circular(
-                                            GBTSpacing.radiusXs,
-                                          ),
-                                        ),
-                                      )
-                                    : Text(
-                                        placeName,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                subtitle: Text(
-                                  '방문 ${item.count}회',
-                                  style: GBTTypography.bodySmall.copyWith(
-                                    color: secondaryColor,
+                    children: stats.topPlaces.map((item) {
+                      final placeFound = placeMap.containsKey(item.placeId);
+                      final showLoading = placesLoading && !placeFound;
+                      final placeName = _resolvePlaceName(
+                        placeMap,
+                        item.placeId,
+                      );
+                      return Semantics(
+                        label: showLoading
+                            ? '장소 이름 로딩 중, 방문 ${item.count}회'
+                            : '$placeName, 방문 ${item.count}회',
+                        button: true,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: showLoading
+                              ? Container(
+                                  height: 16,
+                                  width: 120,
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? GBTColors.darkSurfaceVariant
+                                        : GBTColors.surfaceVariant,
+                                    borderRadius: BorderRadius.circular(
+                                      GBTSpacing.radiusXs,
+                                    ),
                                   ),
+                                )
+                              : Text(
+                                  placeName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                trailing: const Icon(Icons.chevron_right),
-                                onTap: () =>
-                                    context.goToPlaceDetail(item.placeId),
-                              ),
-                            );
-                          },
-                        )
-                        .toList(),
+                          subtitle: Text(
+                            '방문 ${item.count}회',
+                            style: GBTTypography.bodySmall.copyWith(
+                              color: secondaryColor,
+                            ),
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => context.goToPlaceDetail(item.placeId),
+                        ),
+                      );
+                    }).toList(),
                   ),
               ],
             ),

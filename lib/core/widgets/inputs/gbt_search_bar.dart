@@ -139,7 +139,8 @@ class _GBTSearchBarState extends State<GBTSearchBar> {
             // KO: 선행 아이콘 또는 위젯
             Padding(
               padding: const EdgeInsets.only(left: GBTSpacing.md),
-              child: widget.leading ??
+              child:
+                  widget.leading ??
                   Icon(
                     Icons.search,
                     // EN: Dark mode aware icon color
@@ -222,11 +223,7 @@ class _GBTSearchBarState extends State<GBTSearchBar> {
 /// EN: Tappable search bar for navigation
 /// KO: 네비게이션용 탭 가능한 검색바
 class GBTSearchBarButton extends StatelessWidget {
-  const GBTSearchBarButton({
-    super.key,
-    required this.onTap,
-    this.hint = '검색',
-  });
+  const GBTSearchBarButton({super.key, required this.onTap, this.hint = '검색'});
 
   final VoidCallback onTap;
   final String hint;

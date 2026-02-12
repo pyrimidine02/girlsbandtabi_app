@@ -26,9 +26,7 @@ class UserVisitsController extends StateNotifier<AsyncValue<List<VisitEvent>>> {
     state = const AsyncLoading();
 
     final repository = await _ref.read(visitsRepositoryProvider.future);
-    final result = await repository.getAllVisits(
-      forceRefresh: forceRefresh,
-    );
+    final result = await repository.getAllVisits(forceRefresh: forceRefresh);
 
     if (result is Success<List<VisitEvent>>) {
       state = AsyncData(result.data);
@@ -40,8 +38,7 @@ class UserVisitsController extends StateNotifier<AsyncValue<List<VisitEvent>>> {
 
 /// EN: Visits repository provider.
 /// KO: 방문 기록 리포지토리 프로바이더.
-final visitsRepositoryProvider =
-    FutureProvider<VisitsRepository>((ref) async {
+final visitsRepositoryProvider = FutureProvider<VisitsRepository>((ref) async {
   final apiClient = ref.watch(apiClientProvider);
   final cacheManager = await ref.watch(cacheManagerProvider.future);
   return VisitsRepositoryImpl(
@@ -54,13 +51,15 @@ final visitsRepositoryProvider =
 /// KO: 방문 기록 컨트롤러 프로바이더.
 final userVisitsControllerProvider =
     StateNotifierProvider<UserVisitsController, AsyncValue<List<VisitEvent>>>(
-  (ref) => UserVisitsController(ref),
-);
+      (ref) => UserVisitsController(ref),
+    );
 
 /// EN: Visit summary provider for a specific place.
 /// KO: 특정 장소의 방문 요약 프로바이더.
-final visitSummaryProvider =
-    FutureProvider.family<VisitSummary?, String>((ref, placeId) async {
+final visitSummaryProvider = FutureProvider.family<VisitSummary?, String>((
+  ref,
+  placeId,
+) async {
   if (placeId.isEmpty) return null;
   final repository = await ref.read(visitsRepositoryProvider.future);
   final result = await repository.getVisitSummary(placeId: placeId);
@@ -70,10 +69,26 @@ final visitSummaryProvider =
   return null;
 });
 
+/// EN: Visit detail provider by visit ID.
+/// KO: 방문 ID 기반 방문 상세 프로바이더.
+final visitDetailProvider = FutureProvider.family<VisitEvent?, String>((
+  ref,
+  visitId,
+) async {
+  if (visitId.isEmpty) return null;
+  final repository = await ref.read(visitsRepositoryProvider.future);
+  final result = await repository.getVisitDetail(visitId: visitId);
+  if (result is Success<VisitEvent>) {
+    return result.data;
+  }
+  return null;
+});
+
 /// EN: Map of place ID to summary for visit screens.
 /// KO: 방문 화면에서 사용할 장소 요약 맵.
-final visitPlacesMapProvider =
-    FutureProvider<Map<String, PlaceSummary>>((ref) async {
+final visitPlacesMapProvider = FutureProvider<Map<String, PlaceSummary>>((
+  ref,
+) async {
   final projectKey = ref.watch(selectedProjectKeyProvider);
   final projectId = ref.watch(selectedProjectIdProvider);
   final resolvedProjectKey = projectKey?.isNotEmpty == true
@@ -84,9 +99,7 @@ final visitPlacesMapProvider =
   final repository = await ref.watch(placesRepositoryProvider.future);
   final result = await repository.getAllPlaces(projectId: resolvedProjectKey);
   if (result is Success<List<PlaceSummary>>) {
-    return {
-      for (final place in result.data) place.id: place,
-    };
+    return {for (final place in result.data) place.id: place};
   }
 
   return <String, PlaceSummary>{};
@@ -94,8 +107,7 @@ final visitPlacesMapProvider =
 
 /// EN: User ranking provider for visit statistics.
 /// KO: 방문 통계를 위한 사용자 랭킹 프로바이더.
-final userRankingProvider =
-    FutureProvider<UserRanking?>((ref) async {
+final userRankingProvider = FutureProvider<UserRanking?>((ref) async {
   final projectKey = ref.watch(selectedProjectKeyProvider);
   final projectId = ref.watch(selectedProjectIdProvider);
   final resolvedProjectId = projectId?.isNotEmpty == true

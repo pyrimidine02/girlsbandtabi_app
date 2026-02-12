@@ -143,10 +143,10 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
         message: _isSaving
             ? '프로필 저장 중...'
             : _isUploadingAvatar
-                ? '프로필 사진 업로드 중...'
-                : _isUploadingCover
-                    ? '배경 이미지 업로드 중...'
-                    : null,
+            ? '프로필 사진 업로드 중...'
+            : _isUploadingCover
+            ? '배경 이미지 업로드 중...'
+            : null,
         child: state.when(
           loading: () => const GBTLoading(message: '프로필을 불러오는 중...'),
           error: (error, _) => Center(
@@ -246,8 +246,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
       final bytes = payload.bytes;
       final filename = payload.filename;
       final contentType = payload.contentType;
-      final uploadController =
-          ref.read(uploadsControllerProvider.notifier);
+      final uploadController = ref.read(uploadsControllerProvider.notifier);
 
       final uploadResult = await uploadController.uploadImageBytes(
         bytes: bytes,
@@ -305,8 +304,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
       final bytes = payload.bytes;
       final filename = payload.filename;
       final contentType = payload.contentType;
-      final uploadController =
-          ref.read(uploadsControllerProvider.notifier);
+      final uploadController = ref.read(uploadsControllerProvider.notifier);
 
       final uploadResult = await uploadController.uploadImageBytes(
         bytes: bytes,
@@ -344,10 +342,9 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
 
   void _handleUploadFailure(Failure failure) {
     if (!mounted) return;
-    final message =
-        failure is AuthFailure && failure.code == '403'
-            ? '아직 준비중입니다.'
-            : failure.userMessage;
+    final message = failure is AuthFailure && failure.code == '403'
+        ? '아직 준비중입니다.'
+        : failure.userMessage;
     _showMessage(message);
   }
 
@@ -398,10 +395,7 @@ class _ProfileForm extends StatelessWidget {
           ),
         ),
         const SizedBox(height: GBTSpacing.xs),
-        _ProfileCoverPreview(
-          coverUrl: coverUrl,
-          isUploading: isUploadingCover,
-        ),
+        _ProfileCoverPreview(coverUrl: coverUrl, isUploading: isUploadingCover),
         const SizedBox(height: GBTSpacing.sm),
         Align(
           alignment: Alignment.centerLeft,

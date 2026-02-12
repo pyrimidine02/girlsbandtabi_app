@@ -13,6 +13,11 @@ class SecureStorageKeys {
   static const String refreshToken = 'refresh_token';
   static const String userId = 'user_id';
   static const String tokenExpiry = 'token_expiry';
+  static const String verificationKeyId = 'verification_key_id';
+  static const String verificationDeviceId = 'verification_device_id';
+  static const String verificationPrivateJwk = 'verification_private_jwk';
+  static const String verificationKeyRegisteredAt =
+      'verification_key_registered_at';
 }
 
 /// EN: Wrapper for FlutterSecureStorage with typed methods
@@ -154,6 +159,86 @@ class SecureStorage {
   /// KO: 사용자 ID 삭제
   Future<void> deleteUserId() async {
     await _storage.delete(key: SecureStorageKeys.userId);
+  }
+
+  // ========================================
+  // EN: Verification device key management
+  // KO: 인증 디바이스 키 관리
+  // ========================================
+
+  /// EN: Save verification key ID.
+  /// KO: 인증 키 ID 저장.
+  Future<void> saveVerificationKeyId(String keyId) async {
+    await _storage.write(
+      key: SecureStorageKeys.verificationKeyId,
+      value: keyId,
+    );
+  }
+
+  /// EN: Get verification key ID.
+  /// KO: 인증 키 ID 조회.
+  Future<String?> getVerificationKeyId() async {
+    return _storage.read(key: SecureStorageKeys.verificationKeyId);
+  }
+
+  /// EN: Save device ID for verification.
+  /// KO: 인증용 디바이스 ID 저장.
+  Future<void> saveVerificationDeviceId(String deviceId) async {
+    await _storage.write(
+      key: SecureStorageKeys.verificationDeviceId,
+      value: deviceId,
+    );
+  }
+
+  /// EN: Get device ID for verification.
+  /// KO: 인증용 디바이스 ID 조회.
+  Future<String?> getVerificationDeviceId() async {
+    return _storage.read(key: SecureStorageKeys.verificationDeviceId);
+  }
+
+  /// EN: Save verification private JWK (JSON string).
+  /// KO: 인증용 개인키 JWK(JSON 문자열) 저장.
+  Future<void> saveVerificationPrivateJwk(String jwkJson) async {
+    await _storage.write(
+      key: SecureStorageKeys.verificationPrivateJwk,
+      value: jwkJson,
+    );
+  }
+
+  /// EN: Get verification private JWK (JSON string).
+  /// KO: 인증용 개인키 JWK(JSON 문자열) 조회.
+  Future<String?> getVerificationPrivateJwk() async {
+    return _storage.read(key: SecureStorageKeys.verificationPrivateJwk);
+  }
+
+  /// EN: Save verification key registration timestamp.
+  /// KO: 인증 키 등록 시간 저장.
+  Future<void> saveVerificationKeyRegisteredAt(DateTime registeredAt) async {
+    await _storage.write(
+      key: SecureStorageKeys.verificationKeyRegisteredAt,
+      value: registeredAt.toIso8601String(),
+    );
+  }
+
+  /// EN: Get verification key registration timestamp.
+  /// KO: 인증 키 등록 시간 조회.
+  Future<DateTime?> getVerificationKeyRegisteredAt() async {
+    final value = await _storage.read(
+      key: SecureStorageKeys.verificationKeyRegisteredAt,
+    );
+    if (value == null) return null;
+    return DateTime.tryParse(value);
+  }
+
+  /// EN: Clear verification key material.
+  /// KO: 인증 키 자료 삭제.
+  Future<void> clearVerificationKeys() async {
+    await Future.wait([
+      _storage.delete(key: SecureStorageKeys.verificationKeyId),
+      _storage.delete(key: SecureStorageKeys.verificationDeviceId),
+      _storage.delete(key: SecureStorageKeys.verificationPrivateJwk),
+      _storage.delete(key: SecureStorageKeys.verificationKeyRegisteredAt),
+    ]);
   }
 
   // ========================================

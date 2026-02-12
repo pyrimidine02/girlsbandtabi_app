@@ -44,7 +44,6 @@ class NewsListController extends StateNotifier<AsyncValue<List<NewsSummary>>> {
       state = AsyncError(result.failure, StackTrace.current);
     }
   }
-
 }
 
 class NewsDetailController extends StateNotifier<AsyncValue<NewsDetail>> {
@@ -77,7 +76,6 @@ class NewsDetailController extends StateNotifier<AsyncValue<NewsDetail>> {
       state = AsyncError(result.failure, StackTrace.current);
     }
   }
-
 }
 
 class PostListController extends StateNotifier<AsyncValue<List<PostSummary>>> {
@@ -112,7 +110,6 @@ class PostListController extends StateNotifier<AsyncValue<List<PostSummary>>> {
       state = AsyncError(result.failure, StackTrace.current);
     }
   }
-
 }
 
 class PostDetailController extends StateNotifier<AsyncValue<PostDetail>> {
@@ -145,13 +142,11 @@ class PostDetailController extends StateNotifier<AsyncValue<PostDetail>> {
       state = AsyncError(result.failure, StackTrace.current);
     }
   }
-
 }
 
 class PostCommentsController
     extends StateNotifier<AsyncValue<List<PostComment>>> {
-  PostCommentsController(this._ref, this.postId)
-    : super(const AsyncLoading());
+  PostCommentsController(this._ref, this.postId) : super(const AsyncLoading());
 
   final Ref _ref;
   final String postId;
@@ -283,8 +278,7 @@ class PostCommentsController
 /// EN: Post like status controller provider.
 /// KO: 게시글 좋아요 상태 컨트롤러 프로바이더.
 class PostLikeController extends StateNotifier<AsyncValue<PostLikeStatus>> {
-  PostLikeController(this._ref, this.postId)
-    : super(const AsyncLoading()) {
+  PostLikeController(this._ref, this.postId) : super(const AsyncLoading()) {
     load();
   }
 
@@ -295,7 +289,10 @@ class PostLikeController extends StateNotifier<AsyncValue<PostLikeStatus>> {
     final projectKey = _ref.read(selectedProjectKeyProvider);
     if (projectKey == null || projectKey.isEmpty) {
       state = AsyncError(
-        const AuthFailure('Project selection required', code: 'project_required'),
+        const AuthFailure(
+          'Project selection required',
+          code: 'project_required',
+        ),
         StackTrace.current,
       );
       return;
@@ -326,21 +323,12 @@ class PostLikeController extends StateNotifier<AsyncValue<PostLikeStatus>> {
       return Result.failure(failure);
     }
 
-    final current = state.maybeWhen(
-      data: (value) => value,
-      orElse: () => null,
-    );
+    final current = state.maybeWhen(data: (value) => value, orElse: () => null);
     final repository = await _ref.read(feedRepositoryProvider.future);
 
     final result = current?.isLiked == true
-        ? await repository.unlikePost(
-            projectCode: projectKey,
-            postId: postId,
-          )
-        : await repository.likePost(
-            projectCode: projectKey,
-            postId: postId,
-          );
+        ? await repository.unlikePost(projectCode: projectKey, postId: postId)
+        : await repository.likePost(projectCode: projectKey, postId: postId);
 
     if (result is Success<PostLikeStatus>) {
       state = AsyncData(result.data);
@@ -366,10 +354,11 @@ final feedRepositoryProvider = FutureProvider<FeedRepository>((ref) async {
 /// EN: Post like controller provider.
 /// KO: 게시글 좋아요 컨트롤러 프로바이더.
 final postLikeControllerProvider =
-    StateNotifierProvider.family<PostLikeController, AsyncValue<PostLikeStatus>, String>((
-      ref,
-      postId,
-    ) {
+    StateNotifierProvider.family<
+      PostLikeController,
+      AsyncValue<PostLikeStatus>,
+      String
+    >((ref, postId) {
       return PostLikeController(ref, postId);
     });
 

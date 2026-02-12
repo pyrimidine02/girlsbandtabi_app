@@ -4,11 +4,11 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../theme/gbt_colors.dart';
 import '../../theme/gbt_spacing.dart';
 import '../../widgets/common/gbt_image.dart';
+import '../../router/app_router.dart';
 import '../../../features/settings/application/settings_controller.dart';
 
 /// EN: AppBar action that shows the user's profile avatar or a fallback icon.
@@ -28,17 +28,19 @@ class GBTProfileAction extends ConsumerWidget {
     // EN: Use theme-aware placeholder colors.
     // KO: 테마 인식 플레이스홀더 색상을 사용합니다.
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor =
-        isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant;
-    final iconColor =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final bgColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+    final iconColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
 
     return Semantics(
       button: true,
       label: '설정',
       child: IconButton(
         tooltip: '설정',
-        onPressed: () => context.push('/settings'),
+        onPressed: () => context.goToSettings(),
         icon: hasAvatar
             ? ClipOval(
                 child: GBTImage(

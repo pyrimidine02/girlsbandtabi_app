@@ -130,9 +130,10 @@ class A11ySkipLink extends StatelessWidget {
             final hasFocus = Focus.of(context).hasFocus;
             if (!hasFocus) return const SizedBox.shrink();
 
-            return Positioned(
-              top: 0,
-              left: 0,
+            // EN: Use Align instead of Positioned — Positioned requires a Stack parent
+            // KO: Positioned 대신 Align 사용 — Positioned는 Stack 부모가 필요함
+            return Align(
+              alignment: Alignment.topLeft,
               child: Material(
                 child: InkWell(
                   onTap: () {
@@ -235,5 +236,120 @@ class A11yUtils {
   /// KO: 고대비 모드가 활성화되어 있는지 확인
   static bool isHighContrastEnabled(BuildContext context) {
     return MediaQuery.of(context).highContrast;
+  }
+}
+
+/// EN: Text widget with scalable font size based on user accessibility settings
+/// KO: 사용자 접근성 설정에 따라 폰트 크기가 조정되는 텍스트 위젯
+class A11yScalableText extends StatelessWidget {
+  const A11yScalableText(
+    this.data, {
+    super.key,
+    this.style,
+    this.textAlign,
+    this.maxLines,
+    this.overflow,
+    this.semanticLabel,
+  });
+
+  /// EN: The text to display
+  /// KO: 표시할 텍스트
+  final String data;
+
+  /// EN: Text style to apply
+  /// KO: 적용할 텍스트 스타일
+  final TextStyle? style;
+
+  /// EN: Text alignment
+  /// KO: 텍스트 정렬
+  final TextAlign? textAlign;
+
+  /// EN: Maximum number of lines
+  /// KO: 최대 줄 수
+  final int? maxLines;
+
+  /// EN: Text overflow behavior
+  /// KO: 텍스트 오버플로우 동작
+  final TextOverflow? overflow;
+
+  /// EN: Semantic label for screen readers (overrides text if provided)
+  /// KO: 스크린 리더용 시맨틱 라벨 (제공되면 텍스트를 대체)
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    // EN: Get user's text scale factor from system settings
+    // KO: 시스템 설정에서 사용자의 텍스트 스케일 팩터 가져오기
+    final scaleFactor = A11yUtils.getTextScaleFactor(context);
+
+    // EN: Clamp scale factor between 1.0 and 2.0 to prevent layout overflow
+    // KO: 레이아웃 오버플로우를 방지하기 위해 스케일 팩터를 1.0 ~ 2.0으로 제한
+    final clampedScale = scaleFactor.clamp(1.0, 2.0);
+
+    // EN: Calculate scaled font size with default fallback
+    // KO: 기본값 폴백으로 조정된 폰트 크기 계산
+    final baseFontSize = style?.fontSize ?? 14.0;
+    final scaledFontSize = baseFontSize * clampedScale;
+
+    // EN: Apply scaled font size to text style
+    // KO: 텍스트 스타일에 조정된 폰트 크기 적용
+    final scaledStyle = (style ?? const TextStyle()).copyWith(
+      fontSize: scaledFontSize,
+    );
+
+    return Text(
+      data,
+      style: scaledStyle,
+      textAlign: textAlign,
+      maxLines: maxLines,
+      overflow: overflow,
+      semanticsLabel: semanticLabel,
+    );
+  }
+}
+
+/// EN: Utility class for announcing messages to screen readers
+/// KO: 스크린 리더에 메시지를 알리기 위한 유틸리티 클래스
+class A11yAnnouncer {
+  A11yAnnouncer._();
+
+  /// EN: Announce a general message to screen readers
+  /// KO: 스크린 리더에 일반 메시지 공지
+  static void announce(BuildContext context, String message) {
+    // EN: Ignore empty messages
+    // KO: 빈 메시지는 무시
+    if (message.trim().isEmpty) return;
+
+    SemanticsService.announce(message, TextDirection.ltr);
+  }
+
+  /// EN: Announce an error message to screen readers with "Error: " prefix
+  /// KO: "오류: " 접두사와 함께 스크린 리더에 에러 메시지 공지
+  static void announceError(BuildContext context, String message) {
+    // EN: Ignore empty messages
+    // KO: 빈 메시지는 무시
+    if (message.trim().isEmpty) return;
+
+    // EN: Prefix with "Error: " for Korean locale, "Error: " for others
+    // KO: 한국어 로케일의 경우 "오류: " 접두사, 그 외는 "Error: " 사용
+    final locale = Localizations.localeOf(context);
+    final prefix = locale.languageCode == 'ko' ? '오류: ' : 'Error: ';
+
+    SemanticsService.announce('$prefix$message', TextDirection.ltr);
+  }
+
+  /// EN: Announce a success message to screen readers with "Success: " prefix
+  /// KO: "성공: " 접두사와 함께 스크린 리더에 성공 메시지 공지
+  static void announceSuccess(BuildContext context, String message) {
+    // EN: Ignore empty messages
+    // KO: 빈 메시지는 무시
+    if (message.trim().isEmpty) return;
+
+    // EN: Prefix with "Success: " for Korean locale, "Success: " for others
+    // KO: 한국어 로케일의 경우 "성공: " 접두사, 그 외는 "Success: " 사용
+    final locale = Localizations.localeOf(context);
+    final prefix = locale.languageCode == 'ko' ? '성공: ' : 'Success: ';
+
+    SemanticsService.announce('$prefix$message', TextDirection.ltr);
   }
 }

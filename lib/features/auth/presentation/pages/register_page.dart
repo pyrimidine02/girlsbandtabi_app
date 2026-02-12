@@ -71,15 +71,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       _hasLowercase = value.contains(RegExp(r'[a-z]'));
       _hasDigit = value.contains(RegExp(r'[0-9]'));
       _hasSpecialChar = value.contains(RegExp(r'[@$!%*?&]'));
-      _passwordsMatch = value.isNotEmpty &&
-          value == _confirmPasswordController.text;
+      _passwordsMatch =
+          value.isNotEmpty && value == _confirmPasswordController.text;
     });
   }
 
   void _onConfirmChanged() {
     setState(() {
       _confirmTouched = true;
-      _passwordsMatch = _passwordController.text.isNotEmpty &&
+      _passwordsMatch =
+          _passwordController.text.isNotEmpty &&
           _passwordController.text == _confirmPasswordController.text;
     });
   }
@@ -333,11 +334,7 @@ class _PasswordConditions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _ConditionRow(
-          met: hasMinLength,
-          touched: touched,
-          label: '6자 이상',
-        ),
+        _ConditionRow(met: hasMinLength, touched: touched, label: '6자 이상'),
         const SizedBox(height: 2),
         _ConditionRow(
           met: hasUppercase,
@@ -351,11 +348,7 @@ class _PasswordConditions extends StatelessWidget {
           label: '소문자 포함 (a-z)',
         ),
         const SizedBox(height: 2),
-        _ConditionRow(
-          met: hasDigit,
-          touched: touched,
-          label: '숫자 포함 (0-9)',
-        ),
+        _ConditionRow(met: hasDigit, touched: touched, label: '숫자 포함 (0-9)'),
         const SizedBox(height: 2),
         _ConditionRow(
           met: hasSpecialChar,

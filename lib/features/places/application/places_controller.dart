@@ -119,7 +119,6 @@ class PlacesListController
       state = AsyncError(result.failure, StackTrace.current);
     }
   }
-
 }
 
 class PlacesRegionOptionsController
@@ -201,13 +200,11 @@ class PlaceDetailController extends StateNotifier<AsyncValue<PlaceDetail>> {
       state = AsyncError(result.failure, StackTrace.current);
     }
   }
-
 }
 
 class PlaceGuidesController
     extends StateNotifier<AsyncValue<List<PlaceGuideSummary>>> {
-  PlaceGuidesController(this._ref, this.placeId)
-    : super(const AsyncLoading());
+  PlaceGuidesController(this._ref, this.placeId) : super(const AsyncLoading());
 
   final Ref _ref;
   final String placeId;

@@ -35,7 +35,26 @@ class SettingsPage extends ConsumerWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: '뒤로 가기',
-          onPressed: () => context.pop(),
+          onPressed: () {
+            // EN: Avoid GoRouter pop when there is no back stack.
+            // KO: 뒤로갈 스택이 없을 때 GoRouter pop을 막습니다.
+            if (context.canPop()) {
+              context.pop();
+              return;
+            }
+
+            // EN: Fallback to the recorded previous route when available.
+            // KO: 이전 경로가 있으면 해당 경로로 이동합니다.
+            final from = GoRouterState.of(context).uri.queryParameters['from'];
+            if (from != null && from.isNotEmpty) {
+              context.go(from);
+              return;
+            }
+
+            // EN: If no previous route is available, return to home.
+            // KO: 이전 경로가 없으면 홈으로 이동합니다.
+            context.go('/home');
+          },
         ),
         title: const Text('설정'),
       ),
@@ -100,9 +119,7 @@ class SettingsPage extends ConsumerWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(
                     context,
-                  ).showSnackBar(
-                    const SnackBar(content: Text('로그아웃되었습니다')),
-                  );
+                  ).showSnackBar(const SnackBar(content: Text('로그아웃되었습니다')));
                 }
               },
             ),
@@ -482,6 +499,7 @@ class _SettingsItem extends StatelessWidget {
   final String? subtitle;
   final VoidCallback onTap;
   final String? semanticLabel;
+
   /// EN: Optional individual icon color — falls back to neutral if null.
   /// KO: 선택적 개별 아이콘 색상 — null이면 뉴트럴 폴백.
   final Color? iconColor;
@@ -491,7 +509,8 @@ class _SettingsItem extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
-    final resolvedIconColor = iconColor ??
+    final resolvedIconColor =
+        iconColor ??
         (isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary);
 
     return Semantics(
@@ -507,11 +526,7 @@ class _SettingsItem extends StatelessWidget {
                 : GBTColors.surfaceVariant,
             borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
           ),
-          child: Icon(
-            icon,
-            color: resolvedIconColor,
-            size: GBTSpacing.iconSm,
-          ),
+          child: Icon(icon, color: resolvedIconColor, size: GBTSpacing.iconSm),
         ),
         title: Text(
           title,
@@ -532,9 +547,7 @@ class _SettingsItem extends StatelessWidget {
         trailing: Icon(
           Icons.arrow_forward_ios,
           size: GBTSpacing.iconXs,
-          color: isDark
-              ? GBTColors.darkTextTertiary
-              : GBTColors.textTertiary,
+          color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
         ),
         onTap: onTap,
       ),
@@ -550,11 +563,7 @@ String _themeLabel(String mode) {
   };
 }
 
-void _showThemePicker(
-  BuildContext context,
-  WidgetRef ref,
-  String currentMode,
-) {
+void _showThemePicker(BuildContext context, WidgetRef ref, String currentMode) {
   showModalBottomSheet<void>(
     context: context,
     builder: (context) => SafeArea(
@@ -565,8 +574,9 @@ void _showThemePicker(
             selected: currentMode == 'system',
             child: ListTile(
               title: const Text('시스템 설정'),
-              trailing:
-                  currentMode == 'system' ? const Icon(Icons.check) : null,
+              trailing: currentMode == 'system'
+                  ? const Icon(Icons.check)
+                  : null,
               onTap: () {
                 ref.read(themeModeProvider.notifier).state = 'system';
                 Navigator.of(context).pop();
@@ -577,8 +587,7 @@ void _showThemePicker(
             selected: currentMode == 'light',
             child: ListTile(
               title: const Text('라이트 모드'),
-              trailing:
-                  currentMode == 'light' ? const Icon(Icons.check) : null,
+              trailing: currentMode == 'light' ? const Icon(Icons.check) : null,
               onTap: () {
                 ref.read(themeModeProvider.notifier).state = 'light';
                 Navigator.of(context).pop();
@@ -589,8 +598,7 @@ void _showThemePicker(
             selected: currentMode == 'dark',
             child: ListTile(
               title: const Text('다크 모드'),
-              trailing:
-                  currentMode == 'dark' ? const Icon(Icons.check) : null,
+              trailing: currentMode == 'dark' ? const Icon(Icons.check) : null,
               onTap: () {
                 ref.read(themeModeProvider.notifier).state = 'dark';
                 Navigator.of(context).pop();
@@ -604,7 +612,5 @@ void _showThemePicker(
 }
 
 void _showComingSoon(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(message)),
-  );
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }

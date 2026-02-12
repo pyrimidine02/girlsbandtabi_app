@@ -2,11 +2,7 @@
 /// KO: 커뮤니티 신고/차단 도메인 엔티티.
 library;
 
-enum CommunityReportTargetType {
-  post,
-  comment,
-  user,
-}
+enum CommunityReportTargetType { post, comment, user }
 
 extension CommunityReportTargetTypeX on CommunityReportTargetType {
   String get apiValue {

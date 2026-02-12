@@ -298,6 +298,7 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                                     bottom: GBTSpacing.md,
                                   ),
                                   child: GBTEventCard(
+                                    eventId: event.id,
                                     title: event.title,
                                     subtitle: event.statusLabel,
                                     meta: event.metaLabel,
@@ -393,6 +394,7 @@ class _EventList extends StatelessWidget {
             return Padding(
               padding: const EdgeInsets.only(bottom: GBTSpacing.md),
               child: GBTEventCard(
+                eventId: event.id,
                 title: event.title,
                 subtitle: event.statusLabel,
                 meta: event.metaLabel,

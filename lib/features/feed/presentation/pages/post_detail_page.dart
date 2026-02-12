@@ -488,19 +488,11 @@ class _PostDetailContent extends StatelessWidget {
     //     extraction when the API returns no images, to avoid duplicates.
     // KO: API imageUrls를 우선 사용. 중복 방지를 위해 API에 이미지가 없을 때만
     //     콘텐츠에서 추출합니다.
-    final List<String> mergedImageUrls;
-    if (post.imageUrls.isNotEmpty) {
-      mergedImageUrls = post.imageUrls
-          .map(resolveMediaUrl)
-          .where((url) => url.isNotEmpty)
-          .toList();
-    } else {
-      mergedImageUrls = extractImageUrls(post.content)
-          .map(resolveMediaUrl)
-          .where((url) => url.isNotEmpty)
-          .toSet()
-          .toList();
-    }
+    // EN: Normalize and de-duplicate URLs to avoid showing the same image twice.
+    // KO: 동일 이미지가 중복 표시되지 않도록 URL을 정규화하고 중복 제거합니다.
+    final List<String> mergedImageUrls = post.imageUrls.isNotEmpty
+        ? _normalizeImageUrls(post.imageUrls)
+        : _normalizeImageUrls(extractImageUrls(post.content));
     final isOwnPost = currentUserId != null && currentUserId == post.authorId;
 
     // EN: Use theme-aware colors for dark mode compatibility.
@@ -587,11 +579,8 @@ class _PostDetailContent extends StatelessWidget {
                     hint: '탭하면 확대합니다',
                     button: true,
                     child: GestureDetector(
-                      onTap: () => _showFullScreenImage(
-                        context,
-                        mergedImageUrls,
-                        i,
-                      ),
+                      onTap: () =>
+                          _showFullScreenImage(context, mergedImageUrls, i),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(
                           GBTSpacing.radiusMd,
@@ -1199,6 +1188,23 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
       ),
     );
   }
+}
+
+/// EN: Normalize image URLs and remove duplicates while preserving order.
+/// KO: 이미지 URL을 정규화하고 순서를 유지하며 중복을 제거합니다.
+List<String> _normalizeImageUrls(Iterable<String> rawUrls) {
+  final normalized = <String>[];
+  final seen = <String>{};
+
+  for (final rawUrl in rawUrls) {
+    final url = resolveMediaUrl(rawUrl.trim());
+    if (url.isEmpty) continue;
+    if (seen.add(url)) {
+      normalized.add(url);
+    }
+  }
+
+  return normalized;
 }
 
 String _commentCountLabel(

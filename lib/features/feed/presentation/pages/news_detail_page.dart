@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
@@ -74,7 +75,10 @@ class _NewsDetailView extends StatelessWidget {
             expandedHeight: 200,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
-              background: _NewsHeaderImage(imageUrl: news.coverImageUrl),
+              background: _NewsHeaderImage(
+                newsId: news.id,
+                imageUrl: news.coverImageUrl,
+              ),
             ),
             actions: [
               IconButton(
@@ -133,8 +137,9 @@ class _NewsDetailView extends StatelessWidget {
 /// EN: News header image widget with dark-mode-aware placeholder.
 /// KO: 다크 모드 인식 플레이스홀더를 가진 뉴스 헤더 이미지 위젯.
 class _NewsHeaderImage extends StatelessWidget {
-  const _NewsHeaderImage({required this.imageUrl});
+  const _NewsHeaderImage({required this.newsId, required this.imageUrl});
 
+  final String newsId;
   final String? imageUrl;
 
   @override
@@ -156,12 +161,15 @@ class _NewsHeaderImage extends StatelessWidget {
       );
     }
 
-    return GBTImage(
-      imageUrl: imageUrl!,
-      width: double.infinity,
-      height: double.infinity,
-      fit: BoxFit.cover,
-      semanticLabel: '뉴스 대표 이미지',
+    return Hero(
+      tag: GBTHeroTags.newsImage(newsId),
+      child: GBTImage(
+        imageUrl: imageUrl!,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+        semanticLabel: '뉴스 대표 이미지',
+      ),
     );
   }
 }

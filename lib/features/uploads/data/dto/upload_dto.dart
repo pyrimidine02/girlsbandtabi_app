@@ -16,11 +16,7 @@ class CreateUploadUrlRequest {
   final int size;
 
   Map<String, dynamic> toJson() {
-    return {
-      'filename': filename,
-      'contentType': contentType,
-      'size': size,
-    };
+    return {'filename': filename, 'contentType': contentType, 'size': size};
   }
 }
 
@@ -46,21 +42,14 @@ class PresignedUrlResponse {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'uploadId': uploadId,
-      'url': url,
-      'headers': headers,
-    };
+    return {'uploadId': uploadId, 'url': url, 'headers': headers};
   }
 }
 
 /// EN: Response after confirming an upload.
 /// KO: 업로드 확인 후 응답.
 class ConfirmUploadResponse {
-  const ConfirmUploadResponse({
-    required this.uploadId,
-    required this.status,
-  });
+  const ConfirmUploadResponse({required this.uploadId, required this.status});
 
   final String uploadId;
   final String status;
@@ -73,10 +62,7 @@ class ConfirmUploadResponse {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'uploadId': uploadId,
-      'status': status,
-    };
+    return {'uploadId': uploadId, 'status': status};
   }
 }
 
@@ -144,10 +130,7 @@ class ApproveUploadResponse {
 Map<String, String> _stringMap(dynamic value) {
   if (value is Map) {
     return value.map(
-      (key, val) => MapEntry(
-        key.toString(),
-        val?.toString() ?? '',
-      ),
+      (key, val) => MapEntry(key.toString(), val?.toString() ?? ''),
     );
   }
   return <String, String>{};

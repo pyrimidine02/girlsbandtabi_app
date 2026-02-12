@@ -190,9 +190,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       child: TextButton(
                         onPressed: () => context.push('/register'),
                         style: TextButton.styleFrom(
-                          minimumSize:
-                              const Size(GBTSpacing.touchTarget,
-                                  GBTSpacing.touchTarget),
+                          minimumSize: const Size(
+                            GBTSpacing.touchTarget,
+                            GBTSpacing.touchTarget,
+                          ),
                         ),
                         child: Text(
                           '회원가입',
@@ -216,9 +217,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     child: TextButton(
                       onPressed: () => context.go('/home'),
                       style: TextButton.styleFrom(
-                        minimumSize:
-                            const Size(GBTSpacing.touchTarget,
-                                GBTSpacing.touchTarget),
+                        minimumSize: const Size(
+                          GBTSpacing.touchTarget,
+                          GBTSpacing.touchTarget,
+                        ),
                       ),
                       child: Text(
                         '로그인 없이 둘러보기',

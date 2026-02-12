@@ -82,8 +82,9 @@ class RegionFilterOptionsDto {
   Map<String, dynamic> toJson() {
     return {
       'countries': countries.map((option) => option.toJson()).toList(),
-      'popularRegions':
-          popularRegions.map((option) => option.toJson()).toList(),
+      'popularRegions': popularRegions
+          .map((option) => option.toJson())
+          .toList(),
       'totalRegions': totalRegions,
       'totalPlaces': totalPlaces,
       'lastUpdated': lastUpdated,
@@ -105,10 +106,7 @@ class CoordinateDto {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'latitude': latitude,
-      'longitude': longitude,
-    };
+    return {'latitude': latitude, 'longitude': longitude};
   }
 }
 
@@ -128,16 +126,13 @@ class RegionMapBoundsDto {
   factory RegionMapBoundsDto.fromJson(Map<String, dynamic> json) {
     return RegionMapBoundsDto(
       northEast: CoordinateDto.fromJson(
-        json['northEast'] as Map<String, dynamic>? ??
-            const <String, dynamic>{},
+        json['northEast'] as Map<String, dynamic>? ?? const <String, dynamic>{},
       ),
       southWest: CoordinateDto.fromJson(
-        json['southWest'] as Map<String, dynamic>? ??
-            const <String, dynamic>{},
+        json['southWest'] as Map<String, dynamic>? ?? const <String, dynamic>{},
       ),
       center: CoordinateDto.fromJson(
-        json['center'] as Map<String, dynamic>? ??
-            const <String, dynamic>{},
+        json['center'] as Map<String, dynamic>? ?? const <String, dynamic>{},
       ),
       zoom: _int(json['zoom']),
     );

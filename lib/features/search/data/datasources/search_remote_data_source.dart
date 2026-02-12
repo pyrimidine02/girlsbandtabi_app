@@ -15,9 +15,7 @@ class SearchRemoteDataSource {
   Future<Result<List<SearchItemDto>>> search({required String query}) {
     return _apiClient.get<List<SearchItemDto>>(
       ApiEndpoints.search,
-      queryParameters: {
-        'q': query,
-      },
+      queryParameters: {'q': query},
       fromJson: (json) {
         if (json is List) {
           return json

@@ -59,10 +59,7 @@ class PaginationMeta {
 /// EN: Paginated response wrapping items with pagination metadata.
 /// KO: 페이지네이션 메타데이터와 함께 아이템을 래핑하는 페이지네이션 응답.
 class PaginatedResponse<T> {
-  const PaginatedResponse({
-    required this.items,
-    this.pagination,
-  });
+  const PaginatedResponse({required this.items, this.pagination});
 
   final List<T> items;
   final PaginationMeta? pagination;

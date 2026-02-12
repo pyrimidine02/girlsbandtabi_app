@@ -6,11 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/accessibility/a11y_wrapper.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/widgets/animations/staggered_list_item.dart';
 import '../../../../core/widgets/cards/gbt_event_card_carousel.dart';
 import '../../../../core/widgets/cards/gbt_place_card_carousel.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
@@ -108,22 +111,19 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
         // EN: Carousel shimmer placeholders
         // KO: 캐러셀 쉬머 플레이스홀더
-        SliverToBoxAdapter(
-          child: _buildCarouselShimmer(isDark),
-        ),
+        SliverToBoxAdapter(child: _buildCarouselShimmer(isDark)),
         const SliverToBoxAdapter(
           child: SizedBox(height: GBTSpacing.sectionSpacingLg),
         ),
-        SliverToBoxAdapter(
-          child: _buildCarouselShimmer(isDark),
-        ),
+        SliverToBoxAdapter(child: _buildCarouselShimmer(isDark)),
       ],
     );
   }
 
   Widget _buildCarouselShimmer(bool isDark) {
-    final bgColor =
-        isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant;
+    final bgColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -201,9 +201,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
       slivers: [
         // 1. GBTGreetingHeader (includes SafeArea + AppBar space)
-        const SliverToBoxAdapter(
-          child: GBTGreetingHeader(),
-        ),
+        const SliverToBoxAdapter(child: GBTGreetingHeader()),
 
         // 2. ProjectSelector — edge-to-edge avatar row (Blip style)
         const SliverToBoxAdapter(
@@ -225,8 +223,10 @@ class _HomePageState extends ConsumerState<HomePage> {
 
         // 3. Recommended places carousel
         if (summary.recommendedPlaces.isNotEmpty) ...[
-          const SliverToBoxAdapter(
-            child: SizedBox(height: GBTSpacing.sectionSpacingLg),
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: GBTResponsiveSpacing.responsiveSectionSpacing(context),
+            ),
           ),
           SliverToBoxAdapter(
             child: GBTCarouselSection(
@@ -237,6 +237,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               itemBuilder: (context, index) {
                 final place = summary.recommendedPlaces[index];
                 return GBTPlaceCardCarousel(
+                  placeId: place.id,
                   name: place.name,
                   location: place.location,
                   imageUrl: place.imageUrl,
@@ -249,8 +250,10 @@ class _HomePageState extends ConsumerState<HomePage> {
 
         // 4. Trending live events carousel
         if (summary.trendingLiveEvents.isNotEmpty) ...[
-          const SliverToBoxAdapter(
-            child: SizedBox(height: GBTSpacing.sectionSpacingLg),
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: GBTResponsiveSpacing.responsiveSectionSpacing(context),
+            ),
           ),
           SliverToBoxAdapter(
             child: GBTCarouselSection(
@@ -274,8 +277,10 @@ class _HomePageState extends ConsumerState<HomePage> {
 
         // 5. Latest news — compact borderless list
         if (summary.latestNews.isNotEmpty) ...[
-          const SliverToBoxAdapter(
-            child: SizedBox(height: GBTSpacing.sectionSpacingLg),
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: GBTResponsiveSpacing.responsiveSectionSpacing(context),
+            ),
           ),
           SliverToBoxAdapter(
             child: _SectionHeader(
@@ -287,7 +292,15 @@ class _HomePageState extends ConsumerState<HomePage> {
             itemCount: summary.latestNews.take(5).length,
             itemBuilder: (context, index) {
               final news = summary.latestNews[index];
-              return _CompactNewsTile(item: news);
+              final delay = GBTStaggerAnimations.delayFor(index);
+
+              // EN: Wrap in StaggeredListItem for fade + slide animation
+              // KO: fade + slide 애니메이션을 위해 StaggeredListItem으로 래핑
+              return StaggeredListItem(
+                key: ValueKey(news.id),
+                delay: delay,
+                child: _CompactNewsTile(item: news),
+              );
             },
           ),
         ],
@@ -322,12 +335,16 @@ class _SectionHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            title,
-            style: GBTTypography.headlineLarge.copyWith(
-              color: isDark
-                  ? GBTColors.darkTextPrimary
-                  : GBTColors.textPrimary,
+          // EN: Wrap section title in A11yHeading for proper heading hierarchy
+          // KO: 적절한 heading 계층을 위해 섹션 제목을 A11yHeading으로 래핑
+          A11yHeading(
+            level: 2,
+            child: Text(
+              title,
+              style: GBTTypography.headlineLarge.copyWith(
+                color:
+                    isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
+              ),
             ),
           ),
           Semantics(
@@ -338,9 +355,7 @@ class _SectionHeader extends StatelessWidget {
               child: Text(
                 '전체보기',
                 style: GBTTypography.bodySmall.copyWith(
-                  color: isDark
-                      ? GBTColors.darkPrimary
-                      : GBTColors.primary,
+                  color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
                 ),
               ),
             ),

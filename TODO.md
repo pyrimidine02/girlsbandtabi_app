@@ -1,10 +1,26 @@
 # TODO
 
 - Add a HomePage widget test that verifies the ProjectSelector renders during loading and triggers a reload after selection (remove once CI covers the flow).
+- Add a CI step (or pre-commit hook) to run `build_runner` so generated files stay in sync.
+- Verify whether the iOS `FrameTiming` assertion reproduces after non-blocking bootstrap; if it does, test Flutter 3.40.x and decide on version pinning (remove once the regression is confirmed resolved).
+- Verify whether the iOS `semantics.parentDataDirty` assertion reproduces after gating map builds by active tab; if it does, isolate additional offstage platform views (remove once stable).
+- Verify whether the iOS `semantics.parentDataDirty` assertion reproduces after deferring connectivity overlay updates (remove once stable).
+- Verify whether the iOS sliver ordering assertions disappear after moving staggered list animation setup to `didChangeDependencies` (remove once stable).
+- Verify whether nav index provider sync errors disappear after deferring updates to post-frame (remove once stable).
+- Confirm backend accepts `mockProvider: none` when `isMocked=false` in verification tokens; adjust placeholder if required (remove once validated).
 - Implement the live events calendar view (calendar icon on LiveEventsPage) and apply the same sorting + D-day labels (remove once calendar UI ships).
 - Re-verify Swagger for `{projectId}` usage on units endpoints once `http://localhost:8080/swagger-ui/index.html` is reachable, and adjust ID/slug usage if required.
-- Implement JWE location token generation for place verification (currently using latitude/longitude payload per `docs/place-verification-endpoints.md`).
+- Add unit tests for `TokenService` JWE token generation (remove once verified with backend contract and coverage added).
 - Add a `dart-define` (or similar) base URL override so QA builds can target staging without code edits (release defaults to production).
+- Confirm verification config `jweAlg` matches the provided key type (remove RSA-OAEP-256 fallback once backend is consistent).
+- Add device-key rotation/cleanup flow when server rejects a stored `kid` or key limit is reached.
+- Verify backend error codes/messages for duplicate/simulated/invalid token failures and align the localization map once documented.
+- Consider keying auth-scoped caches (profile/notifications/favorites) by user ID instead of clearing on login/logout.
+- Consider keying verification device keys by user ID to avoid regenerating on account switches.
+- Decide whether to add exponential backoff or limit retries for verification key re-registration failures.
+- Consider aligning visit history caching with live updates (e.g., pushing updates into controller after background refresh).
+- Verify pastel primary palette contrast on primary buttons and update onPrimary if needed.
+- Remove visit detail route latitude/longitude query usage once the new visit detail endpoint is fully rolled out.
 - Confirm backend accepts project slug/code for remaining project-scoped endpoints (places/live/news/verification) and document any exceptions.
 - Expand verification error localization map as backend adds new failure reasons.
 - Decide whether place detail should show favorites as "좋아요" or a true rating once backend exposes rating data.
@@ -28,7 +44,6 @@
 - Confirm `UserProfileDto` and `NotificationSettingsDto` mappings with backend response and adjust parsing keys if needed.
 - Confirm avatar upload flow (presigned + confirm URL) is accepted by `PATCH /api/v1/users/me`.
 - Confirm `/api/v1/search` query parameter name (`query` vs `q`) and simplify once confirmed.
-- Confirm whether production verification requires JWE tokens vs raw latitude/longitude and update payload strategy accordingly.
 - Reduce or remove verbose network body logging once verification 400s are resolved.
 - Confirm favorites API payload (`targetId`, `targetType`) with backend and adjust mapping if needed.
 - Confirm notification item DTO field mapping (`title/body/category/read`) with backend response and adjust parsing keys if needed.
@@ -37,6 +52,8 @@
 - Verify community posts/comments pagination contract (`page`/`size` vs `pageable`) and adjust query params if needed.
 - Request backend support for community post image attachments (create/update payload fields + response images list).
 - Remove the post detail plain-URL attachment fallback once the backend preserves markdown or returns explicit `imageUrls`.
+- Verify post detail no longer duplicates markdown-only images (remove once confirmed).
+- Verify Xcode Cloud executes `ci_post_clone.sh` and the iOS archive succeeds (remove once stable).
 - Confirm user profile `bio` and `coverImageUrl` are returned on public profile endpoints (read + update).
 - Confirm whether `username` should be an email for registration and align login labels accordingly.
 - Confirm unit name/description semantics (`code` vs `displayName`) with backend and update mapping if the contract changes.

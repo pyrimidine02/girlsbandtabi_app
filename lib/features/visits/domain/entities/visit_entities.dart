@@ -42,6 +42,14 @@ class VisitEvent {
       id: dto.id,
       placeId: dto.placeId,
       visitedAt: dto.visitedAt,
+    );
+  }
+
+  factory VisitEvent.fromDetailDto(VisitEventDetailDto dto) {
+    return VisitEvent(
+      id: dto.id,
+      placeId: dto.placeId,
+      visitedAt: dto.visitedAt,
       latitude: dto.latitude,
       longitude: dto.longitude,
       accuracy: dto.accuracy,

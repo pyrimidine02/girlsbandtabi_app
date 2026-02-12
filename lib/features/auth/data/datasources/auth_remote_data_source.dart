@@ -38,9 +38,7 @@ class AuthRemoteDataSource {
 
   /// EN: Send verification email for registration.
   /// KO: 회원가입용 이메일 인증 메일을 보냅니다.
-  Future<Result<void>> sendEmailVerification(
-    EmailVerificationRequest request,
-  ) {
+  Future<Result<void>> sendEmailVerification(EmailVerificationRequest request) {
     return _apiClient.post<void>(
       ApiEndpoints.emailVerifications,
       data: request.toJson(),

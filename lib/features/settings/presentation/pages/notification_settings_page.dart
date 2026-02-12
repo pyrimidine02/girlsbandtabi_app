@@ -59,9 +59,7 @@ class NotificationSettingsPage extends ConsumerWidget {
               if (context.mounted) {
                 ScaffoldMessenger.of(
                   context,
-                ).showSnackBar(
-                  const SnackBar(content: Text('설정을 저장하지 못했어요')),
-                );
+                ).showSnackBar(const SnackBar(content: Text('설정을 저장하지 못했어요')));
               }
             }
           },
@@ -116,8 +114,7 @@ class _NotificationSettingsView extends StatelessWidget {
           title: '즐겨찾기',
           subtitle: '즐겨찾기한 장소/콘텐츠 소식',
           value: settings.favoritesEnabled,
-          semanticLabel:
-              '즐겨찾기 알림 ${settings.favoritesEnabled ? "켜짐" : "꺼짐"}',
+          semanticLabel: '즐겨찾기 알림 ${settings.favoritesEnabled ? "켜짐" : "꺼짐"}',
           onChanged: (value) =>
               onChanged(settings.copyWith(favoritesEnabled: value)),
         ),
@@ -125,8 +122,7 @@ class _NotificationSettingsView extends StatelessWidget {
           title: '댓글',
           subtitle: '댓글/후기 알림',
           value: settings.commentsEnabled,
-          semanticLabel:
-              '댓글 알림 ${settings.commentsEnabled ? "켜짐" : "꺼짐"}',
+          semanticLabel: '댓글 알림 ${settings.commentsEnabled ? "켜짐" : "꺼짐"}',
           onChanged: (value) =>
               onChanged(settings.copyWith(commentsEnabled: value)),
         ),

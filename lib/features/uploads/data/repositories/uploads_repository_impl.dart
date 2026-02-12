@@ -43,9 +43,7 @@ class UploadsRepositoryImpl implements UploadsRepository {
       return Result.failure(result.failure);
     }
 
-    return const Result.failure(
-      UnknownFailure('Unknown direct upload result'),
-    );
+    return const Result.failure(UnknownFailure('Unknown direct upload result'));
   }
 
   @override
@@ -78,8 +76,9 @@ class UploadsRepositoryImpl implements UploadsRepository {
   Future<Result<List<UploadInfo>>> getMyUploads({
     bool forceRefresh = false,
   }) async {
-    final policy =
-        forceRefresh ? CachePolicy.networkFirst : CachePolicy.cacheFirst;
+    final policy = forceRefresh
+        ? CachePolicy.networkFirst
+        : CachePolicy.cacheFirst;
 
     try {
       final cacheResult = await _cacheManager.resolve<List<UploadInfoResponse>>(
@@ -100,8 +99,9 @@ class UploadsRepositoryImpl implements UploadsRepository {
         },
       );
 
-      final entities =
-          cacheResult.data.map((dto) => UploadInfo.fromDto(dto)).toList();
+      final entities = cacheResult.data
+          .map((dto) => UploadInfo.fromDto(dto))
+          .toList();
       return Result.success(entities);
     } catch (e, stackTrace) {
       return Result.failure(ErrorHandler.mapException(e, stackTrace));

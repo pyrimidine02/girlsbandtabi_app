@@ -67,25 +67,13 @@ class GBTGreetingHeader extends StatelessWidget {
   static _Greeting _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour >= 6 && hour < 12) {
-      return const _Greeting(
-        title: '좋은 아침이에요',
-        subtitle: '오늘은 어떤 성지를 방문할까요?',
-      );
+      return const _Greeting(title: '좋은 아침이에요', subtitle: '오늘은 어떤 성지를 방문할까요?');
     } else if (hour >= 12 && hour < 18) {
-      return const _Greeting(
-        title: '좋은 오후예요',
-        subtitle: '새로운 장소를 발견해 보세요',
-      );
+      return const _Greeting(title: '좋은 오후예요', subtitle: '새로운 장소를 발견해 보세요');
     } else if (hour >= 18) {
-      return const _Greeting(
-        title: '좋은 저녁이에요',
-        subtitle: '오늘의 라이브를 확인해 보세요',
-      );
+      return const _Greeting(title: '좋은 저녁이에요', subtitle: '오늘의 라이브를 확인해 보세요');
     } else {
-      return const _Greeting(
-        title: '아직 깨어 계시네요',
-        subtitle: '밤에도 음악은 계속됩니다',
-      );
+      return const _Greeting(title: '아직 깨어 계시네요', subtitle: '밤에도 음악은 계속됩니다');
     }
   }
 }

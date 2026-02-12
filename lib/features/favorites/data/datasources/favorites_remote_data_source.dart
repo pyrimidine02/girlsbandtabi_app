@@ -20,10 +20,7 @@ class FavoritesRemoteDataSource {
   }) {
     return _apiClient.get<List<FavoriteItemDto>>(
       ApiEndpoints.userFavorites,
-      queryParameters: {
-        'page': page,
-        'size': size,
-      },
+      queryParameters: {'page': page, 'size': size},
       fromJson: (json) {
         if (json is List) {
           return json

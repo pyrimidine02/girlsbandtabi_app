@@ -42,11 +42,7 @@ class PostLikeStatusDto {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'postId': postId,
-      'isLiked': isLiked,
-      'likeCount': likeCount,
-    };
+    return {'postId': postId, 'isLiked': isLiked, 'likeCount': likeCount};
   }
 }
 
@@ -98,17 +94,19 @@ class PostSummaryDto {
       content: json['content'] as String?,
       authorName: resolvedAuthorName,
       authorAvatarUrl: resolvedAvatarUrl,
-      commentCount: _intOrNull(
+      commentCount:
+          _intOrNull(
             json['commentCount'] ??
-            json['commentsCount'] ??
-            json['comment_count'],
+                json['commentsCount'] ??
+                json['comment_count'],
           ) ??
           0,
-      likeCount: _intOrNull(
+      likeCount:
+          _intOrNull(
             json['likeCount'] ??
-            json['likesCount'] ??
-            json['favoriteCount'] ??
-            json['favorite_count'],
+                json['likesCount'] ??
+                json['favoriteCount'] ??
+                json['favorite_count'],
           ) ??
           0,
     );
@@ -182,17 +180,19 @@ class PostDetailDto {
       imageUrls: _imageUrls(json['images'] ?? json['imageUrls']),
       authorName: resolvedAuthorName,
       authorAvatarUrl: resolvedAvatarUrl,
-      commentCount: _intOrNull(
+      commentCount:
+          _intOrNull(
             json['commentCount'] ??
-            json['commentsCount'] ??
-            json['comment_count'],
+                json['commentsCount'] ??
+                json['comment_count'],
           ) ??
           0,
-      likeCount: _intOrNull(
+      likeCount:
+          _intOrNull(
             json['likeCount'] ??
-            json['likesCount'] ??
-            json['favoriteCount'] ??
-            json['favorite_count'],
+                json['likesCount'] ??
+                json['favoriteCount'] ??
+                json['favorite_count'],
           ) ??
           0,
     );

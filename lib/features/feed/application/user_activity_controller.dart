@@ -11,18 +11,14 @@ import '../domain/entities/feed_entities.dart';
 import 'feed_controller.dart';
 
 class UserActivity {
-  const UserActivity({
-    required this.posts,
-    required this.comments,
-  });
+  const UserActivity({required this.posts, required this.comments});
 
   final List<PostSummary> posts;
   final List<PostComment> comments;
 }
 
 class UserActivityController extends StateNotifier<AsyncValue<UserActivity>> {
-  UserActivityController(this._ref, this.userId)
-    : super(const AsyncLoading()) {
+  UserActivityController(this._ref, this.userId) : super(const AsyncLoading()) {
     load();
   }
 

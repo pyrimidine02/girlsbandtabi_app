@@ -26,7 +26,8 @@ class UserProfileDto {
   factory UserProfileDto.fromJson(Map<String, dynamic> json) {
     final createdAtRaw = _string(json, ['createdAt', 'created_at']) ?? '';
     final parsedCreatedAt =
-        DateTime.tryParse(createdAtRaw) ?? DateTime.fromMillisecondsSinceEpoch(0);
+        DateTime.tryParse(createdAtRaw) ??
+        DateTime.fromMillisecondsSinceEpoch(0);
 
     return UserProfileDto(
       id: _string(json, ['id', 'userId']) ?? '',
@@ -36,10 +37,11 @@ class UserProfileDto {
       createdAt: parsedCreatedAt,
       avatarUrl: _string(json, ['avatarUrl', 'profileImageUrl', 'imageUrl']),
       bio: _string(json, ['bio', 'introduction', 'about', 'summary']),
-      coverImageUrl: _string(
-        json,
-        ['coverImageUrl', 'headerImageUrl', 'bannerImageUrl'],
-      ),
+      coverImageUrl: _string(json, [
+        'coverImageUrl',
+        'headerImageUrl',
+        'bannerImageUrl',
+      ]),
     );
   }
 

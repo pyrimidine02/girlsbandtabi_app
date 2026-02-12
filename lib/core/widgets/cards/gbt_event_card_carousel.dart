@@ -99,8 +99,9 @@ class GBTEventCardCarousel extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: GBTColors.primary.withValues(alpha: 0.6),
-                          borderRadius:
-                              BorderRadius.circular(GBTSpacing.radiusXs),
+                          borderRadius: BorderRadius.circular(
+                            GBTSpacing.radiusXs,
+                          ),
                         ),
                         child: Text(
                           date!,
@@ -160,10 +161,7 @@ class GBTEventCardCarousel extends StatelessWidget {
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
                         shadows: const [
-                          Shadow(
-                            blurRadius: 4,
-                            color: Color(0x80000000),
-                          ),
+                          Shadow(blurRadius: 4, color: Color(0x80000000)),
                         ],
                       ),
                       maxLines: 2,

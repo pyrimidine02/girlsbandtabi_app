@@ -16,10 +16,7 @@ class PlaceStatsDto {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'visitCount': visitCount,
-      'favoriteCount': favoriteCount,
-    };
+    return {'visitCount': visitCount, 'favoriteCount': favoriteCount};
   }
 }
 

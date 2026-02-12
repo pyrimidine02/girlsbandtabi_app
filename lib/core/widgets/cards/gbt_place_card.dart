@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../theme/gbt_animations.dart';
 import '../../theme/gbt_colors.dart';
 import '../../theme/gbt_decorations.dart';
 import '../../theme/gbt_spacing.dart';
@@ -17,6 +18,7 @@ import '../common/gbt_pressable.dart';
 class GBTPlaceCard extends StatelessWidget {
   const GBTPlaceCard({
     super.key,
+    required this.placeId,
     required this.name,
     required this.location,
     this.imageUrl,
@@ -27,6 +29,10 @@ class GBTPlaceCard extends StatelessWidget {
     this.onTap,
     this.onFavoriteToggle,
   });
+
+  /// EN: Place ID for Hero tag
+  /// KO: Hero 태그용 장소 ID
+  final String placeId;
 
   /// EN: Place name
   /// KO: 장소 이름
@@ -74,8 +80,7 @@ class GBTPlaceCard extends StatelessWidget {
         location,
         if (distance != null) '거리 $distance',
         if (isVerified) '방문 완료',
-        if (rating != null)
-          '평점 ${rating!.toStringAsFixed(1)}점',
+        if (rating != null) '평점 ${rating!.toStringAsFixed(1)}점',
         if (isFavorite) '즐겨찾기',
       ].join(', '),
       hint: onTap != null ? '탭하면 상세 정보를 확인합니다' : null,
@@ -99,9 +104,14 @@ class GBTPlaceCard extends StatelessWidget {
               // KO: 오버레이 그라디언트가 있는 이미지 섹션 (4:3 비율)
               Stack(
                 children: [
-                  AspectRatio(
-                    aspectRatio: 4 / 3,
-                    child: _buildImage(isDark),
+                  // EN: Hero animation for smooth image transition
+                  // KO: 부드러운 이미지 전환을 위한 Hero 애니메이션
+                  Hero(
+                    tag: GBTHeroTags.placeImage(placeId),
+                    child: AspectRatio(
+                      aspectRatio: 4 / 3,
+                      child: _buildImage(isDark),
+                    ),
                   ),
                   // EN: Bottom gradient for depth
                   // KO: 깊이감을 위한 하단 그라디언트
@@ -213,23 +223,44 @@ class GBTPlaceCard extends StatelessWidget {
                     const SizedBox(height: GBTSpacing.xs),
                     Row(
                       children: [
-                        // EN: Distance inline text — no colored background
-                        // KO: 거리 인라인 텍스트 — 색상 배경 제거
+                        // EN: Distance badge with teal semantic color
+                        // KO: 틸 시맨틱 색상을 사용한 거리 배지
                         if (distance != null) ...[
-                          Icon(
-                            Icons.near_me,
-                            size: 12,
-                            color: isDark
-                                ? GBTColors.darkTextTertiary
-                                : GBTColors.textTertiary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            distance!,
-                            style: GBTTypography.labelSmall.copyWith(
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: GBTSpacing.xs,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
                               color: isDark
-                                  ? GBTColors.darkTextTertiary
-                                  : GBTColors.textTertiary,
+                                  ? GBTSemanticColors.darkMetadataDistance
+                                        .withValues(alpha: 0.15)
+                                  : GBTSemanticColors.metadataDistance
+                                        .withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(
+                                GBTSpacing.radiusXs,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.near_me,
+                                  size: 12,
+                                  color: isDark
+                                      ? GBTSemanticColors.darkMetadataDistance
+                                      : GBTSemanticColors.metadataDistance,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  distance!,
+                                  style: GBTTypography.labelSmall.copyWith(
+                                    color: isDark
+                                        ? GBTSemanticColors.darkMetadataDistance
+                                        : GBTSemanticColors.metadataDistance,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           if (rating != null)
@@ -311,12 +342,13 @@ class _FavoriteButtonState extends State<_FavoriteButton>
       duration: GBTAnimations.normal,
       vsync: this,
     );
-    _heartScale = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.3), weight: 50),
-      TweenSequenceItem(tween: Tween(begin: 1.3, end: 1.0), weight: 50),
-    ]).animate(
-      CurvedAnimation(parent: _heartController, curve: Curves.easeInOut),
-    );
+    _heartScale =
+        TweenSequence<double>([
+          TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.3), weight: 50),
+          TweenSequenceItem(tween: Tween(begin: 1.3, end: 1.0), weight: 50),
+        ]).animate(
+          CurvedAnimation(parent: _heartController, curve: Curves.easeInOut),
+        );
   }
 
   @override
@@ -434,8 +466,7 @@ class GBTPlaceCardHorizontal extends StatelessWidget {
                     color: isDark
                         ? GBTColors.darkSurfaceElevated
                         : GBTColors.surfaceVariant,
-                    borderRadius:
-                        BorderRadius.circular(GBTSpacing.radiusSm),
+                    borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: imageUrl != null
@@ -498,30 +529,46 @@ class GBTPlaceCardHorizontal extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      // EN: Distance inline text — no colored background
-                      // KO: 거리 인라인 텍스트 — 색상 배경 제거
+                      // EN: Distance badge with teal semantic color
+                      // KO: 틸 시맨틱 색상을 사용한 거리 배지
                       if (distance != null) ...[
                         const SizedBox(height: GBTSpacing.xs),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.near_me,
-                              size: 12,
-                              color: isDark
-                                  ? GBTColors.darkTextTertiary
-                                  : GBTColors.textTertiary,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: GBTSpacing.xs,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? GBTSemanticColors.darkMetadataDistance
+                                      .withValues(alpha: 0.15)
+                                : GBTSemanticColors.metadataDistance
+                                      .withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(
+                              GBTSpacing.radiusXs,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              distance!,
-                              style: GBTTypography.labelSmall.copyWith(
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.near_me,
+                                size: 12,
                                 color: isDark
-                                    ? GBTColors.darkTextTertiary
-                                    : GBTColors.textTertiary,
+                                    ? GBTSemanticColors.darkMetadataDistance
+                                    : GBTSemanticColors.metadataDistance,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              Text(
+                                distance!,
+                                style: GBTTypography.labelSmall.copyWith(
+                                  color: isDark
+                                      ? GBTSemanticColors.darkMetadataDistance
+                                      : GBTSemanticColors.metadataDistance,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ],
@@ -547,15 +594,15 @@ class GBTPlaceCardHorizontal extends StatelessWidget {
                             color: isFavorite
                                 ? GBTColors.favorite
                                 : (isDark
-                                    ? GBTColors.darkTextTertiary
-                                    : GBTColors.textTertiary),
+                                      ? GBTColors.darkTextTertiary
+                                      : GBTColors.textTertiary),
                           ),
                         ),
                         onPressed: () {
                           HapticFeedback.lightImpact();
                           onFavoriteToggle!();
                         },
-                        padding: EdgeInsets.zero,
+                        padding: const EdgeInsets.all(0),
                         constraints: const BoxConstraints(
                           minWidth: GBTSpacing.touchTarget,
                           minHeight: GBTSpacing.touchTarget,

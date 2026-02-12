@@ -13,11 +13,23 @@ abstract class VerificationRepository {
   Future<Result<VerificationResult>> verifyPlace({
     required String projectId,
     required String placeId,
+    String? token,
+    String? verificationMethod,
+    String? evidence,
   });
 
   Future<Result<VerificationResult>> verifyLiveEvent({
     required String projectId,
     required String liveEventId,
+    String? token,
     String? verificationMethod,
+    String? evidence,
+  });
+
+  Future<Result<VerificationDeviceKey>> registerDeviceKey({
+    required String keyId,
+    required String deviceId,
+    Map<String, dynamic>? publicKeyJwk,
+    String? publicKeyPem,
   });
 }

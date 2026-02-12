@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
-import '../../../../core/theme/gbt_decorations.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_pressable.dart';
@@ -245,9 +245,7 @@ class _ProjectPill extends StatelessWidget {
           duration: GBTAnimations.normal,
           curve: GBTAnimations.defaultCurve,
           height: 36,
-          padding: const EdgeInsets.symmetric(
-            horizontal: GBTSpacing.md,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
           decoration: BoxDecoration(
             color: bgColor,
             borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
@@ -268,9 +266,7 @@ class _ProjectPill extends StatelessWidget {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  project.name.isNotEmpty
-                      ? project.name[0].toUpperCase()
-                      : '?',
+                  project.name.isNotEmpty ? project.name[0].toUpperCase() : '?',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -316,8 +312,9 @@ class _ShimmerPillRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor =
-        isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant;
+    final bgColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
 
     return GBTShimmer(
       child: SingleChildScrollView(
@@ -358,7 +355,9 @@ void _ensureProjectSelection(
 ) {
   if (selection.projectKey != null) return;
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    ref.read(projectSelectionControllerProvider.notifier).selectProject(
+    ref
+        .read(projectSelectionControllerProvider.notifier)
+        .selectProject(
           _projectKeyFor(projects.first),
           projectId: projects.first.id,
         );
