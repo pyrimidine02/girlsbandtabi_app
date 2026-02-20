@@ -14,6 +14,16 @@ class FeedRemoteDataSource {
 
   final ApiClient _apiClient;
 
+  Map<String, dynamic> _pageableQuery({required int page, required int size}) {
+    return {
+      // EN: Keep both legacy (`page`,`size`) and v3 (`pageable`) query styles.
+      // KO: 레거시(`page`,`size`)와 v3(`pageable`) 쿼리 스타일을 함께 전송합니다.
+      'page': page,
+      'size': size,
+      'pageable': '$page,$size',
+    };
+  }
+
   /// EN: Fetch paginated news for a project.
   /// KO: 프로젝트의 페이지네이션된 뉴스를 조회합니다.
   Future<Result<List<NewsSummaryDto>>> fetchNews({
@@ -23,7 +33,7 @@ class FeedRemoteDataSource {
   }) {
     return _apiClient.get<List<NewsSummaryDto>>(
       ApiEndpoints.news(projectId),
-      queryParameters: {'page': page, 'size': size},
+      queryParameters: _pageableQuery(page: page, size: size),
       fromJson: (json) => _decodeList(json, NewsSummaryDto.fromJson),
     );
   }
@@ -47,7 +57,7 @@ class FeedRemoteDataSource {
   }) {
     return _apiClient.get<List<PostSummaryDto>>(
       ApiEndpoints.posts(projectCode),
-      queryParameters: {'page': page, 'size': size},
+      queryParameters: _pageableQuery(page: page, size: size),
       fromJson: (json) => _decodeList(json, PostSummaryDto.fromJson),
     );
   }
@@ -62,7 +72,7 @@ class FeedRemoteDataSource {
   }) {
     return _apiClient.get<List<PostSummaryDto>>(
       ApiEndpoints.postsByAuthor(projectCode, userId),
-      queryParameters: {'page': page, 'size': size},
+      queryParameters: _pageableQuery(page: page, size: size),
       fromJson: (json) => _decodeList(json, PostSummaryDto.fromJson),
     );
   }
@@ -126,7 +136,7 @@ class FeedRemoteDataSource {
   }) {
     return _apiClient.get<List<PostCommentDto>>(
       ApiEndpoints.postComments(projectCode, postId),
-      queryParameters: {'page': page, 'size': size},
+      queryParameters: _pageableQuery(page: page, size: size),
       fromJson: (json) => _decodeList(json, PostCommentDto.fromJson),
     );
   }
@@ -141,7 +151,7 @@ class FeedRemoteDataSource {
   }) {
     return _apiClient.get<List<PostCommentDto>>(
       ApiEndpoints.commentsByAuthor(projectCode, userId),
-      queryParameters: {'page': page, 'size': size},
+      queryParameters: _pageableQuery(page: page, size: size),
       fromJson: (json) => _decodeList(json, PostCommentDto.fromJson),
     );
   }

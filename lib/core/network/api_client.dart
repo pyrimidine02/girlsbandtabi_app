@@ -240,7 +240,15 @@ class _AuthInterceptor extends Interceptor {
   final SecureStorage _secureStorage;
   final Dio _dio;
   final VoidCallback? onUnauthorized;
-  bool _isRefreshing = false;
+  Future<_RefreshOutcome>? _refreshFuture;
+
+  static const Set<String> _invalidRefreshErrorCodes = {
+    'INVALID_REFRESH_TOKEN',
+    'REFRESH_TOKEN_EXPIRED',
+    'TOKEN_EXPIRED',
+    'UNAUTHORIZED',
+    'AUTHENTICATION_FAILED',
+  };
 
   @override
   Future<void> onRequest(
@@ -266,39 +274,55 @@ class _AuthInterceptor extends Interceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    if (err.response?.statusCode == 403 && _isCsrfFailure(err.response?.data)) {
-      await _secureStorage.clearTokens();
-      onUnauthorized?.call();
+    // EN: Never attempt token refresh for refresh endpoint errors.
+    // KO: refresh 엔드포인트 오류에서는 토큰 갱신을 재시도하지 않습니다.
+    if (err.requestOptions.path.contains(ApiEndpoints.refresh)) {
       return handler.next(err);
     }
 
-    // EN: Handle 401 Unauthorized - try to refresh token
-    // KO: 401 Unauthorized 처리 - 토큰 갱신 시도
-    if (err.response?.statusCode == 401 && !_isRefreshing) {
-      _isRefreshing = true;
+    if (err.response?.statusCode == 403 && _isCsrfFailure(err.response?.data)) {
+      // EN: CSRF errors do not always mean session invalidation on mobile.
+      // KO: 모바일에서 CSRF 에러가 항상 세션 무효화를 의미하지는 않습니다.
+      AppLogger.warning(
+        'Detected CSRF-like 403 response; preserving tokens',
+        tag: 'AuthInterceptor',
+      );
+      return handler.next(err);
+    }
 
+    // EN: Handle 401 Unauthorized - try to refresh token (deduplicated).
+    // KO: 401 Unauthorized 처리 - 토큰 갱신 시도(중복 방지).
+    if (err.response?.statusCode == 401) {
       try {
-        final refreshed = await _refreshToken();
-        if (refreshed) {
-          // EN: Retry original request with new token
-          // KO: 새 토큰으로 원래 요청 재시도
+        final refreshOutcome = await _refreshOrWait();
+        if (refreshOutcome == _RefreshOutcome.refreshed) {
+          // EN: Retry original request with new token.
+          // KO: 새 토큰으로 원래 요청 재시도.
           final token = await _secureStorage.getAccessToken();
           err.requestOptions.headers[ApiHeaders.authorization] =
               '${ApiHeaders.bearer} $token';
-
           final response = await _dio.fetch(err.requestOptions);
           return handler.resolve(response);
         }
+
+        if (refreshOutcome == _RefreshOutcome.invalidSession) {
+          // EN: Clear tokens only when refresh token is definitively invalid.
+          // KO: 리프레시 토큰이 확실히 무효할 때만 토큰을 삭제합니다.
+          AppLogger.warning(
+            'Refresh token invalid; clearing local auth tokens',
+            tag: 'AuthInterceptor',
+          );
+          await _secureStorage.clearTokens();
+          onUnauthorized?.call();
+        } else {
+          AppLogger.warning(
+            'Token refresh failed transiently; keeping current session',
+            tag: 'AuthInterceptor',
+          );
+        }
       } catch (e) {
         AppLogger.error('Token refresh failed', error: e);
-      } finally {
-        _isRefreshing = false;
       }
-
-      // EN: Clear tokens on refresh failure
-      // KO: 갱신 실패 시 토큰 삭제
-      await _secureStorage.clearTokens();
-      onUnauthorized?.call();
     }
 
     handler.next(err);
@@ -325,9 +349,28 @@ class _AuthInterceptor extends Interceptor {
 
   /// EN: Refresh access token using refresh token
   /// KO: 리프레시 토큰을 사용하여 액세스 토큰 갱신
-  Future<bool> _refreshToken() async {
+  Future<_RefreshOutcome> _refreshOrWait() async {
+    final inFlight = _refreshFuture;
+    if (inFlight != null) {
+      return inFlight;
+    }
+
+    final created = _refreshToken();
+    _refreshFuture = created;
+    try {
+      return await created;
+    } finally {
+      if (identical(_refreshFuture, created)) {
+        _refreshFuture = null;
+      }
+    }
+  }
+
+  Future<_RefreshOutcome> _refreshToken({bool hasRetried = false}) async {
     final refreshToken = await _secureStorage.getRefreshToken();
-    if (refreshToken == null) return false;
+    if (refreshToken == null) {
+      return _RefreshOutcome.invalidSession;
+    }
 
     try {
       final response = await _dio.post<Map<String, dynamic>>(
@@ -345,14 +388,110 @@ class _AuthInterceptor extends Interceptor {
             accessToken: newAccessToken,
             refreshToken: newRefreshToken,
           );
-          return true;
+          return _RefreshOutcome.refreshed;
         }
       }
+
+      return _RefreshOutcome.transientFailure;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 429 && !hasRetried) {
+        final retryAfter = _extractRetryAfter(e.response);
+        if (retryAfter != null &&
+            retryAfter > Duration.zero &&
+            retryAfter <= const Duration(seconds: 3)) {
+          AppLogger.warning(
+            'Refresh rate-limited; retrying once after '
+            '${retryAfter.inMilliseconds}ms',
+            tag: 'AuthInterceptor',
+          );
+          await Future<void>.delayed(retryAfter);
+          return _refreshToken(hasRetried: true);
+        }
+      }
+
+      if (_isInvalidRefreshFailure(
+        statusCode: e.response?.statusCode,
+        data: e.response?.data,
+      )) {
+        return _RefreshOutcome.invalidSession;
+      }
+      AppLogger.error('Token refresh request failed', error: e);
+      return _RefreshOutcome.transientFailure;
     } catch (e) {
       AppLogger.error('Token refresh request failed', error: e);
+      return _RefreshOutcome.transientFailure;
+    }
+  }
+
+  Duration? _extractRetryAfter(Response<dynamic>? response) {
+    if (response == null) return null;
+
+    final headerValue = response.headers.value('retry-after');
+    final parsedHeader = _parseRetryAfterValue(headerValue);
+    if (parsedHeader != null) {
+      return parsedHeader;
     }
 
-    return false;
+    final body = response.data;
+    if (body is Map<String, dynamic>) {
+      return _parseRetryAfterValue(body['retryAfter']?.toString());
+    }
+    return null;
+  }
+
+  Duration? _parseRetryAfterValue(String? rawValue) {
+    if (rawValue == null || rawValue.isEmpty) {
+      return null;
+    }
+
+    final numeric = num.tryParse(rawValue);
+    if (numeric == null || numeric <= 0) {
+      return null;
+    }
+
+    // EN: Backend currently returns body retryAfter in milliseconds
+    // (e.g., 770). Keep small values usable while supporting second-based
+    // header values.
+    // KO: 백엔드는 body retryAfter를 밀리초(예: 770)로 반환합니다.
+    // 작은 값은 초 단위 헤더 값도 지원하도록 처리합니다.
+    if (numeric <= 10) {
+      return Duration(seconds: numeric.ceil());
+    }
+
+    return Duration(milliseconds: numeric.ceil());
+  }
+
+  bool _isInvalidRefreshFailure({
+    required int? statusCode,
+    required dynamic data,
+  }) {
+    if (statusCode == 401 || statusCode == 403) {
+      return true;
+    }
+
+    if (statusCode != 400 || data is! Map<String, dynamic>) {
+      return false;
+    }
+
+    final error = data['error'];
+    String? rawCode;
+    if (error is Map<String, dynamic>) {
+      rawCode = error['code']?.toString();
+    } else if (error is String) {
+      rawCode = error;
+    }
+
+    final code = rawCode?.toUpperCase();
+    if (code != null && _invalidRefreshErrorCodes.contains(code)) {
+      return true;
+    }
+
+    final message =
+        (error is Map<String, dynamic> ? error['message'] : data['message'])
+            ?.toString()
+            .toLowerCase();
+    return message?.contains('refresh token') == true &&
+        message?.contains('expire') == true;
   }
 
   /// EN: Check if endpoint is public (no auth required)
@@ -362,13 +501,14 @@ class _AuthInterceptor extends Interceptor {
       ApiEndpoints.login,
       ApiEndpoints.register,
       ApiEndpoints.refresh,
-      ApiEndpoints.homeSummary,
       ApiEndpoints.health,
     ];
 
     return publicPaths.any((p) => path.contains(p));
   }
 }
+
+enum _RefreshOutcome { refreshed, invalidSession, transientFailure }
 
 /// EN: Logging interceptor for debugging
 /// KO: 디버깅을 위한 로깅 인터셉터

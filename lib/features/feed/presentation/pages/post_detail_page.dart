@@ -20,6 +20,7 @@ import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../settings/application/settings_controller.dart';
 import '../../application/community_moderation_controller.dart';
 import '../../application/feed_controller.dart';
+import '../../application/report_rate_limiter.dart';
 import '../../domain/entities/community_moderation.dart';
 import '../../domain/entities/feed_entities.dart';
 
@@ -176,6 +177,8 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
             CommunityReportTargetType.comment,
             comment.id,
           ),
+          onAppealPost: () =>
+              _showAppealFlow(context, CommunityReportTargetType.post, post.id),
           onTapAuthor: (authorId) => context.goToUserProfile(authorId),
         ),
       ),
@@ -385,12 +388,46 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     CommunityReportTargetType targetType,
     String targetId,
   ) async {
+    // EN: Check cooldown before opening report flow.
+    // KO: 신고 플로우 시작 전 쿨다운을 확인합니다.
+    final rateLimiter = ref.read(reportRateLimiterProvider);
+    if (!rateLimiter.canReport(targetId)) {
+      final remaining = rateLimiter.remainingCooldown(targetId);
+      final minutes = remaining.inMinutes + 1;
+      if (!context.mounted) return;
+      _showSnackBar(context, '$minutes분 후 다시 신고할 수 있어요');
+      return;
+    }
+
     final payload = await showModalBottomSheet<_ReportPayload>(
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) => _ReportSheet(),
     );
     if (payload == null) return;
+
+    if (!context.mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('신고 접수'),
+        content: Text(
+          '${targetType.label}을(를) "${payload.reason.label}" 사유로 신고합니다.\n'
+          '접수하시겠어요?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('신고 접수'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
 
     final repository = await ref.read(communityRepositoryProvider.future);
     final result = await repository.createReport(
@@ -404,8 +441,70 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       _showSnackBar(context, '신고를 접수하지 못했어요');
       return;
     }
-    if (context.mounted) {
-      _showSnackBar(context, '신고가 접수되었어요');
+    if (result is Success<void>) {
+      rateLimiter.recordReport(targetId);
+      if (context.mounted) {
+        _showSnackBar(context, '신고가 접수되었어요. 검토 후 조치할게요');
+      }
+    }
+  }
+
+  Future<void> _showAppealFlow(
+    BuildContext context,
+    CommunityReportTargetType targetType,
+    String targetId,
+  ) async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('이의제기'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('이의제기 사유를 입력해주세요.'),
+            const SizedBox(height: GBTSpacing.md),
+            TextField(
+              controller: controller,
+              maxLines: 4,
+              decoration: const InputDecoration(hintText: '사유를 입력하세요'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final text = controller.text.trim();
+              if (text.isEmpty) return;
+              Navigator.of(dialogContext).pop(text);
+            },
+            child: const Text('제출'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (reason == null || !context.mounted) return;
+
+    final repository = await ref.read(communityRepositoryProvider.future);
+    final result = await repository.submitAppeal(
+      targetType: targetType,
+      targetId: targetId,
+      reason: reason,
+    );
+
+    if (!context.mounted) return;
+    if (result is Success<void>) {
+      _showSnackBar(context, '이의제기가 접수되었어요');
+      return;
+    }
+    if (result is Err<void>) {
+      _showSnackBar(context, '이의제기 접수에 실패했어요');
     }
   }
 
@@ -448,6 +547,7 @@ class _PostDetailContent extends StatelessWidget {
     required this.onEditComment,
     required this.onDeleteComment,
     required this.onReportComment,
+    required this.onAppealPost,
     required this.onTapAuthor,
   });
 
@@ -463,6 +563,7 @@ class _PostDetailContent extends StatelessWidget {
   final ValueChanged<PostComment> onEditComment;
   final ValueChanged<PostComment> onDeleteComment;
   final ValueChanged<PostComment> onReportComment;
+  final VoidCallback onAppealPost;
   final ValueChanged<String> onTapAuthor;
 
   @override
@@ -560,6 +661,40 @@ class _PostDetailContent extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: GBTSpacing.md),
+              if (post.moderationStatus == ContentModerationStatus.quarantined)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(GBTSpacing.md),
+                  decoration: BoxDecoration(
+                    color: GBTColors.warningLight,
+                    borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline,
+                        color: GBTColors.warningDark,
+                        size: GBTSpacing.iconSm,
+                      ),
+                      const SizedBox(width: GBTSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          '이 콘텐츠는 현재 검토 중입니다.',
+                          style: GBTTypography.bodySmall.copyWith(
+                            color: GBTColors.warningDark,
+                          ),
+                        ),
+                      ),
+                      if (isOwnPost)
+                        TextButton(
+                          onPressed: onAppealPost,
+                          child: const Text('이의제기'),
+                        ),
+                    ],
+                  ),
+                ),
+              if (post.moderationStatus == ContentModerationStatus.quarantined)
+                const SizedBox(height: GBTSpacing.md),
               if (contentText.isNotEmpty)
                 SelectableText(
                   contentText,
@@ -837,6 +972,10 @@ class _ReportSheetState extends State<_ReportSheet> {
   late CommunityReportReason _selectedReason;
   final TextEditingController _descriptionController = TextEditingController();
 
+  void _dismissKeyboard() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -852,65 +991,73 @@ class _ReportSheetState extends State<_ReportSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(
-          GBTSpacing.md,
-          GBTSpacing.md,
-          GBTSpacing.md,
-          bottomInset + GBTSpacing.md,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('신고하기', style: GBTTypography.titleSmall),
-            const SizedBox(height: GBTSpacing.md),
-            RadioGroup<CommunityReportReason>(
-              groupValue: _selectedReason,
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() => _selectedReason = value);
-              },
-              child: Column(
-                children: CommunityReportReason.values
-                    .map(
-                      (reason) => RadioListTile<CommunityReportReason>(
-                        value: reason,
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                        title: Text(reason.label),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
-            const SizedBox(height: GBTSpacing.md),
-            TextField(
-              controller: _descriptionController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: '추가 설명',
-                hintText: '필요한 설명을 남겨주세요 (선택)',
-              ),
-            ),
-            const SizedBox(height: GBTSpacing.lg),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () {
-                  final description = _descriptionController.text.trim();
-                  Navigator.of(context).pop(
-                    _ReportPayload(
-                      reason: _selectedReason,
-                      description: description.isEmpty ? null : description,
-                    ),
-                  );
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _dismissKeyboard,
+      child: SafeArea(
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.fromLTRB(
+            GBTSpacing.md,
+            GBTSpacing.md,
+            GBTSpacing.md,
+            bottomInset + GBTSpacing.md,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('신고하기', style: GBTTypography.titleSmall),
+              const SizedBox(height: GBTSpacing.md),
+              RadioGroup<CommunityReportReason>(
+                groupValue: _selectedReason,
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _selectedReason = value);
                 },
-                child: const Text('신고 접수'),
+                child: Column(
+                  children: CommunityReportReason.values
+                      .map(
+                        (reason) => RadioListTile<CommunityReportReason>(
+                          value: reason,
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          title: Text(reason.label),
+                        ),
+                      )
+                      .toList(),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: GBTSpacing.md),
+              TextField(
+                controller: _descriptionController,
+                maxLines: 3,
+                textInputAction: TextInputAction.done,
+                onTapOutside: (_) => _dismissKeyboard(),
+                onSubmitted: (_) => _dismissKeyboard(),
+                decoration: const InputDecoration(
+                  labelText: '추가 설명',
+                  hintText: '필요한 설명을 남겨주세요 (선택)',
+                ),
+              ),
+              const SizedBox(height: GBTSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    final description = _descriptionController.text.trim();
+                    Navigator.of(context).pop(
+                      _ReportPayload(
+                        reason: _selectedReason,
+                        description: description.isEmpty ? null : description,
+                      ),
+                    );
+                  },
+                  child: const Text('신고 접수'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

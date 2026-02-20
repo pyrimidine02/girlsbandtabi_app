@@ -54,46 +54,73 @@ class NotificationsPage extends ConsumerWidget {
           ),
         ],
       ),
-      body: state.when(
-        loading: () => const GBTLoading(message: '알림을 불러오는 중...'),
-        error: (error, _) {
-          final message = error is Failure
-              ? error.userMessage
-              : '알림을 불러오지 못했어요';
-          return GBTErrorState(
-            message: message,
-            onRetry: () => ref
-                .read(notificationsControllerProvider.notifier)
-                .load(forceRefresh: true),
-          );
-        },
-        data: (items) {
-          if (items.isEmpty) {
-            return const GBTEmptyState(
-              icon: Icons.notifications_none,
-              message: '새 알림이 없습니다.',
-            );
-          }
-
-          final grouped = _groupBySection(items);
-
-          return ListView(
-            children: [
-              for (final entry in grouped.entries) ...[
-                _SectionHeader(title: entry.key),
-                ...entry.value.map(
-                  (item) => _NotificationItem(
-                    item: item,
-                    onTap: () => ref
-                        .read(notificationsControllerProvider.notifier)
-                        .markAsRead(item.id),
-                  ),
+      body: RefreshIndicator(
+        onRefresh: () => ref
+            .read(notificationsControllerProvider.notifier)
+            .load(forceRefresh: true),
+        child: state.when(
+          loading: () => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: GBTSpacing.paddingPage,
+            children: const [
+              SizedBox(height: GBTSpacing.lg),
+              GBTLoading(message: '알림을 불러오는 중...'),
+            ],
+          ),
+          error: (error, _) {
+            final message = error is Failure
+                ? error.userMessage
+                : '알림을 불러오지 못했어요';
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: GBTSpacing.paddingPage,
+              children: [
+                const SizedBox(height: GBTSpacing.lg),
+                GBTErrorState(
+                  message: message,
+                  onRetry: () => ref
+                      .read(notificationsControllerProvider.notifier)
+                      .load(forceRefresh: true),
                 ),
               ],
-              const SizedBox(height: GBTSpacing.xl),
-            ],
-          );
-        },
+            );
+          },
+          data: (items) {
+            if (items.isEmpty) {
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: GBTSpacing.paddingPage,
+                children: const [
+                  SizedBox(height: GBTSpacing.lg),
+                  GBTEmptyState(
+                    icon: Icons.notifications_none,
+                    message: '새 알림이 없습니다.',
+                  ),
+                ],
+              );
+            }
+
+            final grouped = _groupBySection(items);
+
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                for (final entry in grouped.entries) ...[
+                  _SectionHeader(title: entry.key),
+                  ...entry.value.map(
+                    (item) => _NotificationItem(
+                      item: item,
+                      onTap: () => ref
+                          .read(notificationsControllerProvider.notifier)
+                          .markAsRead(item.id),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: GBTSpacing.xl),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

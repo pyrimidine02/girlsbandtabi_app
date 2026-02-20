@@ -413,6 +413,8 @@ class GBTPlaceCardHorizontal extends StatelessWidget {
     required this.location,
     this.imageUrl,
     this.distance,
+    this.typeLabels = const [],
+    this.tagLabels = const [],
     this.isVerified = false,
     this.isFavorite = false,
     this.onTap,
@@ -423,6 +425,8 @@ class GBTPlaceCardHorizontal extends StatelessWidget {
   final String location;
   final String? imageUrl;
   final String? distance;
+  final List<String> typeLabels;
+  final List<String> tagLabels;
   final bool isVerified;
   final bool isFavorite;
   final VoidCallback? onTap;
@@ -436,6 +440,8 @@ class GBTPlaceCardHorizontal extends StatelessWidget {
       label: [
         name,
         location,
+        if (typeLabels.isNotEmpty) '유형 ${typeLabels.join(', ')}',
+        if (tagLabels.isNotEmpty) '태그 ${tagLabels.join(', ')}',
         if (distance != null) '거리 $distance',
         if (isVerified) '방문 완료',
         if (isFavorite) '즐겨찾기',
@@ -529,6 +535,43 @@ class GBTPlaceCardHorizontal extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (typeLabels.isNotEmpty || tagLabels.isNotEmpty) ...[
+                        const SizedBox(height: GBTSpacing.xs),
+                        Wrap(
+                          spacing: GBTSpacing.xs,
+                          runSpacing: GBTSpacing.xxs,
+                          children: [
+                            ...typeLabels.map(
+                              (type) => _PlaceMetaChip(
+                                label: type,
+                                icon: Icons.category_outlined,
+                                isDark: isDark,
+                                foreground: isDark
+                                    ? GBTColors.infoLight
+                                    : GBTColors.infoDark,
+                                background: isDark
+                                    ? GBTColors.infoDark.withValues(alpha: 0.2)
+                                    : GBTColors.infoLight,
+                              ),
+                            ),
+                            ...tagLabels.map(
+                              (tag) => _PlaceMetaChip(
+                                label: tag,
+                                icon: Icons.sell_outlined,
+                                isDark: isDark,
+                                foreground: isDark
+                                    ? GBTColors.secondaryLight
+                                    : GBTColors.secondaryPressed,
+                                background: isDark
+                                    ? GBTColors.secondaryPressed.withValues(
+                                        alpha: 0.2,
+                                      )
+                                    : GBTColors.secondaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       // EN: Distance badge with teal semantic color
                       // KO: 틸 시맨틱 색상을 사용한 거리 배지
                       if (distance != null) ...[
@@ -542,8 +585,9 @@ class GBTPlaceCardHorizontal extends StatelessWidget {
                             color: isDark
                                 ? GBTSemanticColors.darkMetadataDistance
                                       .withValues(alpha: 0.15)
-                                : GBTSemanticColors.metadataDistance
-                                      .withValues(alpha: 0.15),
+                                : GBTSemanticColors.metadataDistance.withValues(
+                                    alpha: 0.15,
+                                  ),
                             borderRadius: BorderRadius.circular(
                               GBTSpacing.radiusXs,
                             ),
@@ -614,6 +658,49 @@ class GBTPlaceCardHorizontal extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PlaceMetaChip extends StatelessWidget {
+  const _PlaceMetaChip({
+    required this.label,
+    required this.icon,
+    required this.isDark,
+    required this.foreground,
+    required this.background,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool isDark;
+  final Color foreground;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.14)
+              : Colors.black.withValues(alpha: 0.05),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: foreground),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GBTTypography.labelSmall.copyWith(color: foreground),
+          ),
+        ],
       ),
     );
   }

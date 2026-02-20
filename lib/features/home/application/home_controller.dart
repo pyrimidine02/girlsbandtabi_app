@@ -17,6 +17,11 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
       // KO: 프로젝트 전환 시 캐시 사용 — 강제 네트워크 호출 없음.
       load();
     });
+    _ref.listen<List<String>>(selectedUnitIdsProvider, (_, __) {
+      // EN: Re-fetch summary when unit filters change.
+      // KO: 유닛 필터가 변경되면 홈 요약을 다시 조회합니다.
+      load();
+    });
   }
 
   final Ref _ref;
@@ -29,7 +34,7 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
       return;
     }
 
-    const unitIds = <String>[];
+    final unitIds = _ref.read(selectedUnitIdsProvider);
     final shouldSkip =
         !forceRefresh && _isLoading && _lastProjectKey == selectedProjectKey;
     if (shouldSkip) {

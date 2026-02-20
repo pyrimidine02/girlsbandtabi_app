@@ -280,6 +280,27 @@ class ApiEndpoints {
   static String communityReport(String reportId) =>
       '$communityReports/$reportId';
 
+  // EN: Community moderation endpoints (project scoped).
+  // KO: 프로젝트 단위 커뮤니티 모더레이션 엔드포인트.
+  static String moderationBans(String projectCode) =>
+      '$apiVersion/projects/$projectCode/moderation/bans';
+  static String moderationBan(String projectCode, String userId) =>
+      '${moderationBans(projectCode)}/$userId';
+  static String moderationPost(String projectCode, String postId) =>
+      '$apiVersion/projects/$projectCode/moderation/posts/$postId';
+  static String moderationPostComment(
+    String projectCode,
+    String postId,
+    String commentId,
+  ) => '${moderationPost(projectCode, postId)}/comments/$commentId';
+
+  // EN: Verification appeal endpoints.
+  // KO: 인증 이의제기 엔드포인트.
+  static String verificationAppeals(String projectId) =>
+      '${project(projectId)}/verification-appeals';
+  static String verificationAppeal(String projectId, String appealId) =>
+      '${verificationAppeals(projectId)}/$appealId';
+
   // ============================================================
   // EN: News endpoints (8.17)
   // KO: 뉴스 엔드포인트 (8.17)
@@ -358,6 +379,7 @@ class ApiEndpoints {
   // KO: 어드민 사용자/권한 엔드포인트 (8.21)
   // ============================================================
   static const String adminUsers = '$apiVersion/admin/users';
+  static String adminUserActive(String userId) => '$adminUsers/$userId/active';
   static String adminUserRole(String userId) => '$adminUsers/$userId/role';
   static const String adminTokensRevoke = '$apiVersion/admin/tokens/revoke';
   static String projectRoles(String projectId) => '${project(projectId)}/roles';
@@ -381,6 +403,14 @@ class ApiEndpoints {
   // KO: 어드민 모니터링/분석 엔드포인트 (8.22)
   // ============================================================
   static const String adminDashboard = '$apiVersion/admin/dashboard';
+  static const String adminModerationDashboard =
+      '$apiVersion/admin/moderation/dashboard';
+  static const String adminCommunityReports =
+      '$apiVersion/admin/community/reports';
+  static String adminCommunityReport(String reportId) =>
+      '$adminCommunityReports/$reportId';
+  static String adminCommunityReportAssign(String reportId) =>
+      '${adminCommunityReport(reportId)}/assign';
   static const String adminAuditLogs = '$apiVersion/admin/audit-logs';
   static const String adminExports = '$apiVersion/admin/exports';
   static String adminExport(String id) => '$adminExports/$id';

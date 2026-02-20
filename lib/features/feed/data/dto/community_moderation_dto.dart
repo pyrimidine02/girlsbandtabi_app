@@ -62,3 +62,39 @@ class BlockCheckDto {
     );
   }
 }
+
+class UserSanctionStatusDto {
+  const UserSanctionStatusDto({
+    required this.level,
+    this.reason,
+    this.expiresAt,
+  });
+
+  final String level;
+  final String? reason;
+  final String? expiresAt;
+
+  factory UserSanctionStatusDto.fromJson(Map<String, dynamic> json) {
+    return UserSanctionStatusDto(
+      level: json['level'] as String? ?? 'NONE',
+      reason: json['reason'] as String?,
+      expiresAt: json['expiresAt'] as String?,
+    );
+  }
+}
+
+class AppealCreateRequestDto {
+  const AppealCreateRequestDto({
+    required this.targetType,
+    required this.targetId,
+    required this.reason,
+  });
+
+  final String targetType;
+  final String targetId;
+  final String reason;
+
+  Map<String, dynamic> toJson() {
+    return {'targetType': targetType, 'targetId': targetId, 'reason': reason};
+  }
+}

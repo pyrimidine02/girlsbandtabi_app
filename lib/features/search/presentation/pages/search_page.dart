@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -35,6 +36,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   final _focusNode = FocusNode();
   Timer? _debounce;
   String _query = '';
+  bool _scopedToCurrentProject = true;
 
   @override
   void initState() {
@@ -43,7 +45,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       _searchController.text = widget.initialQuery!;
       _query = widget.initialQuery!;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(searchControllerProvider.notifier).search(_query);
+        ref
+            .read(searchControllerProvider.notifier)
+            .search(_query, scopedToCurrentProject: _scopedToCurrentProject);
       });
     }
     _focusNode.requestFocus();
@@ -65,7 +69,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       return;
     }
     _debounce = Timer(const Duration(milliseconds: 300), () {
-      ref.read(searchControllerProvider.notifier).search(value);
+      ref
+          .read(searchControllerProvider.notifier)
+          .search(value, scopedToCurrentProject: _scopedToCurrentProject);
     });
   }
 
@@ -75,10 +81,39 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     await ref.read(searchHistoryControllerProvider.notifier).addSearch(trimmed);
   }
 
+  Future<void> _onRefresh() async {
+    final trimmed = _query.trim();
+    if (trimmed.isEmpty) return;
+    await ref
+        .read(searchControllerProvider.notifier)
+        .search(
+          trimmed,
+          forceRefresh: true,
+          scopedToCurrentProject: _scopedToCurrentProject,
+        );
+  }
+
+  void _toggleProjectScope(bool enabled) {
+    if (_scopedToCurrentProject == enabled) return;
+    setState(() => _scopedToCurrentProject = enabled);
+    final trimmed = _query.trim();
+    if (trimmed.isEmpty) return;
+    unawaited(
+      ref
+          .read(searchControllerProvider.notifier)
+          .search(trimmed, forceRefresh: true, scopedToCurrentProject: enabled),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final history = ref.watch(searchHistoryControllerProvider);
     final resultsState = ref.watch(searchControllerProvider);
+    final selectedProjectKey = ref.watch(selectedProjectKeyProvider);
+    final selectedProjectId = ref.watch(selectedProjectIdProvider);
+    final projectScopeLabel = selectedProjectKey?.isNotEmpty == true
+        ? selectedProjectKey!
+        : (selectedProjectId?.isNotEmpty == true ? selectedProjectId! : null);
 
     return Scaffold(
       appBar: AppBar(
@@ -111,27 +146,100 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ),
         ],
       ),
-      body: _query.isEmpty
-          ? _RecentSearches(
-              items: history,
-              onSelect: (value) {
-                _searchController.text = value;
-                _onQueryChanged(value);
-                _onSubmit(value);
-              },
-              onRemove: (value) => ref
-                  .read(searchHistoryControllerProvider.notifier)
-                  .removeSearch(value),
-              onClear: () =>
-                  ref.read(searchHistoryControllerProvider.notifier).clear(),
-            )
-          : _SearchResults(
-              query: _query,
-              state: resultsState,
-              onRetry: () => ref
-                  .read(searchControllerProvider.notifier)
-                  .search(_query, forceRefresh: true),
+      body: Column(
+        children: [
+          _SearchScopeHeader(
+            scopedToCurrentProject: _scopedToCurrentProject,
+            projectScopeLabel: projectScopeLabel,
+            onChanged: _toggleProjectScope,
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _onRefresh,
+              child: _query.isEmpty
+                  ? _RecentSearches(
+                      items: history,
+                      onSelect: (value) {
+                        _searchController.text = value;
+                        _onQueryChanged(value);
+                        _onSubmit(value);
+                      },
+                      onRemove: (value) => ref
+                          .read(searchHistoryControllerProvider.notifier)
+                          .removeSearch(value),
+                      onClear: () => ref
+                          .read(searchHistoryControllerProvider.notifier)
+                          .clear(),
+                    )
+                  : _SearchResults(
+                      query: _query,
+                      state: resultsState,
+                      scopedToCurrentProject: _scopedToCurrentProject,
+                      projectScopeLabel: projectScopeLabel,
+                      onRetry: () => ref
+                          .read(searchControllerProvider.notifier)
+                          .search(
+                            _query,
+                            forceRefresh: true,
+                            scopedToCurrentProject: _scopedToCurrentProject,
+                          ),
+                    ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SearchScopeHeader extends StatelessWidget {
+  const _SearchScopeHeader({
+    required this.scopedToCurrentProject,
+    required this.projectScopeLabel,
+    required this.onChanged,
+  });
+
+  final bool scopedToCurrentProject;
+  final String? projectScopeLabel;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final scopeText = scopedToCurrentProject
+        ? (projectScopeLabel != null
+              ? '현재 프로젝트 검색: $projectScopeLabel'
+              : '현재 프로젝트 검색')
+        : '전체 프로젝트 검색';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        GBTSpacing.md,
+        GBTSpacing.xs,
+        GBTSpacing.md,
+        GBTSpacing.xs,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              scopeText,
+              style: GBTTypography.labelSmall.copyWith(color: secondaryColor),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: GBTSpacing.xs),
+          FilterChip(
+            label: const Text('현재 프로젝트만'),
+            selected: scopedToCurrentProject,
+            onSelected: onChanged,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -162,6 +270,7 @@ class _RecentSearches extends StatelessWidget {
         : GBTColors.textTertiary;
 
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: GBTSpacing.paddingPage,
       children: [
         Row(
@@ -235,11 +344,15 @@ class _SearchResults extends StatelessWidget {
   const _SearchResults({
     required this.query,
     required this.state,
+    required this.scopedToCurrentProject,
+    required this.projectScopeLabel,
     required this.onRetry,
   });
 
   final String query;
   final AsyncValue<List<SearchItem>> state;
+  final bool scopedToCurrentProject;
+  final String? projectScopeLabel;
   final VoidCallback onRetry;
 
   @override
@@ -248,6 +361,28 @@ class _SearchResults extends StatelessWidget {
       length: 4,
       child: Column(
         children: [
+          if (scopedToCurrentProject)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                GBTSpacing.md,
+                0,
+                GBTSpacing.md,
+                GBTSpacing.xs,
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  projectScopeLabel != null
+                      ? '$projectScopeLabel 범위 결과'
+                      : '현재 프로젝트 범위 결과',
+                  style: GBTTypography.labelSmall.copyWith(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? GBTColors.darkTextSecondary
+                        : GBTColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
           TabBar(
             isScrollable: true,
             tabs: const [
@@ -260,6 +395,7 @@ class _SearchResults extends StatelessWidget {
           Expanded(
             child: state.when(
               loading: () => ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: GBTSpacing.paddingPage,
                 children: const [
                   SizedBox(height: GBTSpacing.lg),
@@ -271,6 +407,7 @@ class _SearchResults extends StatelessWidget {
                     ? error.userMessage
                     : '검색 결과를 불러오지 못했어요';
                 return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: GBTSpacing.paddingPage,
                   children: [
                     const SizedBox(height: GBTSpacing.lg),
@@ -318,6 +455,7 @@ class _SearchResultList extends StatelessWidget {
 
     if (items.isEmpty) {
       return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: GBTSpacing.paddingPage,
         children: [
           Text(
@@ -334,6 +472,7 @@ class _SearchResultList extends StatelessWidget {
     }
 
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: GBTSpacing.paddingPage,
       children: [
         Text(

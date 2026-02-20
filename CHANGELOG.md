@@ -1,5 +1,50 @@
 # Changelog
 
+## 2026-02-19
+- **COMMUNITY/UI**: Refreshed post-create UX with completion guide/progress, project context badge, richer input hints, image thumbnail grid preview, duplicate/max-image guard, and unsaved-draft exit confirmation.
+- **COMMUNITY/FIX**: Added in-page project selector to post-create and surfaced backend failure messages during post submission so registration failures are actionable.
+- **COMMUNITY/FIX**: Removed client-side pre-submit sanction probe (`GET /users/me`) from post-create flow so post registration directly calls the create endpoint.
+- **UPLOADS/FIX**: Switched image upload flow to presigned-first with direct-upload fallback and added explicit presigned PUT timeouts to prevent indefinite loading during post/profile image uploads.
+- **SETTINGS/UI**: Refreshed profile-edit UX with sectioned cards, pending-change banner, save-enabled-on-dirty behavior, pull-to-refresh support, upload-pending badges, keyboard-dismiss-on-drag, and unsaved-change exit confirmation.
+- **API**: Re-audited client-used endpoints against live `http://localhost:8080/v3/api-docs` and synced v3 catalog by adding `/api/v1/admin/users/{userId}/active`.
+- **API**: Added `ApiEndpoints.adminUserActive(userId)` constant to reflect the latest admin user activation endpoint.
+- **API**: Aligned map endpoint query compatibility by sending v3 bounds keys (`north/south/east/west`) and nearby aliases (`lat/lon`, `radius`) alongside legacy keys.
+- **API/UI**: Extended search requests to support latest contract params (`projectId`, `unitIds`, `types`, `page`, `size`) and added project-scope search toggle UI.
+- **UI**: Home summary now reloads when selected unit filters change, so home cards reflect backend unit-scoped summary responses.
+- **API**: Community/news list requests now send both `page,size` and `pageable` query styles for v3 compatibility.
+- **AUTH/API**: Removed `/home/summary` from public-endpoint bypass so auth headers/refresh flow apply when backend protects home summary.
+- **TESTING**: Added endpoint contract test (`ApiEndpoints` ↔ `ApiV3EndpointCatalog`) to validate client-used path/method pairs one by one.
+- **PLACES**: Extend `PlaceSummary` with `types` so list/map/search UIs can use place-type metadata without extra detail fetches.
+- **PLACES**: Update map search sheet to match by place type keywords (including localized aliases such as `촬영지`/`성지`) in addition to place/region names.
+- **PLACES**: Show place type labels in map search results and unify place-type text formatting via shared `place_type_search` utilities.
+- **PLACES/MAP**: Change single-place marker style by first place type (both Google Maps and Apple Maps) while keeping cluster markers orange.
+- **PLACES/UI**: Show place type + tag chips together in the places list card for faster scanability.
+- **PLACES/API**: Extend `PlaceSummaryDto`/`PlaceSummary` with `tags` to support list/tag rendering without per-item detail fetch.
+- **PLACES/UX**: Added persistent sheet toggle button so users can collapse/expand the places bottom sheet even while scrolled in the middle of the list.
+- **PLACES/IOS**: Prevent `MissingPluginException` in map search by keeping map views mounted under popup routes and safely ignoring stale platform channel calls when controllers are disposed.
+- **TESTING**: Add unit tests for place-type normalization, keyword expansion, and localized query matching.
+- **ADMIN/API**: Added concrete admin endpoint constants for moderation/report operations (`adminModerationDashboard`, `adminCommunityReports`, `adminCommunityReport`, `adminCommunityReportAssign`).
+- **ADMIN/FEATURE**: Added new `admin_ops` module (data/domain/application/presentation) and wired dashboard/report moderation APIs with cache-aware repository behavior.
+- **ADMIN/UI**: Added `/settings/admin` route and a new operations center screen with overview metrics, status-colored report list, pull-to-refresh, and moderation actions (assign/in-review/resolved/rejected).
+- **SETTINGS**: Added role-based “운영 센터” entry in settings, visible only to admin-capable roles.
+- **TESTING**: Expanded endpoint contract coverage for admin operations paths and added DTO/domain unit tests for admin ops parsing and role-access checks.
+
+## 2026-02-18
+- **AUTH**: Prevent automatic logout on transient token-refresh failures during foreground refreshes; clear tokens only when refresh token is definitively invalid.
+- **AUTH**: Stop treating CSRF-like `403` responses as immediate logout triggers on mobile API calls (preserve session/token state).
+- **AUTH**: Deduplicate concurrent `401` refresh attempts and make waiting requests reuse the same refresh result.
+- **AUTH**: On refresh `429`, respect short `retryAfter` windows and retry once before failing the original request.
+- **API**: Pulled latest OpenAPI spec from `http://localhost:8080/v3/api-docs` and added full v3 endpoint catalog snapshot (`ApiV3EndpointCatalog`).
+- **API**: Synced `ApiEndpoints` moderation/appeal sections with current spec by removing non-existent paths (`/users/me/actionable-status`, `/community/appeals`) and adding project-scoped moderation/verification-appeal endpoints.
+- **API**: Updated sanction status fetch to read from `/users/me` with optional sanction fields, avoiding repeated 404s on removed endpoints.
+- **MODERATION**: Add client-side report cooldown service (`5분`) and apply it to post/comment report flow.
+- **MODERATION**: Add report confirmation dialog before API submission and record cooldown only on successful submission.
+- **MODERATION**: Extend post DTO/domain models with `moderationStatus` mapping (`PUBLISHED/QUARANTINED/DELETED`).
+- **MODERATION**: Show quarantine banner in post detail and expose appeal entry point for the post author.
+- **MODERATION**: Add user sanction domain model (`none/warning/muted/banned`) and repository/data-source support for `/users/me/actionable-status`.
+- **MODERATION**: Add appeal submission endpoint wiring (`/community/appeals`) and post-create sanction precheck to block muted/banned users.
+- **TESTING**: Add unit tests for report rate limiter and community moderation repository fallback/appeal behavior.
+
 ## 2026-02-12
 ### Phase 1-3: Foundation, Visual Hierarchy, Navigation
 - **UI/UX**: Add stagger animations (fade + slide) to homepage news list with 80ms delays for smooth visual flow.
@@ -45,6 +90,12 @@
 - **UI/UX**: Emphasize live event D-day labels with accent pill styling for upcoming events.
 - **COMMUNITY**: De-duplicate post detail images by normalizing URLs and avoiding bare R2 double extraction.
 - **CI**: Add Xcode Cloud post-clone script to run CocoaPods install for iOS archives.
+- **DEPS**: Remove direct `test` dev dependency to avoid conflicts with `flutter_test` pins.
+- **REFRESH**: Add pull-to-refresh support to key list/data pages (live events, board, info tabs, places sheet list, favorites, notifications, search, settings).
+- **AUTH/CACHE**: Make logout clear cache namespace immediately and proceed with local logout even if remote logout fails.
+- **CACHE**: Implement `CacheManager.clearAll()` to remove all namespaced cache keys instead of no-op behavior.
+- **CACHE**: Add cache-first background revalidation (default 10 minutes) with in-flight deduplication so cached screens still probe server changes.
+- **UX**: Make the post report sheet keyboard dismissible via outside tap, drag gesture, and keyboard Done action.
 - **CODE QUALITY**: Follow Google Code Style + Effective Dart with bilingual EN/KO comments throughout all new code.
 
 ## 2026-02-11

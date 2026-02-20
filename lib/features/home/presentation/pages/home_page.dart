@@ -239,7 +239,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 return GBTPlaceCardCarousel(
                   placeId: place.id,
                   name: place.name,
-                  location: place.location,
+                  location: place.location ?? '방문 ${place.visitCount}회',
                   imageUrl: place.imageUrl,
                   onTap: () => context.goToPlaceDetail(place.id),
                 );

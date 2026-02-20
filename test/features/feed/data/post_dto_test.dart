@@ -10,6 +10,7 @@ void main() {
       'authorId': 'user-1',
       'title': '커뮤니티 글 제목',
       'createdAt': '2026-01-28T03:00:00Z',
+      'moderationStatus': 'QUARANTINED',
     };
 
     final dto = PostSummaryDto.fromJson(json);
@@ -18,6 +19,7 @@ void main() {
     expect(dto.authorId, 'user-1');
     expect(dto.title, '커뮤니티 글 제목');
     expect(dto.createdAt, isNotNull);
+    expect(dto.moderationStatus, 'QUARANTINED');
   });
 
   test('PostDetailDto parses swagger keys', () {
@@ -29,6 +31,7 @@ void main() {
       'content': '상세 글 내용',
       'createdAt': '2026-01-28T05:00:00Z',
       'updatedAt': '2026-01-28T06:00:00Z',
+      'moderationStatus': 'DELETED',
     };
 
     final dto = PostDetailDto.fromJson(json);
@@ -38,5 +41,6 @@ void main() {
     expect(dto.title, '상세 글 제목');
     expect(dto.content, '상세 글 내용');
     expect(dto.updatedAt, isNotNull);
+    expect(dto.moderationStatus, 'DELETED');
   });
 }

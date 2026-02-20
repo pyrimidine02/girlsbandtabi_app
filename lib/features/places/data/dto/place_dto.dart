@@ -103,6 +103,7 @@ class PlaceSummaryDto {
     required this.id,
     required this.name,
     required this.types,
+    required this.tags,
     required this.latitude,
     required this.longitude,
     this.introText,
@@ -115,6 +116,7 @@ class PlaceSummaryDto {
   final String id;
   final String name;
   final List<String> types;
+  final List<String> tags;
   final String? introText;
   final double latitude;
   final double longitude;
@@ -128,6 +130,7 @@ class PlaceSummaryDto {
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       types: _stringList(json['types']),
+      tags: _stringList(json['tags']),
       introText: json['introText'] as String?,
       latitude: _double(json['latitude']),
       longitude: _double(json['longitude']),
@@ -147,6 +150,7 @@ class PlaceSummaryDto {
       'id': id,
       'name': name,
       'types': types,
+      'tags': tags,
       'introText': introText,
       'latitude': latitude,
       'longitude': longitude,

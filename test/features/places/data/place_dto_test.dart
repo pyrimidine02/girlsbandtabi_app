@@ -8,6 +8,7 @@ void main() {
       'id': 'place-1',
       'name': 'Shibuya',
       'types': ['SCENE', 'LANDMARK'],
+      'tags': ['애니', '도쿄'],
       'latitude': 35.6595,
       'longitude': 139.7004,
       'introText': 'Famous crossing',
@@ -18,6 +19,7 @@ void main() {
     expect(dto.id, 'place-1');
     expect(dto.name, 'Shibuya');
     expect(dto.types, ['SCENE', 'LANDMARK']);
+    expect(dto.tags, ['애니', '도쿄']);
     expect(dto.latitude, 35.6595);
     expect(dto.longitude, 139.7004);
     expect(dto.introText, 'Famous crossing');

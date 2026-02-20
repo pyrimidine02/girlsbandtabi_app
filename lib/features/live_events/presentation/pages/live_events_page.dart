@@ -113,6 +113,9 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                 _EventList(
                   isUpcoming: true,
                   state: eventsState,
+                  onRefresh: () => ref
+                      .read(liveEventsListControllerProvider.notifier)
+                      .load(forceRefresh: true),
                   onRetry: () => ref
                       .read(liveEventsListControllerProvider.notifier)
                       .load(forceRefresh: true),
@@ -120,6 +123,9 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                 _EventList(
                   isUpcoming: false,
                   state: eventsState,
+                  onRefresh: () => ref
+                      .read(liveEventsListControllerProvider.notifier)
+                      .load(forceRefresh: true),
                   onRetry: () => ref
                       .read(liveEventsListControllerProvider.notifier)
                       .load(forceRefresh: true),
@@ -333,82 +339,93 @@ class _EventList extends StatelessWidget {
   const _EventList({
     required this.isUpcoming,
     required this.state,
+    required this.onRefresh,
     required this.onRetry,
   });
 
   final bool isUpcoming;
   final AsyncValue<List<LiveEventSummary>> state;
+  final Future<void> Function() onRefresh;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return state.when(
-      loading: () => ListView(
-        padding: GBTSpacing.paddingPage,
-        children: const [
-          SizedBox(height: GBTSpacing.lg),
-          GBTLoading(message: '라이브 이벤트를 불러오는 중...'),
-        ],
-      ),
-      error: (error, _) {
-        final message = error is Failure
-            ? error.userMessage
-            : '라이브 이벤트를 불러오지 못했어요';
-        return ListView(
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: state.when(
+        loading: () => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: GBTSpacing.paddingPage,
-          children: [
-            const SizedBox(height: GBTSpacing.lg),
-            GBTErrorState(message: message, onRetry: onRetry),
+          children: const [
+            SizedBox(height: GBTSpacing.lg),
+            GBTLoading(message: '라이브 이벤트를 불러오는 중...'),
           ],
-        );
-      },
-      data: (events) {
-        final filtered =
-            events.where((event) => event.isUpcoming == isUpcoming).toList()
-              ..sort((a, b) {
-                final first = a.showStartTime;
-                final second = b.showStartTime;
-                return isUpcoming
-                    ? first.compareTo(second)
-                    : second.compareTo(first);
-              });
-
-        if (filtered.isEmpty) {
+        ),
+        error: (error, _) {
+          final message = error is Failure
+              ? error.userMessage
+              : '라이브 이벤트를 불러오지 못했어요';
           return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: GBTSpacing.paddingPage,
             children: [
               const SizedBox(height: GBTSpacing.lg),
-              GBTEmptyState(
-                icon: isUpcoming ? Icons.event_available : Icons.event_busy,
-                message: isUpcoming ? '예정된 라이브 이벤트가 없습니다' : '완료된 라이브 이벤트가 없습니다',
-              ),
+              GBTErrorState(message: message, onRetry: onRetry),
             ],
           );
-        }
+        },
+        data: (events) {
+          final filtered =
+              events.where((event) => event.isUpcoming == isUpcoming).toList()
+                ..sort((a, b) {
+                  final first = a.showStartTime;
+                  final second = b.showStartTime;
+                  return isUpcoming
+                      ? first.compareTo(second)
+                      : second.compareTo(first);
+                });
 
-        return ListView.builder(
-          padding: GBTSpacing.paddingPage,
-          itemCount: filtered.length,
-          itemBuilder: (context, index) {
-            final event = filtered[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: GBTSpacing.md),
-              child: GBTEventCard(
-                eventId: event.id,
-                title: event.title,
-                subtitle: event.statusLabel,
-                meta: event.metaLabel,
-                date: event.dateLabel,
-                dDayLabel: event.dDayLabel,
-                posterUrl: event.bannerUrl,
-                isLive: event.statusLabel.toLowerCase() == 'live',
-                isUpcoming: event.isUpcoming,
-                onTap: () => context.goToLiveDetail(event.id),
-              ),
+          if (filtered.isEmpty) {
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: GBTSpacing.paddingPage,
+              children: [
+                const SizedBox(height: GBTSpacing.lg),
+                GBTEmptyState(
+                  icon: isUpcoming ? Icons.event_available : Icons.event_busy,
+                  message: isUpcoming
+                      ? '예정된 라이브 이벤트가 없습니다'
+                      : '완료된 라이브 이벤트가 없습니다',
+                ),
+              ],
             );
-          },
-        );
-      },
+          }
+
+          return ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: GBTSpacing.paddingPage,
+            itemCount: filtered.length,
+            itemBuilder: (context, index) {
+              final event = filtered[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: GBTSpacing.md),
+                child: GBTEventCard(
+                  eventId: event.id,
+                  title: event.title,
+                  subtitle: event.statusLabel,
+                  meta: event.metaLabel,
+                  date: event.dateLabel,
+                  dDayLabel: event.dDayLabel,
+                  posterUrl: event.bannerUrl,
+                  isLive: event.statusLabel.toLowerCase() == 'live',
+                  isUpcoming: event.isUpcoming,
+                  onTap: () => context.goToLiveDetail(event.id),
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

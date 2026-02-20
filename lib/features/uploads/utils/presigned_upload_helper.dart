@@ -14,7 +14,13 @@ Future<void> uploadToPresignedUrl({
   required String contentType,
   Map<String, String> headers = const {},
 }) async {
-  final dio = Dio();
+  final dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      sendTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+    ),
+  );
   final response = await dio.put<void>(
     url,
     data: bytes,

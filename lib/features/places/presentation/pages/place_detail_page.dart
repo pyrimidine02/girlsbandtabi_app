@@ -24,6 +24,7 @@ import '../../application/places_controller.dart';
 import '../../domain/entities/place_comment_entities.dart';
 import '../../domain/entities/place_entities.dart';
 import '../../domain/entities/place_guide_entities.dart';
+import '../../domain/utils/place_type_search.dart';
 import '../widgets/place_review_sheet.dart';
 
 /// EN: Place detail page widget
@@ -415,7 +416,7 @@ class _StatCard extends StatelessWidget {
 }
 
 String _formatPlaceType(String type) {
-  return type.replaceAll('_', ' ');
+  return placeTypeLabel(type);
 }
 
 class _GuideSection extends StatelessWidget {

@@ -26,6 +26,7 @@ import '../../features/feed/presentation/pages/user_profile_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/settings/presentation/pages/profile_edit_page.dart';
 import '../../features/settings/presentation/pages/notification_settings_page.dart';
+import '../../features/admin_ops/presentation/pages/admin_ops_page.dart';
 import '../../features/visits/presentation/pages/visit_detail_page.dart';
 import '../../features/visits/presentation/pages/visit_history_page.dart';
 import '../../features/visits/presentation/pages/visit_stats_page.dart';
@@ -63,6 +64,7 @@ class AppRoutes {
   static const String settings = 'settings';
   static const String profileEdit = 'profile-edit';
   static const String notificationSettings = 'notification-settings';
+  static const String adminOps = 'admin-ops';
   static const String visitHistory = 'visit-history';
   static const String visitDetail = 'visit-detail';
   static const String visitStats = 'visit-stats';
@@ -290,6 +292,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const NotificationSettingsPage(),
           ),
           GoRoute(
+            path: 'admin',
+            name: AppRoutes.adminOps,
+            builder: (context, state) => const AdminOpsPage(),
+          ),
+          GoRoute(
             path: 'visits',
             name: AppRoutes.visitHistory,
             builder: (context, state) => const VisitHistoryPage(),
@@ -460,5 +467,11 @@ extension AppRouterExtension on BuildContext {
       queryParameters: {'from': currentUri.toString()},
     );
     push(settingsUri.toString());
+  }
+
+  /// EN: Navigate to visit stats
+  /// KO: 방문 통계로 이동
+  void goToVisitStats() {
+    goNamed(AppRoutes.visitStats);
   }
 }

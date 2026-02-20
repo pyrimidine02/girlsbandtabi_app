@@ -16,7 +16,12 @@ class SearchController extends StateNotifier<AsyncValue<List<SearchItem>>> {
 
   final Ref _ref;
 
-  Future<void> search(String query, {bool forceRefresh = false}) async {
+  Future<void> search(
+    String query, {
+    bool forceRefresh = false,
+    bool scopedToCurrentProject = true,
+    List<String> types = const [],
+  }) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) {
       state = const AsyncData([]);
@@ -25,8 +30,18 @@ class SearchController extends StateNotifier<AsyncValue<List<SearchItem>>> {
 
     state = const AsyncLoading();
     final repository = await _ref.read(searchRepositoryProvider.future);
+    final projectId = scopedToCurrentProject
+        ? (_ref.read(selectedProjectKeyProvider) ??
+              _ref.read(selectedProjectIdProvider))
+        : null;
+    final unitIds = scopedToCurrentProject
+        ? _ref.read(selectedUnitIdsProvider)
+        : const <String>[];
     final result = await repository.search(
       query: trimmed,
+      projectId: projectId,
+      unitIds: unitIds,
+      types: types,
       forceRefresh: forceRefresh,
     );
 

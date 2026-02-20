@@ -26,56 +26,86 @@ class FavoritesPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('즐겨찾기')),
-      body: state.when(
-        loading: () => const GBTLoading(message: '즐겨찾기를 불러오는 중...'),
-        error: (error, _) {
-          final message = error is Failure
-              ? error.userMessage
-              : '즐겨찾기를 불러오지 못했어요';
-          return GBTErrorState(
-            message: message,
-            onRetry: () => ref
-                .read(favoritesControllerProvider.notifier)
-                .load(forceRefresh: true),
-          );
-        },
-        data: (items) {
-          if (items.isEmpty) {
-            return const GBTEmptyState(
-              icon: Icons.favorite_border,
-              message: '저장된 즐겨찾기가 없습니다.\n마음에 드는 장소나 이벤트를 저장해보세요.',
-            );
-          }
-
-          return DefaultTabController(
-            length: 4,
-            child: Column(
+      body: RefreshIndicator(
+        onRefresh: () => ref
+            .read(favoritesControllerProvider.notifier)
+            .load(forceRefresh: true),
+        child: state.when(
+          loading: () => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: GBTSpacing.paddingPage,
+            children: const [
+              SizedBox(height: GBTSpacing.lg),
+              GBTLoading(message: '즐겨찾기를 불러오는 중...'),
+            ],
+          ),
+          error: (error, _) {
+            final message = error is Failure
+                ? error.userMessage
+                : '즐겨찾기를 불러오지 못했어요';
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: GBTSpacing.paddingPage,
               children: [
-                const TabBar(
-                  isScrollable: true,
-                  tabs: [
-                    Tab(text: '전체'),
-                    Tab(text: '장소'),
-                    Tab(text: '이벤트'),
-                    Tab(text: '뉴스'),
-                  ],
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _FavoritesList(items: items),
-                      _FavoritesList(items: _filter(items, FavoriteType.place)),
-                      _FavoritesList(
-                        items: _filter(items, FavoriteType.liveEvent),
-                      ),
-                      _FavoritesList(items: _filter(items, FavoriteType.news)),
-                    ],
-                  ),
+                const SizedBox(height: GBTSpacing.lg),
+                GBTErrorState(
+                  message: message,
+                  onRetry: () => ref
+                      .read(favoritesControllerProvider.notifier)
+                      .load(forceRefresh: true),
                 ),
               ],
-            ),
-          );
-        },
+            );
+          },
+          data: (items) {
+            if (items.isEmpty) {
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: GBTSpacing.paddingPage,
+                children: const [
+                  SizedBox(height: GBTSpacing.lg),
+                  GBTEmptyState(
+                    icon: Icons.favorite_border,
+                    message: '저장된 즐겨찾기가 없습니다.\n마음에 드는 장소나 이벤트를 저장해보세요.',
+                  ),
+                ],
+              );
+            }
+
+            return DefaultTabController(
+              length: 4,
+              child: Column(
+                children: [
+                  const TabBar(
+                    isScrollable: true,
+                    tabs: [
+                      Tab(text: '전체'),
+                      Tab(text: '장소'),
+                      Tab(text: '이벤트'),
+                      Tab(text: '뉴스'),
+                    ],
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        _FavoritesList(items: items),
+                        _FavoritesList(
+                          items: _filter(items, FavoriteType.place),
+                        ),
+                        _FavoritesList(
+                          items: _filter(items, FavoriteType.liveEvent),
+                        ),
+                        _FavoritesList(
+                          items: _filter(items, FavoriteType.news),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -94,15 +124,20 @@ class _FavoritesList extends StatelessWidget {
         : GBTColors.textTertiary;
 
     if (items.isEmpty) {
-      return const Center(
-        child: GBTEmptyState(
-          icon: Icons.favorite_border,
-          message: '이 카테고리에 저장된 항목이 없습니다.',
-        ),
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(height: GBTSpacing.lg),
+          GBTEmptyState(
+            icon: Icons.favorite_border,
+            message: '이 카테고리에 저장된 항목이 없습니다.',
+          ),
+        ],
       );
     }
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: GBTSpacing.paddingPage,
       itemCount: items.length,
       itemBuilder: (context, index) {

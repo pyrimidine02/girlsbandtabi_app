@@ -43,6 +43,26 @@ class _InfoPageState extends ConsumerState<InfoPage>
     super.dispose();
   }
 
+  Future<void> _refreshCurrentTab() async {
+    switch (_tabController.index) {
+      case 0:
+        await ref
+            .read(newsListControllerProvider.notifier)
+            .load(forceRefresh: true);
+        return;
+      case 1:
+        final selection = ref.read(projectSelectionControllerProvider);
+        final projectKey = selection.projectKey;
+        if (projectKey == null || projectKey.isEmpty) return;
+        await ref
+            .read(projectUnitsControllerProvider(projectKey).notifier)
+            .load(forceRefresh: true);
+        return;
+      default:
+        return;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -82,14 +102,17 @@ class _InfoPageState extends ConsumerState<InfoPage>
             child: const ProjectSelectorCompact(),
           ),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: const [
-                _NewsTab(),
-                _UnitsTab(),
-                _MembersTab(),
-                _SongsTab(),
-              ],
+            child: RefreshIndicator(
+              onRefresh: _refreshCurrentTab,
+              child: TabBarView(
+                controller: _tabController,
+                children: const [
+                  _NewsTab(),
+                  _UnitsTab(),
+                  _MembersTab(),
+                  _SongsTab(),
+                ],
+              ),
             ),
           ),
         ],
@@ -112,6 +135,7 @@ class _NewsTab extends ConsumerWidget {
 
     return newsState.when(
       loading: () => ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: GBTSpacing.paddingPage,
         children: const [
           SizedBox(height: GBTSpacing.lg),
@@ -121,6 +145,7 @@ class _NewsTab extends ConsumerWidget {
       error: (error, _) {
         final message = error is Failure ? error.userMessage : '뉴스를 불러오지 못했어요';
         return ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: GBTSpacing.paddingPage,
           children: [
             const SizedBox(height: GBTSpacing.lg),
@@ -136,6 +161,7 @@ class _NewsTab extends ConsumerWidget {
       data: (newsList) {
         if (newsList.isEmpty) {
           return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: GBTSpacing.paddingPage,
             children: const [
               SizedBox(height: GBTSpacing.lg),
@@ -145,6 +171,7 @@ class _NewsTab extends ConsumerWidget {
         }
 
         return ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: GBTSpacing.paddingPage,
           itemCount: newsList.length,
           itemBuilder: (context, index) {
@@ -185,11 +212,15 @@ class _UnitsTab extends ConsumerWidget {
     final projectKey = selection.projectKey;
 
     if (projectKey == null) {
-      return const Center(
-        child: GBTEmptyState(
-          icon: Icons.groups_outlined,
-          message: '프로젝트를 먼저 선택해주세요',
-        ),
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(height: GBTSpacing.lg),
+          GBTEmptyState(
+            icon: Icons.groups_outlined,
+            message: '프로젝트를 먼저 선택해주세요',
+          ),
+        ],
       );
     }
 
@@ -198,6 +229,7 @@ class _UnitsTab extends ConsumerWidget {
 
     return unitsState.when(
       loading: () => ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: GBTSpacing.paddingPage,
         children: const [
           SizedBox(height: GBTSpacing.lg),
@@ -207,6 +239,7 @@ class _UnitsTab extends ConsumerWidget {
       error: (error, _) {
         final message = error is Failure ? error.userMessage : '유닛을 불러오지 못했어요';
         return ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: GBTSpacing.paddingPage,
           children: [
             const SizedBox(height: GBTSpacing.lg),
@@ -222,6 +255,7 @@ class _UnitsTab extends ConsumerWidget {
       data: (units) {
         if (units.isEmpty) {
           return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: GBTSpacing.paddingPage,
             children: const [
               SizedBox(height: GBTSpacing.lg),
@@ -234,6 +268,7 @@ class _UnitsTab extends ConsumerWidget {
         }
 
         return ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: GBTSpacing.paddingPage,
           itemCount: units.length,
           itemBuilder: (context, index) {
@@ -285,11 +320,12 @@ class _MembersTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: GBTEmptyState(
-        icon: Icons.person_outlined,
-        message: '멤버 소개를 준비 중입니다',
-      ),
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: const [
+        SizedBox(height: GBTSpacing.lg),
+        GBTEmptyState(icon: Icons.person_outlined, message: '멤버 소개를 준비 중입니다'),
+      ],
     );
   }
 }
@@ -304,11 +340,15 @@ class _SongsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: GBTEmptyState(
-        icon: Icons.music_note_outlined,
-        message: '악곡 소개를 준비 중입니다',
-      ),
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: const [
+        SizedBox(height: GBTSpacing.lg),
+        GBTEmptyState(
+          icon: Icons.music_note_outlined,
+          message: '악곡 소개를 준비 중입니다',
+        ),
+      ],
     );
   }
 }

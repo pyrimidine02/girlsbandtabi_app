@@ -1,7 +1,17 @@
 # TODO
 
+- Add widget tests for `PostCreatePage` (draft-exit confirmation, image max/duplicate handling, submit button enablement) and `ProfileEditPage` (dirty-state save enablement + unsaved-exit confirmation).
 - Add a HomePage widget test that verifies the ProjectSelector renders during loading and triggers a reload after selection (remove once CI covers the flow).
 - Add a CI step (or pre-commit hook) to run `build_runner` so generated files stay in sync.
+- Add CI check to compare `ApiEndpoints` against `/v3/api-docs` and fail on missing/removed paths.
+- Verify `tags` field availability on all place summary endpoints; if absent on 일부 응답, decide fallback strategy (detail prefetch vs summary contract update).
+- Verify the new places-sheet collapse/expand floating toggle does not overlap map FABs on small iPhone/Android screen sizes.
+- Confirm canonical request fields for `PATCH /api/v1/admin/community/reports/{reportId}` and `/assign` (then remove temporary multi-key compatibility payload).
+- Expand admin operations center to additional endpoints (`/admin/projects/role-requests`, `/admin/projects/{projectId}/verification-appeals`, `/admin/media-deletions`) once UX priority is confirmed.
+- Decide product/BE contract for community post appeals (current v3 spec has verification appeals only).
+- Verify report cooldown UX for both post/comment reporting (first submit success, second submit blocked within 5 minutes).
+- Verify quarantine banner visibility rules (`quarantined` only) and author-only appeal button behavior.
+- Verify sanction precheck blocks post creation for `muted`/`banned` and allows `warning`/`none`.
 - Verify whether the iOS `FrameTiming` assertion reproduces after non-blocking bootstrap; if it does, test Flutter 3.40.x and decide on version pinning (remove once the regression is confirmed resolved).
 - Verify whether the iOS `semantics.parentDataDirty` assertion reproduces after gating map builds by active tab; if it does, isolate additional offstage platform views (remove once stable).
 - Verify whether the iOS `semantics.parentDataDirty` assertion reproduces after deferring connectivity overlay updates (remove once stable).
@@ -25,6 +35,8 @@
 - Expand verification error localization map as backend adds new failure reasons.
 - Decide whether place detail should show favorites as "좋아요" or a true rating once backend exposes rating data.
 - Request backend fix: disable CSRF for `/api/v1/**` or document CSRF token flow for mobile clients (nickname update currently 403).
+- Add unit tests for `ApiClient` auth interceptor refresh outcomes (`invalidSession` vs transient failure) to prevent logout regressions on pull-to-refresh.
+- Add unit tests for refresh `429 retryAfter` handling and concurrent `401` refresh deduplication in `ApiClient`.
 - Confirm profile update payload handling for optional fields (avatar/bio/cover) when omitted vs empty.
 - Add Firebase config files (`google-services.json`, `GoogleService-Info.plist`) and verify Analytics/Crashlytics runtime behavior.
 - Define cache key registry + clear-all mechanism for `CacheManager` and map feature TTLs to cache keys.
@@ -38,12 +50,15 @@
 - Revisit chip label color overrides if design tokens change for tags/filters.
 - Add UI feedback for large full-list loads (pagination or loading indicator).
 - Consider adding geocoding-based search for map lookup (currently local search only).
+- Validate project-specific place type taxonomy from `/api/v1/projects/{projectId}/place-types` and expand client synonym coverage where needed.
 - Confirm `LiveEventDetailDto`/`LiveEventSummaryDto` field mapping with backend response and adjust parsing keys if needed.
 - Confirm `NewsSummaryDto`/`NewsDetailDto` field mapping with backend response and adjust parsing keys if needed.
 - Confirm `PostSummaryDto`/`PostDetailDto` field mapping + `projectCode` usage with backend response and adjust parsing keys if needed.
 - Confirm `UserProfileDto` and `NotificationSettingsDto` mappings with backend response and adjust parsing keys if needed.
 - Confirm avatar upload flow (presigned + confirm URL) is accepted by `PATCH /api/v1/users/me`.
 - Confirm `/api/v1/search` query parameter name (`query` vs `q`) and simplify once confirmed.
+- Decide when to remove legacy compatibility query params (`swLat/neLat/...`, `radiusKm`, `page/size`) after backend contract freeze.
+- Confirm whether feed endpoints will standardize on `pageable` only, then drop dual-query fallback (`page`,`size` + `pageable`).
 - Reduce or remove verbose network body logging once verification 400s are resolved.
 - Confirm favorites API payload (`targetId`, `targetType`) with backend and adjust mapping if needed.
 - Confirm notification item DTO field mapping (`title/body/category/read`) with backend response and adjust parsing keys if needed.
@@ -54,6 +69,12 @@
 - Remove the post detail plain-URL attachment fallback once the backend preserves markdown or returns explicit `imageUrls`.
 - Verify post detail no longer duplicates markdown-only images (remove once confirmed).
 - Verify Xcode Cloud executes `ci_post_clone.sh` and the iOS archive succeeds (remove once stable).
+- Reintroduce a compatible `test` dev dependency only if Dart-only tests are required (remove once decided).
+- Verify pull-to-refresh gesture UX on `PlacesMapPage` bottom sheet across iOS/Android (remove once QA confirms).
+- Verify iOS map search flow no longer throws `MissingPluginException` when selecting places from the bottom-sheet search modal.
+- Verify logout cache clear behavior for stale list/detail screens after re-login (remove once QA confirms).
+- Verify cache-first background revalidation cadence (10m) against backend rate limits and tune interval if needed.
+- Verify report sheet keyboard dismiss behavior (tap outside/drag/done) on iOS and Android keyboards.
 - Confirm user profile `bio` and `coverImageUrl` are returned on public profile endpoints (read + update).
 - Confirm whether `username` should be an email for registration and align login labels accordingly.
 - Confirm unit name/description semantics (`code` vs `displayName`) with backend and update mapping if the contract changes.

@@ -12,6 +12,8 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../admin_ops/domain/entities/admin_ops_entities.dart';
+import '../../../auth/application/auth_controller.dart';
 import '../../application/settings_controller.dart';
 import '../../domain/entities/user_profile.dart';
 
@@ -27,6 +29,8 @@ class SettingsPage extends ConsumerWidget {
     final profileState = isAuthenticated
         ? ref.watch(userProfileControllerProvider)
         : null;
+    final userRole = profileState?.valueOrNull?.role;
+    final canAccessAdminOps = hasAdminOpsAccessRole(userRole);
 
     return Scaffold(
       appBar: AppBar(
@@ -58,171 +62,189 @@ class SettingsPage extends ConsumerWidget {
         ),
         title: const Text('설정'),
       ),
-      body: ListView(
-        children: [
-          _ProfileSection(
-            isAuthenticated: isAuthenticated,
-            profileState: profileState,
-            onLoginTap: () => context.push('/login'),
-            onEditTap: () => context.push('/settings/profile'),
-            onRetry: () => ref
-                .read(userProfileControllerProvider.notifier)
-                .load(forceRefresh: true),
-          ),
-          const Divider(),
-          _SectionHeader(title: '나의 활동'),
-          _SettingsItem(
-            icon: Icons.favorite,
-            iconColor: const Color(0xFFEF4444),
-            title: '즐겨찾기',
-            subtitle: '저장한 장소와 이벤트',
-            semanticLabel: '즐겨찾기 - 저장한 장소와 이벤트',
-            onTap: () => context.push('/favorites'),
-          ),
-          _SettingsItem(
-            icon: Icons.check_circle,
-            iconColor: const Color(0xFF10B981),
-            title: '방문 기록',
-            subtitle: '인증한 장소 확인',
-            semanticLabel: '방문 기록 - 인증한 장소 확인',
-            onTap: () => context.push('/settings/visits'),
-          ),
-          _SettingsItem(
-            icon: Icons.bar_chart,
-            iconColor: const Color(0xFF3B82F6),
-            title: '통계',
-            subtitle: '나의 성지순례 통계',
-            semanticLabel: '통계 - 나의 성지순례 통계',
-            onTap: () => context.push('/settings/stats'),
-          ),
-          // EN: Account section -- only shown when authenticated.
-          // KO: 계정 섹션 -- 로그인 상태에서만 표시.
-          if (isAuthenticated) ...[
+      body: RefreshIndicator(
+        onRefresh: () async {
+          if (!isAuthenticated) return;
+          await ref
+              .read(userProfileControllerProvider.notifier)
+              .load(forceRefresh: true);
+        },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            _ProfileSection(
+              isAuthenticated: isAuthenticated,
+              profileState: profileState,
+              onLoginTap: () => context.push('/login'),
+              onEditTap: () => context.push('/settings/profile'),
+              onRetry: () => ref
+                  .read(userProfileControllerProvider.notifier)
+                  .load(forceRefresh: true),
+            ),
             const Divider(),
-            _SectionHeader(title: '계정'),
+            _SectionHeader(title: '나의 활동'),
             _SettingsItem(
-              icon: Icons.person,
-              iconColor: const Color(0xFF8B5CF6),
-              title: '프로필 수정',
-              subtitle: '표시 이름/프로필 관리',
-              semanticLabel: '프로필 수정 - 표시 이름 및 프로필 관리',
-              onTap: () => context.push('/settings/profile'),
+              icon: Icons.favorite,
+              iconColor: const Color(0xFFEF4444),
+              title: '즐겨찾기',
+              subtitle: '저장한 장소와 이벤트',
+              semanticLabel: '즐겨찾기 - 저장한 장소와 이벤트',
+              onTap: () => context.push('/favorites'),
             ),
             _SettingsItem(
-              icon: Icons.logout,
-              iconColor: const Color(0xFFEF4444),
-              title: '로그아웃',
-              subtitle: '계정에서 로그아웃',
-              semanticLabel: '로그아웃 - 계정에서 로그아웃합니다',
-              onTap: () async {
-                await ref.read(authStateProvider.notifier).logout();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('로그아웃되었습니다')));
-                }
+              icon: Icons.check_circle,
+              iconColor: const Color(0xFF10B981),
+              title: '방문 기록',
+              subtitle: '인증한 장소 확인',
+              semanticLabel: '방문 기록 - 인증한 장소 확인',
+              onTap: () => context.push('/settings/visits'),
+            ),
+            _SettingsItem(
+              icon: Icons.bar_chart,
+              iconColor: const Color(0xFF3B82F6),
+              title: '통계',
+              subtitle: '나의 성지순례 통계',
+              semanticLabel: '통계 - 나의 성지순례 통계',
+              onTap: () => context.push('/settings/stats'),
+            ),
+            // EN: Account section -- only shown when authenticated.
+            // KO: 계정 섹션 -- 로그인 상태에서만 표시.
+            if (isAuthenticated) ...[
+              const Divider(),
+              _SectionHeader(title: '계정'),
+              _SettingsItem(
+                icon: Icons.person,
+                iconColor: const Color(0xFF8B5CF6),
+                title: '프로필 수정',
+                subtitle: '표시 이름/프로필 관리',
+                semanticLabel: '프로필 수정 - 표시 이름 및 프로필 관리',
+                onTap: () => context.push('/settings/profile'),
+              ),
+              _SettingsItem(
+                icon: Icons.logout,
+                iconColor: const Color(0xFFEF4444),
+                title: '로그아웃',
+                subtitle: '계정에서 로그아웃',
+                semanticLabel: '로그아웃 - 계정에서 로그아웃합니다',
+                onTap: () async {
+                  await ref.read(authControllerProvider.notifier).logout();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text('로그아웃되었습니다')));
+                  }
+                },
+              ),
+              if (canAccessAdminOps)
+                _SettingsItem(
+                  icon: Icons.admin_panel_settings,
+                  iconColor: const Color(0xFF1D4ED8),
+                  title: '운영 센터',
+                  subtitle: '신고/운영 지표 관리',
+                  semanticLabel: '운영 센터 - 신고 및 운영 지표 관리',
+                  onTap: () => context.push('/settings/admin'),
+                ),
+            ],
+            // EN: Notifications section -- only shown when authenticated.
+            // KO: 알림 섹션 -- 로그인 상태에서만 표시.
+            if (isAuthenticated) ...[
+              const Divider(),
+              _SectionHeader(title: '알림'),
+              _SettingsItem(
+                icon: Icons.notifications,
+                iconColor: const Color(0xFFF59E0B),
+                title: '알림 설정',
+                subtitle: '푸시/이메일 알림 관리',
+                semanticLabel: '알림 설정 - 푸시 및 이메일 알림 관리',
+                onTap: () => context.push('/settings/notifications'),
+              ),
+            ],
+            const Divider(),
+            _SectionHeader(title: '앱 환경'),
+            _SettingsItem(
+              icon: Icons.dark_mode,
+              iconColor: const Color(0xFF6366F1),
+              title: '테마',
+              subtitle: _themeLabel(themeMode),
+              semanticLabel: '테마 설정 - 현재 ${_themeLabel(themeMode)}',
+              onTap: () => _showThemePicker(context, ref, themeMode),
+            ),
+            _SettingsItem(
+              icon: Icons.language,
+              iconColor: const Color(0xFF0D9488),
+              title: '언어',
+              subtitle: '한국어',
+              semanticLabel: '언어 설정 - 현재 한국어',
+              onTap: () => _showComingSoon(context, '언어 설정은 준비 중입니다.'),
+            ),
+            const Divider(),
+            _SectionHeader(title: '지원'),
+            _SettingsItem(
+              icon: Icons.help,
+              iconColor: const Color(0xFF3B82F6),
+              title: '도움말',
+              semanticLabel: '도움말',
+              onTap: () {
+                // EN: TODO: Navigate to help.
+                // KO: TODO: 도움말로 이동.
               },
             ),
-          ],
-          // EN: Notifications section -- only shown when authenticated.
-          // KO: 알림 섹션 -- 로그인 상태에서만 표시.
-          if (isAuthenticated) ...[
-            const Divider(),
-            _SectionHeader(title: '알림'),
             _SettingsItem(
-              icon: Icons.notifications,
-              iconColor: const Color(0xFFF59E0B),
-              title: '알림 설정',
-              subtitle: '푸시/이메일 알림 관리',
-              semanticLabel: '알림 설정 - 푸시 및 이메일 알림 관리',
-              onTap: () => context.push('/settings/notifications'),
+              icon: Icons.feedback,
+              iconColor: const Color(0xFFEC4899),
+              title: '피드백 보내기',
+              semanticLabel: '피드백 보내기',
+              onTap: () {
+                // EN: TODO: Show feedback form.
+                // KO: TODO: 피드백 폼 표시.
+              },
+            ),
+            _SettingsItem(
+              icon: Icons.description,
+              title: '이용약관',
+              semanticLabel: '이용약관',
+              onTap: () {
+                // EN: TODO: Navigate to terms.
+                // KO: TODO: 이용약관으로 이동.
+              },
+            ),
+            _SettingsItem(
+              icon: Icons.privacy_tip,
+              title: '개인정보 처리방침',
+              semanticLabel: '개인정보 처리방침',
+              onTap: () {
+                // EN: TODO: Navigate to privacy policy.
+                // KO: TODO: 개인정보 처리방침으로 이동.
+              },
+            ),
+            const Divider(),
+            Padding(
+              padding: GBTSpacing.paddingPage,
+              child: Column(
+                children: [
+                  Text(
+                    'Girls Band Tabi',
+                    style: GBTTypography.titleSmall.copyWith(
+                      // EN: Use theme-aware text color
+                      // KO: 테마 인식 텍스트 색상 사용
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: GBTSpacing.xs),
+                  Text(
+                    '버전 1.0.0 (1)',
+                    style: GBTTypography.bodySmall.copyWith(
+                      // EN: Use theme-aware tertiary text color
+                      // KO: 테마 인식 3차 텍스트 색상 사용
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: GBTSpacing.lg),
+                ],
+              ),
             ),
           ],
-          const Divider(),
-          _SectionHeader(title: '앱 환경'),
-          _SettingsItem(
-            icon: Icons.dark_mode,
-            iconColor: const Color(0xFF6366F1),
-            title: '테마',
-            subtitle: _themeLabel(themeMode),
-            semanticLabel: '테마 설정 - 현재 ${_themeLabel(themeMode)}',
-            onTap: () => _showThemePicker(context, ref, themeMode),
-          ),
-          _SettingsItem(
-            icon: Icons.language,
-            iconColor: const Color(0xFF0D9488),
-            title: '언어',
-            subtitle: '한국어',
-            semanticLabel: '언어 설정 - 현재 한국어',
-            onTap: () => _showComingSoon(context, '언어 설정은 준비 중입니다.'),
-          ),
-          const Divider(),
-          _SectionHeader(title: '지원'),
-          _SettingsItem(
-            icon: Icons.help,
-            iconColor: const Color(0xFF3B82F6),
-            title: '도움말',
-            semanticLabel: '도움말',
-            onTap: () {
-              // EN: TODO: Navigate to help.
-              // KO: TODO: 도움말로 이동.
-            },
-          ),
-          _SettingsItem(
-            icon: Icons.feedback,
-            iconColor: const Color(0xFFEC4899),
-            title: '피드백 보내기',
-            semanticLabel: '피드백 보내기',
-            onTap: () {
-              // EN: TODO: Show feedback form.
-              // KO: TODO: 피드백 폼 표시.
-            },
-          ),
-          _SettingsItem(
-            icon: Icons.description,
-            title: '이용약관',
-            semanticLabel: '이용약관',
-            onTap: () {
-              // EN: TODO: Navigate to terms.
-              // KO: TODO: 이용약관으로 이동.
-            },
-          ),
-          _SettingsItem(
-            icon: Icons.privacy_tip,
-            title: '개인정보 처리방침',
-            semanticLabel: '개인정보 처리방침',
-            onTap: () {
-              // EN: TODO: Navigate to privacy policy.
-              // KO: TODO: 개인정보 처리방침으로 이동.
-            },
-          ),
-          const Divider(),
-          Padding(
-            padding: GBTSpacing.paddingPage,
-            child: Column(
-              children: [
-                Text(
-                  'Girls Band Tabi',
-                  style: GBTTypography.titleSmall.copyWith(
-                    // EN: Use theme-aware text color
-                    // KO: 테마 인식 텍스트 색상 사용
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: GBTSpacing.xs),
-                Text(
-                  '버전 1.0.0 (1)',
-                  style: GBTTypography.bodySmall.copyWith(
-                    // EN: Use theme-aware tertiary text color
-                    // KO: 테마 인식 3차 텍스트 색상 사용
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: GBTSpacing.lg),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

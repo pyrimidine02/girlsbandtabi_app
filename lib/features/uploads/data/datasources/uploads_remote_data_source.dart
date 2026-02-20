@@ -46,9 +46,19 @@ class UploadsRemoteDataSource {
   Future<Result<PresignedUrlResponse>> requestPresignedUrl(
     CreateUploadUrlRequest request,
   ) {
+    // EN: Use a shorter timeout for presigned URL requests so that
+    // we can quickly fall back to direct upload when the server
+    // does not support or respond to presigned URL requests.
+    // KO: presigned URL 요청에 짧은 타임아웃을 사용하여 서버가
+    // presigned URL을 지원하지 않거나 응답하지 않을 때 빠르게
+    // 직접 업로드로 폴백할 수 있도록 합니다.
     return _apiClient.post<PresignedUrlResponse>(
       ApiEndpoints.uploadsPresignedUrl,
       data: request.toJson(),
+      options: Options(
+        receiveTimeout: const Duration(seconds: 8),
+        sendTimeout: const Duration(seconds: 8),
+      ),
       fromJson: (json) =>
           PresignedUrlResponse.fromJson(json as Map<String, dynamic>),
     );

@@ -171,6 +171,12 @@ class PlacesRemoteDataSource {
     return _apiClient.get<List<PlaceSummaryDto>>(
       ApiEndpoints.placesWithinBounds(projectId),
       queryParameters: {
+        // EN: Keep both legacy and v3 parameter names for compatibility.
+        // KO: 호환성을 위해 레거시/v3 파라미터를 모두 전송합니다.
+        'south': swLat,
+        'west': swLng,
+        'north': neLat,
+        'east': neLng,
         'swLat': swLat,
         'swLng': swLng,
         'neLat': neLat,
@@ -193,8 +199,13 @@ class PlacesRemoteDataSource {
     return _apiClient.get<List<PlaceSummaryDto>>(
       ApiEndpoints.placesNearby(projectId),
       queryParameters: {
+        // EN: Send both alias pairs (`lat`/`lon`, `latitude`/`longitude`).
+        // KO: 별칭 파라미터(`lat`/`lon`, `latitude`/`longitude`)를 함께 전송합니다.
+        'lat': latitude,
+        'lon': longitude,
         'latitude': latitude,
         'longitude': longitude,
+        if (radiusKm != null) 'radius': radiusKm,
         if (radiusKm != null) 'radiusKm': radiusKm,
         if (unitIds.isNotEmpty) 'unitIds': unitIds,
       },

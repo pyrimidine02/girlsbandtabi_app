@@ -24,9 +24,21 @@ class SearchRepositoryImpl implements SearchRepository {
   @override
   Future<Result<List<SearchItem>>> search({
     required String query,
+    String? projectId,
+    List<String> unitIds = const [],
+    List<String> types = const [],
+    int page = 0,
+    int size = 20,
     bool forceRefresh = false,
   }) async {
-    final cacheKey = _cacheKey(query);
+    final cacheKey = _cacheKey(
+      query: query,
+      projectId: projectId,
+      unitIds: unitIds,
+      types: types,
+      page: page,
+      size: size,
+    );
     // EN: Use staleWhileRevalidate — show cached search results instantly.
     // KO: staleWhileRevalidate 사용 — 캐시된 검색 결과 즉시 표시.
     final policy = forceRefresh
@@ -38,7 +50,14 @@ class SearchRepositoryImpl implements SearchRepository {
         key: cacheKey,
         policy: policy,
         ttl: const Duration(minutes: 5),
-        fetcher: () => _fetchSearch(query),
+        fetcher: () => _fetchSearch(
+          query: query,
+          projectId: projectId,
+          unitIds: unitIds,
+          types: types,
+          page: page,
+          size: size,
+        ),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {
           final items = json['items'];
@@ -62,8 +81,22 @@ class SearchRepositoryImpl implements SearchRepository {
     }
   }
 
-  Future<List<SearchItemDto>> _fetchSearch(String query) async {
-    final result = await _remoteDataSource.search(query: query);
+  Future<List<SearchItemDto>> _fetchSearch({
+    required String query,
+    String? projectId,
+    List<String> unitIds = const [],
+    List<String> types = const [],
+    int page = 0,
+    int size = 20,
+  }) async {
+    final result = await _remoteDataSource.search(
+      query: query,
+      projectId: projectId,
+      unitIds: unitIds,
+      types: types,
+      page: page,
+      size: size,
+    );
 
     if (result is Success<List<SearchItemDto>>) {
       return result.data;
@@ -75,8 +108,26 @@ class SearchRepositoryImpl implements SearchRepository {
     throw const UnknownFailure('Unknown search result', code: 'unknown_search');
   }
 
-  String _cacheKey(String query) {
-    final normalized = query.trim().toLowerCase();
-    return 'search:$normalized';
+  String _cacheKey({
+    required String query,
+    String? projectId,
+    List<String> unitIds = const [],
+    List<String> types = const [],
+    int page = 0,
+    int size = 20,
+  }) {
+    final normalizedQuery = query.trim().toLowerCase();
+    final normalizedProjectId = projectId?.trim().toLowerCase() ?? '';
+    final normalizedUnitIds = List<String>.from(unitIds)
+      ..removeWhere((unitId) => unitId.trim().isEmpty)
+      ..sort();
+    final normalizedTypes = List<String>.from(types)
+      ..removeWhere((type) => type.trim().isEmpty)
+      ..sort();
+    final unitKey = normalizedUnitIds.isEmpty
+        ? 'all'
+        : normalizedUnitIds.join(',');
+    final typeKey = normalizedTypes.isEmpty ? 'all' : normalizedTypes.join(',');
+    return 'search:$normalizedQuery:$normalizedProjectId:$unitKey:$typeKey:$page:$size';
   }
 }

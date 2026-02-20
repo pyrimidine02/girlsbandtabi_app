@@ -114,17 +114,21 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     state = const AsyncLoading();
     final result = await _repository.logout();
     if (result is Err<void>) {
-      state = AsyncError(result.failure, StackTrace.current);
-      return;
+      AppLogger.warning(
+        'Logout API failed; proceeding with local logout cleanup',
+        data: result.failure,
+        tag: 'AuthController',
+      );
     }
-    await _clearAuthScopedCaches();
+
+    await _clearAppCaches();
     _authStateNotifier.setUnauthenticated();
     state = const AsyncData(null);
   }
 
   Future<Result<void>> _handleAuthResult(Result<dynamic> result) async {
     if (result is Success<dynamic>) {
-      await _clearAuthScopedCaches();
+      await _clearAppCaches();
       _authStateNotifier.setAuthenticated();
       state = const AsyncData(null);
       return const Result.success(null);
@@ -145,21 +149,20 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     );
   }
 
-  /// EN: Clear caches that must not leak across accounts.
-  /// KO: 계정 간 노출되면 안 되는 캐시를 초기화합니다.
-  Future<void> _clearAuthScopedCaches() async {
+  /// EN: Clear app cache namespace on auth transitions.
+  /// KO: 인증 상태 전환 시 앱 캐시 네임스페이스를 초기화합니다.
+  Future<void> _clearAppCaches() async {
     try {
       final cacheManager = await _cacheManagerFuture;
-      await cacheManager.remove('user_profile');
-      await cacheManager.remove('notification_settings');
+      await cacheManager.clearAll();
     } catch (e, stackTrace) {
       AppLogger.warning(
-        'Failed to clear auth-scoped caches',
+        'Failed to clear app caches',
         data: e,
         tag: 'AuthController',
       );
       AppLogger.error(
-        'Auth-scoped cache clear error',
+        'App cache clear error',
         error: e,
         stackTrace: stackTrace,
         tag: 'AuthController',

@@ -1,0 +1,307 @@
+/// EN: DTOs for admin operations endpoints.
+/// KO: 운영/관리자 엔드포인트 DTO.
+library;
+
+class AdminDashboardDto {
+  const AdminDashboardDto({
+    required this.openReports,
+    required this.inReviewReports,
+    required this.pendingRoleRequests,
+    required this.pendingVerificationAppeals,
+    required this.pendingMediaDeletionRequests,
+    required this.activeSanctions,
+    this.extraMetrics = const <String, int>{},
+  });
+
+  final int openReports;
+  final int inReviewReports;
+  final int pendingRoleRequests;
+  final int pendingVerificationAppeals;
+  final int pendingMediaDeletionRequests;
+  final int activeSanctions;
+  final Map<String, int> extraMetrics;
+
+  factory AdminDashboardDto.fromJson(Map<String, dynamic> json) {
+    final openReports = _intFromAny(json, const [
+      'openReports',
+      'openReportCount',
+      'reportsOpen',
+      'pendingReports',
+    ]);
+    final inReviewReports = _intFromAny(json, const [
+      'inReviewReports',
+      'reviewInProgressCount',
+      'reportsInReview',
+      'processingReports',
+    ]);
+    final pendingRoleRequests = _intFromAny(json, const [
+      'pendingRoleRequests',
+      'pendingProjectRoleRequests',
+      'roleRequestPendingCount',
+    ]);
+    final pendingVerificationAppeals = _intFromAny(json, const [
+      'pendingVerificationAppeals',
+      'pendingAppeals',
+      'verificationAppealsPending',
+    ]);
+    final pendingMediaDeletionRequests = _intFromAny(json, const [
+      'pendingMediaDeletionRequests',
+      'mediaDeletionPendingCount',
+      'mediaDeletionsPending',
+    ]);
+    final activeSanctions = _intFromAny(json, const [
+      'activeSanctions',
+      'activeSanctionCount',
+      'sanctionsActive',
+    ]);
+
+    final extraMetrics = <String, int>{};
+    final consumedKeys = <String>{
+      'openReports',
+      'openReportCount',
+      'reportsOpen',
+      'pendingReports',
+      'inReviewReports',
+      'reviewInProgressCount',
+      'reportsInReview',
+      'processingReports',
+      'pendingRoleRequests',
+      'pendingProjectRoleRequests',
+      'roleRequestPendingCount',
+      'pendingVerificationAppeals',
+      'pendingAppeals',
+      'verificationAppealsPending',
+      'pendingMediaDeletionRequests',
+      'mediaDeletionPendingCount',
+      'mediaDeletionsPending',
+      'activeSanctions',
+      'activeSanctionCount',
+      'sanctionsActive',
+    };
+
+    for (final entry in json.entries) {
+      if (consumedKeys.contains(entry.key)) {
+        continue;
+      }
+      final value = _intOrNull(entry.value);
+      if (value != null) {
+        extraMetrics[entry.key] = value;
+      }
+    }
+
+    return AdminDashboardDto(
+      openReports: openReports,
+      inReviewReports: inReviewReports,
+      pendingRoleRequests: pendingRoleRequests,
+      pendingVerificationAppeals: pendingVerificationAppeals,
+      pendingMediaDeletionRequests: pendingMediaDeletionRequests,
+      activeSanctions: activeSanctions,
+      extraMetrics: extraMetrics,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'openReports': openReports,
+      'inReviewReports': inReviewReports,
+      'pendingRoleRequests': pendingRoleRequests,
+      'pendingVerificationAppeals': pendingVerificationAppeals,
+      'pendingMediaDeletionRequests': pendingMediaDeletionRequests,
+      'activeSanctions': activeSanctions,
+      if (extraMetrics.isNotEmpty) 'extraMetrics': extraMetrics,
+    };
+  }
+}
+
+class AdminCommunityReportDto {
+  const AdminCommunityReportDto({
+    required this.id,
+    required this.targetType,
+    required this.targetId,
+    required this.reason,
+    required this.status,
+    required this.createdAt,
+    this.updatedAt,
+    this.reporterId,
+    this.reporterName,
+    this.assigneeId,
+    this.assigneeName,
+    this.description,
+    this.previewText,
+  });
+
+  final String id;
+  final String targetType;
+  final String targetId;
+  final String reason;
+  final String status;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+  final String? reporterId;
+  final String? reporterName;
+  final String? assigneeId;
+  final String? assigneeName;
+  final String? description;
+  final String? previewText;
+
+  factory AdminCommunityReportDto.fromJson(Map<String, dynamic> json) {
+    final target = _mapOrNull(json['target']);
+    final reporter = _mapOrNull(json['reporter']);
+    final assignee = _mapOrNull(json['assignee']);
+
+    return AdminCommunityReportDto(
+      id: _stringOrEmpty(
+        json['id'] ?? json['reportId'] ?? json['communityReportId'],
+      ).trim(),
+      targetType: _stringOrEmpty(
+        json['targetType'] ?? json['type'] ?? target?['type'] ?? 'UNKNOWN',
+      ),
+      targetId: _stringOrEmpty(
+        json['targetId'] ?? json['contentId'] ?? target?['id'] ?? '',
+      ),
+      reason: _stringOrEmpty(json['reason'] ?? json['reportReason'] ?? 'OTHER'),
+      status: _stringOrEmpty(json['status'] ?? json['reportStatus'] ?? 'OPEN'),
+      createdAt:
+          _dateTimeOrNull(
+            json['createdAt'] ?? json['reportedAt'] ?? json['submittedAt'],
+          ) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      updatedAt: _dateTimeOrNull(
+        json['updatedAt'] ?? json['reviewedAt'] ?? json['modifiedAt'],
+      ),
+      reporterId: _stringOrNull(
+        json['reporterId'] ?? json['reportedById'] ?? reporter?['id'],
+      ),
+      reporterName: _stringOrNull(
+        json['reporterName'] ??
+            json['reportedByName'] ??
+            reporter?['displayName'],
+      ),
+      assigneeId: _stringOrNull(
+        json['assigneeId'] ?? json['assignedToId'] ?? assignee?['id'],
+      ),
+      assigneeName: _stringOrNull(
+        json['assigneeName'] ??
+            json['assignedToName'] ??
+            assignee?['displayName'],
+      ),
+      description: _stringOrNull(
+        json['description'] ?? json['details'] ?? json['note'],
+      ),
+      previewText: _stringOrNull(
+        json['previewText'] ??
+            json['contentPreview'] ??
+            json['targetPreview'] ??
+            json['snippet'],
+      ),
+    );
+  }
+
+  static List<AdminCommunityReportDto> listFromAny(dynamic raw) {
+    final list = _extractList(raw);
+    return list
+        .whereType<Map<String, dynamic>>()
+        .map(AdminCommunityReportDto.fromJson)
+        .toList(growable: false);
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'targetType': targetType,
+      'targetId': targetId,
+      'reason': reason,
+      'status': status,
+      'createdAt': createdAt.toIso8601String(),
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+      if (reporterId != null) 'reporterId': reporterId,
+      if (reporterName != null) 'reporterName': reporterName,
+      if (assigneeId != null) 'assigneeId': assigneeId,
+      if (assigneeName != null) 'assigneeName': assigneeName,
+      if (description != null) 'description': description,
+      if (previewText != null) 'previewText': previewText,
+    };
+  }
+}
+
+List<dynamic> _extractList(dynamic raw) {
+  if (raw is List<dynamic>) {
+    return raw;
+  }
+  if (raw is Map<String, dynamic>) {
+    final nestedCandidates = <dynamic>[
+      raw['content'],
+      raw['items'],
+      raw['reports'],
+      raw['results'],
+      raw['data'],
+      raw['list'],
+    ];
+
+    for (final candidate in nestedCandidates) {
+      if (candidate is List<dynamic>) {
+        return candidate;
+      }
+    }
+
+    if (raw.containsKey('id') || raw.containsKey('reportId')) {
+      return <dynamic>[raw];
+    }
+  }
+  return const <dynamic>[];
+}
+
+Map<String, dynamic>? _mapOrNull(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  return null;
+}
+
+int _intFromAny(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = _intOrNull(json[key]);
+    if (value != null) {
+      return value;
+    }
+  }
+  return 0;
+}
+
+int? _intOrNull(dynamic value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value);
+  }
+  return null;
+}
+
+DateTime? _dateTimeOrNull(dynamic value) {
+  if (value is String && value.isNotEmpty) {
+    return DateTime.tryParse(value);
+  }
+  return null;
+}
+
+String _stringOrEmpty(dynamic value) {
+  if (value is String) {
+    return value;
+  }
+  if (value == null) {
+    return '';
+  }
+  return value.toString();
+}
+
+String? _stringOrNull(dynamic value) {
+  final text = _stringOrEmpty(value).trim();
+  if (text.isEmpty) {
+    return null;
+  }
+  return text;
+}

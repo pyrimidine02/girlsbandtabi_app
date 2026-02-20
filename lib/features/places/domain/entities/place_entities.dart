@@ -12,6 +12,8 @@ class PlaceSummary {
     required this.address,
     required this.latitude,
     required this.longitude,
+    this.types = const [],
+    this.tags = const [],
     this.imageUrl,
     this.distanceLabel,
     this.isVerified = false,
@@ -27,6 +29,8 @@ class PlaceSummary {
   final String address;
   final double latitude;
   final double longitude;
+  final List<String> types;
+  final List<String> tags;
   final String? imageUrl;
   final String? distanceLabel;
   final bool isVerified;
@@ -43,6 +47,8 @@ class PlaceSummary {
       address: dto.regionSummary?.primaryName ?? '',
       latitude: dto.latitude,
       longitude: dto.longitude,
+      types: dto.types,
+      tags: dto.tags,
       imageUrl: dto.thumbnailUrl,
       distanceLabel: null,
       isVerified: false,

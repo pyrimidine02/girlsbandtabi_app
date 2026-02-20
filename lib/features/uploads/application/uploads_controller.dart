@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/error/error_handler.dart';
 import '../../../core/error/failure.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
 import '../data/datasources/uploads_remote_data_source.dart';
@@ -54,36 +55,75 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
     );
   }
 
-  /// EN: Upload bytes and return upload info (direct or presigned fallback).
-  /// KO: 바이트 업로드 후 업로드 정보를 반환합니다(직접 업로드 우선).
+  /// EN: Upload bytes and return upload info (presigned first, direct fallback).
+  /// KO: 바이트 업로드 후 업로드 정보를 반환합니다(presigned 우선, direct 폴백).
+  ///
+  /// EN: For image content types, the server requires using the direct upload
+  /// endpoint, so we skip presigned URL and go straight to direct upload.
+  /// KO: 이미지 contentType의 경우 서버가 direct 업로드 엔드포인트를
+  /// 요구하므로 presigned URL을 건너뛰고 바로 direct 업로드를 사용합니다.
   Future<Result<UploadInfo>> uploadImageBytes({
     required Uint8List bytes,
     required String filename,
     required String contentType,
   }) async {
     final repository = await _ref.read(uploadsRepositoryProvider.future);
-    final directResult = await repository.directUpload(
+
+    // EN: Server rejects presigned URLs for image/* content types with 400.
+    // Use direct upload immediately for images.
+    // KO: 서버는 image/* contentType에 대해 presigned URL을 400으로 거부합니다.
+    // 이미지는 바로 direct 업로드를 사용합니다.
+    if (contentType.startsWith('image/')) {
+      AppLogger.debug(
+        'Image content type detected ($contentType), '
+        'using direct upload',
+        tag: 'UploadsController',
+      );
+      final directResult = await repository.directUpload(
+        bytes: bytes,
+        filename: filename,
+        contentType: contentType,
+      );
+      if (directResult is Success<UploadInfo>) {
+        await load(forceRefresh: true);
+      }
+      return directResult;
+    }
+
+    // EN: Non-image files: try presigned URL first, fallback to direct.
+    // KO: 이미지가 아닌 파일: presigned URL 우선, direct로 폴백.
+    final presignedResult = await _uploadViaPresigned(
+      repository: repository,
       bytes: bytes,
       filename: filename,
       contentType: contentType,
     );
 
-    if (directResult is Success<UploadInfo>) {
-      await load(forceRefresh: true);
-      return directResult;
+    if (presignedResult is Success<UploadInfo>) {
+      return presignedResult;
     }
 
-    if (directResult is Err<UploadInfo> &&
-        _shouldFallbackToPresigned(directResult.failure)) {
-      return _uploadViaPresigned(
-        repository: repository,
-        bytes: bytes,
-        filename: filename,
-        contentType: contentType,
-      );
+    if (presignedResult is Err<UploadInfo>) {
+      final failure = presignedResult.failure;
+      if (_shouldFallbackToDirect(failure)) {
+        AppLogger.warning(
+          'Presigned upload failed (${failure.runtimeType}: ${failure.message}), '
+          'falling back to direct upload',
+          tag: 'UploadsController',
+        );
+        final directResult = await repository.directUpload(
+          bytes: bytes,
+          filename: filename,
+          contentType: contentType,
+        );
+        if (directResult is Success<UploadInfo>) {
+          await load(forceRefresh: true);
+        }
+        return directResult;
+      }
     }
 
-    return directResult;
+    return presignedResult;
   }
 
   /// EN: Confirm an upload after file has been sent to S3/R2.
@@ -127,22 +167,32 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
     return result;
   }
 
-  bool _shouldFallbackToPresigned(Failure failure) {
+  bool _shouldFallbackToDirect(Failure failure) {
+    // EN: Network failures (timeout, connection error) should always fallback.
+    // KO: 네트워크 실패(타임아웃, 연결 오류)는 항상 direct로 폴백합니다.
+    if (failure is NetworkFailure) {
+      return true;
+    }
     if (failure is NotFoundFailure) {
       return true;
     }
     if (failure is ServerFailure) {
       return switch (failure.code) {
+        '404' => true,
+        '405' => true,
         '500' => true,
         '501' => true,
         '502' => true,
         '503' => true,
-        'INTERNAL_SERVER_ERROR' => true,
-        '404' => true,
         _ =>
-          failure.message.toLowerCase().contains('upload') &&
-              failure.message.toLowerCase().contains('disabled'),
+          failure.message.toLowerCase().contains('presigned') &&
+              failure.message.toLowerCase().contains('unsupported'),
       };
+    }
+    // EN: Unknown failures should also try direct upload as a last resort.
+    // KO: 알 수 없는 실패도 최후 수단으로 direct 업로드를 시도합니다.
+    if (failure is UnknownFailure) {
+      return true;
     }
     return false;
   }

@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../data/dto/news_dto.dart';
 import '../../data/dto/post_comment_dto.dart';
 import '../../data/dto/post_dto.dart';
+import 'community_moderation.dart';
 
 class NewsSummary {
   const NewsSummary({
@@ -84,10 +85,12 @@ class PostSummary {
     required this.createdAt,
     this.imageUrls = const [],
     this.content,
+    this.thumbnailUrl,
     this.authorName,
     this.authorAvatarUrl,
     this.commentCount,
     this.likeCount,
+    this.moderationStatus,
   });
 
   final String id;
@@ -97,10 +100,12 @@ class PostSummary {
   final DateTime createdAt;
   final List<String> imageUrls;
   final String? content;
+  final String? thumbnailUrl;
   final String? authorName;
   final String? authorAvatarUrl;
   final int? commentCount;
   final int? likeCount;
+  final ContentModerationStatus? moderationStatus;
 
   String get timeAgoLabel => _formatTimeAgo(createdAt);
 
@@ -113,10 +118,14 @@ class PostSummary {
       createdAt: dto.createdAt,
       imageUrls: dto.imageUrls,
       content: dto.content,
+      thumbnailUrl: dto.thumbnailUrl,
       authorName: dto.authorName,
       authorAvatarUrl: dto.authorAvatarUrl,
       commentCount: dto.commentCount,
       likeCount: dto.likeCount,
+      moderationStatus: ContentModerationStatusX.fromApiValue(
+        dto.moderationStatus,
+      ),
     );
   }
 }
@@ -135,6 +144,7 @@ class PostDetail {
     this.authorAvatarUrl,
     this.commentCount,
     this.likeCount,
+    this.moderationStatus,
   });
 
   final String id;
@@ -149,6 +159,7 @@ class PostDetail {
   final String? authorAvatarUrl;
   final int? commentCount;
   final int? likeCount;
+  final ContentModerationStatus? moderationStatus;
 
   String get timeAgoLabel => _formatTimeAgo(createdAt);
 
@@ -166,6 +177,9 @@ class PostDetail {
       authorAvatarUrl: dto.authorAvatarUrl,
       commentCount: dto.commentCount,
       likeCount: dto.likeCount,
+      moderationStatus: ContentModerationStatusX.fromApiValue(
+        dto.moderationStatus,
+      ),
     );
   }
 }

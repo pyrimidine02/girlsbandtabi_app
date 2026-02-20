@@ -29,4 +29,16 @@ abstract class CommunityRepository {
   /// EN: Unblock a user.
   /// KO: 사용자를 차단 해제합니다.
   Future<Result<void>> unblockUser({required String targetUserId});
+
+  /// EN: Get sanction status for the authenticated user.
+  /// KO: 로그인 사용자의 제재 상태를 조회합니다.
+  Future<Result<UserSanctionStatus>> getMySanctionStatus();
+
+  /// EN: Submit moderation appeal.
+  /// KO: 모더레이션 이의제기를 제출합니다.
+  Future<Result<void>> submitAppeal({
+    required CommunityReportTargetType targetType,
+    required String targetId,
+    required String reason,
+  });
 }

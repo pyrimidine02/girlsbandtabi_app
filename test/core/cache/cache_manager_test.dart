@@ -80,4 +80,88 @@ void main() {
       throwsA(isA<CacheFailure>()),
     );
   });
+
+  test(
+    'cacheFirst triggers background revalidation when entry is old',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      final storage = LocalStorage(prefs);
+      var now = DateTime(2026, 2, 12, 9, 0, 0);
+      final manager = CacheManager(storage, now: () => now);
+
+      await manager.setJson('home_summary', {
+        'title': 'cached',
+      }, ttl: const Duration(hours: 1));
+
+      now = now.add(const Duration(minutes: 11));
+      var fetchCount = 0;
+      final result = await manager.resolve<Map<String, dynamic>>(
+        key: 'home_summary',
+        policy: CachePolicy.cacheFirst,
+        revalidateAfter: const Duration(minutes: 10),
+        fetcher: () async {
+          fetchCount += 1;
+          return {'title': 'network'};
+        },
+        toJson: (data) => data,
+        fromJson: (json) => json,
+        ttl: const Duration(hours: 1),
+      );
+
+      expect(result.isFromCache, true);
+      expect(result.data['title'], 'cached');
+
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+      expect(fetchCount, 1);
+      final updated = manager.getJsonEntry<Map<String, dynamic>>(
+        'home_summary',
+        fromJson: (json) => json,
+      );
+      expect(updated?.data['title'], 'network');
+    },
+  );
+
+  test('cacheFirst background revalidation is de-duplicated per key', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final storage = LocalStorage(prefs);
+    var now = DateTime(2026, 2, 12, 9, 0, 0);
+    final manager = CacheManager(storage, now: () => now);
+
+    await manager.setJson('places', {
+      'count': 1,
+    }, ttl: const Duration(hours: 1));
+
+    now = now.add(const Duration(minutes: 11));
+    var fetchCount = 0;
+
+    Future<Map<String, dynamic>> fetcher() async {
+      fetchCount += 1;
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      return {'count': 2};
+    }
+
+    await Future.wait([
+      manager.resolve<Map<String, dynamic>>(
+        key: 'places',
+        policy: CachePolicy.cacheFirst,
+        revalidateAfter: const Duration(minutes: 10),
+        fetcher: fetcher,
+        toJson: (data) => data,
+        fromJson: (json) => json,
+        ttl: const Duration(hours: 1),
+      ),
+      manager.resolve<Map<String, dynamic>>(
+        key: 'places',
+        policy: CachePolicy.cacheFirst,
+        revalidateAfter: const Duration(minutes: 10),
+        fetcher: fetcher,
+        toJson: (data) => data,
+        fromJson: (json) => json,
+        ttl: const Duration(hours: 1),
+      ),
+    ]);
+
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(fetchCount, 1);
+  });
 }

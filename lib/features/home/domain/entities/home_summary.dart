@@ -4,9 +4,6 @@ library;
 
 import 'package:intl/intl.dart';
 
-import '../../../feed/data/dto/news_dto.dart';
-import '../../../live_events/data/dto/live_event_dto.dart';
-import '../../../places/data/dto/place_dto.dart';
 import '../../data/dto/home_summary_dto.dart';
 
 class HomeSummary {
@@ -44,33 +41,22 @@ class HomePlaceItem {
   const HomePlaceItem({
     required this.id,
     required this.name,
-    required this.location,
+    this.visitCount = 0,
     this.imageUrl,
-    this.distanceLabel,
-    this.isVerified = false,
-    this.isFavorite = false,
-    this.rating,
+    this.location,
   });
 
   final String id;
   final String name;
-  final String location;
+  final int visitCount;
   final String? imageUrl;
-  final String? distanceLabel;
-  final bool isVerified;
-  final bool isFavorite;
-  final double? rating;
+  final String? location;
 
-  factory HomePlaceItem.fromDto(PlaceSummaryDto dto) {
+  factory HomePlaceItem.fromDto(HomeRecommendedPlaceDto dto) {
     return HomePlaceItem(
       id: dto.id,
       name: dto.name,
-      location: dto.regionSummary?.primaryName ?? '',
-      imageUrl: dto.thumbnailUrl,
-      distanceLabel: null,
-      isVerified: false,
-      isFavorite: false,
-      rating: null,
+      visitCount: dto.count,
     );
   }
 }
@@ -79,30 +65,26 @@ class HomeEventItem {
   const HomeEventItem({
     required this.id,
     required this.title,
-    required this.artistName,
-    required this.venue,
     required this.dateLabel,
     this.posterUrl,
+    this.ticketUrl,
     this.isLive = false,
   });
 
   final String id;
   final String title;
-  final String artistName;
-  final String venue;
   final String dateLabel;
   final String? posterUrl;
+  final String? ticketUrl;
   final bool isLive;
 
-  factory HomeEventItem.fromDto(LiveEventSummaryDto dto) {
+  factory HomeEventItem.fromDto(HomeTrendingLiveEventDto dto) {
     return HomeEventItem(
       id: dto.id,
       title: dto.title,
-      artistName: dto.status,
-      venue: '프로젝트 ${dto.projectIds.length} · 유닛 ${dto.unitIds.length}',
       dateLabel: _formatDate(dto.showStartTime),
-      posterUrl: dto.bannerUrl,
-      isLive: dto.status.toLowerCase() == 'live',
+      ticketUrl: dto.ticketUrl,
+      isLive: false,
     );
   }
 }
@@ -122,13 +104,10 @@ class HomeNewsItem {
   final String? imageUrl;
   final DateTime? publishedAt;
 
-  factory HomeNewsItem.fromDto(NewsSummaryDto dto) {
+  factory HomeNewsItem.fromDto(HomeLatestNewsDto dto) {
     return HomeNewsItem(
       id: dto.id,
       title: dto.title,
-      summary: null,
-      imageUrl: dto.thumbnailUrl,
-      publishedAt: dto.publishedAt,
     );
   }
 }

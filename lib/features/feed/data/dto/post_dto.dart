@@ -55,10 +55,12 @@ class PostSummaryDto {
     required this.createdAt,
     this.imageUrls = const [],
     this.content,
+    this.thumbnailUrl,
     this.authorName,
     this.authorAvatarUrl,
     this.commentCount,
     this.likeCount,
+    this.moderationStatus,
   });
 
   final String id;
@@ -68,10 +70,12 @@ class PostSummaryDto {
   final DateTime createdAt;
   final List<String> imageUrls;
   final String? content;
+  final String? thumbnailUrl;
   final String? authorName;
   final String? authorAvatarUrl;
   final int? commentCount;
   final int? likeCount;
+  final String? moderationStatus;
 
   factory PostSummaryDto.fromJson(Map<String, dynamic> json) {
     final authorProfile = _authorProfile(json['authorProfile']);
@@ -84,14 +88,38 @@ class PostSummaryDto {
         json['authorProfileImageUrl'] as String? ??
         authorProfile?.avatarUrl;
 
+    // EN: Resolve thumbnail URL from various possible field names.
+    // KO: 다양한 필드명에서 썸네일 URL을 해석합니다.
+    final resolvedThumbnail =
+        json['thumbnailUrl'] as String? ??
+        json['coverImageUrl'] as String? ??
+        json['firstImageUrl'] as String? ??
+        json['thumbnail'] as String?;
+
+    // EN: Try multiple keys for image arrays.
+    // KO: 이미지 배열을 여러 키에서 시도합니다.
+    var imageUrls = _imageUrls(
+      json['images'] ??
+          json['imageUrls'] ??
+          json['attachments'] ??
+          json['media'],
+    );
+
+    // EN: If no image URLs from array fields, fall back to thumbnail.
+    // KO: 배열 필드에 이미지가 없으면 썸네일을 폴백으로 사용합니다.
+    if (imageUrls.isEmpty && resolvedThumbnail != null && resolvedThumbnail.isNotEmpty) {
+      imageUrls = [resolvedThumbnail];
+    }
+
     return PostSummaryDto(
       id: json['id'] as String? ?? '',
       projectId: json['projectId'] as String? ?? '',
       authorId: json['authorId'] as String? ?? '',
       title: json['title'] as String? ?? '',
       createdAt: _dateTime(json['createdAt']),
-      imageUrls: _imageUrls(json['images'] ?? json['imageUrls']),
+      imageUrls: imageUrls,
       content: json['content'] as String?,
+      thumbnailUrl: resolvedThumbnail,
       authorName: resolvedAuthorName,
       authorAvatarUrl: resolvedAvatarUrl,
       commentCount:
@@ -109,6 +137,7 @@ class PostSummaryDto {
                 json['favorite_count'],
           ) ??
           0,
+      moderationStatus: json['moderationStatus'] as String?,
     );
   }
 
@@ -121,10 +150,12 @@ class PostSummaryDto {
       'createdAt': createdAt.toIso8601String(),
       if (imageUrls.isNotEmpty) 'imageUrls': imageUrls,
       if (content != null) 'content': content,
+      if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
       if (authorName != null) 'authorName': authorName,
       if (authorAvatarUrl != null) 'authorAvatarUrl': authorAvatarUrl,
       if (commentCount != null) 'commentCount': commentCount,
       if (likeCount != null) 'likeCount': likeCount,
+      if (moderationStatus != null) 'moderationStatus': moderationStatus,
     };
   }
 }
@@ -143,6 +174,7 @@ class PostDetailDto {
     this.authorAvatarUrl,
     this.commentCount,
     this.likeCount,
+    this.moderationStatus,
   });
 
   final String id;
@@ -157,6 +189,7 @@ class PostDetailDto {
   final String? authorAvatarUrl;
   final int? commentCount;
   final int? likeCount;
+  final String? moderationStatus;
 
   factory PostDetailDto.fromJson(Map<String, dynamic> json) {
     final authorProfile = _authorProfile(json['authorProfile']);
@@ -195,6 +228,7 @@ class PostDetailDto {
                 json['favorite_count'],
           ) ??
           0,
+      moderationStatus: json['moderationStatus'] as String?,
     );
   }
 
@@ -212,6 +246,7 @@ class PostDetailDto {
       if (authorAvatarUrl != null) 'authorAvatarUrl': authorAvatarUrl,
       if (commentCount != null) 'commentCount': commentCount,
       if (likeCount != null) 'likeCount': likeCount,
+      if (moderationStatus != null) 'moderationStatus': moderationStatus,
     };
   }
 }
@@ -237,7 +272,13 @@ List<String> _imageUrls(dynamic raw) {
       if (item is String && item.isNotEmpty) {
         urls.add(item);
       } else if (item is Map<String, dynamic>) {
-        final url = item['url'];
+        // EN: Try multiple keys for the image URL inside an object.
+        // KO: 객체 내부에서 이미지 URL을 여러 키로 시도합니다.
+        final url =
+            item['url'] as String? ??
+            item['imageUrl'] as String? ??
+            item['src'] as String? ??
+            item['thumbnailUrl'] as String?;
         if (url is String && url.isNotEmpty) {
           urls.add(url);
         }

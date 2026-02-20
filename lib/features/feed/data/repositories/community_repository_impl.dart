@@ -134,4 +134,78 @@ class CommunityRepositoryImpl implements CommunityRepository {
       return Result.failure(failure);
     }
   }
+
+  @override
+  Future<Result<UserSanctionStatus>> getMySanctionStatus() async {
+    try {
+      final result = await _remoteDataSource.getMySanctionStatus();
+      if (result is Success<UserSanctionStatusDto>) {
+        final dto = result.data;
+        return Result.success(
+          UserSanctionStatus(
+            level: UserSanctionLevelX.fromApiValue(dto.level),
+            reason: dto.reason,
+            expiresAt: dto.expiresAt == null
+                ? null
+                : DateTime.tryParse(dto.expiresAt!),
+          ),
+        );
+      }
+      if (result is Err<UserSanctionStatusDto>) {
+        if (_shouldFallbackToNoSanction(result.failure)) {
+          return _noSanction();
+        }
+        return Result.failure(result.failure);
+      }
+
+      return _noSanction();
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      if (_shouldFallbackToNoSanction(failure)) {
+        return _noSanction();
+      }
+      return Result.failure(failure);
+    }
+  }
+
+  @override
+  Future<Result<void>> submitAppeal({
+    required CommunityReportTargetType targetType,
+    required String targetId,
+    required String reason,
+  }) async {
+    try {
+      final request = AppealCreateRequestDto(
+        targetType: targetType.apiValue,
+        targetId: targetId,
+        reason: reason,
+      );
+      final result = await _remoteDataSource.submitAppeal(request: request);
+      if (result is Success<void>) {
+        return const Result.success(null);
+      }
+      if (result is Err<void>) {
+        return Result.failure(result.failure);
+      }
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown submit appeal result',
+          code: 'unknown_submit_appeal',
+        ),
+      );
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  Result<UserSanctionStatus> _noSanction() {
+    return const Result.success(
+      UserSanctionStatus(level: UserSanctionLevel.none),
+    );
+  }
+
+  bool _shouldFallbackToNoSanction(Failure failure) {
+    return failure is NotFoundFailure || failure is NetworkFailure;
+  }
 }

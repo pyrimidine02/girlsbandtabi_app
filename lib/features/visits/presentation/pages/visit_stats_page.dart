@@ -1,5 +1,5 @@
-/// EN: Visit statistics page.
-/// KO: 방문 통계 페이지.
+/// EN: Visit statistics page — Premium dashboard with ranking banner and charts.
+/// KO: 방문 통계 페이지 — 랭킹 배너와 차트가 있는 프리미엄 대시보드.
 library;
 
 import 'package:flutter/material.dart';
@@ -11,13 +11,14 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../places/domain/entities/place_entities.dart';
 import '../../application/visits_controller.dart';
 import '../../domain/entities/visit_entities.dart';
 
-/// EN: Visit statistics page widget.
-/// KO: 방문 통계 페이지 위젯.
+/// EN: Visit statistics page widget — premium dashboard.
+/// KO: 방문 통계 페이지 위젯 — 프리미엄 대시보드.
 class VisitStatsPage extends ConsumerStatefulWidget {
   const VisitStatsPage({super.key});
 
@@ -36,16 +37,12 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final secondaryColor = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
     final visitsState = ref.watch(userVisitsControllerProvider);
     final placesMapState = ref.watch(visitPlacesMapProvider);
     final rankingState = ref.watch(userRankingProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('통계')),
+      appBar: AppBar(title: const Text('방문 통계')),
       body: visitsState.when(
         loading: () =>
             const Center(child: GBTLoading(message: '통계를 불러오는 중...')),
@@ -81,98 +78,138 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
                   .read(userVisitsControllerProvider.notifier)
                   .load(forceRefresh: true);
             },
-            child: ListView(
-              padding: GBTSpacing.paddingPage,
-              children: [
-                _RankingBanner(rankingState: rankingState),
-                const SizedBox(height: GBTSpacing.md),
-                Wrap(
-                  spacing: GBTSpacing.sm,
-                  runSpacing: GBTSpacing.sm,
-                  children: [
-                    _StatCard(
-                      icon: Icons.check_circle,
-                      title: '총 방문',
-                      value: stats.totalVisits.toString(),
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              slivers: [
+                // EN: [0] Ranking banner
+                // KO: [0] 랭킹 배너
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      GBTSpacing.pageHorizontal,
+                      GBTSpacing.sm,
+                      GBTSpacing.pageHorizontal,
+                      GBTSpacing.md,
                     ),
-                    _StatCard(
-                      icon: Icons.place,
-                      title: '방문 장소',
-                      value: stats.uniquePlaces.toString(),
-                    ),
-                    _StatCard(
-                      icon: Icons.flag,
-                      title: '첫 방문',
-                      value: stats.firstVisitLabel,
-                    ),
-                    _StatCard(
-                      icon: Icons.update,
-                      title: '최근 방문',
-                      value: stats.lastVisitLabel,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: GBTSpacing.lg),
-                Text(
-                  '자주 방문한 장소',
-                  style: GBTTypography.titleMedium.copyWith(
-                    fontWeight: FontWeight.w600,
+                    child: _RankingBanner(rankingState: rankingState),
                   ),
                 ),
-                const SizedBox(height: GBTSpacing.sm),
+
+                // EN: [1] Stat cards grid
+                // KO: [1] 통계 카드 그리드
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GBTSpacing.pageHorizontal,
+                  ),
+                  sliver: SliverGrid.count(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: GBTSpacing.sm,
+                    crossAxisSpacing: GBTSpacing.sm,
+                    childAspectRatio: 1.6,
+                    children: [
+                      _StatCard(
+                        icon: Icons.check_circle_rounded,
+                        title: '총 방문',
+                        value: '${stats.totalVisits}',
+                        unit: '회',
+                        color: GBTColors.primary,
+                      ),
+                      _StatCard(
+                        icon: Icons.place_rounded,
+                        title: '방문 장소',
+                        value: '${stats.uniquePlaces}',
+                        unit: '곳',
+                        color: GBTColors.accentTeal,
+                      ),
+                      _StatCard(
+                        icon: Icons.flag_rounded,
+                        title: '첫 방문',
+                        value: stats.firstVisitLabel,
+                        color: const Color(0xFF6366F1),
+                      ),
+                      _StatCard(
+                        icon: Icons.update_rounded,
+                        title: '최근 방문',
+                        value: stats.lastVisitLabel,
+                        color: const Color(0xFFF59E0B),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // EN: [2] Top places section header
+                // KO: [2] 자주 방문한 장소 섹션 헤더
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      GBTSpacing.pageHorizontal,
+                      GBTSpacing.xl,
+                      GBTSpacing.pageHorizontal,
+                      GBTSpacing.sm,
+                    ),
+                    child: Text(
+                      '자주 방문한 장소',
+                      style: GBTTypography.titleMedium.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // EN: [3] Top places list
+                // KO: [3] 자주 방문한 장소 목록
                 if (stats.topPlaces.isEmpty)
-                  Text(
-                    '표시할 방문 기록이 없습니다.',
-                    style: GBTTypography.bodySmall.copyWith(
-                      color: secondaryColor,
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: GBTSpacing.pageHorizontal,
+                      ),
+                      child: Text(
+                        '표시할 방문 기록이 없습니다.',
+                        style: GBTTypography.bodySmall.copyWith(
+                          color: GBTColors.textSecondary,
+                        ),
+                      ),
                     ),
                   )
                 else
-                  Column(
-                    children: stats.topPlaces.map((item) {
-                      final placeFound = placeMap.containsKey(item.placeId);
-                      final showLoading = placesLoading && !placeFound;
-                      final placeName = _resolvePlaceName(
-                        placeMap,
-                        item.placeId,
-                      );
-                      return Semantics(
-                        label: showLoading
-                            ? '장소 이름 로딩 중, 방문 ${item.count}회'
-                            : '$placeName, 방문 ${item.count}회',
-                        button: true,
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: showLoading
-                              ? Container(
-                                  height: 16,
-                                  width: 120,
-                                  decoration: BoxDecoration(
-                                    color: isDark
-                                        ? GBTColors.darkSurfaceVariant
-                                        : GBTColors.surfaceVariant,
-                                    borderRadius: BorderRadius.circular(
-                                      GBTSpacing.radiusXs,
-                                    ),
-                                  ),
-                                )
-                              : Text(
-                                  placeName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                          subtitle: Text(
-                            '방문 ${item.count}회',
-                            style: GBTTypography.bodySmall.copyWith(
-                              color: secondaryColor,
-                            ),
-                          ),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => context.goToPlaceDetail(item.placeId),
-                        ),
-                      );
-                    }).toList(),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: GBTSpacing.pageHorizontal,
+                    ),
+                    sliver: SliverList.separated(
+                      itemCount: stats.topPlaces.length,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: GBTSpacing.sm),
+                      itemBuilder: (context, index) {
+                        final item = stats.topPlaces[index];
+                        final placeFound =
+                            placeMap.containsKey(item.placeId);
+                        final showLoading = placesLoading && !placeFound;
+                        final place = placeMap[item.placeId];
+
+                        return _TopPlaceCard(
+                          rank: index + 1,
+                          place: place,
+                          visitCount: item.count,
+                          isLoading: showLoading,
+                          onTap: () =>
+                              context.goToPlaceDetail(item.placeId),
+                        );
+                      },
+                    ),
                   ),
+
+                // EN: Bottom safe area
+                // KO: 하단 안전 영역
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: MediaQuery.of(context).padding.bottom +
+                        GBTSpacing.xl,
+                  ),
+                ),
               ],
             ),
           );
@@ -180,16 +217,13 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
       ),
     );
   }
-
-  String _resolvePlaceName(Map<String, PlaceSummary> placeMap, String placeId) {
-    final place = placeMap[placeId];
-    if (place == null) return '장소 정보 없음';
-    return place.name;
-  }
 }
 
-/// EN: Ranking banner showing user's rank among all users.
-/// KO: 전체 사용자 중 내 순위를 보여주는 랭킹 배너.
+// ---------------------------------------------------------------------------
+// EN: Ranking banner with gradient background
+// KO: 그라디언트 배경의 랭킹 배너
+// ---------------------------------------------------------------------------
+
 class _RankingBanner extends StatelessWidget {
   const _RankingBanner({required this.rankingState});
 
@@ -198,75 +232,349 @@ class _RankingBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colorScheme = Theme.of(context).colorScheme;
-    final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
 
     return rankingState.when(
       loading: () => GBTShimmer(
         child: Container(
-          height: 80,
+          height: 100,
           decoration: BoxDecoration(
             color: isDark
                 ? GBTColors.darkSurfaceVariant
                 : GBTColors.surfaceVariant,
-            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
           ),
         ),
       ),
       error: (_, __) => const SizedBox.shrink(),
       data: (ranking) {
         if (ranking == null) return const SizedBox.shrink();
-        return Semantics(
-          label: '내 순위 ${ranking.rank}등, 총 ${ranking.totalUsers}명 중',
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(GBTSpacing.md),
+        return _buildBanner(ranking, isDark);
+      },
+    );
+  }
+
+  Widget _buildBanner(UserRanking ranking, bool isDark) {
+    final percentage = ranking.totalUsers > 0
+        ? ((ranking.rank / ranking.totalUsers) * 100).toStringAsFixed(0)
+        : '0';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(GBTSpacing.lg),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [
+                  GBTColors.darkSurfaceElevated,
+                  GBTColors.darkPrimary.withValues(alpha: 0.15),
+                ]
+              : [
+                  GBTColors.primary.withValues(alpha: 0.08),
+                  GBTColors.primaryLight,
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
+        border: Border.all(
+          color: isDark
+              ? GBTColors.darkPrimary.withValues(alpha: 0.2)
+              : GBTColors.primary.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Row(
+        children: [
+          // EN: Rank circle
+          // KO: 순위 원형
+          Container(
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-              border: Border.all(color: borderColor),
+              color: isDark
+                  ? GBTColors.darkPrimary.withValues(alpha: 0.15)
+                  : GBTColors.primary.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
             ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '${ranking.rank}',
+                  style: GBTTypography.headlineMedium.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color:
+                        isDark ? GBTColors.darkPrimary : GBTColors.primary,
+                    height: 1,
+                  ),
+                ),
+                Text(
+                  '등',
+                  style: GBTTypography.labelSmall.copyWith(
+                    color: isDark
+                        ? GBTColors.darkPrimary
+                        : GBTColors.primary,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: GBTSpacing.md),
+
+          // EN: Rank info
+          // KO: 순위 정보
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '내 순위',
+                  style: GBTTypography.titleSmall.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '전체 ${ranking.totalUsers}명 중 상위 $percentage%',
+                  style: GBTTypography.bodySmall.copyWith(
+                    color: isDark
+                        ? GBTColors.darkTextSecondary
+                        : GBTColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: GBTSpacing.xs),
+                // EN: Progress bar showing rank position
+                // KO: 순위 위치를 보여주는 진행 바
+                ClipRRect(
+                  borderRadius:
+                      BorderRadius.circular(GBTSpacing.radiusFull),
+                  child: LinearProgressIndicator(
+                    value: ranking.totalUsers > 0
+                        ? 1 - (ranking.rank / ranking.totalUsers)
+                        : 0,
+                    minHeight: 6,
+                    backgroundColor: isDark
+                        ? GBTColors.darkSurfaceVariant
+                        : GBTColors.surfaceVariant,
+                    color: isDark
+                        ? GBTColors.darkPrimary
+                        : GBTColors.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: GBTSpacing.sm),
+          Icon(
+            Icons.emoji_events_rounded,
+            color: const Color(0xFFF59E0B),
+            size: 32,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// EN: Stat card with colored accent
+// KO: 색상 악센트가 있는 통계 카드
+// ---------------------------------------------------------------------------
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.color,
+    this.unit,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+  final String? unit;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Semantics(
+      label: unit != null ? '$title: $value$unit' : '$title: $value',
+      child: Container(
+        padding: const EdgeInsets.all(GBTSpacing.md),
+        decoration: BoxDecoration(
+          color: isDark ? GBTColors.darkSurfaceElevated : Colors.white,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          border: Border.all(
+            color: isDark ? GBTColors.darkBorder : GBTColors.border,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: isDark ? 0.15 : 0.1),
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+              ),
+              child: Icon(icon, size: 18, color: color),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GBTTypography.labelSmall.copyWith(
+                    color: isDark
+                        ? GBTColors.darkTextSecondary
+                        : GBTColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        value,
+                        style: GBTTypography.titleMedium.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (unit != null)
+                      Text(
+                        unit!,
+                        style: GBTTypography.bodySmall.copyWith(
+                          color: isDark
+                              ? GBTColors.darkTextSecondary
+                              : GBTColors.textSecondary,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// EN: Top place card with rank badge, image, and visit bar
+// KO: 순위 배지, 이미지, 방문 바가 있는 상위 장소 카드
+// ---------------------------------------------------------------------------
+
+class _TopPlaceCard extends StatelessWidget {
+  const _TopPlaceCard({
+    required this.rank,
+    required this.place,
+    required this.visitCount,
+    required this.isLoading,
+    required this.onTap,
+  });
+
+  final int rank;
+  final PlaceSummary? place;
+  final int visitCount;
+  final bool isLoading;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final placeName = place?.name ?? '장소 정보 없음';
+
+    return Semantics(
+      label: isLoading
+          ? '장소 이름 로딩 중, 방문 $visitCount회'
+          : '$placeName, 방문 $visitCount회',
+      button: true,
+      child: Material(
+        color: isDark ? GBTColors.darkSurfaceElevated : Colors.white,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(GBTSpacing.sm),
             child: Row(
               children: [
+                // EN: Rank badge
+                // KO: 순위 배지
                 Container(
-                  width: 56,
-                  height: 56,
+                  width: 28,
+                  height: 28,
                   decoration: BoxDecoration(
-                    // EN: Use neutral surface for rank circle background.
-                    // KO: 순위 원형 배경에 뉴트럴 표면 색상을 사용합니다.
-                    color: isDark
-                        ? GBTColors.darkSurfaceElevated
-                        : GBTColors.surfaceVariant,
+                    color: _rankColor(rank).withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: Center(
                     child: Text(
-                      '${ranking.rank}',
-                      style: GBTTypography.headlineMedium.copyWith(
-                        // EN: Use primary text color for data-focused rank number.
-                        // KO: 데이터 중심 순위 번호에 기본 텍스트 색상을 사용합니다.
-                        color: isDark
-                            ? GBTColors.darkTextPrimary
-                            : GBTColors.textPrimary,
+                      '$rank',
+                      style: GBTTypography.labelMedium.copyWith(
                         fontWeight: FontWeight.w700,
+                        color: _rankColor(rank),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: GBTSpacing.md),
+                const SizedBox(width: GBTSpacing.sm),
+
+                // EN: Place thumbnail
+                // KO: 장소 썸네일
+                ClipRRect(
+                  borderRadius:
+                      BorderRadius.circular(GBTSpacing.radiusSm),
+                  child: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: _buildThumbnail(isDark),
+                  ),
+                ),
+                const SizedBox(width: GBTSpacing.sm),
+
+                // EN: Place info
+                // KO: 장소 정보
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '내 순위',
-                        style: GBTTypography.titleSmall.copyWith(
-                          fontWeight: FontWeight.w600,
+                      if (isLoading)
+                        GBTShimmer(
+                          child: Container(
+                            height: 14,
+                            width: 100,
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? GBTColors.darkSurfaceVariant
+                                  : GBTColors.surfaceVariant,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        )
+                      else
+                        Text(
+                          placeName,
+                          style: GBTTypography.bodyMedium.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
-                        '총 ${ranking.totalUsers}명 중 ${ranking.rank}등',
+                        '방문 $visitCount회',
                         style: GBTTypography.bodySmall.copyWith(
                           color: isDark
                               ? GBTColors.darkTextSecondary
@@ -276,23 +584,58 @@ class _RankingBanner extends StatelessWidget {
                     ],
                   ),
                 ),
+
                 Icon(
-                  Icons.emoji_events,
-                  // EN: Use neutral icon color for trophy instead of accent.
-                  // KO: 트로피 아이콘에 액센트 대신 뉴트럴 색상을 사용합니다.
+                  Icons.chevron_right_rounded,
+                  size: 20,
                   color: isDark
-                      ? GBTColors.darkTextSecondary
-                      : GBTColors.textSecondary,
-                  size: 28,
+                      ? GBTColors.darkTextTertiary
+                      : GBTColors.textTertiary,
                 ),
               ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
+
+  Widget _buildThumbnail(bool isDark) {
+    if (place?.imageUrl != null && place!.imageUrl!.isNotEmpty) {
+      return GBTImage(
+        imageUrl: place!.imageUrl!,
+        width: 48,
+        height: 48,
+        fit: BoxFit.cover,
+        semanticLabel: '${place!.name} 썸네일',
+      );
+    }
+    return Container(
+      color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.primaryLight,
+      child: Center(
+        child: Icon(
+          Icons.place_rounded,
+          size: 20,
+          color: isDark ? GBTColors.darkTextTertiary : GBTColors.primaryMuted,
+        ),
+      ),
+    );
+  }
+
+  Color _rankColor(int rank) {
+    return switch (rank) {
+      1 => const Color(0xFFF59E0B), // gold
+      2 => const Color(0xFF94A3B8), // silver
+      3 => const Color(0xFFCD7F32), // bronze
+      _ => GBTColors.primary,
+    };
+  }
 }
+
+// ---------------------------------------------------------------------------
+// EN: Visit stats computation
+// KO: 방문 통계 계산
+// ---------------------------------------------------------------------------
 
 class _VisitStats {
   const _VisitStats({
@@ -334,11 +677,10 @@ class _VisitStats {
       }
     }
 
-    final topPlaces =
-        placeCounts.entries
-            .map((entry) => _PlaceCount(entry.key, entry.value))
-            .toList()
-          ..sort((a, b) => b.count.compareTo(a.count));
+    final topPlaces = placeCounts.entries
+        .map((entry) => _PlaceCount(entry.key, entry.value))
+        .toList()
+      ..sort((a, b) => b.count.compareTo(a.count));
 
     return _VisitStats(
       totalVisits: totalVisits,
@@ -362,76 +704,11 @@ class _PlaceCount {
   final int count;
 }
 
-/// EN: Stat card widget with dark mode support.
-/// KO: 다크 모드 지원이 포함된 통계 카드 위젯.
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
+// ---------------------------------------------------------------------------
+// EN: Empty state
+// KO: 빈 상태
+// ---------------------------------------------------------------------------
 
-  final IconData icon;
-  final String title;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colorScheme = Theme.of(context).colorScheme;
-    final secondaryColor = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
-    final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
-
-    return Semantics(
-      label: '$title: $value',
-      child: Container(
-        width:
-            (MediaQuery.sizeOf(context).width -
-                GBTSpacing.lg * 2 -
-                GBTSpacing.sm) /
-            2,
-        padding: const EdgeInsets.all(GBTSpacing.md),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-          border: Border.all(color: borderColor),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // EN: Use neutral icon color for stat cards instead of accent.
-            // KO: 통계 카드 아이콘에 액센트 대신 뉴트럴 색상을 사용합니다.
-            Icon(
-              icon,
-              color: isDark
-                  ? GBTColors.darkTextSecondary
-                  : GBTColors.textSecondary,
-            ),
-            const SizedBox(height: GBTSpacing.sm),
-            Text(
-              title,
-              style: GBTTypography.bodySmall.copyWith(color: secondaryColor),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: GBTTypography.titleMedium.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// EN: Stats empty/error state widget.
-/// KO: 통계 빈 상태/오류 상태 위젯.
 class _StatsEmptyState extends StatelessWidget {
   const _StatsEmptyState({required this.message, this.onRetry});
 
@@ -441,28 +718,29 @@ class _StatsEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tertiaryColor = isDark
-        ? GBTColors.darkTextTertiary
-        : GBTColors.textTertiary;
-    final secondaryColor = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
 
     return ListView(
       padding: GBTSpacing.paddingPage,
       children: [
-        const SizedBox(height: GBTSpacing.xl),
-        Icon(Icons.bar_chart, size: 48, color: tertiaryColor),
-        const SizedBox(height: GBTSpacing.md),
+        SizedBox(height: MediaQuery.of(context).size.height * 0.2),
+        Icon(
+          Icons.bar_chart_rounded,
+          size: 64,
+          color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+        ),
+        const SizedBox(height: GBTSpacing.lg),
         Text(
           message,
           textAlign: TextAlign.center,
-          style: GBTTypography.bodyMedium.copyWith(color: secondaryColor),
+          style: GBTTypography.bodyLarge.copyWith(
+            color:
+                isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
+          ),
         ),
         if (onRetry != null) ...[
-          const SizedBox(height: GBTSpacing.md),
+          const SizedBox(height: GBTSpacing.lg),
           Center(
-            child: OutlinedButton(
+            child: FilledButton.tonal(
               onPressed: onRetry,
               child: const Text('다시 시도'),
             ),

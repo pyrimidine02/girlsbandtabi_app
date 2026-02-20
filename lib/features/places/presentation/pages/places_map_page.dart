@@ -2,11 +2,13 @@
 /// KO: 지도 뷰와 바텀시트 리스트를 포함한 장소 지도 페이지
 library;
 
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:apple_maps_flutter/apple_maps_flutter.dart' as amaps;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import '../../../../core/error/failure.dart';
@@ -28,6 +30,8 @@ import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../application/places_controller.dart';
 import '../../domain/entities/place_entities.dart';
 import '../../domain/entities/place_region_entities.dart';
+import '../../domain/utils/place_marker_style.dart';
+import '../../domain/utils/place_type_search.dart';
 
 /// EN: Places map page widget
 /// KO: 장소 지도 페이지 위젯
@@ -39,6 +43,10 @@ class PlacesMapPage extends ConsumerStatefulWidget {
 }
 
 class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
+  static const double _sheetInitialSize = 0.4;
+  static const double _sheetMinSize = 0.15;
+  static const double _sheetMaxSize = 0.9;
+
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
   gmaps.GoogleMapController? _googleMapController;
@@ -239,9 +247,9 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
           // KO: 장소 리스트를 포함한 바텀시트
           DraggableScrollableSheet(
             controller: _sheetController,
-            initialChildSize: 0.4,
-            minChildSize: 0.15,
-            maxChildSize: 0.9,
+            initialChildSize: _sheetInitialSize,
+            minChildSize: _sheetMinSize,
+            maxChildSize: _sheetMaxSize,
             builder: (context, scrollController) {
               final count = placesState.maybeWhen(
                 data: (_) => places.length,
@@ -270,187 +278,229 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                 // KO: 단일 CustomScrollView로 헤더와 리스트를 하나의 스크롤
                 // 영역으로 합쳐 시트가 최소 크기일 때 RenderFlex 오버플로를
                 // 방지합니다.
-                child: CustomScrollView(
-                  controller: scrollController,
-                  slivers: [
-                    // ── Header (scrolls with list) ──
-                    SliverToBoxAdapter(
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: Container(
-                          margin: const EdgeInsets.only(top: GBTSpacing.sm),
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: isDarkMode
-                                ? Colors.white.withValues(alpha: 0.3)
-                                : Colors.black.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(2),
+                child: RefreshIndicator(
+                  onRefresh: _refreshPlaces,
+                  child: CustomScrollView(
+                    controller: scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      // ── Header (scrolls with list) ──
+                      SliverToBoxAdapter(
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: Container(
+                            margin: const EdgeInsets.only(top: GBTSpacing.sm),
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: isDarkMode
+                                  ? Colors.white.withValues(alpha: 0.3)
+                                  : Colors.black.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: GBTSpacing.md,
-                          vertical: GBTSpacing.sm,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              listModeLabel,
-                              style: GBTTypography.titleMedium.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  selectedRegionLabel,
-                                  style: GBTTypography.labelSmall.copyWith(
-                                    color: isDarkMode
-                                        ? GBTColors.darkTextSecondary
-                                        : GBTColors.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '$count개',
-                                  style: GBTTypography.bodySmall.copyWith(
-                                    color: isDarkMode
-                                        ? GBTColors.darkTextSecondary
-                                        : GBTColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (hasActiveFilters)
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: GBTSpacing.md,
+                            vertical: GBTSpacing.sm,
                           ),
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
-                                if (listMode != PlaceListMode.all) ...[
-                                  InputChip(
-                                    label: Text(
-                                      listMode == PlaceListMode.nearby
-                                          ? '주변'
-                                          : '전체',
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                listModeLabel,
+                                style: GBTTypography.titleMedium.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    selectedRegionLabel,
+                                    style: GBTTypography.labelSmall.copyWith(
+                                      color: isDarkMode
+                                          ? GBTColors.darkTextSecondary
+                                          : GBTColors.textSecondary,
                                     ),
-                                    onDeleted: () {
-                                      ref
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '$count개',
+                                    style: GBTTypography.bodySmall.copyWith(
+                                      color: isDarkMode
+                                          ? GBTColors.darkTextSecondary
+                                          : GBTColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (hasActiveFilters)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: GBTSpacing.md,
+                            ),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  if (listMode != PlaceListMode.all) ...[
+                                    InputChip(
+                                      label: Text(
+                                        listMode == PlaceListMode.nearby
+                                            ? '주변'
+                                            : '전체',
+                                      ),
+                                      onDeleted: () {
+                                        ref
+                                            .read(
+                                              placeListModeProvider.notifier,
+                                            )
+                                            .state = PlaceListMode
+                                            .all;
+                                      },
+                                    ),
+                                    const SizedBox(width: GBTSpacing.sm),
+                                  ],
+                                  if (selectedRegionCodes.isNotEmpty) ...[
+                                    InputChip(
+                                      label: Text(selectedRegionLabel),
+                                      onDeleted: () {
+                                        ref
+                                                .read(
+                                                  selectedPlaceRegionCodesProvider
+                                                      .notifier,
+                                                )
+                                                .state =
+                                            [];
+                                      },
+                                    ),
+                                    const SizedBox(width: GBTSpacing.sm),
+                                  ],
+                                  if (selectedBandIds.isNotEmpty) ...[
+                                    InputChip(
+                                      label: Text(selectedBandLabel),
+                                      onDeleted: () {
+                                        ref
+                                                .read(
+                                                  selectedPlaceBandIdsProvider
+                                                      .notifier,
+                                                )
+                                                .state =
+                                            [];
+                                      },
+                                    ),
+                                    const SizedBox(width: GBTSpacing.sm),
+                                  ],
+                                  TextButton(
+                                    onPressed: _resetFilters,
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: GBTSpacing.sm,
+                                      ),
+                                      minimumSize: const Size(48, 48),
+                                    ),
+                                    child: const Text('초기화'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      SliverToBoxAdapter(
+                        child: Semantics(
+                          label: '장소 목록 모드 선택',
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: GBTSpacing.md,
+                            ),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: SegmentedButton<PlaceListMode>(
+                                segments: const [
+                                  ButtonSegment(
+                                    value: PlaceListMode.nearby,
+                                    label: Text('주변'),
+                                  ),
+                                  ButtonSegment(
+                                    value: PlaceListMode.all,
+                                    label: Text('전체'),
+                                  ),
+                                ],
+                                selected: {listMode},
+                                onSelectionChanged: (selection) {
+                                  if (selection.isEmpty) return;
+                                  ref
                                           .read(placeListModeProvider.notifier)
-                                          .state = PlaceListMode
-                                          .all;
-                                    },
-                                  ),
-                                  const SizedBox(width: GBTSpacing.sm),
-                                ],
-                                if (selectedRegionCodes.isNotEmpty) ...[
-                                  InputChip(
-                                    label: Text(selectedRegionLabel),
-                                    onDeleted: () {
-                                      ref
-                                              .read(
-                                                selectedPlaceRegionCodesProvider
-                                                    .notifier,
-                                              )
-                                              .state =
-                                          [];
-                                    },
-                                  ),
-                                  const SizedBox(width: GBTSpacing.sm),
-                                ],
-                                if (selectedBandIds.isNotEmpty) ...[
-                                  InputChip(
-                                    label: Text(selectedBandLabel),
-                                    onDeleted: () {
-                                      ref
-                                              .read(
-                                                selectedPlaceBandIdsProvider
-                                                    .notifier,
-                                              )
-                                              .state =
-                                          [];
-                                    },
-                                  ),
-                                  const SizedBox(width: GBTSpacing.sm),
-                                ],
-                                TextButton(
-                                  onPressed: _resetFilters,
-                                  style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: GBTSpacing.sm,
-                                    ),
-                                    minimumSize: const Size(48, 48),
-                                  ),
-                                  child: const Text('초기화'),
-                                ),
-                              ],
+                                          .state =
+                                      selection.first;
+                                },
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    SliverToBoxAdapter(
-                      child: Semantics(
-                        label: '장소 목록 모드 선택',
+                      const SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: GBTSpacing.md,
-                          ),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: SegmentedButton<PlaceListMode>(
-                              segments: const [
-                                ButtonSegment(
-                                  value: PlaceListMode.nearby,
-                                  label: Text('주변'),
-                                ),
-                                ButtonSegment(
-                                  value: PlaceListMode.all,
-                                  label: Text('전체'),
-                                ),
-                              ],
-                              selected: {listMode},
-                              onSelectionChanged: (selection) {
-                                if (selection.isEmpty) return;
-                                ref.read(placeListModeProvider.notifier).state =
-                                    selection.first;
-                              },
-                            ),
-                          ),
+                          padding: EdgeInsets.only(top: GBTSpacing.sm),
+                          child: Divider(height: 1),
                         ),
                       ),
-                    ),
-                    const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.only(top: GBTSpacing.sm),
-                        child: Divider(height: 1),
-                      ),
-                    ),
 
-                    // ── Place list ──
-                    _PlacesSliverList(
-                      state: placesState.whenData((_) => places),
-                      onRetry: () => ref
-                          .read(placesListControllerProvider.notifier)
-                          .load(forceRefresh: true),
-                      onPlaceTap: _navigateToPlaceDetail,
-                      hasActiveFilters: hasActiveFilters,
-                      onResetFilters: _resetFilters,
-                    ),
-                  ],
+                      // ── Place list ──
+                      _PlacesSliverList(
+                        state: placesState.whenData((_) => places),
+                        onRetry: () => ref
+                            .read(placesListControllerProvider.notifier)
+                            .load(forceRefresh: true),
+                        onPlaceTap: _navigateToPlaceDetail,
+                        hasActiveFilters: hasActiveFilters,
+                        onResetFilters: _resetFilters,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          // EN: Keep a persistent sheet toggle so users can collapse/expand
+          // from any scroll position in the list.
+          // KO: 목록 스크롤 위치와 관계없이 즉시 내리고/올릴 수 있도록
+          // 고정 시트 토글 버튼을 제공합니다.
+          AnimatedBuilder(
+            animation: _sheetController,
+            builder: (context, child) {
+              if (!_sheetController.isAttached) {
+                return const SizedBox.shrink();
+              }
+
+              final isCollapsed = _sheetController.size <= _sheetMinSize + 0.01;
+              final bottomInset =
+                  MediaQuery.of(context).size.height * _sheetMinSize +
+                  GBTSpacing.sm;
+
+              return Positioned(
+                right: GBTSpacing.md,
+                bottom: bottomInset,
+                child: FloatingActionButton.small(
+                  heroTag: 'places-sheet-toggle',
+                  tooltip: isCollapsed ? '목록 올리기' : '목록 내리기',
+                  onPressed: isCollapsed
+                      ? _expandPlaceSheet
+                      : _collapsePlaceSheet,
+                  child: Icon(
+                    isCollapsed
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                  ),
                 ),
               );
             },
@@ -534,24 +584,95 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
   void _moveCameraTo(double latitude, double longitude, {double zoom = 12}) {
     if (kIsWeb || !mounted) return;
     if (_isAppleMap) {
-      _appleMapController?.moveCamera(
-        amaps.CameraUpdate.newCameraPosition(
-          amaps.CameraPosition(
-            target: amaps.LatLng(latitude, longitude),
-            zoom: zoom,
+      final controller = _appleMapController;
+      if (controller == null) return;
+      unawaited(
+        _safeAppleMapCall(
+          () => controller.moveCamera(
+            amaps.CameraUpdate.newCameraPosition(
+              amaps.CameraPosition(
+                target: amaps.LatLng(latitude, longitude),
+                zoom: zoom,
+              ),
+            ),
           ),
         ),
       );
       return;
     }
-    _googleMapController?.animateCamera(
-      gmaps.CameraUpdate.newCameraPosition(
-        gmaps.CameraPosition(
-          target: gmaps.LatLng(latitude, longitude),
-          zoom: zoom,
+    final controller = _googleMapController;
+    if (controller == null) return;
+    unawaited(
+      _safeGoogleMapCall(
+        () => controller.animateCamera(
+          gmaps.CameraUpdate.newCameraPosition(
+            gmaps.CameraPosition(
+              target: gmaps.LatLng(latitude, longitude),
+              zoom: zoom,
+            ),
+          ),
         ),
       ),
     );
+  }
+
+  /// EN: Collapses the place list sheet to minimum height.
+  /// KO: 장소 목록 시트를 최소 높이까지 내립니다.
+  Future<void> _collapsePlaceSheet() async {
+    if (!_sheetController.isAttached) {
+      return;
+    }
+    await _sheetController.animateTo(
+      _sheetMinSize,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  /// EN: Expands the place list sheet to the default height.
+  /// KO: 장소 목록 시트를 기본 높이로 다시 올립니다.
+  Future<void> _expandPlaceSheet() async {
+    if (!_sheetController.isAttached) {
+      return;
+    }
+    await _sheetController.animateTo(
+      _sheetInitialSize,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Future<void> _showPlaceInfoWindow(String placeId) async {
+    if (kIsWeb || !mounted) return;
+    if (_isAppleMap) {
+      final controller = _appleMapController;
+      if (controller == null) return;
+      await _safeAppleMapCall(
+        () => controller.showMarkerInfoWindow(amaps.AnnotationId(placeId)),
+      );
+      return;
+    }
+    final controller = _googleMapController;
+    if (controller == null) return;
+    await _safeGoogleMapCall(
+      () => controller.showMarkerInfoWindow(gmaps.MarkerId(placeId)),
+    );
+  }
+
+  Future<void> _safeAppleMapCall(Future<void> Function() call) async {
+    try {
+      await call();
+    } on MissingPluginException {
+      _appleMapController = null;
+    }
+  }
+
+  Future<void> _safeGoogleMapCall(Future<void> Function() call) async {
+    try {
+      await call();
+    } on MissingPluginException {
+      _googleMapController = null;
+    }
   }
 
   void _fitToPlaces(List<PlaceSummary> places) {
@@ -824,12 +945,14 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
     );
   }
 
-  void _refreshPlaces() {
+  Future<void> _refreshPlaces() async {
     _didInitialCenter = false;
-    ref.read(placesListControllerProvider.notifier).load(forceRefresh: true);
-    ref
-        .read(placesRegionOptionsControllerProvider.notifier)
-        .load(forceRefresh: true);
+    await Future.wait([
+      ref.read(placesListControllerProvider.notifier).load(forceRefresh: true),
+      ref
+          .read(placesRegionOptionsControllerProvider.notifier)
+          .load(forceRefresh: true),
+    ]);
   }
 
   void _showMapSearch(
@@ -846,15 +969,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
           regionOptionsState: regionOptionsState,
           onSelectPlace: (place) {
             _moveCameraTo(place.latitude, place.longitude, zoom: 15);
-            if (_isAppleMap) {
-              _appleMapController?.showMarkerInfoWindow(
-                amaps.AnnotationId(place.id),
-              );
-            } else {
-              _googleMapController?.showMarkerInfoWindow(
-                gmaps.MarkerId(place.id),
-              );
-            }
+            unawaited(_showPlaceInfoWindow(place.id));
           },
           onSelectRegion: (region) {
             _selectRegion(region);
@@ -1001,6 +1116,8 @@ class _PlacesSliverList extends StatelessWidget {
                   location: place.address,
                   imageUrl: place.imageUrl,
                   distance: place.distanceLabel,
+                  typeLabels: _placeTypeLabels(place.types),
+                  tagLabels: _placeTagLabels(place.tags),
                   isVerified: place.isVerified,
                   isFavorite: place.isFavorite,
                   onTap: () => onPlaceTap(place),
@@ -1052,8 +1169,10 @@ class _PlacesMapView extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final route = ModalRoute.of(context);
-    final isActiveRoute = route?.isCurrent ?? true;
-    if (!isActiveRoute) {
+    // EN: Keep map alive while popup routes (bottom sheets/dialogs) are shown.
+    // KO: 바텀시트/다이얼로그 같은 팝업 라우트 표시 중에는 지도를 유지합니다.
+    final isOffstageRoute = route?.offstage ?? false;
+    if (isOffstageRoute) {
       return const SizedBox.shrink();
     }
     if (kIsWeb) {
@@ -1124,7 +1243,9 @@ class _PlacesMapView extends StatelessWidget {
                 ? gmaps.BitmapDescriptor.defaultMarkerWithHue(
                     gmaps.BitmapDescriptor.hueOrange,
                   )
-                : gmaps.BitmapDescriptor.defaultMarker,
+                : gmaps.BitmapDescriptor.defaultMarkerWithHue(
+                    placeMarkerHueFromFirstType(cluster.places.first.types),
+                  ),
             onTap: () {
               if (cluster.isCluster) {
                 onClusterTap(cluster);
@@ -1148,6 +1269,13 @@ class _PlacesMapView extends StatelessWidget {
             annotationId: amaps.AnnotationId(cluster.markerId),
             position: amaps.LatLng(cluster.latitude, cluster.longitude),
             infoWindow: amaps.InfoWindow(title: cluster.title),
+            icon: cluster.isCluster
+                ? amaps.BitmapDescriptor.defaultAnnotationWithHue(
+                    amaps.BitmapDescriptor.hueOrange,
+                  )
+                : amaps.BitmapDescriptor.defaultAnnotationWithHue(
+                    placeMarkerHueFromFirstType(cluster.places.first.types),
+                  ),
             onTap: () {
               if (cluster.isCluster) {
                 onClusterTap(cluster);
@@ -1264,6 +1392,30 @@ class _MapSearchSheetState extends State<_MapSearchSheet> {
   final TextEditingController _controller = TextEditingController();
   String _query = '';
 
+  bool _matchesPlaceQuery(PlaceSummary place, String query) {
+    return normalizedContains(place.name, query) ||
+        normalizedContains(place.address, query) ||
+        matchesPlaceTypeQuery(query: query, types: place.types);
+  }
+
+  String _placeSubtitle(PlaceSummary place) {
+    final typeLabels = place.types
+        .map(placeTypeLabel)
+        .where((label) => label.isNotEmpty)
+        .take(2)
+        .toList();
+    final tagLabels = place.tags
+        .where((tag) => tag.trim().isNotEmpty)
+        .take(2)
+        .map((tag) => '#${tag.trim()}')
+        .toList();
+    final labels = [...typeLabels, ...tagLabels];
+    if (labels.isEmpty) {
+      return place.address;
+    }
+    return '${place.address} · ${labels.join(', ')}';
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -1276,15 +1428,11 @@ class _MapSearchSheetState extends State<_MapSearchSheet> {
     final secondaryColor = isDark
         ? GBTColors.darkTextSecondary
         : GBTColors.textSecondary;
-    final query = _query.trim().toLowerCase();
+    final query = _query.trim();
     final placeResults = query.isEmpty
         ? <PlaceSummary>[]
         : widget.places
-              .where(
-                (place) =>
-                    place.name.toLowerCase().contains(query) ||
-                    place.address.toLowerCase().contains(query),
-              )
+              .where((place) => _matchesPlaceQuery(place, query))
               .take(30)
               .toList();
 
@@ -1293,7 +1441,7 @@ class _MapSearchSheetState extends State<_MapSearchSheet> {
         if (query.isEmpty) return <RegionOption>[];
         final all = [...options.popularRegions, ...options.countries];
         return all
-            .where((option) => option.name.toLowerCase().contains(query))
+            .where((option) => normalizedContains(option.name, query))
             .take(30)
             .toList();
       },
@@ -1312,7 +1460,7 @@ class _MapSearchSheetState extends State<_MapSearchSheet> {
           children: [
             GBTSearchBar(
               controller: _controller,
-              hint: '장소/지역 검색',
+              hint: '장소/유형/지역 검색',
               autofocus: true,
               onChanged: (value) {
                 setState(() => _query = value);
@@ -1329,7 +1477,7 @@ class _MapSearchSheetState extends State<_MapSearchSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: GBTSpacing.md),
                 child: Text(
-                  '지역 또는 장소 이름을 입력하세요',
+                  '지역, 장소 이름, 장소 유형을 입력하세요',
                   style: GBTTypography.bodyMedium.copyWith(
                     color: secondaryColor,
                   ),
@@ -1373,7 +1521,7 @@ class _MapSearchSheetState extends State<_MapSearchSheet> {
                 ...placeResults.map(
                   (place) => ListTile(
                     title: Text(place.name),
-                    subtitle: Text(place.address),
+                    subtitle: Text(_placeSubtitle(place)),
                     onTap: () {
                       widget.onSelectPlace(place);
                       Navigator.of(context).pop();
@@ -1544,6 +1692,8 @@ List<PlaceSummary> _sortPlacesByDistance(
           address: item.place.address,
           latitude: item.place.latitude,
           longitude: item.place.longitude,
+          types: item.place.types,
+          tags: item.place.tags,
           imageUrl: item.place.imageUrl,
           distanceLabel: _formatDistance(item.distance),
           isVerified: item.place.isVerified,
@@ -1555,4 +1705,20 @@ List<PlaceSummary> _sortPlacesByDistance(
         ),
       )
       .toList();
+}
+
+List<String> _placeTypeLabels(List<String> types) {
+  return types
+      .map(placeTypeLabel)
+      .where((label) => label.isNotEmpty)
+      .take(2)
+      .toList(growable: false);
+}
+
+List<String> _placeTagLabels(List<String> tags) {
+  return tags
+      .where((tag) => tag.trim().isNotEmpty)
+      .map((tag) => '#${tag.trim()}')
+      .take(3)
+      .toList(growable: false);
 }

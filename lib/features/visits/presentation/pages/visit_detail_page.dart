@@ -1,5 +1,5 @@
-/// EN: Visit detail page showing visit info, map, and place summary.
-/// KO: 방문 정보, 지도, 장소 요약을 보여주는 방문 상세 페이지.
+/// EN: Visit detail page — Premium design with hero image, stats, and map.
+/// KO: 방문 상세 페이지 — 히어로 이미지, 통계, 지도가 있는 프리미엄 디자인.
 library;
 
 import 'package:apple_maps_flutter/apple_maps_flutter.dart' as amaps;
@@ -19,8 +19,8 @@ import '../../../places/domain/entities/place_entities.dart';
 import '../../application/visits_controller.dart';
 import '../../domain/entities/visit_entities.dart';
 
-/// EN: Visit detail page widget.
-/// KO: 방문 상세 페이지 위젯.
+/// EN: Visit detail page widget — premium layout.
+/// KO: 방문 상세 페이지 위젯 — 프리미엄 레이아웃.
 class VisitDetailPage extends ConsumerWidget {
   const VisitDetailPage({
     super.key,
@@ -46,8 +46,6 @@ class VisitDetailPage extends ConsumerWidget {
     final place = placesMapState.valueOrNull?[placeId];
     final detail = detailState.valueOrNull;
 
-    // EN: Determine map coordinates with fallback strategy.
-    // KO: 폴백 전략으로 지도 좌표를 결정합니다.
     final detailLat = detail?.latitude;
     final detailLng = detail?.longitude;
     final hasVerificationCoords =
@@ -62,28 +60,23 @@ class VisitDetailPage extends ConsumerWidget {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('방문 상세')),
       body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
         slivers: [
-          // EN: [0] Map section
-          // KO: [0] 지도 섹션
-          SliverToBoxAdapter(
-            child: hasMapCoords
-                ? _VisitLocationMap(
-                    latitude: mapLat,
-                    longitude: mapLng,
-                    isVerificationLocation: hasVerificationCoords,
-                    isDark: isDark,
-                  )
-                : _NoLocationMessage(isDark: isDark),
+          // EN: [0] Hero image + AppBar
+          // KO: [0] 히어로 이미지 + AppBar
+          _HeroAppBar(
+            place: place,
+            visitedAt: visitedAtFormatted,
+            isDark: isDark,
           ),
 
-          // EN: [1] Visit info section
-          // KO: [1] 방문 정보 섹션
+          // EN: [1] Visit info cards
+          // KO: [1] 방문 정보 카드
           SliverToBoxAdapter(
-            child: _VisitInfoSection(
+            child: _VisitInfoCards(
               visitedAt: visitedAtFormatted,
-              visitId: visitId,
+              hasCoordinates: hasVerificationCoords,
               isDark: isDark,
             ),
           ),
@@ -95,11 +88,25 @@ class VisitDetailPage extends ConsumerWidget {
               place: place,
               isLoading: placesMapState.isLoading,
               isDark: isDark,
+              onViewPlace: () => context.goToPlaceDetail(placeId),
             ),
           ),
 
-          // EN: [3] Visit stats section
-          // KO: [3] 방문 통계 섹션
+          // EN: [3] Map section
+          // KO: [3] 지도 섹션
+          SliverToBoxAdapter(
+            child: hasMapCoords
+                ? _MapSection(
+                    latitude: mapLat,
+                    longitude: mapLng,
+                    isVerificationLocation: hasVerificationCoords,
+                    isDark: isDark,
+                  )
+                : const SizedBox.shrink(),
+          ),
+
+          // EN: [4] Visit stats section
+          // KO: [4] 방문 통계 섹션
           SliverToBoxAdapter(
             child: _VisitStatsSection(
               summaryState: summaryState,
@@ -107,27 +114,34 @@ class VisitDetailPage extends ConsumerWidget {
             ),
           ),
 
-          // EN: [4] Action button
-          // KO: [4] 액션 버튼
+          // EN: [5] Action buttons
+          // KO: [5] 액션 버튼
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: GBTSpacing.md,
-                vertical: GBTSpacing.lg,
+                horizontal: GBTSpacing.pageHorizontal,
+                vertical: GBTSpacing.md,
               ),
               child: FilledButton.icon(
                 onPressed: () => context.goToPlaceDetail(placeId),
-                icon: const Icon(Icons.place),
+                icon: const Icon(Icons.place_rounded),
                 label: const Text('장소 상세 보기'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(GBTSpacing.radiusMd),
+                  ),
+                ),
               ),
             ),
           ),
 
-          // EN: Bottom safe area padding
-          // KO: 하단 안전 영역 패딩
+          // EN: Bottom safe area
+          // KO: 하단 안전 영역
           SliverToBoxAdapter(
             child: SizedBox(
-              height: MediaQuery.of(context).padding.bottom + GBTSpacing.md,
+              height: MediaQuery.of(context).padding.bottom + GBTSpacing.lg,
             ),
           ),
         ],
@@ -144,12 +158,438 @@ class VisitDetailPage extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
-// EN: Map widget showing visit/place location
-// KO: 방문/장소 위치를 표시하는 지도 위젯
+// EN: Hero app bar with place image background
+// KO: 장소 이미지 배경의 히어로 앱바
 // ---------------------------------------------------------------------------
 
-class _VisitLocationMap extends StatelessWidget {
-  const _VisitLocationMap({
+class _HeroAppBar extends StatelessWidget {
+  const _HeroAppBar({
+    required this.place,
+    required this.visitedAt,
+    required this.isDark,
+  });
+
+  final PlaceSummary? place;
+  final String visitedAt;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = place?.imageUrl != null && place!.imageUrl!.isNotEmpty;
+
+    return SliverAppBar(
+      expandedHeight: hasImage ? 280 : 160,
+      pinned: true,
+      stretch: true,
+      backgroundColor: isDark ? GBTColors.darkSurface : Colors.white,
+      foregroundColor: hasImage ? Colors.white : null,
+      flexibleSpace: FlexibleSpaceBar(
+        title: Text(
+          place?.name ?? '방문 상세',
+          style: GBTTypography.titleSmall.copyWith(
+            color: hasImage
+                ? Colors.white
+                : (isDark
+                    ? GBTColors.darkTextPrimary
+                    : GBTColors.textPrimary),
+            fontWeight: FontWeight.w600,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        background: hasImage
+            ? Stack(
+                fit: StackFit.expand,
+                children: [
+                  GBTImage(
+                    imageUrl: place!.imageUrl!,
+                    fit: BoxFit.cover,
+                    semanticLabel: '${place!.name} 이미지',
+                  ),
+                  // EN: Gradient overlay for text readability
+                  // KO: 텍스트 가독성을 위한 그라디언트 오버레이
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black54,
+                        ],
+                        stops: [0.5, 1.0],
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isDark
+                        ? [
+                            GBTColors.darkSurfaceElevated,
+                            GBTColors.darkSurfaceVariant,
+                          ]
+                        : [
+                            GBTColors.primaryLight,
+                            GBTColors.primary.withValues(alpha: 0.15),
+                          ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.place_rounded,
+                    size: 64,
+                    color: isDark
+                        ? GBTColors.darkTextTertiary
+                        : GBTColors.primaryMuted,
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// EN: Visit info cards row
+// KO: 방문 정보 카드 행
+// ---------------------------------------------------------------------------
+
+class _VisitInfoCards extends StatelessWidget {
+  const _VisitInfoCards({
+    required this.visitedAt,
+    required this.hasCoordinates,
+    required this.isDark,
+  });
+
+  final String visitedAt;
+  final bool hasCoordinates;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        GBTSpacing.pageHorizontal,
+        GBTSpacing.lg,
+        GBTSpacing.pageHorizontal,
+        GBTSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _InfoChip(
+              icon: Icons.calendar_today_rounded,
+              label: '방문 일시',
+              value: visitedAt.isNotEmpty ? visitedAt : '-',
+              isDark: isDark,
+            ),
+          ),
+          const SizedBox(width: GBTSpacing.sm),
+          Expanded(
+            child: _InfoChip(
+              icon: hasCoordinates
+                  ? Icons.gps_fixed_rounded
+                  : Icons.gps_off_rounded,
+              label: 'GPS 인증',
+              value: hasCoordinates ? '인증됨' : '미인증',
+              isDark: isDark,
+              highlight: hasCoordinates,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.isDark,
+    this.highlight = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool isDark;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(GBTSpacing.md),
+      decoration: BoxDecoration(
+        color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        border: highlight
+            ? Border.all(
+                color: isDark
+                    ? GBTColors.darkPrimary.withValues(alpha: 0.5)
+                    : GBTColors.primary.withValues(alpha: 0.3),
+              )
+            : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: highlight
+                    ? (isDark ? GBTColors.darkPrimary : GBTColors.primary)
+                    : (isDark
+                        ? GBTColors.darkTextTertiary
+                        : GBTColors.textTertiary),
+              ),
+              const SizedBox(width: GBTSpacing.xs),
+              Text(
+                label,
+                style: GBTTypography.labelSmall.copyWith(
+                  color: isDark
+                      ? GBTColors.darkTextSecondary
+                      : GBTColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: GBTSpacing.xs),
+          Text(
+            value,
+            style: GBTTypography.bodyMedium.copyWith(
+              fontWeight: FontWeight.w600,
+              color:
+                  isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// EN: Place info section
+// KO: 장소 정보 섹션
+// ---------------------------------------------------------------------------
+
+class _PlaceInfoSection extends StatelessWidget {
+  const _PlaceInfoSection({
+    required this.place,
+    required this.isLoading,
+    required this.isDark,
+    required this.onViewPlace,
+  });
+
+  final PlaceSummary? place;
+  final bool isLoading;
+  final bool isDark;
+  final VoidCallback onViewPlace;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.pageHorizontal,
+        vertical: GBTSpacing.sm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '장소 정보',
+            style: GBTTypography.titleMedium.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: GBTSpacing.sm),
+          if (isLoading) ...[
+            _buildShimmer(),
+          ] else if (place != null) ...[
+            _buildPlaceCard(),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.all(GBTSpacing.md),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? GBTColors.darkSurfaceElevated
+                    : GBTColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+              ),
+              child: Text(
+                '장소 정보를 불러올 수 없습니다',
+                style: GBTTypography.bodyMedium.copyWith(
+                  color: isDark
+                      ? GBTColors.darkTextSecondary
+                      : GBTColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceCard() {
+    return Material(
+      color: isDark ? GBTColors.darkSurfaceElevated : Colors.white,
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onViewPlace,
+        child: Padding(
+          padding: const EdgeInsets.all(GBTSpacing.md),
+          child: Row(
+            children: [
+              // EN: Place thumbnail
+              // KO: 장소 썸네일
+              ClipRRect(
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+                child: SizedBox(
+                  width: 64,
+                  height: 64,
+                  child: place!.imageUrl != null &&
+                          place!.imageUrl!.isNotEmpty
+                      ? GBTImage(
+                          imageUrl: place!.imageUrl!,
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.cover,
+                          semanticLabel: '${place!.name} 이미지',
+                        )
+                      : Container(
+                          color: isDark
+                              ? GBTColors.darkSurfaceVariant
+                              : GBTColors.primaryLight,
+                          child: Icon(
+                            Icons.place_rounded,
+                            color: isDark
+                                ? GBTColors.darkTextTertiary
+                                : GBTColors.primaryMuted,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(width: GBTSpacing.md),
+              // EN: Place info
+              // KO: 장소 정보
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      place!.name,
+                      style: GBTTypography.titleSmall.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (place!.address.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 14,
+                            color: isDark
+                                ? GBTColors.darkPrimary
+                                : GBTColors.accentTeal,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              place!.address,
+                              style: GBTTypography.bodySmall.copyWith(
+                                color: isDark
+                                    ? GBTColors.darkTextSecondary
+                                    : GBTColors.textSecondary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (place!.types.isNotEmpty) ...[
+                      const SizedBox(height: GBTSpacing.xs),
+                      Wrap(
+                        spacing: 4,
+                        children: place!.types.take(3).map((type) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? GBTColors.darkSurfaceVariant
+                                  : GBTColors.primaryLight,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              type,
+                              style: GBTTypography.labelSmall.copyWith(
+                                color: isDark
+                                    ? GBTColors.darkTextSecondary
+                                    : GBTColors.primary,
+                                fontSize: 10,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: isDark
+                    ? GBTColors.darkTextTertiary
+                    : GBTColors.textTertiary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShimmer() {
+    return GBTShimmer(
+      child: Container(
+        height: 80,
+        decoration: BoxDecoration(
+          color:
+              isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// EN: Map section with rounded corners
+// KO: 모서리가 둥근 지도 섹션
+// ---------------------------------------------------------------------------
+
+class _MapSection extends StatelessWidget {
+  const _MapSection({
     required this.latitude,
     required this.longitude,
     required this.isVerificationLocation,
@@ -163,63 +603,67 @@ class _VisitLocationMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb) {
-      return _mapPlaceholder(context);
-    }
-
-    final pinLabel = isVerificationLocation ? '인증 위치' : '장소 위치';
-
-    return SizedBox(
-      height: 250,
-      child: Stack(
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.pageHorizontal,
+        vertical: GBTSpacing.sm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned.fill(child: _buildMap(pinLabel)),
-          if (!isVerificationLocation)
-            Positioned(
-              bottom: GBTSpacing.sm,
-              left: GBTSpacing.md,
-              right: GBTSpacing.md,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: GBTSpacing.sm,
-                  vertical: GBTSpacing.xs,
+          Row(
+            children: [
+              Text(
+                isVerificationLocation ? '인증 위치' : '장소 위치',
+                style: GBTTypography.titleMedium.copyWith(
+                  fontWeight: FontWeight.w700,
                 ),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? GBTColors.darkSurfaceElevated.withValues(alpha: 0.9)
-                      : Colors.white.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: GBTSpacing.iconSm,
+              ),
+              if (!isVerificationLocation) ...[
+                const SizedBox(width: GBTSpacing.xs),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? GBTColors.darkSurfaceVariant
+                        : GBTColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '추정',
+                    style: GBTTypography.labelSmall.copyWith(
                       color: isDark
                           ? GBTColors.darkTextSecondary
                           : GBTColors.textSecondary,
+                      fontSize: 10,
                     ),
-                    const SizedBox(width: GBTSpacing.xs),
-                    Text(
-                      '인증 위치 정보 없음 (장소 위치 표시)',
-                      style: GBTTypography.bodySmall.copyWith(
-                        color: isDark
-                            ? GBTColors.darkTextSecondary
-                            : GBTColors.textSecondary,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
+            ],
+          ),
+          const SizedBox(height: GBTSpacing.sm),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+            child: SizedBox(
+              height: 200,
+              child: kIsWeb
+                  ? _mapPlaceholder()
+                  : _buildMap(),
             ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildMap(String pinLabel) {
-    final isApple = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  Widget _buildMap() {
+    final isApple =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    final pinLabel = isVerificationLocation ? '인증 위치' : '장소 위치';
 
     if (isApple) {
       return amaps.AppleMap(
@@ -269,17 +713,16 @@ class _VisitLocationMap extends StatelessWidget {
     );
   }
 
-  Widget _mapPlaceholder(BuildContext context) {
+  Widget _mapPlaceholder() {
     return Container(
-      height: 250,
       color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.map,
-              size: 48,
+              Icons.map_rounded,
+              size: 40,
               color: isDark
                   ? GBTColors.darkTextTertiary
                   : GBTColors.textTertiary,
@@ -287,44 +730,7 @@ class _VisitLocationMap extends StatelessWidget {
             const SizedBox(height: GBTSpacing.sm),
             Text(
               '웹에서는 지도를 지원하지 않습니다',
-              style: GBTTypography.bodyMedium.copyWith(
-                color: isDark
-                    ? GBTColors.darkTextSecondary
-                    : GBTColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NoLocationMessage extends StatelessWidget {
-  const _NoLocationMessage({required this.isDark});
-
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 120,
-      color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.location_off,
-              size: 32,
-              color: isDark
-                  ? GBTColors.darkTextTertiary
-                  : GBTColors.textTertiary,
-            ),
-            const SizedBox(height: GBTSpacing.sm),
-            Text(
-              '위치 정보 없음',
-              style: GBTTypography.bodyMedium.copyWith(
+              style: GBTTypography.bodySmall.copyWith(
                 color: isDark
                     ? GBTColors.darkTextSecondary
                     : GBTColors.textSecondary,
@@ -338,261 +744,8 @@ class _NoLocationMessage extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// EN: Visit info section (date, ID)
-// KO: 방문 정보 섹션 (날짜, ID)
-// ---------------------------------------------------------------------------
-
-class _VisitInfoSection extends StatelessWidget {
-  const _VisitInfoSection({
-    required this.visitedAt,
-    required this.visitId,
-    required this.isDark,
-  });
-
-  final String visitedAt;
-  final String visitId;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    final secondaryColor = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
-
-    return Padding(
-      padding: const EdgeInsets.all(GBTSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '방문 정보',
-            style: GBTTypography.titleMedium.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: GBTSpacing.sm),
-          _InfoRow(
-            icon: Icons.calendar_today,
-            label: '방문 일시',
-            value: visitedAt.isNotEmpty ? visitedAt : '-',
-            valueColor: secondaryColor,
-            isDark: isDark,
-          ),
-          const SizedBox(height: GBTSpacing.sm),
-          const Divider(height: 1),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.valueColor,
-    required this.isDark,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color valueColor;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: GBTSpacing.iconSm,
-          color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
-        ),
-        const SizedBox(width: GBTSpacing.sm),
-        Text(
-          label,
-          style: GBTTypography.bodySmall.copyWith(
-            color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
-          ),
-        ),
-        const SizedBox(width: GBTSpacing.sm),
-        Expanded(
-          child: Text(
-            value,
-            style: GBTTypography.bodyMedium.copyWith(color: valueColor),
-            textAlign: TextAlign.end,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// EN: Place info section (image, name, address)
-// KO: 장소 정보 섹션 (이미지, 이름, 주소)
-// ---------------------------------------------------------------------------
-
-class _PlaceInfoSection extends StatelessWidget {
-  const _PlaceInfoSection({
-    required this.place,
-    required this.isLoading,
-    required this.isDark,
-  });
-
-  final PlaceSummary? place;
-  final bool isLoading;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '장소 정보',
-            style: GBTTypography.titleMedium.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: GBTSpacing.sm),
-          if (isLoading) _buildShimmer() else _buildPlaceInfo(),
-          const SizedBox(height: GBTSpacing.sm),
-          const Divider(height: 1),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildShimmer() {
-    return Row(
-      children: [
-        GBTShimmer(
-          child: Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: isDark
-                  ? GBTColors.darkSurfaceVariant
-                  : GBTColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-            ),
-          ),
-        ),
-        const SizedBox(width: GBTSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              GBTShimmer(
-                child: Container(
-                  height: 16,
-                  width: 120,
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? GBTColors.darkSurfaceVariant
-                        : GBTColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
-                  ),
-                ),
-              ),
-              const SizedBox(height: GBTSpacing.xs),
-              GBTShimmer(
-                child: Container(
-                  height: 14,
-                  width: 180,
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? GBTColors.darkSurfaceVariant
-                        : GBTColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPlaceInfo() {
-    if (place == null) {
-      return Text(
-        '장소 정보를 불러올 수 없습니다',
-        style: GBTTypography.bodyMedium.copyWith(
-          color: isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
-        ),
-      );
-    }
-
-    return Row(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-          child: place!.imageUrl != null
-              ? GBTImage(
-                  imageUrl: place!.imageUrl!,
-                  width: 72,
-                  height: 72,
-                  fit: BoxFit.cover,
-                  semanticLabel: '${place!.name} 이미지',
-                )
-              : Container(
-                  width: 72,
-                  height: 72,
-                  color: isDark
-                      ? GBTColors.darkSurfaceVariant
-                      : GBTColors.surfaceVariant,
-                  child: Icon(
-                    Icons.place,
-                    color: isDark
-                        ? GBTColors.darkTextTertiary
-                        : GBTColors.textTertiary,
-                  ),
-                ),
-        ),
-        const SizedBox(width: GBTSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                place!.name,
-                style: GBTTypography.titleSmall.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (place!.address.isNotEmpty) ...[
-                const SizedBox(height: GBTSpacing.xxs),
-                Text(
-                  place!.address,
-                  style: GBTTypography.bodySmall.copyWith(
-                    color: isDark
-                        ? GBTColors.darkTextSecondary
-                        : GBTColors.textSecondary,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// EN: Visit stats section (total visits, first/last visit)
-// KO: 방문 통계 섹션 (총 방문, 첫/마지막 방문)
+// EN: Visit stats section with pill-style counters
+// KO: 알약 스타일 카운터가 있는 방문 통계 섹션
 // ---------------------------------------------------------------------------
 
 class _VisitStatsSection extends StatelessWidget {
@@ -605,24 +758,29 @@ class _VisitStatsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: GBTSpacing.md,
+        horizontal: GBTSpacing.pageHorizontal,
         vertical: GBTSpacing.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '방문 통계',
+            '이 장소 방문 통계',
             style: GBTTypography.titleMedium.copyWith(
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: GBTSpacing.sm),
           summaryState.when(
-            loading: () => const Center(
-              child: Padding(
-                padding: EdgeInsets.all(GBTSpacing.md),
-                child: GBTLoading(message: '통계를 불러오는 중...'),
+            loading: () => GBTShimmer(
+              child: Container(
+                height: 72,
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? GBTColors.darkSurfaceVariant
+                      : GBTColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                ),
               ),
             ),
             error: (_, __) => Text(
@@ -656,8 +814,8 @@ class _VisitStatsSection extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: _StatCard(
-            icon: Icons.repeat,
+          child: _MiniStatCard(
+            icon: Icons.repeat_rounded,
             label: '총 방문',
             value: '${summary.visitCount}회',
             isDark: isDark,
@@ -665,8 +823,8 @@ class _VisitStatsSection extends StatelessWidget {
         ),
         const SizedBox(width: GBTSpacing.sm),
         Expanded(
-          child: _StatCard(
-            icon: Icons.first_page,
+          child: _MiniStatCard(
+            icon: Icons.first_page_rounded,
             label: '첫 방문',
             value: summary.firstVisitedLabel.isNotEmpty
                 ? summary.firstVisitedLabel
@@ -676,8 +834,8 @@ class _VisitStatsSection extends StatelessWidget {
         ),
         const SizedBox(width: GBTSpacing.sm),
         Expanded(
-          child: _StatCard(
-            icon: Icons.last_page,
+          child: _MiniStatCard(
+            icon: Icons.last_page_rounded,
             label: '최근 방문',
             value: summary.lastVisitedLabel.isNotEmpty
                 ? summary.lastVisitedLabel
@@ -690,8 +848,8 @@ class _VisitStatsSection extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  const _StatCard({
+class _MiniStatCard extends StatelessWidget {
+  const _MiniStatCard({
     required this.icon,
     required this.label,
     required this.value,
@@ -706,35 +864,41 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(GBTSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.sm,
+        vertical: GBTSpacing.sm,
+      ),
       decoration: BoxDecoration(
-        color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+        color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
       ),
       child: Column(
         children: [
           Icon(
             icon,
-            size: GBTSpacing.iconSm,
-            color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+            size: 18,
+            color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
           ),
-          const SizedBox(height: GBTSpacing.xs),
+          const SizedBox(height: GBTSpacing.xxs),
           Text(
             value,
-            style: GBTTypography.titleSmall.copyWith(
-              fontWeight: FontWeight.w600,
+            style: GBTTypography.labelMedium.copyWith(
+              fontWeight: FontWeight.w700,
+              color:
+                  isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
             ),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: GBTSpacing.xxs),
+          const SizedBox(height: 2),
           Text(
             label,
-            style: GBTTypography.bodySmall.copyWith(
+            style: GBTTypography.labelSmall.copyWith(
               color: isDark
                   ? GBTColors.darkTextTertiary
                   : GBTColors.textTertiary,
+              fontSize: 10,
             ),
             textAlign: TextAlign.center,
           ),

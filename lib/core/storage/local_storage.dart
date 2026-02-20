@@ -302,4 +302,10 @@ class LocalStorage {
   bool containsKey(String key) {
     return _prefs.containsKey(key);
   }
+
+  /// EN: Returns all stored keys.
+  /// KO: 저장된 모든 키를 반환합니다.
+  Set<String> getKeys() {
+    return _prefs.getKeys();
+  }
 }
