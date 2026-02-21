@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
@@ -22,49 +23,292 @@ import '../../application/community_moderation_controller.dart';
 import '../../application/feed_controller.dart';
 import '../../domain/entities/feed_entities.dart';
 
-/// EN: Board page widget displaying community posts.
-/// KO: 커뮤니티 게시글을 표시하는 게시판 페이지 위젯.
-class BoardPage extends ConsumerWidget {
+/// EN: Board page widget displaying tabs.
+/// KO: 탭을 표시하는 게시판 페이지 위젯.
+class BoardPage extends ConsumerStatefulWidget {
   const BoardPage({super.key});
+
+  @override
+  ConsumerState<BoardPage> createState() => _BoardPageState();
+}
+
+class _BoardPageState extends ConsumerState<BoardPage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('게시판'),
+        actions: const [GBTProfileAction()],
+        bottom: TabBar(
+          controller: _tabController,
+          labelStyle: GBTTypography.titleSmall.copyWith(fontWeight: FontWeight.bold),
+          unselectedLabelStyle: GBTTypography.titleSmall,
+          tabs: const [
+            Tab(text: '커뮤니티'),
+            Tab(text: '여행후기'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // EN: Tab 1: Community
+          // KO: 첫 번째 탭: 커뮤니티
+          const _CommunityTab(),
+          
+          // EN: Tab 2: Travel Review
+          // KO: 두 번째 탭: 여행후기
+          const _TravelReviewTab(),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          if (_tabController.index == 0) {
+            context.goToPostCreate();
+          } else {
+            // EN: Go to travel review create
+            // KO: 여행후기 작성 페이지로 이동
+            context.pushNamed(AppRoutes.travelReviewCreate);
+          }
+        },
+        tooltip: '새 글 작성',
+        child: const Icon(Icons.edit),
+      ),
+    );
+  }
+}
+
+class _CommunityTab extends ConsumerWidget {
+  const _CommunityTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final postState = ref.watch(postListControllerProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('게시판'),
-        actions: const [GBTProfileAction()],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              GBTSpacing.md,
-              GBTSpacing.md,
-              GBTSpacing.md,
-              0,
-            ),
-            child: const ProjectSelectorCompact(),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            GBTSpacing.md,
+            GBTSpacing.md,
+            GBTSpacing.md,
+            0,
           ),
-          Expanded(
-            child: _CommunityList(
-              state: postState,
-              onRefresh: () => ref
-                  .read(postListControllerProvider.notifier)
-                  .load(forceRefresh: true),
-              onRetry: () => ref
-                  .read(postListControllerProvider.notifier)
-                  .load(forceRefresh: true),
+          child: const ProjectSelectorCompact(),
+        ),
+        Expanded(
+          child: _CommunityList(
+            state: postState,
+            onRefresh: () => ref
+                .read(postListControllerProvider.notifier)
+                .load(forceRefresh: true),
+            onRetry: () => ref
+                .read(postListControllerProvider.notifier)
+                .load(forceRefresh: true),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TravelReviewTab extends ConsumerWidget {
+  const _TravelReviewTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // EN: Dummy mockup data for Travel Reviews
+    // KO: 여행 후기를 위한 더미 목업 데이터
+    final mockReviews = [
+      {
+        'id': '1',
+        'authorName': '타비매니아',
+        'title': '도쿄 성지순례 1일차 알차게 다녀왔어!',
+        'content': '아침 일찍 도쿄역에 도착하자마자 오다이바 먼저 찍고 아키하바라로 넘어갔는데 일정이 좀 빡셌지만 너무 재밌었어.',
+        'image': 'https://storage.googleapis.com/girlsbandtabi/thumbnails/placeholder_map1.webp',
+        'likeCount': 42,
+        'commentCount': 8,
+        'timeAgo': '2시간 전',
+        'places': ['도쿄 타워', '시부야 스크램블 교차로', '오다이바 해변공원'],
+      },
+      {
+        'id': '2',
+        'authorName': '뉴비리뷰어',
+        'title': '3박 4일 일정 공유해봐 (아키하바라 위주)',
+        'content': '이번엔 유명한 애니 성지 위주로만 골라서 가봤는데 너무 좋았어!! 다음엔 다른 지역도 가보고 싶다.',
+        'image': 'https://storage.googleapis.com/girlsbandtabi/thumbnails/placeholder_map2.webp',
+        'likeCount': 105,
+        'commentCount': 23,
+        'timeAgo': '1일 전',
+        'places': ['아키하바라', '우에노 공원', '센소지'],
+      },
+      {
+        'id': '3',
+        'authorName': '여행가고싶다',
+        'title': '사진 위주로 올림',
+        'content': '그냥 지나가다 찍은 것들이야. 예쁘더라.',
+        'image': 'https://storage.googleapis.com/girlsbandtabi/thumbnails/placeholder_map3.webp',
+        'likeCount': 15,
+        'commentCount': 2,
+        'timeAgo': '3일 전',
+        'places': ['신주쿠 코엔', '도쿄 도청'],
+      },
+    ];
+
+    return ListView.builder(
+      padding: GBTSpacing.paddingPage,
+      itemCount: mockReviews.length,
+      itemBuilder: (context, index) {
+        final review = mockReviews[index];
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final places = review['places'] as List<String>;
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: GBTSpacing.md),
+          child: InkWell(
+            onTap: () {
+              // EN: Navigate to mock detail
+              // KO: 목업 상세 페이지로 이동
+              context.pushNamed(AppRoutes.travelReviewDetail, pathParameters: {'reviewId': review['id'] as String});
+            },
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+            child: Padding(
+            padding: GBTSpacing.paddingMd,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
+                      child: Icon(Icons.person, size: 16, color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary),
+                    ),
+                    const SizedBox(width: GBTSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            review['authorName'] as String,
+                            style: GBTTypography.labelMedium,
+                          ),
+                          Text(
+                            review['timeAgo'] as String,
+                            style: GBTTypography.labelSmall.copyWith(
+                              color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.more_vert, size: 20),
+                  ],
+                ),
+                const SizedBox(height: GBTSpacing.sm),
+                Container(
+                  width: double.infinity,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                  ),
+                  child: Center(
+                    child: Icon(Icons.map, size: 48, color: Theme.of(context).colorScheme.primary.withAlpha(100)),
+                  ),
+                ),
+                const SizedBox(height: GBTSpacing.sm),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (int i = 0; i < places.length; i++) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '${i + 1}. ${places[i]}',
+                            style: GBTTypography.labelSmall.copyWith(
+                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        if (i < places.length - 1)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 4),
+                            child: Icon(Icons.chevron_right, size: 14, color: Colors.grey),
+                          ),
+                      ]
+                    ],
+                  ),
+                ),
+                const SizedBox(height: GBTSpacing.sm),
+                Text(
+                  review['title'] as String,
+                  style: GBTTypography.titleMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: GBTSpacing.xs),
+                Text(
+                  review['content'] as String,
+                  style: GBTTypography.bodySmall.copyWith(
+                    color: isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: GBTSpacing.md),
+                Row(
+                  children: [
+                    Icon(Icons.favorite_border, size: 16, color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary),
+                    const SizedBox(width: GBTSpacing.xs),
+                    Text(
+                      '${review['likeCount']}',
+                      style: GBTTypography.labelSmall.copyWith(
+                        color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+                      ),
+                    ),
+                    const SizedBox(width: GBTSpacing.md),
+                    Icon(
+                      Icons.comment_outlined,
+                      size: 16,
+                      color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+                    ),
+                    const SizedBox(width: GBTSpacing.xs),
+                    Text(
+                      '${review['commentCount']}',
+                      style: GBTTypography.labelSmall.copyWith(
+                        color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.goToPostCreate(),
-        tooltip: '새 글 작성',
-        child: const Icon(Icons.edit),
-      ),
+          ),
+        );
+      },
     );
   }
 }

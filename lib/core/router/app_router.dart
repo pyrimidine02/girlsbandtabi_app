@@ -23,6 +23,8 @@ import '../../features/feed/presentation/pages/news_detail_page.dart';
 import '../../features/feed/presentation/pages/post_create_page.dart';
 import '../../features/feed/presentation/pages/post_detail_page.dart';
 import '../../features/feed/presentation/pages/post_edit_page.dart';
+import '../../features/feed/presentation/pages/travel_review_create_page.dart';
+import '../../features/feed/presentation/pages/travel_review_detail_page.dart';
 import '../../features/feed/presentation/pages/user_profile_page.dart';
 import '../../features/feed/domain/entities/feed_entities.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
@@ -59,6 +61,8 @@ class AppRoutes {
   static const String newsDetail = 'news-detail';
   static const String postDetail = 'post-detail';
   static const String postCreate = 'post-create';
+  static const String travelReviewCreate = 'travelReviewCreate';
+  static const String travelReviewDetail = 'travelReviewDetail';
   static const String postEdit = 'post-edit';
   static const String userProfile = 'user-profile';
 
@@ -227,6 +231,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     path: 'posts/new',
                     name: AppRoutes.postCreate,
                     builder: (context, state) => const PostCreatePage(),
+                  ),
+                  GoRoute(
+                    path: 'travel-review-create',
+                    name: AppRoutes.travelReviewCreate,
+                    builder: (context, state) => const TravelReviewCreatePage(),
+                  ),
+                  GoRoute(
+                    path: 'travel-reviews/:reviewId',
+                    name: AppRoutes.travelReviewDetail,
+                    builder: (context, state) {
+                      final reviewId = state.pathParameters['reviewId']!;
+                      return TravelReviewDetailPage(reviewId: reviewId);
+                    },
                   ),
                   GoRoute(
                     path: 'posts/:postId',

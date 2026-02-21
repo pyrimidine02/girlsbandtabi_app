@@ -260,11 +260,34 @@ class _ProfileHeader extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        displayName,
-                        style: GBTTypography.titleSmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              displayName,
+                              style: GBTTypography.titleSmall,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: GBTSpacing.sm),
+                          // EN: Dummy title (칭호) badges mimicking backend achievements
+                          // KO: 백엔드 업적을 모방한 더미 칭호 뱃지
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+                            ),
+                            child: Text(
+                              '도쿄 정복자',
+                              style: GBTTypography.labelSmall.copyWith(
+                                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       if (summaryLabel != null) ...[
                         const SizedBox(height: GBTSpacing.xs),
@@ -286,6 +309,18 @@ class _ProfileHeader extends StatelessWidget {
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: GBTSpacing.md),
+                      // EN: Expanded list of titles (칭호) the user has earned
+                      // KO: 사용자가 획득한 칭호(업적) 확장 목록
+                      Wrap(
+                        spacing: GBTSpacing.xs,
+                        runSpacing: GBTSpacing.xs,
+                        children: [
+                          _AchievementBadge(label: '도쿄 정복자', isPrimary: true),
+                          _AchievementBadge(label: '장소 10회 방문'),
+                          _AchievementBadge(label: '라이브 첫 관람'),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -294,6 +329,47 @@ class _ProfileHeader extends StatelessWidget {
                   action!,
                 ],
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AchievementBadge extends StatelessWidget {
+  const _AchievementBadge({required this.label, this.isPrimary = false});
+
+  final String label;
+  final bool isPrimary;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: isPrimary ? colorScheme.primaryContainer.withAlpha(50) : (isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant),
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+        border: Border.all(
+          color: isPrimary ? colorScheme.primary.withAlpha(100) : (isDark ? GBTColors.darkBorder : GBTColors.border),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isPrimary) ...[
+            Icon(Icons.workspace_premium, size: 12, color: colorScheme.primary),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: GBTTypography.labelSmall.copyWith(
+              color: isPrimary ? colorScheme.primary : (isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary),
+              fontSize: 10,
             ),
           ),
         ],
