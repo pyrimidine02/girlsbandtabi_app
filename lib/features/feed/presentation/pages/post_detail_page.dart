@@ -191,7 +191,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     PostDetail post,
   ) async {
     if (action == _PostAction.edit) {
-      await _showEditPostSheet(context, post);
+      context.goToPostEdit(post);
       return;
     }
     if (action == _PostAction.delete) {
@@ -210,45 +210,6 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
     if (action == _PostOtherAction.blockToggle) {
       await _toggleBlockUser(context, post.authorId);
-    }
-  }
-
-  Future<void> _showEditPostSheet(BuildContext context, PostDetail post) async {
-    final projectCode = ref.read(selectedProjectKeyProvider);
-    if (projectCode == null || projectCode.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('프로젝트를 먼저 선택해주세요')));
-      return;
-    }
-    final payload = await showModalBottomSheet<_PostEditPayload>(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) => _PostEditSheet(post: post),
-    );
-    if (payload == null) return;
-
-    final repository = await ref.read(feedRepositoryProvider.future);
-    final result = await repository.updatePost(
-      projectCode: projectCode,
-      postId: post.id,
-      title: payload.title,
-      content: payload.content,
-    );
-
-    if (!context.mounted) return;
-    if (result is Success<PostDetail>) {
-      await ref
-          .read(postDetailControllerProvider(post.id).notifier)
-          .load(forceRefresh: true);
-      await ref
-          .read(postListControllerProvider.notifier)
-          .load(forceRefresh: true);
-      if (context.mounted) {
-        _showSnackBar(context, '게시글을 수정했어요');
-      }
-    } else if (result is Err<PostDetail> && context.mounted) {
-      _showSnackBar(context, '게시글을 수정하지 못했어요');
     }
   }
 
@@ -866,92 +827,6 @@ class _PostDetailContent extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-class _PostEditPayload {
-  const _PostEditPayload({required this.title, required this.content});
-
-  final String title;
-  final String content;
-}
-
-class _PostEditSheet extends StatefulWidget {
-  const _PostEditSheet({required this.post});
-
-  final PostDetail post;
-
-  @override
-  State<_PostEditSheet> createState() => _PostEditSheetState();
-}
-
-class _PostEditSheetState extends State<_PostEditSheet> {
-  late final TextEditingController _titleController;
-  late final TextEditingController _contentController;
-
-  @override
-  void initState() {
-    super.initState();
-    _titleController = TextEditingController(text: widget.post.title);
-    _contentController = TextEditingController(text: widget.post.content ?? '');
-  }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _contentController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          GBTSpacing.md,
-          GBTSpacing.md,
-          GBTSpacing.md,
-          bottomInset + GBTSpacing.md,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('게시글 수정', style: GBTTypography.titleSmall),
-            const SizedBox(height: GBTSpacing.md),
-            TextField(
-              controller: _titleController,
-              decoration: const InputDecoration(labelText: '제목'),
-              maxLines: 1,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: GBTSpacing.md),
-            TextField(
-              controller: _contentController,
-              decoration: const InputDecoration(labelText: '내용'),
-              maxLines: 6,
-              textInputAction: TextInputAction.newline,
-            ),
-            const SizedBox(height: GBTSpacing.lg),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () {
-                  final title = _titleController.text.trim();
-                  final content = _contentController.text.trim();
-                  if (title.isEmpty || content.isEmpty) return;
-                  Navigator.of(
-                    context,
-                  ).pop(_PostEditPayload(title: title, content: content));
-                },
-                child: const Text('저장'),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

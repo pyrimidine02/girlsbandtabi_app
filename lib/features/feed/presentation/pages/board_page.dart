@@ -275,14 +275,41 @@ class _CommunityPostCard extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
                       child: GBTImage(
                         imageUrl: firstImageUrl,
-                        width: 64,
-                        height: 64,
+                        width: 88,
+                        height: 88,
                         fit: BoxFit.cover,
                         semanticLabel: '${post.title} 첨부 이미지',
                       ),
                     ),
                   ],
                 ],
+              ),
+              // EN: Content snippet below the title row, images stripped.
+              // KO: 이미지 제거 후 제목 하단에 내용 스니펫 표시.
+              Builder(
+                builder: (context) {
+                  if (post.content == null || post.content!.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  final raw = stripImageMarkdown(post.content!);
+                  if (raw.isEmpty) return const SizedBox.shrink();
+                  final snippet = raw.length > 80
+                      ? '${raw.substring(0, 80)}…'
+                      : raw;
+                  return Padding(
+                    padding: const EdgeInsets.only(top: GBTSpacing.xs),
+                    child: Text(
+                      snippet,
+                      style: GBTTypography.bodySmall.copyWith(
+                        color: isDark
+                            ? GBTColors.darkTextSecondary
+                            : GBTColors.textSecondary,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: GBTSpacing.sm),
               Semantics(

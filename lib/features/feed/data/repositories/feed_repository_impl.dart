@@ -170,9 +170,14 @@ class FeedRepositoryImpl implements FeedRepository {
     required String projectCode,
     required String title,
     required String content,
+    List<String> imageUrls = const [],
   }) async {
     try {
-      final request = PostCreateRequestDto(title: title, content: content);
+      final request = PostCreateRequestDto(
+        title: title,
+        content: content,
+        imageUrls: imageUrls,
+      );
       final result = await _remoteDataSource.createPost(
         projectCode: projectCode,
         request: request,

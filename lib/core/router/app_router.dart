@@ -22,7 +22,9 @@ import '../../features/feed/presentation/pages/info_page.dart';
 import '../../features/feed/presentation/pages/news_detail_page.dart';
 import '../../features/feed/presentation/pages/post_create_page.dart';
 import '../../features/feed/presentation/pages/post_detail_page.dart';
+import '../../features/feed/presentation/pages/post_edit_page.dart';
 import '../../features/feed/presentation/pages/user_profile_page.dart';
+import '../../features/feed/domain/entities/feed_entities.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/settings/presentation/pages/profile_edit_page.dart';
 import '../../features/settings/presentation/pages/notification_settings_page.dart';
@@ -57,6 +59,7 @@ class AppRoutes {
   static const String newsDetail = 'news-detail';
   static const String postDetail = 'post-detail';
   static const String postCreate = 'post-create';
+  static const String postEdit = 'post-edit';
   static const String userProfile = 'user-profile';
 
   // EN: Settings routes (overlay, outside shell)
@@ -231,6 +234,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) {
                       final postId = state.pathParameters['postId']!;
                       return PostDetailPage(postId: postId);
+                    },
+                  ),
+                  GoRoute(
+                    path: 'posts/:postId/edit',
+                    name: AppRoutes.postEdit,
+                    builder: (context, state) {
+                      final post = state.extra as PostDetail;
+                      return PostEditPage(post: post);
                     },
                   ),
                 ],
@@ -417,6 +428,12 @@ extension AppRouterExtension on BuildContext {
   /// KO: 게시글 작성으로 이동
   void goToPostCreate() {
     goNamed(AppRoutes.postCreate);
+  }
+
+  /// EN: Navigate to post edit.
+  /// KO: 게시글 수정으로 이동
+  void goToPostEdit(PostDetail post) {
+    pushNamed(AppRoutes.postEdit, pathParameters: {'postId': post.id}, extra: post);
   }
 
   /// EN: Navigate to user profile.

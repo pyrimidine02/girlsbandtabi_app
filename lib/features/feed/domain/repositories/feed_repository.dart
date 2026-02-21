@@ -44,6 +44,7 @@ abstract class FeedRepository {
     required String projectCode,
     required String title,
     required String content,
+    List<String> imageUrls = const [],
   });
 
   /// EN: Update a community post.

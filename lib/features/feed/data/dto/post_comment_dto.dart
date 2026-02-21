@@ -65,13 +65,22 @@ class PostCommentDto {
 }
 
 class PostCreateRequestDto {
-  const PostCreateRequestDto({required this.title, required this.content});
+  const PostCreateRequestDto({
+    required this.title,
+    required this.content,
+    this.imageUrls = const [],
+  });
 
   final String title;
   final String content;
+  final List<String> imageUrls;
 
   Map<String, dynamic> toJson() {
-    return {'title': title, 'content': content};
+    return {
+      'title': title,
+      'content': content,
+      if (imageUrls.isNotEmpty) 'imageUrls': imageUrls,
+    };
   }
 }
 

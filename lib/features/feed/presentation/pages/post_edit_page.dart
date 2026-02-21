@@ -12,7 +12,6 @@ import 'package:path/path.dart' as p;
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/providers/core_providers.dart';
-import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
@@ -24,16 +23,18 @@ import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../../uploads/application/uploads_controller.dart';
 import '../../../uploads/utils/webp_image_converter.dart';
 
-/// EN: Community post creation page widget.
-/// KO: 커뮤니티 게시글 작성 페이지 위젯.
-class PostCreatePage extends ConsumerStatefulWidget {
-  const PostCreatePage({super.key});
+/// EN: Community post edit page widget.
+/// KO: 커뮤니티 게시글 수정 페이지 위젯.
+class PostEditPage extends ConsumerStatefulWidget {
+  const PostEditPage({super.key, required this.post});
+
+  final PostDetail post;
 
   @override
-  ConsumerState<PostCreatePage> createState() => _PostCreatePageState();
+  ConsumerState<PostEditPage> createState() => _PostEditPageState();
 }
 
-class _PostCreatePageState extends ConsumerState<PostCreatePage> {
+class _PostEditPageState extends ConsumerState<PostEditPage> {
   static const int _maxTitleLength = 60;
   static const int _maxContentLength = 3000;
   static const int _maxImageCount = 6;
@@ -75,7 +76,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
 
   String get _submitButtonLabel {
     if (_canSubmit) {
-      return '게시글 등록';
+      return '게시글 수정';
     }
     if (_titleController.text.trim().isEmpty) {
       return '제목을 입력해주세요';
@@ -83,12 +84,14 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     if (_contentController.text.trim().isEmpty) {
       return '내용을 입력해주세요';
     }
-    return '등록 중...';
+    return '수정 중...';
   }
 
   @override
   void initState() {
     super.initState();
+    _titleController.text = widget.post.title;
+    _contentController.text = widget.post.content ?? '';
     _titleController.addListener(_onFormChanged);
     _contentController.addListener(_onFormChanged);
   }
@@ -164,7 +167,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
         Navigator.of(this.context).pop(result);
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('글 작성')),
+        appBar: AppBar(title: const Text('글 수정')),
         body: isAuthenticated
             ? _buildForm(context)
             : const _LoginRequiredMessage(),
@@ -339,7 +342,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
         if (_isSubmitting)
           Container(
             color: Colors.black.withValues(alpha: 0.22),
-            child: const Center(child: GBTLoading(message: '게시글을 등록하는 중...')),
+            child: const Center(child: GBTLoading(message: '게시글을 수정하는 중...')),
           ),
       ],
     );
@@ -432,25 +435,29 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     final contentWithImages = _appendImageMarkdown(content, imageUrls);
 
     final repository = await ref.read(feedRepositoryProvider.future);
-    final result = await repository.createPost(
+    final result = await repository.updatePost(
       projectCode: projectCode,
+      postId: widget.post.id,
       title: title,
       content: contentWithImages,
-      imageUrls: imageUrls,
     );
 
     if (!mounted) {
       return;
     }
 
-    if (result case Success<PostDetail>(:final data)) {
+    if (result case Success<PostDetail>()) {
+      await ref
+          .read(postDetailControllerProvider(widget.post.id).notifier)
+          .load(forceRefresh: true);
       await ref
           .read(postListControllerProvider.notifier)
           .load(forceRefresh: true);
       if (!mounted) {
         return;
       }
-      router.goNamed(AppRoutes.postDetail, pathParameters: {'postId': data.id});
+      messenger.showSnackBar(const SnackBar(content: Text('게시글을 수정했어요')));
+      router.pop();
     } else if (result case Err<PostDetail>(:final failure)) {
       messenger.showSnackBar(SnackBar(content: Text(failure.userMessage)));
     }
