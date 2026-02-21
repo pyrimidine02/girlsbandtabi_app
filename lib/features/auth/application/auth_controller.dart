@@ -8,7 +8,10 @@ import '../../../core/cache/cache_manager.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
+import '../../../core/security/secure_storage.dart';
+import '../../../core/storage/local_storage.dart';
 import '../../../core/utils/result.dart';
+import '../../settings/application/settings_controller.dart';
 import '../data/datasources/auth_remote_data_source.dart';
 import '../data/repositories/auth_repository_impl.dart';
 import '../domain/entities/oauth_provider.dart';
@@ -23,16 +26,25 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     required AuthStateNotifier authStateNotifier,
     required AuthOAuthService oauthService,
     required Future<CacheManager> cacheManagerFuture,
+    required SecureStorage secureStorage,
+    required Future<LocalStorage> localStorageFuture,
+    required Ref ref,
   }) : _repository = repository,
        _authStateNotifier = authStateNotifier,
        _oauthService = oauthService,
        _cacheManagerFuture = cacheManagerFuture,
+       _secureStorage = secureStorage,
+       _localStorageFuture = localStorageFuture,
+       _ref = ref,
        super(const AsyncData(null));
 
   final AuthRepository _repository;
   final AuthStateNotifier _authStateNotifier;
   final AuthOAuthService _oauthService;
   final Future<CacheManager> _cacheManagerFuture;
+  final SecureStorage _secureStorage;
+  final Future<LocalStorage> _localStorageFuture;
+  final Ref _ref;
 
   /// EN: Login with username/password.
   /// KO: 사용자명/비밀번호 로그인.
@@ -108,8 +120,8 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     return _oauthService.launch(provider);
   }
 
-  /// EN: Log out and clear tokens.
-  /// KO: 로그아웃 및 토큰 삭제.
+  /// EN: Log out and clear ALL local data (tokens, caches, user-specific storage).
+  /// KO: 로그아웃 시 모든 로컬 데이터를 삭제합니다 (토큰, 캐시, 사용자별 저장소).
   Future<void> logout() async {
     state = const AsyncLoading();
     final result = await _repository.logout();
@@ -121,9 +133,31 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
       );
     }
 
+    // EN: 1. Clear all cached data (gbt_cache namespace in SharedPreferences).
+    // KO: 1. 모든 캐시 데이터 삭제 (SharedPreferences의 gbt_cache 네임스페이스).
     await _clearAppCaches();
+
+    // EN: 2. Clear ALL secure storage (tokens, userId, verification keys).
+    // KO: 2. 모든 보안 저장소 삭제 (토큰, userId, 인증 키).
+    await _clearSecureStorage();
+
+    // EN: 3. Clear user-specific local storage data.
+    // KO: 3. 사용자별 로컬 저장소 데이터 삭제.
+    await _clearUserLocalStorage();
+
+    // EN: 4. Invalidate Riverpod providers holding user-specific state.
+    // KO: 4. 사용자별 상태를 보유한 Riverpod 프로바이더 초기화.
+    _invalidateUserProviders();
+
+    // EN: 5. Set auth state to unauthenticated.
+    // KO: 5. 인증 상태를 미인증으로 설정.
     _authStateNotifier.setUnauthenticated();
     state = const AsyncData(null);
+
+    AppLogger.info(
+      'Logout complete: all user data cleared',
+      tag: 'AuthController',
+    );
   }
 
   Future<Result<void>> _handleAuthResult(Result<dynamic> result) async {
@@ -169,6 +203,69 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
       );
     }
   }
+
+  /// EN: Clear ALL data from secure storage (tokens, userId, verification keys).
+  /// KO: 보안 저장소의 모든 데이터 삭제 (토큰, userId, 인증 키).
+  Future<void> _clearSecureStorage() async {
+    try {
+      await _secureStorage.clearAll();
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'Failed to clear secure storage on logout',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'AuthController',
+      );
+    }
+  }
+
+  /// EN: Clear user-specific data from local storage while preserving app settings.
+  /// KO: 앱 설정은 유지하면서 사용자별 로컬 저장소 데이터를 삭제합니다.
+  Future<void> _clearUserLocalStorage() async {
+    try {
+      final localStorage = await _localStorageFuture;
+      await Future.wait([
+        localStorage.remove(LocalStorageKeys.selectedProjectId),
+        localStorage.remove(LocalStorageKeys.selectedProjectKey),
+        localStorage.remove(LocalStorageKeys.selectedUnitIds),
+        localStorage.remove(LocalStorageKeys.recentSearches),
+        localStorage.remove(LocalStorageKeys.lastSyncTime),
+        localStorage.remove(LocalStorageKeys.cachedHomeData),
+      ]);
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'Failed to clear user local storage on logout',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'AuthController',
+      );
+    }
+  }
+
+  /// EN: Invalidate Riverpod providers that hold user-specific data.
+  /// KO: 사용자별 데이터를 보유한 Riverpod 프로바이더를 초기화합니다.
+  void _invalidateUserProviders() {
+    try {
+      // EN: Reset project/unit selection state.
+      // KO: 프로젝트/유닛 선택 상태 초기화.
+      _ref.read(selectedProjectKeyProvider.notifier).state = null;
+      _ref.read(selectedProjectIdProvider.notifier).state = null;
+      _ref.read(selectedUnitIdsProvider.notifier).state = [];
+      _ref.read(currentNavIndexProvider.notifier).state = 0;
+
+      // EN: Invalidate user profile providers.
+      // KO: 사용자 프로필 프로바이더 초기화.
+      _ref.invalidate(userProfileControllerProvider);
+      _ref.invalidate(notificationSettingsControllerProvider);
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'Failed to invalidate providers on logout',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'AuthController',
+      );
+    }
+  }
 }
 
 /// EN: Provider for AuthOAuthService.
@@ -196,10 +293,15 @@ final authControllerProvider =
       final authStateNotifier = ref.read(authStateProvider.notifier);
       final oauthService = ref.watch(authOAuthServiceProvider);
       final cacheManagerFuture = ref.watch(cacheManagerProvider.future);
+      final secureStorage = ref.watch(secureStorageProvider);
+      final localStorageFuture = ref.watch(localStorageProvider.future);
       return AuthController(
         repository: repository,
         authStateNotifier: authStateNotifier,
         oauthService: oauthService,
         cacheManagerFuture: cacheManagerFuture,
+        secureStorage: secureStorage,
+        localStorageFuture: localStorageFuture,
+        ref: ref,
       );
     });
