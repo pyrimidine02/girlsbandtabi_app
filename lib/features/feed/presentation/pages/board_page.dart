@@ -242,16 +242,73 @@ class _CommunityPostCard extends ConsumerWidget {
                     ),
                   ),
                   if (showMoreButton)
-                    IconButton(
-                      icon: const Icon(Icons.more_vert),
-                      iconSize: 20,
+                    PopupMenuButton<_PostCardAction>(
+                      icon: const Icon(Icons.more_vert, size: 20),
                       tooltip: '더 보기',
-                      onPressed: () => _showPostActions(
-                        context,
-                        ref,
-                        isAuthor: isAuthor,
-                        isAdmin: isAdmin,
-                      ),
+                      padding: EdgeInsets.zero,
+                      onSelected: (action) {
+                        switch (action) {
+                          case _PostCardAction.edit:
+                            // EN: Navigate to detail page for editing.
+                            // KO: 수정을 위해 상세 페이지로 이동합니다.
+                            context.goToPostDetail(post.id);
+                          case _PostCardAction.delete:
+                            _confirmDeletePost(context, ref);
+                          case _PostCardAction.ban:
+                            _confirmBanUser(context, ref);
+                        }
+                      },
+                      itemBuilder: (menuContext) {
+                        final cs = Theme.of(menuContext).colorScheme;
+                        return [
+                          const PopupMenuItem(
+                            value: _PostCardAction.edit,
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit_outlined, size: 18),
+                                SizedBox(width: GBTSpacing.sm),
+                                Text('수정'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          PopupMenuItem(
+                            value: _PostCardAction.delete,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.delete_outline,
+                                  size: 18,
+                                  color: cs.error,
+                                ),
+                                SizedBox(width: GBTSpacing.sm),
+                                Text(
+                                  '삭제',
+                                  style: TextStyle(color: cs.error),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (isAdmin && !isAuthor)
+                            PopupMenuItem(
+                              value: _PostCardAction.ban,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.block,
+                                    size: 18,
+                                    color: cs.error,
+                                  ),
+                                  SizedBox(width: GBTSpacing.sm),
+                                  Text(
+                                    '차단',
+                                    style: TextStyle(color: cs.error),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ];
+                      },
                     ),
                 ],
               ),
@@ -345,87 +402,6 @@ class _CommunityPostCard extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  /// EN: Show the context-aware action sheet for the post.
-  /// KO: 게시글에 대한 역할별 액션시트를 표시합니다.
-  void _showPostActions(
-    BuildContext context,
-    WidgetRef ref, {
-    required bool isAuthor,
-    required bool isAdmin,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    showModalBottomSheet<_PostCardAction>(
-      context: context,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // EN: Drag handle indicator.
-              // KO: 드래그 핸들 표시.
-              Container(
-                margin: const EdgeInsets.only(top: GBTSpacing.sm),
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
-                ),
-              ),
-              const SizedBox(height: GBTSpacing.sm),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
-                child: Text(
-                  '게시글 관리',
-                  style: GBTTypography.titleSmall,
-                ),
-              ),
-              const SizedBox(height: GBTSpacing.xs),
-              // EN: Edit option (author or admin).
-              // KO: 수정 옵션 (작성자 또는 관리자).
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('수정'),
-                onTap: () => Navigator.of(sheetContext).pop(_PostCardAction.edit),
-              ),
-              // EN: Delete option (author or admin).
-              // KO: 삭제 옵션 (작성자 또는 관리자).
-              ListTile(
-                leading: Icon(Icons.delete_outline, color: colorScheme.error),
-                title: Text('삭제', style: TextStyle(color: colorScheme.error)),
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(_PostCardAction.delete),
-              ),
-              // EN: Ban option (admin only, for non-author posts).
-              // KO: 차단 옵션 (관리자 전용, 타인의 게시글만).
-              if (isAdmin && !isAuthor)
-                ListTile(
-                  leading: Icon(Icons.block, color: colorScheme.error),
-                  title: Text('차단', style: TextStyle(color: colorScheme.error)),
-                  onTap: () =>
-                      Navigator.of(sheetContext).pop(_PostCardAction.ban),
-                ),
-              const SizedBox(height: GBTSpacing.sm),
-            ],
-          ),
-        );
-      },
-    ).then((action) {
-      if (action == null || !context.mounted) return;
-      switch (action) {
-        case _PostCardAction.edit:
-          // EN: Navigate to post detail page for editing.
-          // KO: 수정을 위해 게시글 상세 페이지로 이동합니다.
-          context.goToPostDetail(post.id);
-        case _PostCardAction.delete:
-          _confirmDeletePost(context, ref);
-        case _PostCardAction.ban:
-          _confirmBanUser(context, ref);
-      }
-    });
   }
 
   /// EN: Show delete confirmation dialog and delete the post.

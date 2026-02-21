@@ -90,10 +90,32 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
               tooltip: '게시글 관리',
               onSelected: (action) =>
                   _handlePostAction(context, action, currentPost),
-              itemBuilder: (context) => const [
-                PopupMenuItem(value: _PostAction.edit, child: Text('수정')),
-                PopupMenuItem(value: _PostAction.delete, child: Text('삭제')),
-              ],
+              itemBuilder: (menuContext) {
+                final cs = Theme.of(menuContext).colorScheme;
+                return [
+                  const PopupMenuItem(
+                    value: _PostAction.edit,
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit_outlined, size: 18),
+                        SizedBox(width: GBTSpacing.sm),
+                        Text('수정'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                    value: _PostAction.delete,
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline, size: 18, color: cs.error),
+                        SizedBox(width: GBTSpacing.sm),
+                        Text('삭제', style: TextStyle(color: cs.error)),
+                      ],
+                    ),
+                  ),
+                ];
+              },
             ),
           ]
         : [
@@ -101,14 +123,26 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
               tooltip: '게시글 옵션',
               onSelected: (action) =>
                   _handlePostOtherAction(context, action, currentPost),
-              itemBuilder: (context) => [
+              itemBuilder: (menuContext) => [
                 const PopupMenuItem(
                   value: _PostOtherAction.report,
-                  child: Text('신고'),
+                  child: Row(
+                    children: [
+                      Icon(Icons.flag_outlined, size: 18),
+                      SizedBox(width: GBTSpacing.sm),
+                      Text('신고'),
+                    ],
+                  ),
                 ),
                 PopupMenuItem(
                   value: _PostOtherAction.blockToggle,
-                  child: Text(blockLabel),
+                  child: Row(
+                    children: [
+                      Icon(Icons.person_off_outlined, size: 18),
+                      SizedBox(width: GBTSpacing.sm),
+                      Text(blockLabel),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -666,31 +700,13 @@ class _PostDetailContent extends StatelessWidget {
                 ),
               if (mergedImageUrls.isNotEmpty) ...[
                 const SizedBox(height: GBTSpacing.md),
-                // EN: Full-width images with tap-to-zoom.
-                // KO: 탭하면 확대되는 풀 와이드 이미지.
-                for (int i = 0; i < mergedImageUrls.length; i++) ...[
-                  if (i > 0) const SizedBox(height: GBTSpacing.sm),
-                  Semantics(
-                    label: '첨부 이미지 ${i + 1}/${mergedImageUrls.length}',
-                    hint: '탭하면 확대합니다',
-                    button: true,
-                    child: GestureDetector(
-                      onTap: () =>
-                          _showFullScreenImage(context, mergedImageUrls, i),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(
-                          GBTSpacing.radiusMd,
-                        ),
-                        child: GBTImage(
-                          imageUrl: mergedImageUrls[i],
-                          width: double.infinity,
-                          fit: BoxFit.fitWidth,
-                          semanticLabel: '첨부 이미지 ${i + 1}',
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                // EN: Horizontal swipeable image carousel (Twitter-style).
+                // KO: 가로로 넘기는 이미지 캐러셀 (트위터 스타일).
+                _ImageCarousel(
+                  imageUrls: mergedImageUrls,
+                  onTapImage: (index) =>
+                      _showFullScreenImage(context, mergedImageUrls, index),
+                ),
               ],
               const SizedBox(height: GBTSpacing.md),
               Semantics(
@@ -1105,6 +1121,102 @@ class _CommentItem extends StatelessWidget {
             ],
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// EN: Twitter-style horizontal swipeable image carousel with dot indicator.
+/// KO: 점 인디케이터가 있는 트위터 스타일 가로 스와이프 이미지 캐러셀.
+class _ImageCarousel extends StatefulWidget {
+  const _ImageCarousel({
+    required this.imageUrls,
+    required this.onTapImage,
+  });
+
+  final List<String> imageUrls;
+  final ValueChanged<int> onTapImage;
+
+  @override
+  State<_ImageCarousel> createState() => _ImageCarouselState();
+}
+
+class _ImageCarouselState extends State<_ImageCarousel> {
+  late final PageController _pageController;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasMultiple = widget.imageUrls.length > 1;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          child: SizedBox(
+            height: 260,
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: widget.imageUrls.length,
+              onPageChanged: (index) =>
+                  setState(() => _currentIndex = index),
+              itemBuilder: (context, index) {
+                return Semantics(
+                  label:
+                      '첨부 이미지 ${index + 1}/${widget.imageUrls.length}',
+                  hint: '탭하면 확대합니다',
+                  button: true,
+                  child: GestureDetector(
+                    onTap: () => widget.onTapImage(index),
+                    child: GBTImage(
+                      imageUrl: widget.imageUrls[index],
+                      width: double.infinity,
+                      height: 260,
+                      fit: BoxFit.cover,
+                      semanticLabel: '첨부 이미지 ${index + 1}',
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        if (hasMultiple) ...[
+          const SizedBox(height: GBTSpacing.sm),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(widget.imageUrls.length, (index) {
+              final isActive = index == _currentIndex;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 130),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: isActive ? 16 : 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(3),
+                  color: isActive
+                      ? (isDark ? GBTColors.darkPrimary : GBTColors.primary)
+                      : (isDark
+                            ? GBTColors.darkTextTertiary
+                            : GBTColors.textTertiary),
+                ),
+              );
+            }),
+          ),
+        ],
       ],
     );
   }

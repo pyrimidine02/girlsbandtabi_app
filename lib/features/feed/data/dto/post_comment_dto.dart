@@ -68,18 +68,22 @@ class PostCreateRequestDto {
   const PostCreateRequestDto({
     required this.title,
     required this.content,
-    this.imageUrls = const [],
+    this.imageUploadIds = const [],
   });
 
   final String title;
   final String content;
-  final List<String> imageUrls;
+  // EN: Upload IDs returned by the upload API (not URLs).
+  // KO: 업로드 API가 반환한 uploadId 배열 (URL이 아님).
+  // EN: Server resolves thumbnailUrl automatically from imageUploadIds[0].
+  // KO: 서버가 imageUploadIds[0]으로 thumbnailUrl을 자동 설정합니다.
+  final List<String> imageUploadIds;
 
   Map<String, dynamic> toJson() {
     return {
       'title': title,
       'content': content,
-      if (imageUrls.isNotEmpty) 'imageUrls': imageUrls,
+      if (imageUploadIds.isNotEmpty) 'imageUploadIds': imageUploadIds,
     };
   }
 }

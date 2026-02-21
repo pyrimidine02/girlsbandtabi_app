@@ -22,6 +22,7 @@ import '../../application/feed_controller.dart';
 import '../../domain/entities/feed_entities.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../../uploads/application/uploads_controller.dart';
+import '../../../uploads/domain/entities/upload_entity.dart';
 import '../../../uploads/utils/webp_image_converter.dart';
 
 /// EN: Community post creation page widget.
@@ -411,10 +412,15 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
       _errorMessage = null;
     });
 
-    List<String> imageUrls = const [];
+    var imageUploadIds = const <String>[];
+    var imageUrls = const <String>[];
     if (_images.isNotEmpty) {
       try {
-        imageUrls = await _uploadImages();
+        final uploads = await _uploadImages();
+        // EN: Collect both IDs (for the server) and URLs (for markdown embed).
+        // KO: 서버용 ID와 마크다운 삽입용 URL을 모두 수집합니다.
+        imageUploadIds = uploads.map((u) => u.uploadId).toList();
+        imageUrls = uploads.map((u) => u.url).toList();
       } on Failure catch (failure) {
         setState(() {
           _errorMessage = failure.userMessage;
@@ -436,7 +442,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
       projectCode: projectCode,
       title: title,
       content: contentWithImages,
-      imageUrls: imageUrls,
+      imageUploadIds: imageUploadIds,
     );
 
     if (!mounted) {
@@ -502,13 +508,11 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     }
   }
 
-  Future<List<String>> _uploadImages() async {
-    if (_images.isEmpty) {
-      return const [];
-    }
+  Future<List<UploadInfo>> _uploadImages() async {
+    if (_images.isEmpty) return const [];
 
     final uploadController = ref.read(uploadsControllerProvider.notifier);
-    final uploadUrls = <String>[];
+    final uploads = <UploadInfo>[];
 
     for (final image in _images) {
       final payload = await convertToWebp(
@@ -522,21 +526,17 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
         contentType: payload.contentType,
       );
 
-      if (uploadResult case Err(:final failure)) {
-        throw failure;
-      }
-
       final upload = switch (uploadResult) {
         Success(:final data) => data,
         Err(:final failure) => throw failure,
       };
 
       if (upload.url.isNotEmpty) {
-        uploadUrls.add(upload.url);
+        uploads.add(upload);
       }
     }
 
-    return uploadUrls;
+    return uploads;
   }
 }
 
