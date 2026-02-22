@@ -40,6 +40,11 @@ class _BoardPageState extends ConsumerState<BoardPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    // EN: Rebuild AppBar when tab changes so the refresh button reflects current tab state.
+    // KO: 탭 변경 시 AppBar를 다시 빌드하여 새로고침 버튼이 현재 탭 상태를 반영하도록 합니다.
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -53,7 +58,19 @@ class _BoardPageState extends ConsumerState<BoardPage>
     return Scaffold(
       appBar: AppBar(
         title: const Text('게시판'),
-        actions: const [GBTProfileAction()],
+        actions: [
+          // EN: Refresh community posts — only active on community tab (index 0).
+          // KO: 커뮤니티 게시글 새로고침 — 커뮤니티 탭(인덱스 0)에서만 활성화됩니다.
+          if (_tabController.index == 0)
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: '새로고침',
+              onPressed: () => ref
+                  .read(postListControllerProvider.notifier)
+                  .load(forceRefresh: true),
+            ),
+          const GBTProfileAction(),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelStyle: GBTTypography.titleSmall.copyWith(fontWeight: FontWeight.bold),
@@ -217,7 +234,6 @@ class _TravelReviewTab extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    const Icon(Icons.more_vert, size: 20),
                   ],
                 ),
                 const SizedBox(height: GBTSpacing.sm),

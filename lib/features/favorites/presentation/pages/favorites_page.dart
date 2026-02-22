@@ -251,19 +251,21 @@ Color _typeColor(FavoriteType type, {required bool isDark}) {
   return isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
 }
 
+// EN: Use push so /favorites stays in the back stack — pressing back returns here.
+// KO: /favorites가 백스택에 남도록 push를 사용합니다 — 뒤로가기 시 즐겨찾기로 복귀합니다.
 void _openItem(BuildContext context, FavoriteItem item) {
   switch (item.type) {
     case FavoriteType.place:
-      context.goToPlaceDetail(item.entityId);
+      context.push('/places/${item.entityId}');
       break;
     case FavoriteType.liveEvent:
-      context.goToLiveDetail(item.entityId);
+      context.push('/live/${item.entityId}');
       break;
     case FavoriteType.news:
-      context.goToNewsDetail(item.entityId);
+      context.push('/info/news/${item.entityId}');
       break;
     case FavoriteType.post:
-      context.goToPostDetail(item.entityId);
+      context.push('/board/posts/${item.entityId}');
       break;
     case FavoriteType.unknown:
       break;

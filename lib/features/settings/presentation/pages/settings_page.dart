@@ -184,38 +184,26 @@ class SettingsPage extends ConsumerWidget {
               iconColor: const Color(0xFF3B82F6),
               title: '도움말',
               semanticLabel: '도움말',
-              onTap: () {
-                // EN: TODO: Navigate to help.
-                // KO: TODO: 도움말로 이동.
-              },
+              onTap: () => _showComingSoon(context, '도움말은 준비 중입니다.'),
             ),
             _SettingsItem(
               icon: Icons.feedback,
               iconColor: const Color(0xFFEC4899),
               title: '피드백 보내기',
               semanticLabel: '피드백 보내기',
-              onTap: () {
-                // EN: TODO: Show feedback form.
-                // KO: TODO: 피드백 폼 표시.
-              },
+              onTap: () => _showComingSoon(context, '피드백 기능은 준비 중입니다.'),
             ),
             _SettingsItem(
               icon: Icons.description,
               title: '이용약관',
               semanticLabel: '이용약관',
-              onTap: () {
-                // EN: TODO: Navigate to terms.
-                // KO: TODO: 이용약관으로 이동.
-              },
+              onTap: () => _showComingSoon(context, '이용약관은 준비 중입니다.'),
             ),
             _SettingsItem(
               icon: Icons.privacy_tip,
               title: '개인정보 처리방침',
               semanticLabel: '개인정보 처리방침',
-              onTap: () {
-                // EN: TODO: Navigate to privacy policy.
-                // KO: TODO: 개인정보 처리방침으로 이동.
-              },
+              onTap: () => _showComingSoon(context, '개인정보 처리방침은 준비 중입니다.'),
             ),
             const Divider(),
             Padding(

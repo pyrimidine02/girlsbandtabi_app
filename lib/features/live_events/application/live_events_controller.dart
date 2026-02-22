@@ -4,12 +4,17 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
 import '../data/datasources/live_events_remote_data_source.dart';
 import '../data/repositories/live_events_repository_impl.dart';
 import '../domain/entities/live_event_entities.dart';
 import '../domain/repositories/live_events_repository.dart';
+
+// EN: Max number of additional retries on load failure (total attempts = 1 + _kMaxRetries).
+// KO: 로드 실패 시 최대 추가 재시도 횟수 (총 시도 = 1 + _kMaxRetries).
+const int _kMaxRetries = 2;
 
 class LiveEventsListController
     extends StateNotifier<AsyncValue<List<LiveEventSummary>>> {
@@ -37,12 +42,27 @@ class LiveEventsListController
     final repository = await _ref.read(liveEventsRepositoryProvider.future);
     final bandIds = _ref.read(selectedLiveBandIdsProvider);
 
-    final result = await repository.getLiveEvents(
-      projectId: projectKey,
-      unitIds: bandIds,
-      forceRefresh: forceRefresh,
-    );
+    // EN: Retry up to _kMaxRetries times on failure with exponential back-off.
+    // KO: 실패 시 지수 백오프로 최대 _kMaxRetries회 재시도합니다.
+    Result<List<LiveEventSummary>>? result;
+    for (var attempt = 0; attempt <= _kMaxRetries; attempt++) {
+      if (attempt > 0) {
+        await Future<void>.delayed(Duration(seconds: attempt));
+        if (!mounted) return;
+        AppLogger.info(
+          'Retrying live events load (attempt $attempt)',
+          tag: 'LiveEventsListController',
+        );
+      }
+      result = await repository.getLiveEvents(
+        projectId: projectKey,
+        unitIds: bandIds,
+        forceRefresh: forceRefresh || attempt > 0,
+      );
+      if (result is Success<List<LiveEventSummary>>) break;
+    }
 
+    if (!mounted) return;
     if (result is Success<List<LiveEventSummary>>) {
       state = AsyncData(result.data);
     } else if (result is Err<List<LiveEventSummary>>) {
@@ -71,12 +91,27 @@ class LiveEventDetailController
 
     final repository = await _ref.read(liveEventsRepositoryProvider.future);
 
-    final result = await repository.getLiveEventDetail(
-      projectId: projectKey,
-      eventId: eventId,
-      forceRefresh: forceRefresh,
-    );
+    // EN: Retry up to _kMaxRetries times on failure with exponential back-off.
+    // KO: 실패 시 지수 백오프로 최대 _kMaxRetries회 재시도합니다.
+    Result<LiveEventDetail>? result;
+    for (var attempt = 0; attempt <= _kMaxRetries; attempt++) {
+      if (attempt > 0) {
+        await Future<void>.delayed(Duration(seconds: attempt));
+        if (!mounted) return;
+        AppLogger.info(
+          'Retrying live event detail load (attempt $attempt)',
+          tag: 'LiveEventDetailController',
+        );
+      }
+      result = await repository.getLiveEventDetail(
+        projectId: projectKey,
+        eventId: eventId,
+        forceRefresh: forceRefresh || attempt > 0,
+      );
+      if (result is Success<LiveEventDetail>) break;
+    }
 
+    if (!mounted) return;
     if (result is Success<LiveEventDetail>) {
       state = AsyncData(result.data);
     } else if (result is Err<LiveEventDetail>) {

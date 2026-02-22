@@ -83,6 +83,7 @@ class HomeEventItem {
       id: dto.id,
       title: dto.title,
       dateLabel: _formatDate(dto.showStartTime),
+      posterUrl: dto.bannerUrl,
       ticketUrl: dto.ticketUrl,
       isLive: false,
     );

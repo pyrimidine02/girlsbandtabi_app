@@ -249,35 +249,33 @@ class GBTEventCard extends StatelessWidget {
                 // KO: 포스터 또는 즐겨찾기 버튼
                 Column(
                   children: [
-                    // EN: Poster with rounded corners and Hero animation (80x106)
-                    // KO: 둥근 모서리와 Hero 애니메이션이 있는 포스터 (80x106)
-                    Container(
+                    // EN: Poster — 2:3 aspect ratio (standard portrait poster).
+                    //     Height auto-calculated from width (80 × 3/2 = 120px).
+                    // KO: 포스터 — 2:3 비율(표준 세로 포스터).
+                    //     높이는 너비에서 자동 계산됩니다 (80 × 3/2 = 120px).
+                    SizedBox(
                       width: 80,
-                      height: 106,
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? GBTColors.darkSurfaceElevated
-                            : GBTColors.surfaceVariant,
-                        borderRadius: BorderRadius.circular(
-                          GBTSpacing.radiusSm,
+                      child: AspectRatio(
+                        aspectRatio: 2 / 3,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+                          child: ColoredBox(
+                            color: isDark
+                                ? GBTColors.darkSurfaceElevated
+                                : GBTColors.surfaceVariant,
+                            child: posterUrl != null
+                                ? Hero(
+                                    tag: GBTHeroTags.eventPoster(eventId),
+                                    child: GBTImage(
+                                      imageUrl: posterUrl!,
+                                      fit: BoxFit.cover,
+                                      semanticLabel: '$title 포스터',
+                                    ),
+                                  )
+                                : _PosterPlaceholder(isDark: isDark),
+                          ),
                         ),
                       ),
-                      clipBehavior: Clip.antiAlias,
-                      child: posterUrl != null
-                          ? Hero(
-                              tag: GBTHeroTags.eventPoster(eventId),
-                              child: GBTImage(
-                                imageUrl: posterUrl!,
-                                width: 80,
-                                height: 106,
-                                fit: BoxFit.cover,
-                                borderRadius: BorderRadius.circular(
-                                  GBTSpacing.radiusSm,
-                                ),
-                                semanticLabel: '$title 포스터',
-                              ),
-                            )
-                          : _PosterPlaceholder(isDark: isDark),
                     ),
 
                     // EN: Favorite button with 48dp touch target & tooltip

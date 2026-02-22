@@ -97,7 +97,8 @@ class HomeRecommendedPlaceDto {
 /// {
 ///   "id": "uuid", "title": "...", "startTime": "...",
 ///   "showStartTime": "...", "doorsOpenTime": null,
-///   "ticketUrl": null, "projectIds": ["uuid"]
+///   "ticketUrl": null, "projectIds": ["uuid"],
+///   "bannerUrl": "https://..." (optional)
 /// }
 /// ```
 class HomeTrendingLiveEventDto {
@@ -109,6 +110,7 @@ class HomeTrendingLiveEventDto {
     required this.projectIds,
     this.doorsOpenTime,
     this.ticketUrl,
+    this.bannerUrl,
   });
 
   final String id;
@@ -119,7 +121,18 @@ class HomeTrendingLiveEventDto {
   final String? ticketUrl;
   final List<String> projectIds;
 
+  // EN: Poster/banner image URL — tries multiple field names for compatibility.
+  // KO: 포스터/배너 이미지 URL — 호환성을 위해 여러 필드명을 시도합니다.
+  final String? bannerUrl;
+
   factory HomeTrendingLiveEventDto.fromJson(Map<String, dynamic> json) {
+    // EN: Accept several field names the server may use for the poster image.
+    // KO: 서버가 포스터 이미지에 사용할 수 있는 여러 필드명을 허용합니다.
+    final rawBannerUrl = json['bannerUrl'] as String? ??
+        json['banner_url'] as String? ??
+        json['posterUrl'] as String? ??
+        json['thumbnailUrl'] as String?;
+
     return HomeTrendingLiveEventDto(
       id: json['id'] as String? ?? '',
       title: json['title'] as String? ?? '',
@@ -128,6 +141,7 @@ class HomeTrendingLiveEventDto {
       doorsOpenTime: _dateTimeOrNull(json['doorsOpenTime']),
       ticketUrl: json['ticketUrl'] as String?,
       projectIds: _stringList(json['projectIds']),
+      bannerUrl: rawBannerUrl?.isNotEmpty == true ? rawBannerUrl : null,
     );
   }
 
@@ -140,6 +154,7 @@ class HomeTrendingLiveEventDto {
       'doorsOpenTime': doorsOpenTime?.toIso8601String(),
       'ticketUrl': ticketUrl,
       'projectIds': projectIds,
+      if (bannerUrl != null) 'bannerUrl': bannerUrl,
     };
   }
 }

@@ -57,7 +57,7 @@ class TokenService {
       'timestamp': captureSeconds,
       'accuracyM': location.accuracy,
       'isMocked': location.isMocked,
-      'mockProvider': location.isMocked ? 'device' : 'none',
+      'mockProvider': location.isMocked ? 'device' : null,
     };
 
     // 5. Ensure device key is registered and sign JWS (RS256), then wrap with JWE.

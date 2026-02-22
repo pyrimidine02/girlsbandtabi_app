@@ -135,7 +135,12 @@ class NotificationSettingsController
       return Result.failure(failure);
     }
 
-    state = const AsyncLoading();
+    // EN: Optimistic update — apply changes immediately so toggles feel instant.
+    // EN: On failure, revert to the previous state to keep UI consistent.
+    // KO: Optimistic 업데이트 — 토글이 즉각 반응하도록 변경을 즉시 적용합니다.
+    // KO: 실패 시 이전 상태로 복원하여 UI 일관성을 유지합니다.
+    final previousState = state;
+    state = AsyncData(settings);
 
     final repository = await _ref.read(settingsRepositoryProvider.future);
     final result = await repository.updateNotificationSettings(
@@ -145,7 +150,7 @@ class NotificationSettingsController
     if (result is Success<NotificationSettings>) {
       state = AsyncData(result.data);
     } else if (result is Err<NotificationSettings>) {
-      state = AsyncError(result.failure, StackTrace.current);
+      state = previousState;
     }
 
     return result;

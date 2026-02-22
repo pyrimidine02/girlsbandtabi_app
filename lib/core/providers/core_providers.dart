@@ -136,16 +136,20 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
 
   final SecureStorage _secureStorage;
 
-  /// EN: Check authentication status
-  /// KO: 인증 상태 확인
+  /// EN: Check authentication status on app start.
+  /// EN: Presence of both tokens is sufficient — the API interceptor handles
+  /// EN: access-token refresh on 401/403 transparently. Gating on the stored
+  /// EN: access-token expiry timestamp would incorrectly log the user out
+  /// EN: whenever the short-lived access token expires while the refresh token
+  /// EN: is still valid (which is the normal idle state between app launches).
+  /// KO: 앱 시작 시 인증 상태 확인.
+  /// KO: 두 토큰이 모두 존재하면 인증됨으로 처리합니다. API 인터셉터가
+  /// KO: 401/403 응답 시 액세스 토큰을 투명하게 갱신합니다.
+  /// KO: 저장된 액세스 토큰 만료 시간을 기준으로 판단하면 리프레시 토큰이
+  /// KO: 유효한 상태에서도 세션이 조기 종료되는 문제가 발생합니다.
   Future<void> checkAuthStatus() async {
     final hasTokens = await _secureStorage.hasValidTokens();
-    if (!hasTokens) {
-      state = AuthState.unauthenticated;
-      return;
-    }
-    final isExpired = await _secureStorage.isTokenExpired();
-    state = isExpired ? AuthState.unauthenticated : AuthState.authenticated;
+    state = hasTokens ? AuthState.authenticated : AuthState.unauthenticated;
   }
 
   /// EN: Set authenticated state

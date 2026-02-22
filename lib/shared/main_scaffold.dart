@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -23,6 +24,7 @@ class MainScaffold extends ConsumerStatefulWidget {
 class _MainScaffoldState extends ConsumerState<MainScaffold> {
   int? _lastSyncedIndex;
   bool _syncScheduled = false;
+  DateTime? _lastBackPressed;
 
   void _scheduleSync(int index) {
     if (_syncScheduled) return;
@@ -42,38 +44,57 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       _scheduleSync(currentIndex);
     }
 
-    return Scaffold(
-      body: widget.navigationShell,
-      bottomNavigationBar: GBTBottomNav(
-        items: const [
-          GBTBottomNavItem(
-            icon: Icons.home_outlined,
-            activeIcon: Icons.home,
-            label: '홈',
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        final now = DateTime.now();
+        if (_lastBackPressed != null &&
+            now.difference(_lastBackPressed!) < const Duration(seconds: 2)) {
+          SystemNavigator.pop();
+          return;
+        }
+        _lastBackPressed = now;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("'뒤로' 버튼을 한 번 더 누르시면 종료됩니다"),
+            duration: Duration(seconds: 2),
           ),
-          GBTBottomNavItem(
-            icon: Icons.place_outlined,
-            activeIcon: Icons.place,
-            label: '장소',
-          ),
-          GBTBottomNavItem(
-            icon: Icons.music_note_outlined,
-            activeIcon: Icons.music_note,
-            label: '라이브',
-          ),
-          GBTBottomNavItem(
-            icon: Icons.forum_outlined,
-            activeIcon: Icons.forum,
-            label: '게시판',
-          ),
-          GBTBottomNavItem(
-            icon: Icons.auto_stories_outlined,
-            activeIcon: Icons.auto_stories,
-            label: '정보',
-          ),
-        ],
-        currentIndex: currentIndex,
-        onTap: (index) => _onTap(context, index),
+        );
+      },
+      child: Scaffold(
+        body: widget.navigationShell,
+        bottomNavigationBar: GBTBottomNav(
+          items: const [
+            GBTBottomNavItem(
+              icon: Icons.home_outlined,
+              activeIcon: Icons.home,
+              label: '홈',
+            ),
+            GBTBottomNavItem(
+              icon: Icons.place_outlined,
+              activeIcon: Icons.place,
+              label: '장소',
+            ),
+            GBTBottomNavItem(
+              icon: Icons.music_note_outlined,
+              activeIcon: Icons.music_note,
+              label: '라이브',
+            ),
+            GBTBottomNavItem(
+              icon: Icons.forum_outlined,
+              activeIcon: Icons.forum,
+              label: '게시판',
+            ),
+            GBTBottomNavItem(
+              icon: Icons.auto_stories_outlined,
+              activeIcon: Icons.auto_stories,
+              label: '정보',
+            ),
+          ],
+          currentIndex: currentIndex,
+          onTap: (index) => _onTap(context, index),
+        ),
       ),
     );
   }
