@@ -3,12 +3,17 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
 import '../domain/entities/home_summary.dart';
 import '../domain/repositories/home_repository.dart';
 import '../data/datasources/home_remote_data_source.dart';
 import '../data/repositories/home_repository_impl.dart';
+
+// EN: Max number of additional retries on load failure.
+// KO: 로드 실패 시 최대 추가 재시도 횟수.
+const int _kMaxRetries = 2;
 
 class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
   HomeController(this._ref) : super(const AsyncLoading()) {
@@ -54,12 +59,27 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
     final projectKey = selectedProjectKey;
 
     try {
-      final result = await repository.getHomeSummary(
-        projectId: projectKey,
-        unitIds: unitIds,
-        forceRefresh: forceRefresh,
-      );
+      // EN: Retry up to _kMaxRetries times on failure with exponential back-off.
+      // KO: 실패 시 지수 백오프로 최대 _kMaxRetries회 재시도합니다.
+      Result<HomeSummary>? result;
+      for (var attempt = 0; attempt <= _kMaxRetries; attempt++) {
+        if (attempt > 0) {
+          await Future<void>.delayed(Duration(seconds: attempt));
+          if (!mounted) return;
+          AppLogger.info(
+            'Retrying home summary load (attempt $attempt)',
+            tag: 'HomeController',
+          );
+        }
+        result = await repository.getHomeSummary(
+          projectId: projectKey,
+          unitIds: unitIds,
+          forceRefresh: forceRefresh || attempt > 0,
+        );
+        if (result is Success<HomeSummary>) break;
+      }
 
+      if (!mounted) return;
       if (result is Success<HomeSummary>) {
         state = AsyncData(result.data);
       } else if (result is Err<HomeSummary>) {

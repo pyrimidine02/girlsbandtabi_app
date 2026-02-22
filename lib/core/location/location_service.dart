@@ -2,9 +2,12 @@
 /// KO: 현재 기기 위치를 가져오는 위치 서비스 래퍼.
 library;
 
+import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../error/failure.dart';
+import '../logging/app_logger.dart';
 
 /// EN: Snapshot of a device location reading.
 /// KO: 디바이스 위치 스냅샷.
@@ -64,11 +67,55 @@ class LocationService {
       timeLimit: const Duration(seconds: 10),
     );
 
+    // EN: Prevent false-positives on older OS versions.
+    // KO: 구형 OS 버전에서의 오탐지를 방지합니다.
+    bool finalIsMocked = position.isMocked;
+
+    try {
+      if (Platform.isAndroid) {
+        final androidInfo = await DeviceInfoPlugin().androidInfo;
+        if (androidInfo.version.sdkInt <= 30) {
+          finalIsMocked = false; // API 30 이하는 서버 탐지에 맡기고 false 고정
+        }
+      } else if (Platform.isIOS) {
+        final iosInfo = await DeviceInfoPlugin().iosInfo;
+        final versionParts = iosInfo.systemVersion.split('.');
+        if (versionParts.isNotEmpty) {
+          final majorVersion = int.tryParse(versionParts[0]) ?? 0;
+          if (majorVersion <= 14) {
+            finalIsMocked = false; // iOS 14 이하는 false 고정
+          }
+        }
+      }
+    } catch (e) {
+      AppLogger.warning(
+        'Failed to verify OS version for isMocked: $e',
+        tag: 'LocationService',
+      );
+    }
+
+    // EN: Log location metadata for debugging mocked-location false-positives.
+    // KO: 모의 위치 오탐 디버깅을 위해 위치 메타데이터를 로깅합니다.
+    if (finalIsMocked) {
+      AppLogger.warning(
+        'isMocked=true detected on device — '
+        'accuracy=${position.accuracy}m, '
+        'speed=${position.speed}, '
+        'altitude=${position.altitude}',
+        tag: 'LocationService',
+      );
+    } else {
+      AppLogger.info(
+        'Location acquired: isMocked=false, accuracy=${position.accuracy}m',
+        tag: 'LocationService',
+      );
+    }
+
     return LocationSnapshot(
       latitude: position.latitude,
       longitude: position.longitude,
       accuracy: position.accuracy,
-      isMocked: position.isMocked,
+      isMocked: finalIsMocked,
       timestamp: position.timestamp ?? DateTime.now(),
     );
   }

@@ -290,17 +290,25 @@ class _AuthInterceptor extends Interceptor {
       return handler.next(err);
     }
 
-    // EN: Handle 401 Unauthorized - try to refresh token (deduplicated).
-    // KO: 401 Unauthorized 처리 - 토큰 갱신 시도(중복 방지).
-    if (err.response?.statusCode == 401) {
+    // EN: Handle 401 Unauthorized and 403 Forbidden - try to refresh token (deduplicated).
+    // EN: Some servers return 403 for expired tokens instead of 401.
+    // EN: Guard with _authRetried flag to prevent infinite retry loops.
+    // KO: 401 Unauthorized 및 403 Forbidden 처리 - 토큰 갱신 시도(중복 방지).
+    // KO: 일부 서버는 만료된 토큰에 대해 401 대신 403을 반환합니다.
+    // KO: 무한 재시도 루프 방지를 위해 _authRetried 플래그를 사용합니다.
+    final alreadyRetried = err.requestOptions.extra['_authRetried'] == true;
+    if (!alreadyRetried &&
+        (err.response?.statusCode == 401 ||
+            err.response?.statusCode == 403)) {
       try {
         final refreshOutcome = await _refreshOrWait();
         if (refreshOutcome == _RefreshOutcome.refreshed) {
-          // EN: Retry original request with new token.
-          // KO: 새 토큰으로 원래 요청 재시도.
+          // EN: Retry original request with new token (mark to prevent re-retry).
+          // KO: 새 토큰으로 원래 요청 재시도 (재재시도 방지 마킹).
           final token = await _secureStorage.getAccessToken();
           err.requestOptions.headers[ApiHeaders.authorization] =
               '${ApiHeaders.bearer} $token';
+          err.requestOptions.extra['_authRetried'] = true;
           final response = await _dio.fetch(err.requestOptions);
           return handler.resolve(response);
         }
@@ -388,6 +396,26 @@ class _AuthInterceptor extends Interceptor {
             accessToken: newAccessToken,
             refreshToken: newRefreshToken,
           );
+          // EN: Update token expiry so checkAuthStatus stays consistent
+          //     after a background refresh (expiresAt or expiresIn).
+          // KO: 백그라운드 갱신 후 checkAuthStatus가 일관성을 유지하도록
+          //     토큰 만료 시간을 업데이트합니다.
+          final expiresAtRaw = data['expiresAt'] ?? data['expires_at'];
+          final expiresInRaw = data['expiresIn'] ?? data['expires_in'];
+          DateTime? newExpiry;
+          if (expiresAtRaw is String) {
+            newExpiry = DateTime.tryParse(expiresAtRaw);
+          } else if (expiresInRaw is int && expiresInRaw > 0) {
+            newExpiry = DateTime.now().add(Duration(seconds: expiresInRaw));
+          } else if (expiresInRaw is String) {
+            final seconds = int.tryParse(expiresInRaw);
+            if (seconds != null && seconds > 0) {
+              newExpiry = DateTime.now().add(Duration(seconds: seconds));
+            }
+          }
+          if (newExpiry != null) {
+            await _secureStorage.saveTokenExpiry(newExpiry);
+          }
           return _RefreshOutcome.refreshed;
         }
       }
