@@ -36,14 +36,23 @@ class GBTGreetingHeader extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final greeting = _getGreeting();
     final topPadding = MediaQuery.of(context).padding.top;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
     final hasBackgroundImage =
         backgroundImageUrl != null && backgroundImageUrl!.trim().isNotEmpty;
     final hasFeaturedLive =
         featuredTitle != null && featuredTitle!.trim().isNotEmpty;
+    final featuredExtraHeight = hasFeaturedLive ? 56.0 : 0.0;
+    final textScaleExtraHeight = ((textScale - 1.0) * 36.0).clamp(0.0, 40.0);
+    final headerHeight =
+        topPadding +
+        kToolbarHeight +
+        130 +
+        featuredExtraHeight +
+        textScaleExtraHeight;
 
     return Container(
       width: double.infinity,
-      height: topPadding + kToolbarHeight + 130,
+      height: headerHeight,
       decoration: BoxDecoration(
         gradient: isDark
             ? GBTColors.darkGreetingGradient
@@ -84,6 +93,8 @@ class GBTGreetingHeader extends StatelessWidget {
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: GBTSpacing.xs),
                 Text(
@@ -91,6 +102,8 @@ class GBTGreetingHeader extends StatelessWidget {
                   style: GBTTypography.bodyLarge.copyWith(
                     color: Colors.white.withValues(alpha: 0.8),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 if (hasFeaturedLive) ...[
                   const SizedBox(height: GBTSpacing.sm),

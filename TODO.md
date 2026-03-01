@@ -10,6 +10,11 @@
 - Add widget tests for `PostCreatePage` (draft-exit confirmation, image max/duplicate handling, submit button enablement) and `ProfileEditPage` (dirty-state save enablement + unsaved-exit confirmation).
 - Add a HomePage widget test that verifies the ProjectSelector renders during loading and triggers a reload after selection (remove once CI covers the flow).
 - Run on-device QA for home hero image fallback and featured-live chip tap flow (poster present/absent cases) and capture screenshots (remove once validated).
+- Run QA for post-detail comment UX updates (sort chip behavior, composer focus jump from comment icon, multiline submit disabled/enabled states) on iOS/Android (remove once validated).
+- Run QA for places region filter UX updates (reactive loading without stuck spinner, compact chip entry, multi-select search/apply/clear, selected-count badge, single-region camera move) on iOS/Android (remove once validated).
+- Run QA for `계정 도구` flows on iOS/Android: blocks list load/unblock, role request submit/cancel, verification appeal submit/list (remove once validated).
+- Request backend fix: `GET /api/v1/home/summary` currently returns 500 (confirmed on both slug and UUID `projectId` as of 2026-03-01).
+- Request backend fix: `GET /api/v1/users/me` returns 500 in authenticated app bootstrap flow (as of 2026-03-01).
 - Add a CI step (or pre-commit hook) to run `build_runner` so generated files stay in sync.
 - Add CI check to compare `ApiEndpoints` against `/v3/api-docs` and fail on missing/removed paths.
 - Verify community-ban management sheet filter/sort controls (query/sort chips) remain usable without overflow on small-width devices (remove once mobile QA passes).

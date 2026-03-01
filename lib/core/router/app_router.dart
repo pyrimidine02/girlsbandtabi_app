@@ -31,6 +31,7 @@ import '../../features/feed/domain/entities/feed_entities.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/settings/presentation/pages/profile_edit_page.dart';
 import '../../features/settings/presentation/pages/notification_settings_page.dart';
+import '../../features/settings/presentation/pages/account_tools_page.dart';
 import '../../features/admin_ops/presentation/pages/admin_ops_page.dart';
 import '../../features/visits/presentation/pages/visit_detail_page.dart';
 import '../../features/visits/presentation/pages/visit_history_page.dart';
@@ -104,6 +105,7 @@ class AppRoutes {
   static const String settings = 'settings';
   static const String profileEdit = 'profile-edit';
   static const String notificationSettings = 'notification-settings';
+  static const String accountTools = 'account-tools';
   static const String adminOps = 'admin-ops';
   static const String visitHistory = 'visit-history';
   static const String visitDetail = 'visit-detail';
@@ -345,6 +347,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const NotificationSettingsPage(),
           ),
           GoRoute(
+            path: 'account-tools',
+            name: AppRoutes.accountTools,
+            builder: (context, state) => const AccountToolsPage(),
+          ),
+          GoRoute(
             path: 'admin',
             name: AppRoutes.adminOps,
             builder: (context, state) => const AdminOpsPage(),
@@ -536,6 +543,12 @@ extension AppRouterExtension on BuildContext {
   /// KO: 방문 통계로 이동
   void goToVisitStats() {
     pushNamed(AppRoutes.visitStats);
+  }
+
+  /// EN: Navigate to account tools.
+  /// KO: 계정 도구로 이동
+  void goToAccountTools() {
+    pushNamed(AppRoutes.accountTools);
   }
 
   /// EN: Navigate to visit history

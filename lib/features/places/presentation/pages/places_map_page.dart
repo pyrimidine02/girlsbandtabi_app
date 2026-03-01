@@ -159,11 +159,40 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
             tooltip: '밴드 선택',
           ),
           IconButton(
-            icon: const Icon(Icons.filter_list),
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.filter_list),
+                if (selectedRegionCodes.isNotEmpty)
+                  Positioned(
+                    right: -6,
+                    top: -6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        selectedRegionCodes.length > 9
+                            ? '9+'
+                            : selectedRegionCodes.length.toString(),
+                        style: GBTTypography.labelSmall.copyWith(
+                          color: Theme.of(context).colorScheme.onPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             onPressed: () {
-              _showRegionFilter(regionOptionsState, selectedRegionCodes);
+              _showRegionFilter(selectedRegionCodes);
             },
-            tooltip: '필터',
+            tooltip: '지역 필터',
           ),
           IconButton(
             icon: const Icon(Icons.search),
@@ -321,6 +350,55 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                           ),
                         ),
                       ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: GBTSpacing.md,
+                          ),
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                ActionChip(
+                                  avatar: const Icon(
+                                    Icons.public_outlined,
+                                    size: 16,
+                                  ),
+                                  label: Text(
+                                    selectedRegionCodes.isEmpty
+                                        ? '지역 선택'
+                                        : '지역 · $selectedRegionLabel',
+                                  ),
+                                  onPressed: () =>
+                                      _showRegionFilter(selectedRegionCodes),
+                                ),
+                                if (selectedRegionCodes.isNotEmpty) ...[
+                                  const SizedBox(width: GBTSpacing.xs),
+                                  Tooltip(
+                                    message: '지역 초기화',
+                                    child: IconButton.filledTonal(
+                                      onPressed: () =>
+                                          _applyRegions(const <String>[]),
+                                      icon: const Icon(
+                                        Icons.close_rounded,
+                                        size: 16,
+                                      ),
+                                      visualDensity: VisualDensity.compact,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 36,
+                                        minHeight: 36,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SliverToBoxAdapter(
+                        child: SizedBox(height: GBTSpacing.sm),
+                      ),
                       if (hasActiveFilters)
                         SliverToBoxAdapter(
                           child: Padding(
@@ -353,13 +431,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                                     InputChip(
                                       label: Text(selectedRegionLabel),
                                       onDeleted: () {
-                                        ref
-                                                .read(
-                                                  selectedPlaceRegionCodesProvider
-                                                      .notifier,
-                                                )
-                                                .state =
-                                            [];
+                                        _applyRegions(const <String>[]);
                                       },
                                     ),
                                     const SizedBox(width: GBTSpacing.sm),
@@ -682,144 +754,141 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
     );
   }
 
-  void _showRegionFilter(
-    AsyncValue<RegionFilterOptions> optionsState,
-    List<String> selectedCodes,
-  ) {
-    final selected = selectedCodes.isNotEmpty ? selectedCodes.first : null;
+  void _showRegionFilter(List<String> selectedCodes) {
+    final projectKey = ref.read(selectedProjectKeyProvider);
+    final projectId = ref.read(selectedProjectIdProvider);
+    final resolvedProjectKey = projectKey?.isNotEmpty == true
+        ? projectKey!
+        : projectId;
+    if (resolvedProjectKey == null || resolvedProjectKey.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('프로젝트 선택 후 지역 필터를 사용할 수 있어요')),
+      );
+      return;
+    }
+
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       showDragHandle: true,
       builder: (context) {
-        return SafeArea(
-          child: optionsState.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.all(GBTSpacing.lg),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-            error: (error, _) {
-              final message = error is Failure
-                  ? error.userMessage
-                  : '지역 정보를 불러오지 못했어요';
-              final sheetIsDark =
-                  Theme.of(context).brightness == Brightness.dark;
-              return Padding(
-                padding: const EdgeInsets.all(GBTSpacing.lg),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      message,
-                      style: GBTTypography.bodyMedium.copyWith(
-                        color: sheetIsDark
-                            ? GBTColors.darkTextSecondary
-                            : GBTColors.textSecondary,
+        return Consumer(
+          builder: (context, ref, _) {
+            final optionsState = ref.watch(
+              placesRegionOptionsControllerProvider,
+            );
+            return SafeArea(
+              child: optionsState.when(
+                loading: () => Padding(
+                  padding: const EdgeInsets.all(GBTSpacing.lg),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: GBTSpacing.md),
+                      Text(
+                        '지역 정보를 불러오는 중입니다',
+                        style: GBTTypography.bodyMedium.copyWith(
+                          color: context.textSecondary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: GBTSpacing.md),
-                    FilledButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        ref
-                            .read(
-                              placesRegionOptionsControllerProvider.notifier,
-                            )
-                            .load(forceRefresh: true);
-                      },
-                      child: const Text('다시 시도'),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              );
-            },
-            data: (options) {
-              final optionMap = {
-                for (final option in [
-                  ...options.popularRegions,
-                  ...options.countries,
-                ])
-                  option.code: option,
-              };
-              return RadioGroup<String?>(
-                groupValue: selected,
-                onChanged: (value) {
-                  _selectRegion(value == null ? null : optionMap[value]);
-                  Navigator.of(context).pop();
+                error: (error, _) {
+                  final message = error is Failure
+                      ? error.userMessage
+                      : '지역 정보를 불러오지 못했어요';
+                  return Padding(
+                    padding: const EdgeInsets.all(GBTSpacing.lg),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          message,
+                          style: GBTTypography.bodyMedium.copyWith(
+                            color: context.textSecondary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: GBTSpacing.md),
+                        FilledButton.icon(
+                          onPressed: () {
+                            ref
+                                .read(
+                                  placesRegionOptionsControllerProvider
+                                      .notifier,
+                                )
+                                .load(forceRefresh: true);
+                          },
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('다시 시도'),
+                        ),
+                      ],
+                    ),
+                  );
                 },
-                child: ListView(
-                  padding: const EdgeInsets.only(bottom: GBTSpacing.md),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: GBTSpacing.lg,
-                        vertical: GBTSpacing.sm,
-                      ),
-                      child: Text(
-                        '지역 필터',
-                        style: GBTTypography.titleMedium.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const RadioListTile<String?>(
-                      value: null,
-                      title: Text('전체'),
-                    ),
-                    if (options.popularRegions.isNotEmpty) ...[
-                      // EN: Use context extension instead of Builder for theme
-                      // KO: Builder 대신 context 확장을 사용하여 테마 접근
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: GBTSpacing.lg,
-                          vertical: GBTSpacing.xs,
-                        ),
-                        child: Text(
-                          '인기 지역',
-                          style: GBTTypography.labelSmall.copyWith(
+                data: (options) {
+                  if (options.countries.isEmpty &&
+                      options.popularRegions.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.all(GBTSpacing.lg),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.public_off_outlined,
+                            size: 26,
                             color: context.textSecondary,
                           ),
-                        ),
-                      ),
-                      ...options.popularRegions.map(
-                        (option) => _RegionOptionTile(option: option),
-                      ),
-                    ],
-                    if (options.countries.isNotEmpty) ...[
-                      // EN: Use context extension instead of Builder for theme
-                      // KO: Builder 대신 context 확장을 사용하여 테마 접근
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: GBTSpacing.lg,
-                          vertical: GBTSpacing.xs,
-                        ),
-                        child: Text(
-                          '국가',
-                          style: GBTTypography.labelSmall.copyWith(
-                            color: context.textSecondary,
+                          const SizedBox(height: GBTSpacing.sm),
+                          Text(
+                            '현재 선택한 프로젝트의 지역 정보가 없습니다',
+                            style: GBTTypography.bodyMedium.copyWith(
+                              color: context.textSecondary,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                        ),
+                          const SizedBox(height: GBTSpacing.md),
+                          FilledButton.icon(
+                            onPressed: () {
+                              ref
+                                  .read(
+                                    placesRegionOptionsControllerProvider
+                                        .notifier,
+                                  )
+                                  .load(forceRefresh: true);
+                            },
+                            icon: const Icon(Icons.refresh, size: 18),
+                            label: const Text('다시 불러오기'),
+                          ),
+                        ],
                       ),
-                      ...options.countries.map(
-                        (option) => _RegionOptionTile(option: option),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            },
-          ),
+                    );
+                  }
+                  return _RegionFilterSheet(
+                    options: options,
+                    initialSelectedCodes: selectedCodes,
+                    onApply: (codes) {
+                      _applyRegions(codes);
+                      Navigator.of(context).pop();
+                    },
+                  );
+                },
+              ),
+            );
+          },
         );
       },
     );
   }
 
-  void _selectRegion(RegionOption? option) {
-    ref.read(selectedPlaceRegionCodesProvider.notifier).state = option == null
-        ? []
-        : [option.code];
+  void _applyRegions(List<String> regionCodes) {
+    final uniqueCodes = regionCodes.toSet().toList(growable: false);
+    ref.read(selectedPlaceRegionCodesProvider.notifier).state = uniqueCodes;
     _didInitialCenter = false;
-    if (option != null) {
-      _moveCameraToRegion(option.code);
+    if (uniqueCodes.length == 1) {
+      _moveCameraToRegion(uniqueCodes.first);
     }
   }
 
@@ -901,7 +970,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
 
   void _resetFilters() {
     ref.read(placeListModeProvider.notifier).state = PlaceListMode.all;
-    ref.read(selectedPlaceRegionCodesProvider.notifier).state = [];
+    _applyRegions(const <String>[]);
     ref.read(selectedPlaceBandIdsProvider.notifier).state = [];
   }
 
@@ -951,7 +1020,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
             unawaited(_showPlaceInfoWindow(place.id));
           },
           onSelectRegion: (region) {
-            _selectRegion(region);
+            _applyRegions(<String>[region.code]);
           },
         );
       },
@@ -962,23 +1031,33 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
     AsyncValue<RegionFilterOptions> optionsState,
     List<String> selectedCodes,
   ) {
-    final selected = selectedCodes.isNotEmpty ? selectedCodes.first : null;
-    if (selected == null || selected.isEmpty) {
+    if (selectedCodes.isEmpty) {
       return '전체 지역';
     }
     return optionsState.maybeWhen(
       data: (options) {
-        for (final option in [
-          ...options.popularRegions,
-          ...options.countries,
-        ]) {
-          if (option.code == selected) {
-            return option.name;
+        final allOptions = [...options.popularRegions, ...options.countries];
+        final names = <String>[];
+        final seen = <String>{};
+        for (final code in selectedCodes) {
+          if (!seen.add(code)) continue;
+          final match = allOptions.cast<RegionOption?>().firstWhere(
+            (option) => option?.code == code,
+            orElse: () => null,
+          );
+          if (match != null) {
+            names.add(match.name);
           }
         }
-        return '선택한 지역';
+        if (names.isEmpty) {
+          return '지역 ${selectedCodes.length}개';
+        }
+        if (names.length == 1) {
+          return names.first;
+        }
+        return '${names.first} 외 ${names.length - 1}';
       },
-      orElse: () => '선택한 지역',
+      orElse: () => '지역 ${selectedCodes.length}개',
     );
   }
 
@@ -1363,20 +1442,333 @@ class _MapTarget {
   final double longitude;
 }
 
-class _RegionOptionTile extends StatelessWidget {
-  const _RegionOptionTile({required this.option});
+class _RegionFilterSheet extends StatefulWidget {
+  const _RegionFilterSheet({
+    required this.options,
+    required this.initialSelectedCodes,
+    required this.onApply,
+  });
 
-  final RegionOption option;
+  final RegionFilterOptions options;
+  final List<String> initialSelectedCodes;
+  final ValueChanged<List<String>> onApply;
+
+  @override
+  State<_RegionFilterSheet> createState() => _RegionFilterSheetState();
+}
+
+class _RegionFilterSheetState extends State<_RegionFilterSheet> {
+  late final TextEditingController _searchController;
+  late Set<String> _draftCodes;
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+    _draftCodes = widget.initialSelectedCodes.toSet();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<RegionOption> _dedupeRegionOptions(Iterable<RegionOption> options) {
+    final unique = <String, RegionOption>{};
+    for (final option in options) {
+      unique.putIfAbsent(option.code, () => option);
+    }
+    return unique.values.toList(growable: false);
+  }
+
+  bool _matchesRegionQuery(RegionOption option, String query) {
+    return normalizedContains(option.name, query) ||
+        normalizedContains(option.code, query);
+  }
+
+  List<String> _selectedCodesInOrder(Map<String, RegionOption> optionsByCode) {
+    final codes = <String>[];
+    for (final option in optionsByCode.values) {
+      if (_draftCodes.contains(option.code)) {
+        codes.add(option.code);
+      }
+    }
+    for (final code in _draftCodes) {
+      if (!codes.contains(code)) {
+        codes.add(code);
+      }
+    }
+    return codes;
+  }
+
+  void _toggleRegion(String code, bool selected) {
+    setState(() {
+      if (selected) {
+        _draftCodes.add(code);
+      } else {
+        _draftCodes.remove(code);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    // EN: Use context extension for efficient theme access
-    // KO: 효율적인 테마 접근을 위해 context 확장 사용
-    return RadioListTile<String?>(
-      value: option.code,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+
+    final allOptions = _dedupeRegionOptions([
+      ...widget.options.popularRegions,
+      ...widget.options.countries,
+    ]);
+    final optionsByCode = {
+      for (final option in allOptions) option.code: option,
+    };
+    final selectedCodes = _selectedCodesInOrder(optionsByCode);
+    final selectedOptions = selectedCodes
+        .map((code) => optionsByCode[code])
+        .whereType<RegionOption>()
+        .toList(growable: false);
+    final query = _query.trim();
+    final popularOptions = _dedupeRegionOptions(widget.options.popularRegions);
+    final popularCodes = popularOptions.map((option) => option.code).toSet();
+    final countryOptions = _dedupeRegionOptions(
+      widget.options.countries.where(
+        (option) => !popularCodes.contains(option.code),
+      ),
+    );
+    final searchedOptions = query.isEmpty
+        ? const <RegionOption>[]
+        : allOptions
+              .where((option) => _matchesRegionQuery(option, query))
+              .toList(growable: false);
+
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height * 0.84,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              GBTSpacing.md,
+              GBTSpacing.sm,
+              GBTSpacing.md,
+              GBTSpacing.xs,
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.public_outlined),
+                const SizedBox(width: GBTSpacing.xs),
+                Text(
+                  '지역 필터',
+                  style: GBTTypography.titleMedium.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${selectedCodes.length}개 선택',
+                  style: GBTTypography.labelMedium.copyWith(
+                    color: secondaryColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: GBTSpacing.paddingHorizontalMd,
+            child: Text(
+              '지역을 선택하면 해당 지역(하위 지역 포함)의 장소만 보여줍니다.',
+              style: GBTTypography.bodySmall.copyWith(color: secondaryColor),
+            ),
+          ),
+          const SizedBox(height: GBTSpacing.sm),
+          Padding(
+            padding: GBTSpacing.paddingHorizontalMd,
+            child: GBTSearchBar(
+              controller: _searchController,
+              hint: '지역명 검색',
+              onChanged: (value) {
+                setState(() => _query = value);
+              },
+              onClear: () {
+                setState(() => _query = '');
+              },
+            ),
+          ),
+          if (selectedOptions.isNotEmpty) ...[
+            const SizedBox(height: GBTSpacing.sm),
+            SizedBox(
+              height: 38,
+              child: ListView.separated(
+                padding: GBTSpacing.paddingHorizontalMd,
+                scrollDirection: Axis.horizontal,
+                itemCount: selectedOptions.length,
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: GBTSpacing.xs),
+                itemBuilder: (context, index) {
+                  final option = selectedOptions[index];
+                  return InputChip(
+                    label: Text(option.name),
+                    onDeleted: () {
+                      _toggleRegion(option.code, false);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+          const SizedBox(height: GBTSpacing.xs),
+          const Divider(height: 1),
+          Expanded(
+            child: searchedOptions.isNotEmpty
+                ? ListView(
+                    children: [
+                      Padding(
+                        padding: GBTSpacing.paddingHorizontalMd,
+                        child: Text(
+                          '검색 결과 ${searchedOptions.length}개',
+                          style: GBTTypography.labelMedium.copyWith(
+                            color: secondaryColor,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: GBTSpacing.xs),
+                      ...searchedOptions.map(
+                        (option) => _RegionOptionTile(
+                          option: option,
+                          selected: _draftCodes.contains(option.code),
+                          onChanged: (selected) {
+                            _toggleRegion(option.code, selected);
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                : query.isNotEmpty
+                ? Center(
+                    child: Text(
+                      '검색 결과가 없습니다',
+                      style: GBTTypography.bodyMedium.copyWith(
+                        color: secondaryColor,
+                      ),
+                    ),
+                  )
+                : ListView(
+                    children: [
+                      if (popularOptions.isNotEmpty) ...[
+                        Padding(
+                          padding: GBTSpacing.paddingHorizontalMd,
+                          child: Text(
+                            '인기 지역',
+                            style: GBTTypography.labelMedium.copyWith(
+                              color: secondaryColor,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: GBTSpacing.xs),
+                        ...popularOptions.map(
+                          (option) => _RegionOptionTile(
+                            option: option,
+                            selected: _draftCodes.contains(option.code),
+                            onChanged: (selected) {
+                              _toggleRegion(option.code, selected);
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: GBTSpacing.sm),
+                      ],
+                      if (countryOptions.isNotEmpty) ...[
+                        Padding(
+                          padding: GBTSpacing.paddingHorizontalMd,
+                          child: Text(
+                            '전체 지역',
+                            style: GBTTypography.labelMedium.copyWith(
+                              color: secondaryColor,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: GBTSpacing.xs),
+                        ...countryOptions.map(
+                          (option) => _RegionOptionTile(
+                            option: option,
+                            selected: _draftCodes.contains(option.code),
+                            onChanged: (selected) {
+                              _toggleRegion(option.code, selected);
+                            },
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: EdgeInsets.only(
+              left: GBTSpacing.md,
+              right: GBTSpacing.md,
+              top: GBTSpacing.sm,
+              bottom: MediaQuery.of(context).viewInsets.bottom + GBTSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                TextButton(
+                  onPressed: _draftCodes.isEmpty
+                      ? null
+                      : () {
+                          setState(() => _draftCodes.clear());
+                        },
+                  child: const Text('선택 해제'),
+                ),
+                const Spacer(),
+                FilledButton.icon(
+                  onPressed: () => widget.onApply(selectedCodes),
+                  icon: const Icon(Icons.check, size: 18),
+                  label: Text(
+                    selectedCodes.isEmpty
+                        ? '전체 보기'
+                        : '적용 (${selectedCodes.length})',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RegionOptionTile extends StatelessWidget {
+  const _RegionOptionTile({
+    required this.option,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final RegionOption option;
+  final bool selected;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final metadata = <String>[
+      '장소 ${option.placeCount}개',
+      if (option.hasChildren) '하위 포함',
+    ].join(' · ');
+    final leftPadding = GBTSpacing.sm + math.min(option.level * 10.0, 30.0);
+
+    return CheckboxListTile(
+      value: selected,
+      onChanged: (value) => onChanged(value ?? false),
+      controlAffinity: ListTileControlAffinity.leading,
+      contentPadding: EdgeInsets.only(left: leftPadding, right: GBTSpacing.md),
+      dense: true,
       title: Text(option.name),
       subtitle: Text(
-        '장소 ${option.placeCount}개',
+        metadata,
         style: GBTTypography.labelSmall.copyWith(color: context.textTertiary),
       ),
     );

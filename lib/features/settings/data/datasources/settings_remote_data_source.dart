@@ -5,6 +5,7 @@ library;
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/utils/result.dart';
+import '../dto/account_tools_dto.dart';
 import '../dto/notification_settings_dto.dart';
 import '../dto/user_profile_dto.dart';
 
@@ -70,4 +71,102 @@ class SettingsRemoteDataSource {
           NotificationSettingsDto.fromJson(json as Map<String, dynamic>),
     );
   }
+
+  Future<Result<List<UserBlockDto>>> fetchUserBlocks({
+    int page = ApiPagination.defaultPage,
+    int size = ApiPagination.defaultSize,
+  }) {
+    return _apiClient.get<List<UserBlockDto>>(
+      ApiEndpoints.userBlocks,
+      queryParameters: {'page': page, 'size': size, 'pageable': '$page,$size'},
+      fromJson: (json) {
+        final list = _extractList(json);
+        return list.map(UserBlockDto.fromJson).toList(growable: false);
+      },
+    );
+  }
+
+  Future<Result<void>> unblockUser({required String targetUserId}) {
+    return _apiClient.delete<void>(
+      ApiEndpoints.userBlock(targetUserId),
+      fromJson: (_) {},
+    );
+  }
+
+  Future<Result<List<ProjectRoleRequestSummaryDto>>> fetchProjectRoleRequests({
+    int page = ApiPagination.defaultPage,
+    int size = ApiPagination.defaultSize,
+  }) {
+    return _apiClient.get<List<ProjectRoleRequestSummaryDto>>(
+      ApiEndpoints.projectRoleRequests,
+      queryParameters: {'page': page, 'size': size, 'pageable': '$page,$size'},
+      fromJson: (json) {
+        final list = _extractList(json);
+        return list
+            .map(ProjectRoleRequestSummaryDto.fromJson)
+            .toList(growable: false);
+      },
+    );
+  }
+
+  Future<Result<ProjectRoleRequestDetailDto>> createProjectRoleRequest({
+    required ProjectRoleRequestCreateRequestDto request,
+  }) {
+    return _apiClient.post<ProjectRoleRequestDetailDto>(
+      ApiEndpoints.projectRoleRequests,
+      data: request.toJson(),
+      fromJson: (json) => ProjectRoleRequestDetailDto.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
+    );
+  }
+
+  Future<Result<void>> cancelProjectRoleRequest({required String requestId}) {
+    return _apiClient.delete<void>(
+      ApiEndpoints.projectRoleRequest(requestId),
+      fromJson: (_) {},
+    );
+  }
+
+  Future<Result<List<VerificationAppealDto>>> fetchVerificationAppeals({
+    required String projectId,
+    int page = ApiPagination.defaultPage,
+    int size = ApiPagination.defaultSize,
+  }) {
+    return _apiClient.get<List<VerificationAppealDto>>(
+      ApiEndpoints.verificationAppeals(projectId),
+      queryParameters: {'page': page, 'size': size, 'pageable': '$page,$size'},
+      fromJson: (json) {
+        final list = _extractList(json);
+        return list.map(VerificationAppealDto.fromJson).toList(growable: false);
+      },
+    );
+  }
+
+  Future<Result<VerificationAppealDto>> createVerificationAppeal({
+    required String projectId,
+    required VerificationAppealCreateRequestDto request,
+  }) {
+    return _apiClient.post<VerificationAppealDto>(
+      ApiEndpoints.verificationAppeals(projectId),
+      data: request.toJson(),
+      fromJson: (json) => VerificationAppealDto.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
+    );
+  }
+}
+
+List<Map<String, dynamic>> _extractList(dynamic json) {
+  if (json is List) {
+    return json.whereType<Map<String, dynamic>>().toList(growable: false);
+  }
+  if (json is Map<String, dynamic>) {
+    final items =
+        json['items'] ?? json['content'] ?? json['results'] ?? json['data'];
+    if (items is List) {
+      return items.whereType<Map<String, dynamic>>().toList(growable: false);
+    }
+  }
+  return const <Map<String, dynamic>>[];
 }

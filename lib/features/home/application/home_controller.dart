@@ -5,6 +5,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
+import '../../../core/error/failure.dart';
 import '../../../core/utils/result.dart';
 import '../domain/entities/home_summary.dart';
 import '../domain/repositories/home_repository.dart';
@@ -14,6 +15,7 @@ import '../data/repositories/home_repository_impl.dart';
 // EN: Max number of additional retries on load failure.
 // KO: 로드 실패 시 최대 추가 재시도 횟수.
 const int _kMaxRetries = 2;
+const Duration _kFailureCooldown = Duration(seconds: 8);
 
 class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
   HomeController(this._ref) : super(const AsyncLoading()) {
@@ -31,6 +33,8 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
 
   final Ref _ref;
   String? _lastProjectKey;
+  String? _lastRequestKey;
+  DateTime? _lastFailureAt;
   bool _isLoading = false;
 
   Future<void> load({bool forceRefresh = false}) async {
@@ -40,13 +44,23 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
     }
 
     final unitIds = _ref.read(selectedUnitIdsProvider);
+    final requestKey = '$selectedProjectKey:${unitIds.join(',')}';
     final shouldSkip =
         !forceRefresh && _isLoading && _lastProjectKey == selectedProjectKey;
     if (shouldSkip) {
       return;
     }
+    if (!forceRefresh &&
+        _lastRequestKey == requestKey &&
+        _lastFailureAt != null &&
+        DateTime.now().difference(_lastFailureAt!) < _kFailureCooldown) {
+      // EN: Prevent retry storms when backend keeps returning 5xx for the same query.
+      // KO: 동일 쿼리에서 백엔드 5xx가 반복될 때 재시도 폭주를 방지합니다.
+      return;
+    }
 
     _lastProjectKey = selectedProjectKey;
+    _lastRequestKey = requestKey;
     _isLoading = true;
 
     // EN: Keep previous data visible while loading (no full-screen spinner).
@@ -59,8 +73,10 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
     final projectKey = selectedProjectKey;
 
     try {
-      // EN: Retry up to _kMaxRetries times on failure with exponential back-off.
-      // KO: 실패 시 지수 백오프로 최대 _kMaxRetries회 재시도합니다.
+      // EN: Retry only retryable failures (network/temporary server failures).
+      // EN: Do not retry persistent 5xx such as 500 to avoid noisy loops.
+      // KO: 재시도 가능한 실패(네트워크/일시적 서버 장애)만 재시도합니다.
+      // KO: 500 같은 지속적 5xx는 재시도하지 않아 불필요한 루프를 막습니다.
       Result<HomeSummary>? result;
       for (var attempt = 0; attempt <= _kMaxRetries; attempt++) {
         if (attempt > 0) {
@@ -76,7 +92,18 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
           unitIds: unitIds,
           forceRefresh: forceRefresh || attempt > 0,
         );
-        if (result is Success<HomeSummary>) break;
+        if (result is Success<HomeSummary>) {
+          _lastFailureAt = null;
+          break;
+        }
+        if (result is Err<HomeSummary>) {
+          final failure = result.failure;
+          _lastFailureAt = DateTime.now();
+          final canRetry = _isRetryableFailure(failure);
+          if (!canRetry || attempt >= _kMaxRetries) {
+            break;
+          }
+        }
       }
 
       if (!mounted) return;
@@ -88,6 +115,21 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
     } finally {
       _isLoading = false;
     }
+  }
+
+  bool _isRetryableFailure(Failure failure) {
+    if (failure is NetworkFailure) {
+      return true;
+    }
+    if (failure is ServerFailure) {
+      return switch (failure.code) {
+        '429' => true,
+        '502' => true,
+        '503' => true,
+        _ => false,
+      };
+    }
+    return false;
   }
 }
 

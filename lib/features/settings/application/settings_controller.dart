@@ -9,6 +9,7 @@ import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
 import '../data/datasources/settings_remote_data_source.dart';
 import '../data/repositories/settings_repository_impl.dart';
+import '../domain/entities/account_tools.dart';
 import '../domain/entities/notification_settings.dart';
 import '../domain/entities/user_profile.dart';
 import '../domain/repositories/settings_repository.dart';
@@ -157,6 +158,157 @@ class NotificationSettingsController
   }
 }
 
+class UserBlocksController extends StateNotifier<AsyncValue<List<UserBlock>>> {
+  UserBlocksController(this._ref) : super(const AsyncLoading());
+
+  final Ref _ref;
+
+  Future<void> load({bool forceRefresh = false}) async {
+    final isAuthenticated = _ref.read(isAuthenticatedProvider);
+    if (!isAuthenticated) {
+      state = const AsyncData(<UserBlock>[]);
+      return;
+    }
+
+    state = const AsyncLoading();
+    final repository = await _ref.read(settingsRepositoryProvider.future);
+    final result = await repository.getUserBlocks(forceRefresh: forceRefresh);
+
+    if (result is Success<List<UserBlock>>) {
+      state = AsyncData(result.data);
+    } else if (result is Err<List<UserBlock>>) {
+      state = AsyncError(result.failure, StackTrace.current);
+    }
+  }
+
+  Future<Result<void>> unblock(String targetUserId) async {
+    final repository = await _ref.read(settingsRepositoryProvider.future);
+    final result = await repository.unblockUser(targetUserId: targetUserId);
+    if (result is Success<void>) {
+      await load(forceRefresh: true);
+    }
+    return result;
+  }
+}
+
+class ProjectRoleRequestsController
+    extends StateNotifier<AsyncValue<List<ProjectRoleRequest>>> {
+  ProjectRoleRequestsController(this._ref) : super(const AsyncLoading());
+
+  final Ref _ref;
+
+  Future<void> load({bool forceRefresh = false}) async {
+    final isAuthenticated = _ref.read(isAuthenticatedProvider);
+    if (!isAuthenticated) {
+      state = const AsyncData(<ProjectRoleRequest>[]);
+      return;
+    }
+    state = const AsyncLoading();
+    final repository = await _ref.read(settingsRepositoryProvider.future);
+    final result = await repository.getProjectRoleRequests(
+      forceRefresh: forceRefresh,
+    );
+    if (result is Success<List<ProjectRoleRequest>>) {
+      state = AsyncData(result.data);
+    } else if (result is Err<List<ProjectRoleRequest>>) {
+      state = AsyncError(result.failure, StackTrace.current);
+    }
+  }
+
+  Future<Result<ProjectRoleRequest>> create({
+    required String projectId,
+    required String requestedRole,
+    required String justification,
+  }) async {
+    final repository = await _ref.read(settingsRepositoryProvider.future);
+    final result = await repository.createProjectRoleRequest(
+      projectId: projectId,
+      requestedRole: requestedRole,
+      justification: justification,
+    );
+    if (result is Success<ProjectRoleRequest>) {
+      await load(forceRefresh: true);
+    }
+    return result;
+  }
+
+  Future<Result<void>> cancel(String requestId) async {
+    final repository = await _ref.read(settingsRepositoryProvider.future);
+    final result = await repository.cancelProjectRoleRequest(
+      requestId: requestId,
+    );
+    if (result is Success<void>) {
+      await load(forceRefresh: true);
+    }
+    return result;
+  }
+}
+
+class VerificationAppealsController
+    extends StateNotifier<AsyncValue<List<VerificationAppeal>>> {
+  VerificationAppealsController(this._ref) : super(const AsyncLoading());
+
+  final Ref _ref;
+
+  String? _resolveProjectId() {
+    final projectKey = _ref.read(selectedProjectKeyProvider);
+    final projectId = _ref.read(selectedProjectIdProvider);
+    if (projectKey != null && projectKey.isNotEmpty) return projectKey;
+    if (projectId != null && projectId.isNotEmpty) return projectId;
+    return null;
+  }
+
+  Future<void> load({bool forceRefresh = false}) async {
+    final isAuthenticated = _ref.read(isAuthenticatedProvider);
+    if (!isAuthenticated) {
+      state = const AsyncData(<VerificationAppeal>[]);
+      return;
+    }
+    final projectId = _resolveProjectId();
+    if (projectId == null || projectId.isEmpty) {
+      state = const AsyncData(<VerificationAppeal>[]);
+      return;
+    }
+    state = const AsyncLoading();
+    final repository = await _ref.read(settingsRepositoryProvider.future);
+    final result = await repository.getVerificationAppeals(
+      projectId: projectId,
+      forceRefresh: forceRefresh,
+    );
+    if (result is Success<List<VerificationAppeal>>) {
+      state = AsyncData(result.data);
+    } else if (result is Err<List<VerificationAppeal>>) {
+      state = AsyncError(result.failure, StackTrace.current);
+    }
+  }
+
+  Future<Result<VerificationAppeal>> create({
+    required String targetType,
+    required String targetId,
+    required String reason,
+    String? description,
+  }) async {
+    final projectId = _resolveProjectId();
+    if (projectId == null || projectId.isEmpty) {
+      return const Result.failure(
+        ValidationFailure('Project is required', code: 'project_required'),
+      );
+    }
+    final repository = await _ref.read(settingsRepositoryProvider.future);
+    final result = await repository.createVerificationAppeal(
+      projectId: projectId,
+      targetType: targetType,
+      targetId: targetId,
+      reason: reason,
+      description: description,
+    );
+    if (result is Success<VerificationAppeal>) {
+      await load(forceRefresh: true);
+    }
+    return result;
+  }
+}
+
 /// EN: Settings repository provider.
 /// KO: 설정 리포지토리 프로바이더.
 final settingsRepositoryProvider = FutureProvider<SettingsRepository>((
@@ -198,4 +350,33 @@ final notificationSettingsControllerProvider =
       AsyncValue<NotificationSettings>
     >((ref) {
       return NotificationSettingsController(ref)..load();
+    });
+
+/// EN: User blocks controller provider.
+/// KO: 사용자 차단 목록 컨트롤러 프로바이더.
+final userBlocksControllerProvider =
+    StateNotifierProvider<UserBlocksController, AsyncValue<List<UserBlock>>>((
+      ref,
+    ) {
+      return UserBlocksController(ref)..load();
+    });
+
+/// EN: Project role requests controller provider.
+/// KO: 프로젝트 권한 요청 컨트롤러 프로바이더.
+final projectRoleRequestsControllerProvider =
+    StateNotifierProvider<
+      ProjectRoleRequestsController,
+      AsyncValue<List<ProjectRoleRequest>>
+    >((ref) {
+      return ProjectRoleRequestsController(ref)..load();
+    });
+
+/// EN: Verification appeals controller provider.
+/// KO: 인증 이의제기 컨트롤러 프로바이더.
+final verificationAppealsControllerProvider =
+    StateNotifierProvider<
+      VerificationAppealsController,
+      AsyncValue<List<VerificationAppeal>>
+    >((ref) {
+      return VerificationAppealsController(ref)..load();
     });
