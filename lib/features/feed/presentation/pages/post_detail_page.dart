@@ -60,11 +60,18 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       postCommentsControllerProvider(widget.postId),
     );
     final likeState = ref.watch(postLikeControllerProvider(widget.postId));
+    final bookmarkState = ref.watch(
+      postBookmarkControllerProvider(widget.postId),
+    );
     final isAuthenticated = ref.watch(isAuthenticatedProvider);
     final profileState = ref.watch(userProfileControllerProvider);
     final currentUserId = profileState.maybeWhen(
       data: (profile) => profile?.id,
       orElse: () => null,
+    );
+    final isAdmin = profileState.maybeWhen(
+      data: (profile) => _isAdminRole(profile?.role),
+      orElse: () => false,
     );
     final currentPost = state.maybeWhen(
       data: (post) => post,
@@ -167,7 +174,9 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
           post: post,
           commentsState: commentsState,
           likeState: likeState,
+          bookmarkState: bookmarkState,
           currentUserId: currentUserId,
+          isAdmin: isAdmin,
           isAuthenticated: isAuthenticated,
           isSubmitting: _isSubmitting,
           commentController: _commentController,
@@ -177,6 +186,14 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                 .toggleLike();
             if (result is Err<PostLikeStatus> && context.mounted) {
               _showSnackBar(context, '좋아요를 반영하지 못했어요');
+            }
+          },
+          onToggleBookmark: () async {
+            final result = await ref
+                .read(postBookmarkControllerProvider(post.id).notifier)
+                .toggleBookmark();
+            if (result is Err<PostBookmarkStatus> && context.mounted) {
+              _showSnackBar(context, '북마크를 반영하지 못했어요');
             }
           },
           onSubmitComment: () async {
@@ -204,13 +221,22 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
             postId: post.id,
             comment: comment,
           ),
-          onDeleteComment: (comment) =>
-              _confirmDeleteComment(context, postId: post.id, comment: comment),
+          onDeleteComment: (comment) => _confirmDeleteComment(
+            context,
+            postId: post.id,
+            comment: comment,
+            useModeration:
+                isAdmin &&
+                currentUserId != null &&
+                currentUserId != comment.authorId,
+          ),
           onReportComment: (comment) => _showReportFlow(
             context,
             CommunityReportTargetType.comment,
             comment.id,
           ),
+          onOpenCommentThread: (comment) =>
+              _showCommentThread(context, postId: post.id, comment: comment),
           onAppealPost: () =>
               _showAppealFlow(context, CommunityReportTargetType.post, post.id),
           onTapAuthor: (authorId) => context.goToUserProfile(authorId),
@@ -345,6 +371,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     BuildContext context, {
     required String postId,
     required PostComment comment,
+    required bool useModeration,
   }) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -366,9 +393,31 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
 
     if (confirm != true) return;
 
-    final result = await ref
-        .read(postCommentsControllerProvider(postId).notifier)
-        .deleteComment(comment.id);
+    final Result<void> result;
+    if (useModeration) {
+      final projectCode = ref.read(selectedProjectKeyProvider);
+      if (projectCode == null || projectCode.isEmpty) {
+        if (context.mounted) {
+          _showSnackBar(context, '프로젝트를 먼저 선택해주세요');
+        }
+        return;
+      }
+      final repository = await ref.read(communityRepositoryProvider.future);
+      result = await repository.moderateDeletePostComment(
+        projectCode: projectCode,
+        postId: postId,
+        commentId: comment.id,
+      );
+      if (result is Success<void>) {
+        await ref
+            .read(postCommentsControllerProvider(postId).notifier)
+            .load(forceRefresh: true);
+      }
+    } else {
+      result = await ref
+          .read(postCommentsControllerProvider(postId).notifier)
+          .deleteComment(comment.id);
+    }
     if (result is Err<void> && context.mounted) {
       _showSnackBar(context, '댓글을 삭제하지 못했어요');
       return;
@@ -376,6 +425,66 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     if (result is Success<void> && context.mounted) {
       _showSnackBar(context, '댓글을 삭제했어요');
     }
+  }
+
+  Future<void> _showCommentThread(
+    BuildContext context, {
+    required String postId,
+    required PostComment comment,
+  }) async {
+    final projectCode = ref.read(selectedProjectKeyProvider);
+    if (projectCode == null || projectCode.isEmpty) {
+      if (context.mounted) {
+        _showSnackBar(context, '프로젝트를 먼저 선택해주세요');
+      }
+      return;
+    }
+
+    final repository = await ref.read(feedRepositoryProvider.future);
+    final result = await repository.getPostCommentThread(
+      projectCode: projectCode,
+      postId: postId,
+      parentCommentId: comment.id,
+      maxDepth: 3,
+      size: 50,
+    );
+
+    if (!context.mounted) return;
+    if (result is Err<List<CommentThreadNode>>) {
+      _showSnackBar(context, '답글 스레드를 불러오지 못했어요');
+      return;
+    }
+
+    final thread = result is Success<List<CommentThreadNode>>
+        ? result.data
+        : <CommentThreadNode>[];
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(GBTSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('답글 스레드', style: GBTTypography.titleSmall),
+                const SizedBox(height: GBTSpacing.sm),
+                Expanded(
+                  child: thread.isEmpty
+                      ? const Center(child: Text('표시할 답글이 없습니다'))
+                      : ListView(
+                          children: thread
+                              .map((node) => _CommentThreadNodeView(node: node))
+                              .toList(),
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _showReportFlow(
@@ -533,15 +642,19 @@ class _PostDetailContent extends StatelessWidget {
     required this.post,
     required this.commentsState,
     required this.likeState,
+    required this.bookmarkState,
     required this.currentUserId,
+    required this.isAdmin,
     required this.isAuthenticated,
     required this.isSubmitting,
     required this.commentController,
     required this.onToggleLike,
+    required this.onToggleBookmark,
     required this.onSubmitComment,
     required this.onEditComment,
     required this.onDeleteComment,
     required this.onReportComment,
+    required this.onOpenCommentThread,
     required this.onAppealPost,
     required this.onTapAuthor,
   });
@@ -549,15 +662,19 @@ class _PostDetailContent extends StatelessWidget {
   final PostDetail post;
   final AsyncValue<List<PostComment>> commentsState;
   final AsyncValue<PostLikeStatus> likeState;
+  final AsyncValue<PostBookmarkStatus> bookmarkState;
   final String? currentUserId;
+  final bool isAdmin;
   final bool isAuthenticated;
   final bool isSubmitting;
   final TextEditingController commentController;
   final VoidCallback onToggleLike;
+  final VoidCallback onToggleBookmark;
   final VoidCallback onSubmitComment;
   final ValueChanged<PostComment> onEditComment;
   final ValueChanged<PostComment> onDeleteComment;
   final ValueChanged<PostComment> onReportComment;
+  final ValueChanged<PostComment> onOpenCommentThread;
   final VoidCallback onAppealPost;
   final ValueChanged<String> onTapAuthor;
 
@@ -575,6 +692,11 @@ class _PostDetailContent extends StatelessWidget {
     );
     final likeCount = likeStatus?.likeCount ?? post.likeCount ?? 0;
     final isLiked = likeStatus?.isLiked ?? false;
+    final bookmarkStatus = bookmarkState.maybeWhen(
+      data: (value) => value,
+      orElse: () => null,
+    );
+    final isBookmarked = bookmarkStatus?.isBookmarked ?? false;
     final commentCountLabel = _commentCountLabel(
       commentsState,
       fallback: post.commentCount,
@@ -744,9 +866,11 @@ class _PostDetailContent extends StatelessWidget {
                     ),
                     const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.bookmark_border),
-                      tooltip: '북마크',
-                      onPressed: () {},
+                      icon: Icon(
+                        isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                      ),
+                      tooltip: isBookmarked ? '북마크 해제' : '북마크',
+                      onPressed: onToggleBookmark,
                     ),
                     IconButton(
                       icon: const Icon(Icons.share),
@@ -769,10 +893,12 @@ class _PostDetailContent extends StatelessWidget {
                 state: commentsState,
                 onTapAuthor: onTapAuthor,
                 currentUserId: currentUserId,
+                isAdmin: isAdmin,
                 isAuthenticated: isAuthenticated,
                 onEditComment: onEditComment,
                 onDeleteComment: onDeleteComment,
                 onReportComment: onReportComment,
+                onOpenCommentThread: onOpenCommentThread,
               ),
             ],
           ),
@@ -960,19 +1086,23 @@ class _PostCommentsSection extends StatelessWidget {
     required this.state,
     required this.onTapAuthor,
     required this.currentUserId,
+    required this.isAdmin,
     required this.isAuthenticated,
     required this.onEditComment,
     required this.onDeleteComment,
     required this.onReportComment,
+    required this.onOpenCommentThread,
   });
 
   final AsyncValue<List<PostComment>> state;
   final ValueChanged<String> onTapAuthor;
   final String? currentUserId;
+  final bool isAdmin;
   final bool isAuthenticated;
   final ValueChanged<PostComment> onEditComment;
   final ValueChanged<PostComment> onDeleteComment;
   final ValueChanged<PostComment> onReportComment;
+  final ValueChanged<PostComment> onOpenCommentThread;
 
   @override
   Widget build(BuildContext context) {
@@ -994,11 +1124,15 @@ class _PostCommentsSection extends StatelessWidget {
                   child: _CommentItem(
                     comment: comment,
                     onTapAuthor: onTapAuthor,
-                    canManage: currentUserId == comment.authorId,
+                    canEdit: currentUserId == comment.authorId,
+                    canDelete:
+                        currentUserId == comment.authorId ||
+                        (isAdmin && currentUserId != null),
                     canReport: isAuthenticated,
                     onEdit: onEditComment,
                     onDelete: onDeleteComment,
                     onReport: onReportComment,
+                    onOpenThread: onOpenCommentThread,
                   ),
                 ),
               )
@@ -1015,20 +1149,24 @@ class _CommentItem extends StatelessWidget {
   const _CommentItem({
     required this.comment,
     required this.onTapAuthor,
-    required this.canManage,
+    required this.canEdit,
+    required this.canDelete,
     required this.canReport,
     required this.onEdit,
     required this.onDelete,
     required this.onReport,
+    required this.onOpenThread,
   });
 
   final PostComment comment;
   final ValueChanged<String> onTapAuthor;
-  final bool canManage;
+  final bool canEdit;
+  final bool canDelete;
   final bool canReport;
   final ValueChanged<PostComment> onEdit;
   final ValueChanged<PostComment> onDelete;
   final ValueChanged<PostComment> onReport;
+  final ValueChanged<PostComment> onOpenThread;
 
   @override
   Widget build(BuildContext context) {
@@ -1076,8 +1214,8 @@ class _CommentItem extends StatelessWidget {
                       color: tertiaryColor,
                     ),
                   ),
-                  if (canManage || canReport) const Spacer(),
-                  if (canManage)
+                  if (canEdit || canDelete || canReport) const Spacer(),
+                  if (canEdit || canDelete)
                     PopupMenuButton<_CommentAction>(
                       tooltip: '댓글 관리',
                       onSelected: (action) {
@@ -1087,15 +1225,17 @@ class _CommentItem extends StatelessWidget {
                           onDelete(comment);
                         }
                       },
-                      itemBuilder: (context) => const [
-                        PopupMenuItem(
-                          value: _CommentAction.edit,
-                          child: Text('수정'),
-                        ),
-                        PopupMenuItem(
-                          value: _CommentAction.delete,
-                          child: Text('삭제'),
-                        ),
+                      itemBuilder: (context) => [
+                        if (canEdit)
+                          const PopupMenuItem(
+                            value: _CommentAction.edit,
+                            child: Text('수정'),
+                          ),
+                        if (canDelete)
+                          PopupMenuItem(
+                            value: _CommentAction.delete,
+                            child: Text(canEdit ? '삭제' : '관리 삭제'),
+                          ),
                       ],
                     )
                   else if (canReport)
@@ -1118,6 +1258,14 @@ class _CommentItem extends StatelessWidget {
                 maxLines: 10,
                 overflow: TextOverflow.ellipsis,
               ),
+              if ((comment.replyCount ?? 0) > 0)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: () => onOpenThread(comment),
+                    child: Text('답글 ${(comment.replyCount ?? 0)}개 보기'),
+                  ),
+                ),
             ],
           ),
         ),
@@ -1126,13 +1274,55 @@ class _CommentItem extends StatelessWidget {
   }
 }
 
+class _CommentThreadNodeView extends StatelessWidget {
+  const _CommentThreadNodeView({required this.node, this.depth = 0});
+
+  final CommentThreadNode node;
+  final int depth;
+
+  @override
+  Widget build(BuildContext context) {
+    final comment = node.comment;
+    final author = comment.authorName?.isNotEmpty == true
+        ? comment.authorName!
+        : '익명';
+    final leftPadding = (depth * GBTSpacing.lg).toDouble();
+
+    return Padding(
+      padding: EdgeInsets.only(left: leftPadding, bottom: GBTSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$author · ${comment.timeAgoLabel}',
+            style: GBTTypography.labelSmall.copyWith(
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(160),
+            ),
+          ),
+          const SizedBox(height: GBTSpacing.xs),
+          Text(comment.content, style: GBTTypography.bodySmall),
+          if (node.replies.isNotEmpty) ...[
+            const SizedBox(height: GBTSpacing.xs),
+            ...node.replies.map(
+              (reply) => _CommentThreadNodeView(node: reply, depth: depth + 1),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+bool _isAdminRole(String? role) {
+  if (role == null) return false;
+  final normalized = role.toUpperCase();
+  return normalized.contains('ADMIN') || normalized.contains('MODERATOR');
+}
+
 /// EN: Twitter-style horizontal swipeable image carousel with dot indicator.
 /// KO: 점 인디케이터가 있는 트위터 스타일 가로 스와이프 이미지 캐러셀.
 class _ImageCarousel extends StatefulWidget {
-  const _ImageCarousel({
-    required this.imageUrls,
-    required this.onTapImage,
-  });
+  const _ImageCarousel({required this.imageUrls, required this.onTapImage});
 
   final List<String> imageUrls;
   final ValueChanged<int> onTapImage;
@@ -1171,12 +1361,10 @@ class _ImageCarouselState extends State<_ImageCarousel> {
             child: PageView.builder(
               controller: _pageController,
               itemCount: widget.imageUrls.length,
-              onPageChanged: (index) =>
-                  setState(() => _currentIndex = index),
+              onPageChanged: (index) => setState(() => _currentIndex = index),
               itemBuilder: (context, index) {
                 return Semantics(
-                  label:
-                      '첨부 이미지 ${index + 1}/${widget.imageUrls.length}',
+                  label: '첨부 이미지 ${index + 1}/${widget.imageUrls.length}',
                   hint: '탭하면 확대합니다',
                   button: true,
                   child: GestureDetector(

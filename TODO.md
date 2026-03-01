@@ -4,6 +4,8 @@
 - Add a HomePage widget test that verifies the ProjectSelector renders during loading and triggers a reload after selection (remove once CI covers the flow).
 - Add a CI step (or pre-commit hook) to run `build_runner` so generated files stay in sync.
 - Add CI check to compare `ApiEndpoints` against `/v3/api-docs` and fail on missing/removed paths.
+- Verify community-ban management sheet filter/sort controls (query/sort chips) remain usable without overflow on small-width devices (remove once mobile QA passes).
+- Re-run `flutter analyze --no-pub` and `flutter test --no-pub` for updated community-ban UX/tests after local Xcode license acceptance and dependency cache recovery (remove once green run is recorded).
 - Verify `tags` field availability on all place summary endpoints; if absent on 일부 응답, decide fallback strategy (detail prefetch vs summary contract update).
 - Verify the new places-sheet collapse/expand floating toggle does not overlap map FABs on small iPhone/Android screen sizes.
 - Confirm canonical request fields for `PATCH /api/v1/admin/community/reports/{reportId}` and `/assign` (then remove temporary multi-key compatibility payload).

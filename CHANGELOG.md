@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-02-28
+- **COMMUNITY/API**: Re-synced community endpoint usage against live `http://localhost:8080/v3/api-docs` and added missing client constants/catalog entries for `feed/cursor`, `subscriptions`, `posts/cursor`, `posts/search`, `posts/trending`, `posts/{postId}/bookmark`, and `posts/{postId}/comments/thread`.
+- **COMMUNITY/FEED**: Extended feed data/repository/domain layers with cursor feed, search, trending, subscriptions, bookmark state/toggle, and threaded comment retrieval models.
+- **COMMUNITY/MODERATION**: Extended community moderation data/repository/domain layers with my-report list/detail/cancel and project ban list/status/ban/unban endpoints.
+- **COMMUNITY/FIX**: Updated post creation request payload to include v3-required fields (`conversationControl`, `mentionedUserIds`) and extended comment create payload to support `parentCommentId`.
+- **COMMUNITY/UI**: Wired post detail bookmark button to real API state via a new `PostBookmarkController`.
+- **COMMUNITY/UI**: Reworked board community tab with endpoint-driven UX (mode chips for 최신/트렌딩/구독 피드, search box, subscription chips, pull-to-refresh, and infinite loading for cursor/page feeds).
+- **COMMUNITY/UI**: Added comment-thread viewer in post detail (`comments/thread`) and reply-entry affordance (`답글 N개 보기`) per comment.
+- **COMMUNITY/UI**: Added “내 신고 내역” sheet on board (list from `reports/me`, detail from `reports/{reportId}`, and cancel action for open/in-review reports).
+- **COMMUNITY/MODERATION/UI**: Added moderator delete integration for post/comment flows using project moderation endpoints (`/moderation/posts/*`) and switched admin ban action to project community ban API.
+- **COMMUNITY/MODERATION/UI**: Added admin-only community-ban management sheet on board (ban list, userId ban-status lookup, and unban actions via project moderation ban endpoints).
+- **COMMUNITY/MODERATION/UI**: Improved admin community-ban sheet UX with client-side filter/sort controls (query, permanent-only, hide-expired, newest/oldest/expires-soon) and responsive wrapping controls for narrow screens.
+- **TESTING**: Expanded endpoint contract tests and added DTO/repository tests for new community contracts (cursor/bookmark/subscriptions/thread, report mapping, project ban payload forwarding).
+- **TESTING**: Added unit tests for community-ban list view helper filter/sort behavior (query/permanent/hide-expired and all sort options).
+
 ## 2026-02-19
 - **COMMUNITY/UI**: Refreshed post-create UX with completion guide/progress, project context badge, richer input hints, image thumbnail grid preview, duplicate/max-image guard, and unsaved-draft exit confirmation.
 - **COMMUNITY/FIX**: Added in-page project selector to post-create and surfaced backend failure messages during post submission so registration failures are actionable.

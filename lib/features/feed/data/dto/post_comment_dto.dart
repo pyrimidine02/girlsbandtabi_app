@@ -13,6 +13,9 @@ class PostCommentDto {
     this.updatedAt,
     this.authorName,
     this.authorAvatarUrl,
+    this.parentCommentId,
+    this.depth,
+    this.replyCount,
   });
 
   final String id;
@@ -24,6 +27,9 @@ class PostCommentDto {
   final DateTime? updatedAt;
   final String? authorName;
   final String? authorAvatarUrl;
+  final String? parentCommentId;
+  final int? depth;
+  final int? replyCount;
 
   factory PostCommentDto.fromJson(Map<String, dynamic> json) {
     final authorProfile = _authorProfile(json['authorProfile']);
@@ -46,6 +52,9 @@ class PostCommentDto {
       updatedAt: _dateTimeOrNull(json['updatedAt']),
       authorName: resolvedAuthorName,
       authorAvatarUrl: resolvedAvatarUrl,
+      parentCommentId: json['parentCommentId'] as String?,
+      depth: _intOrNull(json['depth']),
+      replyCount: _intOrNull(json['replyCount']),
     );
   }
 
@@ -60,7 +69,39 @@ class PostCommentDto {
       'updatedAt': updatedAt?.toIso8601String(),
       if (authorName != null) 'authorName': authorName,
       if (authorAvatarUrl != null) 'authorAvatarUrl': authorAvatarUrl,
+      if (parentCommentId != null) 'parentCommentId': parentCommentId,
+      if (depth != null) 'depth': depth,
+      if (replyCount != null) 'replyCount': replyCount,
     };
+  }
+}
+
+class CommentThreadNodeDto {
+  const CommentThreadNodeDto({
+    required this.comment,
+    required this.replies,
+    required this.hasMoreReplies,
+  });
+
+  final PostCommentDto comment;
+  final List<CommentThreadNodeDto> replies;
+  final bool hasMoreReplies;
+
+  factory CommentThreadNodeDto.fromJson(Map<String, dynamic> json) {
+    final rawComment = json['comment'];
+    final rawReplies = json['replies'];
+    return CommentThreadNodeDto(
+      comment: rawComment is Map<String, dynamic>
+          ? PostCommentDto.fromJson(rawComment)
+          : PostCommentDto.fromJson(const <String, dynamic>{}),
+      replies: rawReplies is List
+          ? rawReplies
+                .whereType<Map<String, dynamic>>()
+                .map(CommentThreadNodeDto.fromJson)
+                .toList()
+          : const <CommentThreadNodeDto>[],
+      hasMoreReplies: json['hasMoreReplies'] as bool? ?? false,
+    );
   }
 }
 
@@ -69,6 +110,8 @@ class PostCreateRequestDto {
     required this.title,
     required this.content,
     this.imageUploadIds = const [],
+    this.conversationControl = 'EVERYONE',
+    this.mentionedUserIds = const [],
   });
 
   final String title;
@@ -78,23 +121,35 @@ class PostCreateRequestDto {
   // EN: Server resolves thumbnailUrl automatically from imageUploadIds[0].
   // KO: 서버가 imageUploadIds[0]으로 thumbnailUrl을 자동 설정합니다.
   final List<String> imageUploadIds;
+  final String conversationControl;
+  final List<String> mentionedUserIds;
 
   Map<String, dynamic> toJson() {
     return {
       'title': title,
       'content': content,
       if (imageUploadIds.isNotEmpty) 'imageUploadIds': imageUploadIds,
+      'conversationControl': conversationControl,
+      'mentionedUserIds': mentionedUserIds,
     };
   }
 }
 
 class PostCommentCreateRequestDto {
-  const PostCommentCreateRequestDto({required this.content});
+  const PostCommentCreateRequestDto({
+    required this.content,
+    this.parentCommentId,
+  });
 
   final String content;
+  final String? parentCommentId;
 
   Map<String, dynamic> toJson() {
-    return {'content': content};
+    return {
+      'content': content,
+      if (parentCommentId != null && parentCommentId!.isNotEmpty)
+        'parentCommentId': parentCommentId,
+    };
   }
 }
 
@@ -109,6 +164,13 @@ DateTime? _dateTimeOrNull(dynamic value) {
   if (value is String) {
     return DateTime.tryParse(value);
   }
+  return null;
+}
+
+int? _intOrNull(dynamic value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value);
   return null;
 }
 

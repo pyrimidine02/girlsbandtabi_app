@@ -56,6 +56,9 @@ void main() {
         ),
         (path: ApiEndpoints.posts('{projectCode}'), method: 'GET'),
         (path: ApiEndpoints.posts('{projectCode}'), method: 'POST'),
+        (path: ApiEndpoints.postsCursor('{projectCode}'), method: 'GET'),
+        (path: ApiEndpoints.postsSearch('{projectCode}'), method: 'GET'),
+        (path: ApiEndpoints.postsTrending('{projectCode}'), method: 'GET'),
         (
           path: ApiEndpoints.postsByAuthor('{projectCode}', '{userId}'),
           method: 'GET',
@@ -103,10 +106,56 @@ void main() {
           method: 'DELETE',
         ),
         (
+          path: ApiEndpoints.postBookmark('{projectCode}', '{postId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.postBookmark('{projectCode}', '{postId}'),
+          method: 'POST',
+        ),
+        (
+          path: ApiEndpoints.postBookmark('{projectCode}', '{postId}'),
+          method: 'DELETE',
+        ),
+        (
+          path: ApiEndpoints.postCommentsThread('{projectCode}', '{postId}'),
+          method: 'GET',
+        ),
+        (
           path: ApiEndpoints.commentsByAuthor('{projectCode}', '{userId}'),
           method: 'GET',
         ),
+        (
+          path: ApiEndpoints.moderationPost('{projectCode}', '{postId}'),
+          method: 'DELETE',
+        ),
+        (
+          path: ApiEndpoints.moderationPostComment(
+            '{projectCode}',
+            '{postId}',
+            '{commentId}',
+          ),
+          method: 'DELETE',
+        ),
+        (path: ApiEndpoints.moderationBans('{projectCode}'), method: 'GET'),
+        (
+          path: ApiEndpoints.moderationBan('{projectCode}', '{userId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.moderationBan('{projectCode}', '{userId}'),
+          method: 'POST',
+        ),
+        (
+          path: ApiEndpoints.moderationBan('{projectCode}', '{userId}'),
+          method: 'DELETE',
+        ),
+        (path: ApiEndpoints.communityFeedCursor, method: 'GET'),
+        (path: ApiEndpoints.communitySubscriptions, method: 'GET'),
         (path: ApiEndpoints.communityReports, method: 'POST'),
+        (path: ApiEndpoints.communityReportsMe, method: 'GET'),
+        (path: ApiEndpoints.communityReport('{reportId}'), method: 'GET'),
+        (path: ApiEndpoints.communityReport('{reportId}'), method: 'DELETE'),
         (path: ApiEndpoints.userMe, method: 'GET'),
         (path: ApiEndpoints.userMe, method: 'PATCH'),
         (path: ApiEndpoints.userProfile('{userId}'), method: 'GET'),
