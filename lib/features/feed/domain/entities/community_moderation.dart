@@ -26,6 +26,17 @@ extension CommunityReportTargetTypeX on CommunityReportTargetType {
         return '사용자';
     }
   }
+
+  static CommunityReportTargetType fromApiValue(String? value) {
+    switch (value) {
+      case 'COMMENT':
+        return CommunityReportTargetType.comment;
+      case 'USER':
+        return CommunityReportTargetType.user;
+      default:
+        return CommunityReportTargetType.post;
+    }
+  }
 }
 
 enum CommunityReportReason {
@@ -84,6 +95,29 @@ extension CommunityReportReasonX on CommunityReportReason {
         return '저작권 침해';
       case CommunityReportReason.other:
         return '기타';
+    }
+  }
+
+  static CommunityReportReason fromApiValue(String? value) {
+    switch (value) {
+      case 'SPAM':
+        return CommunityReportReason.spam;
+      case 'ABUSE':
+        return CommunityReportReason.abuse;
+      case 'HARASSMENT':
+        return CommunityReportReason.harassment;
+      case 'HATE':
+        return CommunityReportReason.hate;
+      case 'OFF_TOPIC':
+        return CommunityReportReason.offTopic;
+      case 'ILLEGAL':
+        return CommunityReportReason.illegal;
+      case 'MISINFORMATION':
+        return CommunityReportReason.misinformation;
+      case 'COPYRIGHT':
+        return CommunityReportReason.copyright;
+      default:
+        return CommunityReportReason.other;
     }
   }
 }
@@ -199,4 +233,138 @@ class BlockStatus {
   final bool blockedByMe;
   final bool blockedMe;
   final bool blockedByAdmin;
+}
+
+enum CommunityReportStatus { open, inReview, resolved, rejected }
+
+extension CommunityReportStatusX on CommunityReportStatus {
+  static CommunityReportStatus fromApiValue(String? value) {
+    switch (value) {
+      case 'IN_REVIEW':
+        return CommunityReportStatus.inReview;
+      case 'RESOLVED':
+        return CommunityReportStatus.resolved;
+      case 'REJECTED':
+        return CommunityReportStatus.rejected;
+      default:
+        return CommunityReportStatus.open;
+    }
+  }
+}
+
+enum CommunityReportPriority { low, normal, high, critical }
+
+extension CommunityReportPriorityX on CommunityReportPriority {
+  static CommunityReportPriority fromApiValue(String? value) {
+    switch (value) {
+      case 'LOW':
+        return CommunityReportPriority.low;
+      case 'HIGH':
+        return CommunityReportPriority.high;
+      case 'CRITICAL':
+        return CommunityReportPriority.critical;
+      default:
+        return CommunityReportPriority.normal;
+    }
+  }
+}
+
+enum CommunityAdminAction {
+  none,
+  contentRemoved,
+  userWarned,
+  userSuspended,
+  userBanned,
+}
+
+extension CommunityAdminActionX on CommunityAdminAction {
+  static CommunityAdminAction fromApiValue(String? value) {
+    switch (value) {
+      case 'CONTENT_REMOVED':
+        return CommunityAdminAction.contentRemoved;
+      case 'USER_WARNED':
+        return CommunityAdminAction.userWarned;
+      case 'USER_SUSPENDED':
+        return CommunityAdminAction.userSuspended;
+      case 'USER_BANNED':
+        return CommunityAdminAction.userBanned;
+      default:
+        return CommunityAdminAction.none;
+    }
+  }
+}
+
+class CommunityReportSummary {
+  const CommunityReportSummary({
+    required this.id,
+    required this.targetType,
+    required this.targetId,
+    required this.reason,
+    required this.status,
+    required this.priority,
+    required this.createdAt,
+  });
+
+  final String id;
+  final CommunityReportTargetType targetType;
+  final String targetId;
+  final CommunityReportReason reason;
+  final CommunityReportStatus status;
+  final CommunityReportPriority priority;
+  final DateTime createdAt;
+}
+
+class CommunityReportDetail {
+  const CommunityReportDetail({
+    required this.id,
+    required this.targetType,
+    required this.targetId,
+    required this.reason,
+    required this.status,
+    required this.priority,
+    required this.createdAt,
+    required this.updatedAt,
+    this.description,
+    this.adminAction,
+    this.resolvedAt,
+  });
+
+  final String id;
+  final CommunityReportTargetType targetType;
+  final String targetId;
+  final CommunityReportReason reason;
+  final CommunityReportStatus status;
+  final CommunityReportPriority priority;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String? description;
+  final CommunityAdminAction? adminAction;
+  final DateTime? resolvedAt;
+}
+
+class ProjectCommunityBan {
+  const ProjectCommunityBan({
+    required this.id,
+    required this.projectId,
+    required this.bannedUserId,
+    required this.moderatorUserId,
+    required this.createdAt,
+    this.bannedUserDisplayName,
+    this.bannedUserAvatarUrl,
+    this.reason,
+    this.expiresAt,
+  });
+
+  final String id;
+  final String projectId;
+  final String bannedUserId;
+  final String moderatorUserId;
+  final DateTime createdAt;
+  final String? bannedUserDisplayName;
+  final String? bannedUserAvatarUrl;
+  final String? reason;
+  final DateTime? expiresAt;
+
+  bool get isExpired =>
+      expiresAt != null && expiresAt!.isBefore(DateTime.now());
 }

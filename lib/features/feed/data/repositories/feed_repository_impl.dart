@@ -136,6 +136,200 @@ class FeedRepositoryImpl implements FeedRepository {
   }
 
   @override
+  Future<Result<PostCursorPage>> getPostsByCursor({
+    required String projectCode,
+    String? cursor,
+    int size = 20,
+  }) async {
+    try {
+      final result = await _remoteDataSource.fetchPostsByCursor(
+        projectCode: projectCode,
+        cursor: cursor,
+        size: size,
+      );
+
+      if (result is Success<PostCursorPageDto>) {
+        return Result.success(PostCursorPage.fromDto(result.data));
+      }
+      if (result is Err<PostCursorPageDto>) {
+        return Result.failure(result.failure);
+      }
+
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown cursor posts result',
+          code: 'unknown_cursor_posts',
+        ),
+      );
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  @override
+  Future<Result<PostCursorPage>> getCommunityFeedByCursor({
+    String? cursor,
+    int size = 20,
+  }) async {
+    try {
+      final result = await _remoteDataSource.fetchCommunityFeedByCursor(
+        cursor: cursor,
+        size: size,
+      );
+
+      if (result is Success<PostCursorPageDto>) {
+        return Result.success(PostCursorPage.fromDto(result.data));
+      }
+      if (result is Err<PostCursorPageDto>) {
+        return Result.failure(result.failure);
+      }
+
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown community feed cursor result',
+          code: 'unknown_community_feed_cursor',
+        ),
+      );
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  @override
+  Future<Result<List<PostSummary>>> searchPosts({
+    required String projectCode,
+    required String query,
+    int page = 0,
+    int size = 20,
+  }) async {
+    try {
+      final result = await _remoteDataSource.searchPosts(
+        projectCode: projectCode,
+        query: query,
+        page: page,
+        size: size,
+      );
+
+      if (result is Success<List<PostSummaryDto>>) {
+        final entities = result.data.map(PostSummary.fromDto).toList();
+        return Result.success(entities);
+      }
+      if (result is Err<List<PostSummaryDto>>) {
+        return Result.failure(result.failure);
+      }
+
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown post search result',
+          code: 'unknown_post_search',
+        ),
+      );
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  @override
+  Future<Result<List<PostSummary>>> getTrendingPosts({
+    required String projectCode,
+    int sinceHours = 24,
+    int page = 0,
+    int size = 20,
+    bool forceRefresh = false,
+  }) async {
+    final cacheKey = _trendingPostsCacheKey(
+      projectCode,
+      sinceHours,
+      page,
+      size,
+    );
+    final policy = forceRefresh
+        ? CachePolicy.networkFirst
+        : CachePolicy.staleWhileRevalidate;
+
+    try {
+      final cacheResult = await _cacheManager.resolve<List<PostSummaryDto>>(
+        key: cacheKey,
+        policy: policy,
+        ttl: const Duration(minutes: 5),
+        fetcher: () => _fetchTrendingPosts(projectCode, sinceHours, page, size),
+        toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
+        fromJson: (json) {
+          final items = json['items'];
+          if (items is List) {
+            return items
+                .whereType<Map<String, dynamic>>()
+                .map(PostSummaryDto.fromJson)
+                .toList();
+          }
+          return <PostSummaryDto>[];
+        },
+      );
+
+      final entities = cacheResult.data.map(PostSummary.fromDto).toList();
+      return Result.success(entities);
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  @override
+  Future<Result<List<ProjectSubscriptionSummary>>> getCommunitySubscriptions({
+    int page = 0,
+    int size = 20,
+    bool forceRefresh = false,
+  }) async {
+    final cacheKey = _communitySubscriptionsCacheKey(page, size);
+    final policy = forceRefresh
+        ? CachePolicy.networkFirst
+        : CachePolicy.staleWhileRevalidate;
+
+    try {
+      final cacheResult = await _cacheManager
+          .resolve<List<ProjectSubscriptionSummaryDto>>(
+            key: cacheKey,
+            policy: policy,
+            ttl: const Duration(minutes: 10),
+            fetcher: () => _fetchCommunitySubscriptions(page, size),
+            toJson: (dtos) => {
+              'items': dtos
+                  .map(
+                    (dto) => {
+                      'projectId': dto.projectId,
+                      'projectCode': dto.projectCode,
+                      'projectName': dto.projectName,
+                      'subscribedAt': dto.subscribedAt.toIso8601String(),
+                    },
+                  )
+                  .toList(),
+            },
+            fromJson: (json) {
+              final items = json['items'];
+              if (items is List) {
+                return items
+                    .whereType<Map<String, dynamic>>()
+                    .map(ProjectSubscriptionSummaryDto.fromJson)
+                    .toList();
+              }
+              return <ProjectSubscriptionSummaryDto>[];
+            },
+          );
+
+      final entities = cacheResult.data
+          .map(ProjectSubscriptionSummary.fromDto)
+          .toList();
+      return Result.success(entities);
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  @override
   Future<Result<PostDetail>> getPostDetail({
     required String projectCode,
     required String postId,
@@ -317,9 +511,13 @@ class FeedRepositoryImpl implements FeedRepository {
     required String projectCode,
     required String postId,
     required String content,
+    String? parentCommentId,
   }) async {
     try {
-      final request = PostCommentCreateRequestDto(content: content);
+      final request = PostCommentCreateRequestDto(
+        content: content,
+        parentCommentId: parentCommentId,
+      );
       final result = await _remoteDataSource.createPostComment(
         projectCode: projectCode,
         postId: postId,
@@ -598,6 +796,133 @@ class FeedRepositoryImpl implements FeedRepository {
     }
   }
 
+  @override
+  Future<Result<PostBookmarkStatus>> getPostBookmarkStatus({
+    required String projectCode,
+    required String postId,
+  }) async {
+    try {
+      final result = await _remoteDataSource.fetchPostBookmarkStatus(
+        projectCode: projectCode,
+        postId: postId,
+      );
+
+      if (result is Success<PostBookmarkStatusDto>) {
+        return Result.success(PostBookmarkStatus.fromDto(result.data));
+      }
+      if (result is Err<PostBookmarkStatusDto>) {
+        return Result.failure(result.failure);
+      }
+
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown post bookmark status result',
+          code: 'unknown_post_bookmark_status',
+        ),
+      );
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  @override
+  Future<Result<PostBookmarkStatus>> bookmarkPost({
+    required String projectCode,
+    required String postId,
+  }) async {
+    try {
+      final result = await _remoteDataSource.bookmarkPost(
+        projectCode: projectCode,
+        postId: postId,
+      );
+
+      if (result is Success<PostBookmarkStatusDto>) {
+        return Result.success(PostBookmarkStatus.fromDto(result.data));
+      }
+      if (result is Err<PostBookmarkStatusDto>) {
+        return Result.failure(result.failure);
+      }
+
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown bookmark post result',
+          code: 'unknown_bookmark_post',
+        ),
+      );
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  @override
+  Future<Result<PostBookmarkStatus>> unbookmarkPost({
+    required String projectCode,
+    required String postId,
+  }) async {
+    try {
+      final result = await _remoteDataSource.unbookmarkPost(
+        projectCode: projectCode,
+        postId: postId,
+      );
+
+      if (result is Success<PostBookmarkStatusDto>) {
+        return Result.success(PostBookmarkStatus.fromDto(result.data));
+      }
+      if (result is Err<PostBookmarkStatusDto>) {
+        return Result.failure(result.failure);
+      }
+
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown unbookmark post result',
+          code: 'unknown_unbookmark_post',
+        ),
+      );
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  @override
+  Future<Result<List<CommentThreadNode>>> getPostCommentThread({
+    required String projectCode,
+    required String postId,
+    String? parentCommentId,
+    int maxDepth = 3,
+    int size = 50,
+  }) async {
+    try {
+      final result = await _remoteDataSource.fetchPostCommentThread(
+        projectCode: projectCode,
+        postId: postId,
+        parentCommentId: parentCommentId,
+        maxDepth: maxDepth,
+        size: size,
+      );
+
+      if (result is Success<List<CommentThreadNodeDto>>) {
+        final entities = result.data.map(CommentThreadNode.fromDto).toList();
+        return Result.success(entities);
+      }
+      if (result is Err<List<CommentThreadNodeDto>>) {
+        return Result.failure(result.failure);
+      }
+
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown post comment thread result',
+          code: 'unknown_post_comment_thread',
+        ),
+      );
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
   Future<List<NewsSummaryDto>> _fetchNews(
     String projectId,
     int page,
@@ -665,6 +990,54 @@ class FeedRepositoryImpl implements FeedRepository {
     throw const UnknownFailure(
       'Unknown posts list result',
       code: 'unknown_posts_list',
+    );
+  }
+
+  Future<List<PostSummaryDto>> _fetchTrendingPosts(
+    String projectCode,
+    int sinceHours,
+    int page,
+    int size,
+  ) async {
+    final result = await _remoteDataSource.fetchTrendingPosts(
+      projectCode: projectCode,
+      sinceHours: sinceHours,
+      page: page,
+      size: size,
+    );
+
+    if (result is Success<List<PostSummaryDto>>) {
+      return result.data;
+    }
+    if (result is Err<List<PostSummaryDto>>) {
+      throw result.failure;
+    }
+
+    throw const UnknownFailure(
+      'Unknown trending posts result',
+      code: 'unknown_trending_posts',
+    );
+  }
+
+  Future<List<ProjectSubscriptionSummaryDto>> _fetchCommunitySubscriptions(
+    int page,
+    int size,
+  ) async {
+    final result = await _remoteDataSource.fetchSubscriptions(
+      page: page,
+      size: size,
+    );
+
+    if (result is Success<List<ProjectSubscriptionSummaryDto>>) {
+      return result.data;
+    }
+    if (result is Err<List<ProjectSubscriptionSummaryDto>>) {
+      throw result.failure;
+    }
+
+    throw const UnknownFailure(
+      'Unknown community subscriptions result',
+      code: 'unknown_community_subscriptions',
     );
   }
 
@@ -809,5 +1182,18 @@ class FeedRepositoryImpl implements FeedRepository {
     int size,
   ) {
     return 'post_comments:$projectCode:author:$userId:p$page:s$size';
+  }
+
+  String _trendingPostsCacheKey(
+    String projectCode,
+    int sinceHours,
+    int page,
+    int size,
+  ) {
+    return 'post_trending:$projectCode:h$sinceHours:p$page:s$size';
+  }
+
+  String _communitySubscriptionsCacheKey(int page, int size) {
+    return 'community_subscriptions:p$page:s$size';
   }
 }

@@ -257,10 +257,18 @@ class ApiEndpoints {
   // ============================================================
   static String posts(String projectCode) =>
       '$apiVersion/projects/$projectCode/posts';
+  static String postsCursor(String projectCode) =>
+      '${posts(projectCode)}/cursor';
+  static String postsSearch(String projectCode) =>
+      '${posts(projectCode)}/search';
+  static String postsTrending(String projectCode) =>
+      '${posts(projectCode)}/trending';
   static String post(String projectCode, String postId) =>
       '${posts(projectCode)}/$postId';
   static String postComments(String projectCode, String postId) =>
       '${post(projectCode, postId)}/comments';
+  static String postCommentsThread(String projectCode, String postId) =>
+      '${postComments(projectCode, postId)}/thread';
   static String postComment(
     String projectCode,
     String postId,
@@ -268,10 +276,18 @@ class ApiEndpoints {
   ) => '${postComments(projectCode, postId)}/$commentId';
   static String postLike(String projectCode, String postId) =>
       '${post(projectCode, postId)}/like';
+  static String postBookmark(String projectCode, String postId) =>
+      '${post(projectCode, postId)}/bookmark';
   static String postsByAuthor(String projectCode, String userId) =>
       '${posts(projectCode)}/by-author/$userId';
   static String commentsByAuthor(String projectCode, String userId) =>
       '$apiVersion/projects/$projectCode/comments/by-author/$userId';
+
+  // EN: Community subscription endpoints.
+  // KO: 커뮤니티 구독 엔드포인트.
+  static const String communityFeedCursor = '$apiVersion/community/feed/cursor';
+  static const String communitySubscriptions =
+      '$apiVersion/community/subscriptions';
 
   // EN: Community reports endpoints.
   // KO: 커뮤니티 신고 엔드포인트.

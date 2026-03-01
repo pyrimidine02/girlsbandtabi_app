@@ -32,6 +32,48 @@ abstract class FeedRepository {
     bool forceRefresh = false,
   });
 
+  /// EN: Get project posts with cursor pagination.
+  /// KO: 프로젝트 게시글을 커서 기반으로 가져옵니다.
+  Future<Result<PostCursorPage>> getPostsByCursor({
+    required String projectCode,
+    String? cursor,
+    int size = 20,
+  });
+
+  /// EN: Get integrated community feed by cursor.
+  /// KO: 통합 커뮤니티 피드를 커서 기반으로 가져옵니다.
+  Future<Result<PostCursorPage>> getCommunityFeedByCursor({
+    String? cursor,
+    int size = 20,
+  });
+
+  /// EN: Search posts in the selected project.
+  /// KO: 선택된 프로젝트의 게시글을 검색합니다.
+  Future<Result<List<PostSummary>>> searchPosts({
+    required String projectCode,
+    required String query,
+    int page = 0,
+    int size = 20,
+  });
+
+  /// EN: Get trending posts in the selected project.
+  /// KO: 선택된 프로젝트의 트렌딩 게시글을 가져옵니다.
+  Future<Result<List<PostSummary>>> getTrendingPosts({
+    required String projectCode,
+    int sinceHours = 24,
+    int page = 0,
+    int size = 20,
+    bool forceRefresh = false,
+  });
+
+  /// EN: Get subscribed community projects.
+  /// KO: 커뮤니티 구독 프로젝트를 조회합니다.
+  Future<Result<List<ProjectSubscriptionSummary>>> getCommunitySubscriptions({
+    int page = 0,
+    int size = 20,
+    bool forceRefresh = false,
+  });
+
   Future<Result<PostDetail>> getPostDetail({
     required String projectCode,
     required String postId,
@@ -79,6 +121,7 @@ abstract class FeedRepository {
     required String projectCode,
     required String postId,
     required String content,
+    String? parentCommentId,
   });
 
   /// EN: Update a comment for a post.
@@ -137,5 +180,36 @@ abstract class FeedRepository {
   Future<Result<PostLikeStatus>> unlikePost({
     required String projectCode,
     required String postId,
+  });
+
+  /// EN: Get bookmark status for a post.
+  /// KO: 게시글 북마크 상태를 가져옵니다.
+  Future<Result<PostBookmarkStatus>> getPostBookmarkStatus({
+    required String projectCode,
+    required String postId,
+  });
+
+  /// EN: Bookmark a post.
+  /// KO: 게시글을 북마크합니다.
+  Future<Result<PostBookmarkStatus>> bookmarkPost({
+    required String projectCode,
+    required String postId,
+  });
+
+  /// EN: Remove bookmark from a post.
+  /// KO: 게시글 북마크를 해제합니다.
+  Future<Result<PostBookmarkStatus>> unbookmarkPost({
+    required String projectCode,
+    required String postId,
+  });
+
+  /// EN: Get threaded comments for a post.
+  /// KO: 게시글의 스레드 댓글을 조회합니다.
+  Future<Result<List<CommentThreadNode>>> getPostCommentThread({
+    required String projectCode,
+    required String postId,
+    String? parentCommentId,
+    int maxDepth = 3,
+    int size = 50,
   });
 }

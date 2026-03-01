@@ -15,6 +15,8 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/layout/gbt_page_intro_card.dart';
+import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../application/search_controller.dart';
 import '../../domain/entities/search_entities.dart';
 
@@ -148,6 +150,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              GBTSpacing.md,
+              GBTSpacing.md,
+              GBTSpacing.md,
+              GBTSpacing.xs,
+            ),
+            child: _SearchIntroCard(query: _query),
+          ),
           _SearchScopeHeader(
             scopedToCurrentProject: _scopedToCurrentProject,
             projectScopeLabel: projectScopeLabel,
@@ -220,25 +231,81 @@ class _SearchScopeHeader extends StatelessWidget {
         GBTSpacing.md,
         GBTSpacing.xs,
         GBTSpacing.md,
-        GBTSpacing.xs,
+        GBTSpacing.sm,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Text(
-              scopeText,
-              style: GBTTypography.labelSmall.copyWith(color: secondaryColor),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+          Text(
+            scopeText,
+            style: GBTTypography.labelSmall.copyWith(color: secondaryColor),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: GBTSpacing.xs),
+          SegmentedButton<bool>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment<bool>(value: true, label: Text('현재 프로젝트')),
+              ButtonSegment<bool>(value: false, label: Text('전체 프로젝트')),
+            ],
+            selected: <bool>{scopedToCurrentProject},
+            onSelectionChanged: (selection) {
+              onChanged(selection.first);
+            },
+            style: ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              textStyle: WidgetStatePropertyAll(
+                GBTTypography.labelSmall.copyWith(fontWeight: FontWeight.w600),
+              ),
             ),
           ),
-          const SizedBox(width: GBTSpacing.xs),
-          FilterChip(
-            label: const Text('현재 프로젝트만'),
-            selected: scopedToCurrentProject,
-            onSelected: onChanged,
-          ),
         ],
+      ),
+    );
+  }
+}
+
+class _SearchIntroCard extends StatelessWidget {
+  const _SearchIntroCard({required this.query});
+
+  final String query;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasQuery = query.trim().isNotEmpty;
+    return GBTPageIntroCard(
+      icon: Icons.manage_search_rounded,
+      title: '통합 검색',
+      description: hasQuery
+          ? '“${query.trim()}” 결과를 카테고리별로 확인하세요.'
+          : '장소, 이벤트, 뉴스, 커뮤니티를 한 번에 검색하세요.',
+      trailing: hasQuery ? const _ActiveSearchBadge() : null,
+    );
+  }
+}
+
+class _ActiveSearchBadge extends StatelessWidget {
+  const _ActiveSearchBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.sm,
+        vertical: GBTSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: isDark ? GBTColors.darkSurface : GBTColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+      ),
+      child: Text(
+        '검색 중',
+        style: GBTTypography.labelSmall.copyWith(
+          color: isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -383,9 +450,10 @@ class _SearchResults extends StatelessWidget {
                 ),
               ),
             ),
-          TabBar(
+          const GBTSegmentedTabBar(
+            margin: EdgeInsets.symmetric(horizontal: GBTSpacing.md),
             isScrollable: true,
-            tabs: const [
+            tabs: [
               Tab(text: '전체'),
               Tab(text: '장소'),
               Tab(text: '이벤트'),

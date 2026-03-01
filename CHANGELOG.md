@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-03-01
+- **UI/UX/SYSTEM**: Applied app-wide visual consistency layer by introducing unified app background tokens/gradients and wiring them through global app chrome.
+- **UI/UX/SYSTEM**: Added global tap-to-dismiss keyboard behavior in `MaterialApp.builder` to reduce form friction across all pages.
+- **DESIGN/THEME**: Expanded `GBTTheme` with cross-page component defaults (page transitions, icon/list tile style, filled button, popup menu, tooltip, scrollbar, segmented button, switch/checkbox/radio).
+- **DESIGN/THEME**: Standardized card/input/app bar surfaces (radius, tint handling, spacing density) for consistent look-and-feel across feature pages.
+- **UI/UX/PAGES**: Added reusable page-level consistency widgets (`GBTPageIntroCard`, `GBTSegmentedTabBar`) and integrated them into core routes (`board`, `favorites`, `notifications`, `search`).
+- **UI/UX/NOTIFICATIONS**: Improved notification discoverability with client-side unread filter (`전체`/`읽지 않음`) and unread-count summary chip.
+- **UI/UX/SEARCH**: Updated search scope control to segmented mode (`현재 프로젝트`/`전체 프로젝트`) and added contextual search intro state.
+- **UI/UX/FAVORITES**: Added favorites intro summary card with count badge and unified segmented tabs for category browsing.
+- **UI/UX/PHASE3**: Rolled page-level consistency pattern into additional major routes (`live_events`, `places_map`, `visit_history`, `visit_stats`, `notification_settings`, `profile_edit`) using intro cards, segmented controls, and clearer summary badges.
+- **THEME/COLOR**: Refreshed primary brand palette from periwinkle to sky-blue (`#2F7DFF`) and updated related dark/app background tones and CTA semantics to reduce purple bias while preserving accessibility.
+
+## 2026-02-28
+- **COMMUNITY/API**: Re-synced community endpoint usage against live `http://localhost:8080/v3/api-docs` and added missing client constants/catalog entries for `feed/cursor`, `subscriptions`, `posts/cursor`, `posts/search`, `posts/trending`, `posts/{postId}/bookmark`, and `posts/{postId}/comments/thread`.
+- **COMMUNITY/FEED**: Extended feed data/repository/domain layers with cursor feed, search, trending, subscriptions, bookmark state/toggle, and threaded comment retrieval models.
+- **COMMUNITY/MODERATION**: Extended community moderation data/repository/domain layers with my-report list/detail/cancel and project ban list/status/ban/unban endpoints.
+- **COMMUNITY/FIX**: Updated post creation request payload to include v3-required fields (`conversationControl`, `mentionedUserIds`) and extended comment create payload to support `parentCommentId`.
+- **COMMUNITY/UI**: Wired post detail bookmark button to real API state via a new `PostBookmarkController`.
+- **COMMUNITY/UI**: Reworked board community tab with endpoint-driven UX (mode chips for 최신/트렌딩/구독 피드, search box, subscription chips, pull-to-refresh, and infinite loading for cursor/page feeds).
+- **COMMUNITY/UI**: Added comment-thread viewer in post detail (`comments/thread`) and reply-entry affordance (`답글 N개 보기`) per comment.
+- **COMMUNITY/UI**: Added “내 신고 내역” sheet on board (list from `reports/me`, detail from `reports/{reportId}`, and cancel action for open/in-review reports).
+- **COMMUNITY/MODERATION/UI**: Added moderator delete integration for post/comment flows using project moderation endpoints (`/moderation/posts/*`) and switched admin ban action to project community ban API.
+- **COMMUNITY/MODERATION/UI**: Added admin-only community-ban management sheet on board (ban list, userId ban-status lookup, and unban actions via project moderation ban endpoints).
+- **COMMUNITY/MODERATION/UI**: Improved admin community-ban sheet UX with client-side filter/sort controls (query, permanent-only, hide-expired, newest/oldest/expires-soon) and responsive wrapping controls for narrow screens.
+- **TESTING**: Expanded endpoint contract tests and added DTO/repository tests for new community contracts (cursor/bookmark/subscriptions/thread, report mapping, project ban payload forwarding).
+- **TESTING**: Added unit tests for community-ban list view helper filter/sort behavior (query/permanent/hide-expired and all sort options).
+
 ## 2026-02-19
 - **COMMUNITY/UI**: Refreshed post-create UX with completion guide/progress, project context badge, richer input hints, image thumbnail grid preview, duplicate/max-image guard, and unsaved-draft exit confirmation.
 - **COMMUNITY/FIX**: Added in-page project selector to post-create and surfaced backend failure messages during post submission so registration failures are actionable.

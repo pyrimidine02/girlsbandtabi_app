@@ -22,6 +22,7 @@ import '../../../../core/widgets/cards/gbt_place_card.dart';
 import '../../../../core/widgets/common/themed_builder.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/inputs/gbt_search_bar.dart';
+import '../../../../core/widgets/layout/gbt_page_intro_card.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
@@ -303,42 +304,20 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                       ),
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: GBTSpacing.md,
-                            vertical: GBTSpacing.sm,
+                          padding: const EdgeInsets.fromLTRB(
+                            GBTSpacing.md,
+                            GBTSpacing.sm,
+                            GBTSpacing.md,
+                            GBTSpacing.xs,
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                listModeLabel,
-                                style: GBTTypography.titleMedium.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    selectedRegionLabel,
-                                    style: GBTTypography.labelSmall.copyWith(
-                                      color: isDarkMode
-                                          ? GBTColors.darkTextSecondary
-                                          : GBTColors.textSecondary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '$count개',
-                                    style: GBTTypography.bodySmall.copyWith(
-                                      color: isDarkMode
-                                          ? GBTColors.darkTextSecondary
-                                          : GBTColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                          child: GBTPageIntroCard(
+                            icon: Icons.map_rounded,
+                            title: listModeLabel,
+                            description: selectedRegionLabel,
+                            trailing: _MapCountBadge(
+                              count: count,
+                              hasActiveFilters: hasActiveFilters,
+                            ),
                           ),
                         ),
                       ),
@@ -1031,6 +1010,39 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
 
   bool get _isAppleMap =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+}
+
+class _MapCountBadge extends StatelessWidget {
+  const _MapCountBadge({required this.count, required this.hasActiveFilters});
+
+  final int count;
+  final bool hasActiveFilters;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? GBTColors.darkSurface : GBTColors.surfaceVariant;
+    final fg = isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+    final label = hasActiveFilters ? '필터 $count개' : '총 $count개';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.sm,
+        vertical: GBTSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+      ),
+      child: Text(
+        label,
+        style: GBTTypography.labelSmall.copyWith(
+          color: fg,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
 }
 
 class _PlacesSliverList extends StatelessWidget {

@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/connectivity/connectivity_service.dart';
 import 'core/providers/core_providers.dart';
 import 'core/router/app_router.dart';
+import 'core/theme/gbt_colors.dart';
 import 'core/theme/gbt_theme.dart';
 
 /// EN: Main application widget
@@ -52,6 +53,11 @@ class GBTApp extends ConsumerWidget {
       // EN: Builder for global overlays
       // KO: 전역 오버레이를 위한 빌더
       builder: (context, child) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final backgroundGradient = isDark
+            ? GBTColors.darkAppBackgroundGradient
+            : GBTColors.appBackgroundGradient;
+
         return MediaQuery(
           // EN: Prevent text scaling beyond 1.3x for accessibility
           // KO: 접근성을 위해 텍스트 스케일링을 1.3배 이하로 제한
@@ -60,7 +66,16 @@ class GBTApp extends ConsumerWidget {
               MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.3),
             ),
           ),
-          child: _ConnectivityWrapper(child: child ?? const SizedBox.shrink()),
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+            child: DecoratedBox(
+              decoration: BoxDecoration(gradient: backgroundGradient),
+              child: _ConnectivityWrapper(
+                child: child ?? const SizedBox.shrink(),
+              ),
+            ),
+          ),
         );
       },
     );
@@ -111,8 +126,7 @@ class _ConnectivityWrapperState extends ConsumerState<_ConnectivityWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    final isOfflineNow =
-        _resolveOffline(ref.watch(connectivityStatusProvider));
+    final isOfflineNow = _resolveOffline(ref.watch(connectivityStatusProvider));
     if (isOfflineNow != _isOffline) {
       _scheduleOfflineUpdate(isOfflineNow);
     }

@@ -46,6 +46,77 @@ class PostLikeStatusDto {
   }
 }
 
+class PostBookmarkStatusDto {
+  const PostBookmarkStatusDto({
+    required this.postId,
+    required this.isBookmarked,
+    this.bookmarkedAt,
+  });
+
+  final String postId;
+  final bool isBookmarked;
+  final DateTime? bookmarkedAt;
+
+  factory PostBookmarkStatusDto.fromJson(Map<String, dynamic> json) {
+    return PostBookmarkStatusDto(
+      postId: json['postId'] as String? ?? '',
+      isBookmarked: json['isBookmarked'] as bool? ?? false,
+      bookmarkedAt: _dateTimeOrNull(json['bookmarkedAt']),
+    );
+  }
+}
+
+class PostCursorPageDto {
+  const PostCursorPageDto({
+    required this.items,
+    required this.hasNext,
+    this.nextCursor,
+  });
+
+  final List<PostSummaryDto> items;
+  final String? nextCursor;
+  final bool hasNext;
+
+  factory PostCursorPageDto.fromJson(Map<String, dynamic> json) {
+    final rawItems = json['items'];
+    final items = rawItems is List
+        ? rawItems
+              .whereType<Map<String, dynamic>>()
+              .map(PostSummaryDto.fromJson)
+              .toList()
+        : <PostSummaryDto>[];
+
+    return PostCursorPageDto(
+      items: items,
+      nextCursor: json['nextCursor'] as String?,
+      hasNext: json['hasNext'] as bool? ?? false,
+    );
+  }
+}
+
+class ProjectSubscriptionSummaryDto {
+  const ProjectSubscriptionSummaryDto({
+    required this.projectId,
+    required this.projectCode,
+    required this.projectName,
+    required this.subscribedAt,
+  });
+
+  final String projectId;
+  final String projectCode;
+  final String projectName;
+  final DateTime subscribedAt;
+
+  factory ProjectSubscriptionSummaryDto.fromJson(Map<String, dynamic> json) {
+    return ProjectSubscriptionSummaryDto(
+      projectId: json['projectId'] as String? ?? '',
+      projectCode: json['projectCode'] as String? ?? '',
+      projectName: json['projectName'] as String? ?? '',
+      subscribedAt: _dateTime(json['subscribedAt']),
+    );
+  }
+}
+
 class PostSummaryDto {
   const PostSummaryDto({
     required this.id,
@@ -107,7 +178,9 @@ class PostSummaryDto {
 
     // EN: If no image URLs from array fields, fall back to thumbnail.
     // KO: 배열 필드에 이미지가 없으면 썸네일을 폴백으로 사용합니다.
-    if (imageUrls.isEmpty && resolvedThumbnail != null && resolvedThumbnail.isNotEmpty) {
+    if (imageUrls.isEmpty &&
+        resolvedThumbnail != null &&
+        resolvedThumbnail.isNotEmpty) {
       imageUrls = [resolvedThumbnail];
     }
 

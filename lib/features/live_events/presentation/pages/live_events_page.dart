@@ -12,7 +12,9 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/widgets/cards/gbt_event_card.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/layout/gbt_page_intro_card.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
+import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../application/live_events_controller.dart';
 import '../../domain/entities/live_event_entities.dart';
 import '../../../projects/application/projects_controller.dart';
@@ -58,16 +60,26 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
         ? ref.watch(projectUnitsControllerProvider(resolvedProjectKey))
         : const AsyncValue<List<Unit>>.data([]);
     final bandLabel = _resolveBandLabel(unitsState, selectedBandIds);
+    final liveCounts = eventsState.maybeWhen(
+      data: (events) {
+        final upcoming = events.where((event) => event.isUpcoming).length;
+        return (upcoming, events.length - upcoming);
+      },
+      orElse: () => null,
+    );
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('라이브'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: '예정'),
-            Tab(text: '완료'),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: GBTSegmentedTabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(text: '예정'),
+              Tab(text: '완료'),
+            ],
+          ),
         ),
         actions: [
           IconButton(
@@ -96,6 +108,25 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
               0,
             ),
             child: const ProjectSelectorCompact(),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              GBTSpacing.md,
+              GBTSpacing.sm,
+              GBTSpacing.md,
+              GBTSpacing.xs,
+            ),
+            child: GBTPageIntroCard(
+              icon: Icons.music_note_rounded,
+              title: '라이브 일정',
+              description: '예정/완료 공연을 날짜순으로 빠르게 확인하세요.',
+              trailing: liveCounts == null
+                  ? null
+                  : _LiveCountBadge(
+                      upcomingCount: liveCounts.$1,
+                      completedCount: liveCounts.$2,
+                    ),
+            ),
           ),
           _BandFilterBar(
             label: bandLabel,
@@ -329,6 +360,39 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
           },
         );
       },
+    );
+  }
+}
+
+class _LiveCountBadge extends StatelessWidget {
+  const _LiveCountBadge({
+    required this.upcomingCount,
+    required this.completedCount,
+  });
+
+  final int upcomingCount;
+  final int completedCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.sm,
+        vertical: GBTSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Theme.of(context).colorScheme.surface
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+      ),
+      child: Text(
+        '예정 $upcomingCount · 완료 $completedCount',
+        style: Theme.of(
+          context,
+        ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
+      ),
     );
   }
 }

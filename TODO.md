@@ -1,9 +1,16 @@
 # TODO
 
+- Run visual QA pass on all primary routes after the new global theme/chrome layer (`home`, `places`, `live-events`, `community`, `search`, `settings`) and capture before/after screenshots (remove once reviewed).
+- Roll out `GBTPageIntroCard` + `GBTSegmentedTabBar` to remaining content routes (`home`, `info`, `feed`, `travel_review_detail`, `visit_detail`) for full-page parity (remove once completed).
+- Run color-contrast QA for the new blue primary palette on CTA-heavy screens (`auth`, `post_create`, `profile_edit`) in both light/dark mode (remove once validated).
+- Verify no keyboard-dismiss side effects in rich editor flows (`post_create`, `post_edit`, `profile_edit`) after global tap-to-dismiss was enabled (remove once QA passes).
+- Add widget golden tests for global theme consistency (card radius, input radius, popup/tooltip colors, list tile density) to prevent drift (remove once coverage lands).
 - Add widget tests for `PostCreatePage` (draft-exit confirmation, image max/duplicate handling, submit button enablement) and `ProfileEditPage` (dirty-state save enablement + unsaved-exit confirmation).
 - Add a HomePage widget test that verifies the ProjectSelector renders during loading and triggers a reload after selection (remove once CI covers the flow).
 - Add a CI step (or pre-commit hook) to run `build_runner` so generated files stay in sync.
 - Add CI check to compare `ApiEndpoints` against `/v3/api-docs` and fail on missing/removed paths.
+- Verify community-ban management sheet filter/sort controls (query/sort chips) remain usable without overflow on small-width devices (remove once mobile QA passes).
+- Re-run `flutter analyze --no-pub` and `flutter test --no-pub` for updated community-ban UX/tests after local Xcode license acceptance and dependency cache recovery (remove once green run is recorded).
 - Verify `tags` field availability on all place summary endpoints; if absent on 일부 응답, decide fallback strategy (detail prefetch vs summary contract update).
 - Verify the new places-sheet collapse/expand floating toggle does not overlap map FABs on small iPhone/Android screen sizes.
 - Confirm canonical request fields for `PATCH /api/v1/admin/community/reports/{reportId}` and `/assign` (then remove temporary multi-key compatibility payload).

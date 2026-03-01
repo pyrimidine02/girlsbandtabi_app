@@ -16,6 +16,7 @@ import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/layout/gbt_page_intro_card.dart';
 import '../../../uploads/application/uploads_controller.dart';
 import '../../../uploads/utils/webp_image_converter.dart';
 import '../../application/settings_controller.dart';
@@ -534,6 +535,13 @@ class _ProfileForm extends StatelessWidget {
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: GBTSpacing.paddingPage,
         children: [
+          GBTPageIntroCard(
+            icon: Icons.edit_note_rounded,
+            title: '프로필 편집',
+            description: '이미지/닉네임/소개를 수정한 뒤 저장하면 공개 프로필에 반영됩니다.',
+            trailing: _EditProgressBadge(hasPendingChanges: hasPendingChanges),
+          ),
+          const SizedBox(height: GBTSpacing.md),
           _PendingChangesBanner(hasPendingChanges: hasPendingChanges),
           const SizedBox(height: GBTSpacing.md),
           _ProfileSectionCard(
@@ -677,6 +685,42 @@ class _ProfileForm extends StatelessWidget {
           ),
           const SizedBox(height: GBTSpacing.xl),
         ],
+      ),
+    );
+  }
+}
+
+class _EditProgressBadge extends StatelessWidget {
+  const _EditProgressBadge({required this.hasPendingChanges});
+
+  final bool hasPendingChanges;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = hasPendingChanges
+        ? (isDark ? GBTColors.warningDark : GBTColors.warningLight)
+        : (isDark ? GBTColors.darkSurface : GBTColors.surfaceVariant);
+    final fg = hasPendingChanges
+        ? (isDark ? GBTColors.darkBackground : GBTColors.warningDark)
+        : (isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary);
+    final label = hasPendingChanges ? '저장 필요' : '동기화됨';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.sm,
+        vertical: GBTSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+      ),
+      child: Text(
+        label,
+        style: GBTTypography.labelSmall.copyWith(
+          color: fg,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

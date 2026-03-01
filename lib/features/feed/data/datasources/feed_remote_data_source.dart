@@ -24,6 +24,13 @@ class FeedRemoteDataSource {
     };
   }
 
+  Map<String, dynamic> _cursorQuery({String? cursor, required int size}) {
+    return {
+      if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      'size': size,
+    };
+  }
+
   /// EN: Fetch paginated news for a project.
   /// KO: 프로젝트의 페이지네이션된 뉴스를 조회합니다.
   Future<Result<List<NewsSummaryDto>>> fetchNews({
@@ -62,6 +69,37 @@ class FeedRemoteDataSource {
     );
   }
 
+  /// EN: Fetch community posts for a project by cursor.
+  /// KO: 프로젝트 커뮤니티 게시글을 커서 기반으로 조회합니다.
+  Future<Result<PostCursorPageDto>> fetchPostsByCursor({
+    required String projectCode,
+    String? cursor,
+    int size = ApiPagination.defaultSize,
+  }) {
+    return _apiClient.get<PostCursorPageDto>(
+      ApiEndpoints.postsCursor(projectCode),
+      queryParameters: _cursorQuery(cursor: cursor, size: size),
+      fromJson: (json) => PostCursorPageDto.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
+    );
+  }
+
+  /// EN: Fetch integrated community feed by cursor.
+  /// KO: 통합 커뮤니티 피드를 커서 기반으로 조회합니다.
+  Future<Result<PostCursorPageDto>> fetchCommunityFeedByCursor({
+    String? cursor,
+    int size = ApiPagination.defaultSize,
+  }) {
+    return _apiClient.get<PostCursorPageDto>(
+      ApiEndpoints.communityFeedCursor,
+      queryParameters: _cursorQuery(cursor: cursor, size: size),
+      fromJson: (json) => PostCursorPageDto.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
+    );
+  }
+
   /// EN: Fetch community posts by author.
   /// KO: 작성자별 커뮤니티 게시글을 조회합니다.
   Future<Result<List<PostSummaryDto>>> fetchPostsByAuthor({
@@ -84,6 +122,56 @@ class FeedRemoteDataSource {
     return _apiClient.get<PostDetailDto>(
       ApiEndpoints.post(projectCode, postId),
       fromJson: (json) => PostDetailDto.fromJson(json as Map<String, dynamic>),
+    );
+  }
+
+  /// EN: Search posts in a project.
+  /// KO: 프로젝트 게시글을 검색합니다.
+  Future<Result<List<PostSummaryDto>>> searchPosts({
+    required String projectCode,
+    required String query,
+    int page = ApiPagination.defaultPage,
+    int size = ApiPagination.defaultSize,
+  }) {
+    return _apiClient.get<List<PostSummaryDto>>(
+      ApiEndpoints.postsSearch(projectCode),
+      queryParameters: {
+        'q': query,
+        ..._pageableQuery(page: page, size: size),
+      },
+      fromJson: (json) => _decodeList(json, PostSummaryDto.fromJson),
+    );
+  }
+
+  /// EN: Fetch trending posts in a project.
+  /// KO: 프로젝트 트렌딩 게시글을 조회합니다.
+  Future<Result<List<PostSummaryDto>>> fetchTrendingPosts({
+    required String projectCode,
+    int sinceHours = 24,
+    int page = ApiPagination.defaultPage,
+    int size = ApiPagination.defaultSize,
+  }) {
+    return _apiClient.get<List<PostSummaryDto>>(
+      ApiEndpoints.postsTrending(projectCode),
+      queryParameters: {
+        'sinceHours': sinceHours,
+        ..._pageableQuery(page: page, size: size),
+      },
+      fromJson: (json) => _decodeList(json, PostSummaryDto.fromJson),
+    );
+  }
+
+  /// EN: Fetch subscribed project list for community.
+  /// KO: 커뮤니티 구독 프로젝트 목록을 조회합니다.
+  Future<Result<List<ProjectSubscriptionSummaryDto>>> fetchSubscriptions({
+    int page = ApiPagination.defaultPage,
+    int size = ApiPagination.defaultSize,
+  }) {
+    return _apiClient.get<List<ProjectSubscriptionSummaryDto>>(
+      ApiEndpoints.communitySubscriptions,
+      queryParameters: _pageableQuery(page: page, size: size),
+      fromJson: (json) =>
+          _decodeList(json, ProjectSubscriptionSummaryDto.fromJson),
     );
   }
 
@@ -170,6 +258,27 @@ class FeedRemoteDataSource {
     );
   }
 
+  /// EN: Fetch comment thread for a post.
+  /// KO: 게시글의 댓글 스레드를 조회합니다.
+  Future<Result<List<CommentThreadNodeDto>>> fetchPostCommentThread({
+    required String projectCode,
+    required String postId,
+    String? parentCommentId,
+    int maxDepth = 3,
+    int size = 50,
+  }) {
+    return _apiClient.get<List<CommentThreadNodeDto>>(
+      ApiEndpoints.postCommentsThread(projectCode, postId),
+      queryParameters: {
+        if (parentCommentId != null && parentCommentId.isNotEmpty)
+          'parentCommentId': parentCommentId,
+        'maxDepth': maxDepth,
+        'size': size,
+      },
+      fromJson: (json) => _decodeList(json, CommentThreadNodeDto.fromJson),
+    );
+  }
+
   /// EN: Update a comment for a post.
   /// KO: 게시글 댓글을 수정합니다.
   Future<Result<PostCommentDto>> updatePostComment({
@@ -234,6 +343,48 @@ class FeedRemoteDataSource {
       ApiEndpoints.postLike(projectCode, postId),
       fromJson: (json) =>
           PostLikeStatusDto.fromJson(json as Map<String, dynamic>),
+    );
+  }
+
+  /// EN: Fetch bookmark status for a post.
+  /// KO: 게시글 북마크 상태를 조회합니다.
+  Future<Result<PostBookmarkStatusDto>> fetchPostBookmarkStatus({
+    required String projectCode,
+    required String postId,
+  }) {
+    return _apiClient.get<PostBookmarkStatusDto>(
+      ApiEndpoints.postBookmark(projectCode, postId),
+      fromJson: (json) => PostBookmarkStatusDto.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
+    );
+  }
+
+  /// EN: Bookmark a post.
+  /// KO: 게시글을 북마크합니다.
+  Future<Result<PostBookmarkStatusDto>> bookmarkPost({
+    required String projectCode,
+    required String postId,
+  }) {
+    return _apiClient.post<PostBookmarkStatusDto>(
+      ApiEndpoints.postBookmark(projectCode, postId),
+      fromJson: (json) => PostBookmarkStatusDto.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
+    );
+  }
+
+  /// EN: Remove bookmark from a post.
+  /// KO: 게시글 북마크를 해제합니다.
+  Future<Result<PostBookmarkStatusDto>> unbookmarkPost({
+    required String projectCode,
+    required String postId,
+  }) {
+    return _apiClient.delete<PostBookmarkStatusDto>(
+      ApiEndpoints.postBookmark(projectCode, postId),
+      fromJson: (json) => PostBookmarkStatusDto.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
     );
   }
 }

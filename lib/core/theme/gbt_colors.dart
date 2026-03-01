@@ -12,14 +12,14 @@ class GBTColors {
   GBTColors._();
 
   // ========================================
-  // EN: Primary Brand Colors (Pastel periwinkle — soft, friendly tone)
-  // KO: 기본 브랜드 색상 (파스텔 페리윙클 — 부드러운 톤)
+  // EN: Primary Brand Colors (clear sky blue — trustworthy, lively tone)
+  // KO: 기본 브랜드 색상 (스카이 블루 — 신뢰감 있고 생동감 있는 톤)
   // ========================================
-  static const Color primary = Color(0xFFA6B1FF);
-  static const Color primaryLight = Color(0xFFF0F2FF);
-  static const Color primaryHover = Color(0xFF94A3FF);
-  static const Color primaryPressed = Color(0xFF7F90FF);
-  static const Color primaryMuted = Color(0xFFD9DFFF);
+  static const Color primary = Color(0xFF2F7DFF);
+  static const Color primaryLight = Color(0xFFEAF2FF);
+  static const Color primaryHover = Color(0xFF1E6EF0);
+  static const Color primaryPressed = Color(0xFF1457CC);
+  static const Color primaryMuted = Color(0xFFCFE1FF);
 
   // EN: Secondary (Pink — girl group energy)
   // KO: 보조 (핑크 — 걸그룹 에너지)
@@ -54,6 +54,10 @@ class GBTColors {
   static const Color surface = Color(0xFFFFFFFF);
   static const Color surfaceVariant = Color(0xFFF5F5F5);
   static const Color surfaceAlternate = Color(0xFFEEEEEE);
+  // EN: App-level background layers for consistent page chrome.
+  // KO: 페이지 크롬 통일을 위한 앱 레벨 배경 레이어.
+  static const Color appBackground = Color(0xFFF7FAFF);
+  static const Color appBackgroundTopTint = Color(0xFFECF4FF);
 
   // ========================================
   // EN: Border & Divider Colors (neutral)
@@ -91,6 +95,10 @@ class GBTColors {
   static const Color darkSurface = Color(0xFF121212);
   static const Color darkSurfaceVariant = Color(0xFF1E1E1E);
   static const Color darkSurfaceElevated = Color(0xFF2C2C2C);
+  // EN: Dark app-level background layers to reduce pure-black visual fatigue.
+  // KO: 순수 블랙 피로도를 줄이기 위한 다크 앱 레벨 배경 레이어.
+  static const Color darkAppBackground = Color(0xFF0A101A);
+  static const Color darkAppBackgroundTopTint = Color(0xFF14243B);
   static const Color darkTextPrimary = Color(0xFFF5F5F5);
   static const Color darkTextSecondary = Color(0xFFB0B0B0);
   // EN: Passes WCAG AA (4.5:1) on darkSurface (#121212).
@@ -98,7 +106,7 @@ class GBTColors {
   static const Color darkTextTertiary = Color(0xFF808080);
   // EN: Dark primary pastel — light enough for dark surfaces.
   // KO: 다크 모드 기본 파스텔 — 다크 표면 위에서도 충분히 밝게.
-  static const Color darkPrimary = Color(0xFFB8C2FF);
+  static const Color darkPrimary = Color(0xFF8AB4FF);
   static const Color darkSecondary = Color(0xFFF472B6);
   static const Color darkAccent = Color(0xFFFBBF24);
   static const Color darkBorder = Color(0xFF2C2C2C);
@@ -108,7 +116,7 @@ class GBTColors {
   // EN: Interactive Colors
   // KO: 인터랙티브 색상
   // ========================================
-  static const Color ripple = Color(0x14A6B1FF);
+  static const Color ripple = Color(0x142F7DFF);
   static const Color overlay = Color(0x80000000);
   static const Color scrim = Color(0x52000000);
 
@@ -166,7 +174,7 @@ class GBTColors {
   /// EN: Greeting header gradient — solid deep indigo (dark mode)
   /// KO: 인사말 헤더 그라디언트 — 단색 딥 인디고 (다크 모드)
   static const LinearGradient darkGreetingGradient = LinearGradient(
-    colors: [Color(0xFF7F90FF), Color(0xFF6B7CFF)],
+    colors: [Color(0xFF2F7DFF), Color(0xFF1E6EF0)],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
@@ -178,6 +186,24 @@ class GBTColors {
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     stops: [0.4, 1.0],
+  );
+
+  /// EN: Global app background gradient for light mode page consistency.
+  /// KO: 라이트 모드 전 페이지 일관성을 위한 전역 배경 그라디언트.
+  static const LinearGradient appBackgroundGradient = LinearGradient(
+    colors: [appBackgroundTopTint, appBackground],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    stops: [0.0, 0.28],
+  );
+
+  /// EN: Global app background gradient for dark mode page consistency.
+  /// KO: 다크 모드 전 페이지 일관성을 위한 전역 배경 그라디언트.
+  static const LinearGradient darkAppBackgroundGradient = LinearGradient(
+    colors: [darkAppBackgroundTopTint, darkAppBackground],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    stops: [0.0, 0.32],
   );
 
   // EN: Shimmer colors for loading placeholders (neutral)
@@ -299,9 +325,9 @@ class GBTSemanticColors {
   // KO: 인터랙티브 요소 (콜 투 액션)
   // ========================================
 
-  /// EN: Primary CTA color (periwinkle) — main action buttons
-  /// KO: 주요 CTA 색상 (페리윙클) — 기본 액션 버튼
-  static const Color ctaPrimary = GBTColors.primary; // #A6B1FF
+  /// EN: Primary CTA color (sky blue) — main action buttons
+  /// KO: 주요 CTA 색상 (스카이 블루) — 기본 액션 버튼
+  static const Color ctaPrimary = GBTColors.primary; // #2F7DFF
 
   /// EN: Secondary CTA color (pink) — high-energy emphasis actions
   /// Provides strong visual weight for important secondary actions

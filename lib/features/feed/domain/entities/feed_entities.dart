@@ -195,6 +195,9 @@ class PostComment {
     this.updatedAt,
     this.authorName,
     this.authorAvatarUrl,
+    this.parentCommentId,
+    this.depth,
+    this.replyCount,
   });
 
   final String id;
@@ -206,6 +209,9 @@ class PostComment {
   final DateTime? updatedAt;
   final String? authorName;
   final String? authorAvatarUrl;
+  final String? parentCommentId;
+  final int? depth;
+  final int? replyCount;
 
   String get timeAgoLabel => _formatTimeAgo(createdAt);
 
@@ -220,6 +226,9 @@ class PostComment {
       updatedAt: dto.updatedAt,
       authorName: dto.authorName,
       authorAvatarUrl: dto.authorAvatarUrl,
+      parentCommentId: dto.parentCommentId,
+      depth: dto.depth,
+      replyCount: dto.replyCount,
     );
   }
 }
@@ -240,6 +249,91 @@ class PostLikeStatus {
       postId: dto.postId,
       isLiked: dto.isLiked,
       likeCount: dto.likeCount,
+    );
+  }
+}
+
+class PostBookmarkStatus {
+  const PostBookmarkStatus({
+    required this.postId,
+    required this.isBookmarked,
+    this.bookmarkedAt,
+  });
+
+  final String postId;
+  final bool isBookmarked;
+  final DateTime? bookmarkedAt;
+
+  factory PostBookmarkStatus.fromDto(PostBookmarkStatusDto dto) {
+    return PostBookmarkStatus(
+      postId: dto.postId,
+      isBookmarked: dto.isBookmarked,
+      bookmarkedAt: dto.bookmarkedAt,
+    );
+  }
+}
+
+class PostCursorPage {
+  const PostCursorPage({
+    required this.items,
+    required this.hasNext,
+    this.nextCursor,
+  });
+
+  final List<PostSummary> items;
+  final String? nextCursor;
+  final bool hasNext;
+
+  factory PostCursorPage.fromDto(PostCursorPageDto dto) {
+    return PostCursorPage(
+      items: dto.items.map(PostSummary.fromDto).toList(),
+      nextCursor: dto.nextCursor,
+      hasNext: dto.hasNext,
+    );
+  }
+}
+
+class CommentThreadNode {
+  const CommentThreadNode({
+    required this.comment,
+    required this.replies,
+    required this.hasMoreReplies,
+  });
+
+  final PostComment comment;
+  final List<CommentThreadNode> replies;
+  final bool hasMoreReplies;
+
+  factory CommentThreadNode.fromDto(CommentThreadNodeDto dto) {
+    return CommentThreadNode(
+      comment: PostComment.fromDto(dto.comment),
+      replies: dto.replies.map(CommentThreadNode.fromDto).toList(),
+      hasMoreReplies: dto.hasMoreReplies,
+    );
+  }
+}
+
+class ProjectSubscriptionSummary {
+  const ProjectSubscriptionSummary({
+    required this.projectId,
+    required this.projectCode,
+    required this.projectName,
+    required this.subscribedAt,
+  });
+
+  final String projectId;
+  final String projectCode;
+  final String projectName;
+  final DateTime subscribedAt;
+
+  factory ProjectSubscriptionSummary.fromDto(
+    ProjectSubscriptionSummaryDto dto,
+  ) {
+    return ProjectSubscriptionSummary(
+      projectId: dto.projectId,
+      projectCode: dto.projectCode,
+      projectName: dto.projectName,
+      subscribedAt: dto.subscribedAt,
     );
   }
 }
