@@ -33,6 +33,14 @@
   phase-3.
 - Refresh brand primary palette from periwinkle to sky-blue for clearer
   hierarchy and lower purple bias while keeping existing semantic mappings.
+- Align navigation semantics to stack-first behavior for detail routes by
+  preferring `push` over `go` in navigation helpers.
+- Use platform-friendly pages on iOS/macOS for detail/overlay navigation where
+  interactive back gesture must be preserved.
+- Make shell-level back handling dynamic (`GoRouter.canPop`) so pushed routes
+  can pop naturally, while keeping Android root-level double-back exit logic.
+- Move home top hero from gradient-only rendering to image-capable rendering
+  with layered overlays and featured-live context to improve scanability.
 
 ### Alternatives Considered
 - Per-page redesign only:
@@ -51,6 +59,10 @@
   segmented controls pattern, reducing feature-to-feature UI drift.
 - Major route coverage for the shared pattern is expanded, reducing remaining
   styling divergence to a smaller set of long-tail pages.
+- iOS back-swipe reliability improves on detail/overlay flows and back now
+  returns to the immediate previous route in most user journeys.
+- Home first-impression quality improves because live/poster imagery appears in
+  the header when available instead of showing color-only surfaces.
 - Some pages may still need fine-grained UX tuning (copy hierarchy, local
   layout polish), tracked in `TODO.md`.
 

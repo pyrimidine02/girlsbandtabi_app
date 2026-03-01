@@ -2,6 +2,7 @@
 /// KO: 딥링크 지원을 포함한 GoRouter 구성
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -37,6 +38,38 @@ import '../../features/visits/presentation/pages/visit_stats_page.dart';
 import '../../features/favorites/presentation/pages/favorites_page.dart';
 import '../../features/search/presentation/pages/search_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
+
+Page<void> _buildAdaptiveDetailPage({
+  required LocalKey key,
+  required Widget child,
+}) {
+  final platform = defaultTargetPlatform;
+  if (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS) {
+    return MaterialPage<void>(key: key, child: child);
+  }
+  return CustomTransitionPage<void>(
+    key: key,
+    child: child,
+    transitionsBuilder: GBTPageTransitions.fadeThrough(),
+    transitionDuration: GBTAnimations.normal,
+  );
+}
+
+Page<void> _buildAdaptiveOverlayPage({
+  required LocalKey key,
+  required Widget child,
+}) {
+  final platform = defaultTargetPlatform;
+  if (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS) {
+    return MaterialPage<void>(key: key, child: child);
+  }
+  return CustomTransitionPage<void>(
+    key: key,
+    child: child,
+    transitionsBuilder: GBTPageTransitions.sharedAxisY(),
+    transitionDuration: GBTAnimations.normal,
+  );
+}
 
 /// EN: Route names as constants
 /// KO: 라우트 이름 상수
@@ -178,11 +211,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     name: AppRoutes.placeDetail,
                     pageBuilder: (context, state) {
                       final placeId = state.pathParameters['placeId']!;
-                      return CustomTransitionPage(
+                      return _buildAdaptiveDetailPage(
                         key: state.pageKey,
                         child: PlaceDetailPage(placeId: placeId),
-                        transitionsBuilder: GBTPageTransitions.fadeThrough(),
-                        transitionDuration: GBTAnimations.normal,
                       );
                     },
                   ),
@@ -205,11 +236,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     name: AppRoutes.liveDetail,
                     pageBuilder: (context, state) {
                       final eventId = state.pathParameters['eventId']!;
-                      return CustomTransitionPage(
+                      return _buildAdaptiveDetailPage(
                         key: state.pageKey,
                         child: LiveEventDetailPage(eventId: eventId),
-                        transitionsBuilder: GBTPageTransitions.fadeThrough(),
-                        transitionDuration: GBTAnimations.normal,
                       );
                     },
                   ),
@@ -280,11 +309,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     name: AppRoutes.newsDetail,
                     pageBuilder: (context, state) {
                       final newsId = state.pathParameters['newsId']!;
-                      return CustomTransitionPage(
+                      return _buildAdaptiveDetailPage(
                         key: state.pageKey,
                         child: NewsDetailPage(newsId: newsId),
-                        transitionsBuilder: GBTPageTransitions.fadeThrough(),
-                        transitionDuration: GBTAnimations.normal,
                       );
                     },
                   ),
@@ -301,11 +328,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/settings',
         name: AppRoutes.settings,
         pageBuilder: (context, state) {
-          return CustomTransitionPage(
+          return _buildAdaptiveOverlayPage(
             key: state.pageKey,
             child: const SettingsPage(),
-            transitionsBuilder: GBTPageTransitions.sharedAxisY(),
-            transitionDuration: GBTAnimations.normal,
           );
         },
         routes: [
@@ -420,31 +445,31 @@ extension AppRouterExtension on BuildContext {
   /// EN: Navigate to place detail
   /// KO: 장소 상세로 이동
   void goToPlaceDetail(String placeId) {
-    goNamed(AppRoutes.placeDetail, pathParameters: {'placeId': placeId});
+    pushNamed(AppRoutes.placeDetail, pathParameters: {'placeId': placeId});
   }
 
   /// EN: Navigate to live event detail
   /// KO: 라이브 이벤트 상세로 이동
   void goToLiveDetail(String eventId) {
-    goNamed(AppRoutes.liveDetail, pathParameters: {'eventId': eventId});
+    pushNamed(AppRoutes.liveDetail, pathParameters: {'eventId': eventId});
   }
 
   /// EN: Navigate to news detail
   /// KO: 뉴스 상세로 이동
   void goToNewsDetail(String newsId) {
-    goNamed(AppRoutes.newsDetail, pathParameters: {'newsId': newsId});
+    pushNamed(AppRoutes.newsDetail, pathParameters: {'newsId': newsId});
   }
 
   /// EN: Navigate to post detail
   /// KO: 게시글 상세로 이동
   void goToPostDetail(String postId) {
-    goNamed(AppRoutes.postDetail, pathParameters: {'postId': postId});
+    pushNamed(AppRoutes.postDetail, pathParameters: {'postId': postId});
   }
 
   /// EN: Navigate to post creation.
   /// KO: 게시글 작성으로 이동
   void goToPostCreate() {
-    goNamed(AppRoutes.postCreate);
+    pushNamed(AppRoutes.postCreate);
   }
 
   /// EN: Navigate to post edit.
@@ -478,7 +503,7 @@ extension AppRouterExtension on BuildContext {
       if (latitude != null) 'latitude': latitude.toString(),
       if (longitude != null) 'longitude': longitude.toString(),
     };
-    goNamed(
+    pushNamed(
       AppRoutes.visitDetail,
       pathParameters: {'visitId': visitId},
       queryParameters: queryParams,
@@ -489,9 +514,9 @@ extension AppRouterExtension on BuildContext {
   /// KO: 선택적 쿼리와 함께 검색으로 이동
   void goToSearch([String? query]) {
     if (query != null) {
-      goNamed(AppRoutes.search, queryParameters: {'q': query});
+      pushNamed(AppRoutes.search, queryParameters: {'q': query});
     } else {
-      goNamed(AppRoutes.search);
+      pushNamed(AppRoutes.search);
     }
   }
 
@@ -510,12 +535,12 @@ extension AppRouterExtension on BuildContext {
   /// EN: Navigate to visit stats
   /// KO: 방문 통계로 이동
   void goToVisitStats() {
-    goNamed(AppRoutes.visitStats);
+    pushNamed(AppRoutes.visitStats);
   }
 
   /// EN: Navigate to visit history
   /// KO: 방문 기록으로 이동
   void goToVisitHistory() {
-    goNamed(AppRoutes.visitHistory);
+    pushNamed(AppRoutes.visitHistory);
   }
 }

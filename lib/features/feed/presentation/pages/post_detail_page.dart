@@ -313,7 +313,11 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
           .load(forceRefresh: true);
       if (context.mounted) {
         _showSnackBar(context, '게시글을 삭제했어요');
-        context.goNamed(AppRoutes.board);
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.goNamed(AppRoutes.board);
+        }
       }
     } else if (result is Err<void> && context.mounted) {
       _showSnackBar(context, '게시글을 삭제하지 못했어요');
