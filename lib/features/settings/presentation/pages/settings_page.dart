@@ -1,5 +1,5 @@
-/// EN: Settings page with profile and app settings.
-/// KO: 프로필 및 앱 설정을 포함한 설정 페이지.
+/// EN: Settings page with iOS-style grouped sections and modern profile card.
+/// KO: iOS 스타일 그룹화된 섹션과 모던 프로필 카드를 포함한 설정 페이지.
 library;
 
 import 'package:flutter/material.dart';
@@ -17,8 +17,8 @@ import '../../../auth/application/auth_controller.dart';
 import '../../application/settings_controller.dart';
 import '../../domain/entities/user_profile.dart';
 
-/// EN: Settings page widget.
-/// KO: 설정 페이지 위젯.
+/// EN: Settings page widget with iOS-style grouped layout.
+/// KO: iOS 스타일 그룹화된 레이아웃의 설정 페이지 위젯.
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
@@ -31,6 +31,7 @@ class SettingsPage extends ConsumerWidget {
         : null;
     final userRole = profileState?.valueOrNull?.role;
     final canAccessAdminOps = hasAdminOpsAccessRole(userRole);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -40,23 +41,15 @@ class SettingsPage extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back),
           tooltip: '뒤로 가기',
           onPressed: () {
-            // EN: Avoid GoRouter pop when there is no back stack.
-            // KO: 뒤로갈 스택이 없을 때 GoRouter pop을 막습니다.
             if (context.canPop()) {
               context.pop();
               return;
             }
-
-            // EN: Fallback to the recorded previous route when available.
-            // KO: 이전 경로가 있으면 해당 경로로 이동합니다.
             final from = GoRouterState.of(context).uri.queryParameters['from'];
             if (from != null && from.isNotEmpty) {
               context.go(from);
               return;
             }
-
-            // EN: If no previous route is available, return to home.
-            // KO: 이전 경로가 없으면 홈으로 이동합니다.
             context.go('/home');
           },
         ),
@@ -70,9 +63,17 @@ class SettingsPage extends ConsumerWidget {
               .load(forceRefresh: true);
         },
         child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: GBTSpacing.md,
+            vertical: GBTSpacing.sm,
+          ),
           children: [
-            _ProfileSection(
+            // EN: Profile card — prominent header section
+            // KO: 프로필 카드 — 눈에 띄는 헤더 섹션
+            _ProfileCard(
               isAuthenticated: isAuthenticated,
               profileState: profileState,
               onLoginTap: () => context.push('/login'),
@@ -81,155 +82,204 @@ class SettingsPage extends ConsumerWidget {
                   .read(userProfileControllerProvider.notifier)
                   .load(forceRefresh: true),
             ),
-            const Divider(),
-            _SectionHeader(title: '나의 활동'),
-            _SettingsItem(
-              icon: Icons.favorite,
-              iconColor: const Color(0xFFEF4444),
-              title: '즐겨찾기',
-              subtitle: '저장한 장소와 이벤트',
-              semanticLabel: '즐겨찾기 - 저장한 장소와 이벤트',
-              onTap: () => context.push('/favorites'),
-            ),
-            _SettingsItem(
-              icon: Icons.check_circle,
-              iconColor: const Color(0xFF10B981),
-              title: '방문 기록',
-              subtitle: '인증한 장소 확인',
-              semanticLabel: '방문 기록 - 인증한 장소 확인',
-              onTap: () => context.push('/settings/visits'),
-            ),
-            _SettingsItem(
-              icon: Icons.bar_chart,
-              iconColor: const Color(0xFF3B82F6),
-              title: '통계',
-              subtitle: '나의 성지순례 통계',
-              semanticLabel: '통계 - 나의 성지순례 통계',
-              onTap: () => context.push('/settings/stats'),
-            ),
-            // EN: Account section -- only shown when authenticated.
-            // KO: 계정 섹션 -- 로그인 상태에서만 표시.
-            if (isAuthenticated) ...[
-              const Divider(),
-              _SectionHeader(title: '계정'),
-              _SettingsItem(
-                icon: Icons.person,
-                iconColor: const Color(0xFF8B5CF6),
-                title: '프로필 수정',
-                subtitle: '표시 이름/프로필 관리',
-                semanticLabel: '프로필 수정 - 표시 이름 및 프로필 관리',
-                onTap: () => context.push('/settings/profile'),
-              ),
-              _SettingsItem(
-                icon: Icons.logout,
-                iconColor: const Color(0xFFEF4444),
-                title: '로그아웃',
-                subtitle: '계정에서 로그아웃',
-                semanticLabel: '로그아웃 - 계정에서 로그아웃합니다',
-                onTap: () async {
-                  await ref.read(authControllerProvider.notifier).logout();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(const SnackBar(content: Text('로그아웃되었습니다')));
-                  }
-                },
-              ),
-              if (canAccessAdminOps)
-                _SettingsItem(
-                  icon: Icons.admin_panel_settings,
-                  iconColor: const Color(0xFF1D4ED8),
-                  title: '운영 센터',
-                  subtitle: '신고/운영 지표 관리',
-                  semanticLabel: '운영 센터 - 신고 및 운영 지표 관리',
-                  onTap: () => context.push('/settings/admin'),
+            const SizedBox(height: GBTSpacing.lg),
+
+            // EN: My activity section
+            // KO: 나의 활동 섹션
+            _SettingsGroup(
+              title: '나의 활동',
+              children: [
+                _SettingsRow(
+                  icon: Icons.favorite_rounded,
+                  iconBgColor: const Color(0xFFEF4444),
+                  title: '즐겨찾기',
+                  subtitle: '저장한 장소와 이벤트',
+                  onTap: () => context.push('/favorites'),
                 ),
-            ],
-            // EN: Notifications section -- only shown when authenticated.
-            // KO: 알림 섹션 -- 로그인 상태에서만 표시.
+                _SettingsRow(
+                  icon: Icons.check_circle_rounded,
+                  iconBgColor: const Color(0xFF10B981),
+                  title: '방문 기록',
+                  subtitle: '인증한 장소 확인',
+                  onTap: () => context.push('/settings/visits'),
+                ),
+                _SettingsRow(
+                  icon: Icons.bar_chart_rounded,
+                  iconBgColor: const Color(0xFF3B82F6),
+                  title: '통계',
+                  subtitle: '나의 성지순례 통계',
+                  onTap: () => context.push('/settings/stats'),
+                  isLast: true,
+                ),
+              ],
+            ),
+
+            // EN: Account section — only shown when authenticated
+            // KO: 계정 섹션 — 로그인 상태에서만 표시
             if (isAuthenticated) ...[
-              const Divider(),
-              _SectionHeader(title: '알림'),
-              _SettingsItem(
-                icon: Icons.notifications,
-                iconColor: const Color(0xFFF59E0B),
-                title: '알림 설정',
-                subtitle: '푸시/이메일 알림 관리',
-                semanticLabel: '알림 설정 - 푸시 및 이메일 알림 관리',
-                onTap: () => context.push('/settings/notifications'),
+              const SizedBox(height: GBTSpacing.lg),
+              _SettingsGroup(
+                title: '계정',
+                children: [
+                  _SettingsRow(
+                    icon: Icons.person_rounded,
+                    iconBgColor: const Color(0xFF8B5CF6),
+                    title: '프로필 수정',
+                    subtitle: '표시 이름/프로필 관리',
+                    onTap: () => context.push('/settings/profile'),
+                  ),
+                  if (canAccessAdminOps)
+                    _SettingsRow(
+                      icon: Icons.admin_panel_settings_rounded,
+                      iconBgColor: const Color(0xFF1D4ED8),
+                      title: '운영 센터',
+                      subtitle: '신고/운영 지표 관리',
+                      onTap: () => context.push('/settings/admin'),
+                    ),
+                  _SettingsRow(
+                    icon: Icons.logout_rounded,
+                    iconBgColor: const Color(0xFFEF4444),
+                    title: '로그아웃',
+                    onTap: () async {
+                      final confirm = await _showLogoutConfirm(context);
+                      if (confirm != true) return;
+                      await ref
+                          .read(authControllerProvider.notifier)
+                          .logout();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('로그아웃되었습니다')),
+                        );
+                      }
+                    },
+                    isLast: true,
+                  ),
+                ],
               ),
             ],
-            const Divider(),
-            _SectionHeader(title: '앱 환경'),
-            _SettingsItem(
-              icon: Icons.dark_mode,
-              iconColor: const Color(0xFF6366F1),
-              title: '테마',
-              subtitle: _themeLabel(themeMode),
-              semanticLabel: '테마 설정 - 현재 ${_themeLabel(themeMode)}',
-              onTap: () => _showThemePicker(context, ref, themeMode),
+
+            // EN: Notifications — only shown when authenticated
+            // KO: 알림 — 로그인 상태에서만 표시
+            if (isAuthenticated) ...[
+              const SizedBox(height: GBTSpacing.lg),
+              _SettingsGroup(
+                title: '알림',
+                children: [
+                  _SettingsRow(
+                    icon: Icons.notifications_rounded,
+                    iconBgColor: const Color(0xFFF59E0B),
+                    title: '알림 설정',
+                    subtitle: '푸시/이메일 알림 관리',
+                    onTap: () => context.push('/settings/notifications'),
+                    isLast: true,
+                  ),
+                ],
+              ),
+            ],
+
+            // EN: App environment section
+            // KO: 앱 환경 섹션
+            const SizedBox(height: GBTSpacing.lg),
+            _SettingsGroup(
+              title: '앱 환경',
+              children: [
+                _SettingsRow(
+                  icon: Icons.dark_mode_rounded,
+                  iconBgColor: const Color(0xFF6366F1),
+                  title: '테마',
+                  trailing: Text(
+                    _themeLabel(themeMode),
+                    style: GBTTypography.bodySmall.copyWith(
+                      color: isDark
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary,
+                    ),
+                  ),
+                  onTap: () => _showThemePicker(context, ref, themeMode),
+                ),
+                _SettingsRow(
+                  icon: Icons.language_rounded,
+                  iconBgColor: const Color(0xFF0D9488),
+                  title: '언어',
+                  trailing: Text(
+                    '한국어',
+                    style: GBTTypography.bodySmall.copyWith(
+                      color: isDark
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary,
+                    ),
+                  ),
+                  onTap: () =>
+                      _showComingSoon(context, '언어 설정은 준비 중입니다.'),
+                  isLast: true,
+                ),
+              ],
             ),
-            _SettingsItem(
-              icon: Icons.language,
-              iconColor: const Color(0xFF0D9488),
-              title: '언어',
-              subtitle: '한국어',
-              semanticLabel: '언어 설정 - 현재 한국어',
-              onTap: () => _showComingSoon(context, '언어 설정은 준비 중입니다.'),
+
+            // EN: Support section
+            // KO: 지원 섹션
+            const SizedBox(height: GBTSpacing.lg),
+            _SettingsGroup(
+              title: '지원',
+              children: [
+                _SettingsRow(
+                  icon: Icons.help_rounded,
+                  iconBgColor: const Color(0xFF3B82F6),
+                  title: '도움말',
+                  onTap: () =>
+                      _showComingSoon(context, '도움말은 준비 중입니다.'),
+                ),
+                _SettingsRow(
+                  icon: Icons.feedback_rounded,
+                  iconBgColor: const Color(0xFFEC4899),
+                  title: '피드백 보내기',
+                  onTap: () =>
+                      _showComingSoon(context, '피드백 기능은 준비 중입니다.'),
+                ),
+                _SettingsRow(
+                  icon: Icons.description_rounded,
+                  title: '이용약관',
+                  onTap: () =>
+                      _showComingSoon(context, '이용약관은 준비 중입니다.'),
+                ),
+                _SettingsRow(
+                  icon: Icons.privacy_tip_rounded,
+                  title: '개인정보 처리방침',
+                  onTap: () =>
+                      _showComingSoon(context, '개인정보 처리방침은 준비 중입니다.'),
+                  isLast: true,
+                ),
+              ],
             ),
-            const Divider(),
-            _SectionHeader(title: '지원'),
-            _SettingsItem(
-              icon: Icons.help,
-              iconColor: const Color(0xFF3B82F6),
-              title: '도움말',
-              semanticLabel: '도움말',
-              onTap: () => _showComingSoon(context, '도움말은 준비 중입니다.'),
-            ),
-            _SettingsItem(
-              icon: Icons.feedback,
-              iconColor: const Color(0xFFEC4899),
-              title: '피드백 보내기',
-              semanticLabel: '피드백 보내기',
-              onTap: () => _showComingSoon(context, '피드백 기능은 준비 중입니다.'),
-            ),
-            _SettingsItem(
-              icon: Icons.description,
-              title: '이용약관',
-              semanticLabel: '이용약관',
-              onTap: () => _showComingSoon(context, '이용약관은 준비 중입니다.'),
-            ),
-            _SettingsItem(
-              icon: Icons.privacy_tip,
-              title: '개인정보 처리방침',
-              semanticLabel: '개인정보 처리방침',
-              onTap: () => _showComingSoon(context, '개인정보 처리방침은 준비 중입니다.'),
-            ),
-            const Divider(),
-            Padding(
-              padding: GBTSpacing.paddingPage,
+
+            // EN: App version footer
+            // KO: 앱 버전 푸터
+            const SizedBox(height: GBTSpacing.xl),
+            Center(
               child: Column(
                 children: [
                   Text(
                     'Girls Band Tabi',
-                    style: GBTTypography.titleSmall.copyWith(
-                      // EN: Use theme-aware text color
-                      // KO: 테마 인식 텍스트 색상 사용
-                      color: Theme.of(context).colorScheme.onSurface,
+                    style: GBTTypography.labelMedium.copyWith(
+                      color: isDark
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary,
                     ),
                   ),
-                  const SizedBox(height: GBTSpacing.xs),
+                  const SizedBox(height: GBTSpacing.xxs),
                   Text(
                     '버전 1.0.0 (1)',
-                    style: GBTTypography.bodySmall.copyWith(
-                      // EN: Use theme-aware tertiary text color
-                      // KO: 테마 인식 3차 텍스트 색상 사용
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    style: GBTTypography.labelSmall.copyWith(
+                      color: isDark
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary,
                     ),
                   ),
-                  const SizedBox(height: GBTSpacing.lg),
                 ],
               ),
+            ),
+            SizedBox(
+              height: GBTSpacing.xl + MediaQuery.of(context).padding.bottom,
             ),
           ],
         ),
@@ -238,8 +288,13 @@ class SettingsPage extends ConsumerWidget {
   }
 }
 
-class _ProfileSection extends StatelessWidget {
-  const _ProfileSection({
+// ========================================
+// EN: Profile Card — modern, prominent header
+// KO: 프로필 카드 — 모던, 눈에 띄는 헤더
+// ========================================
+
+class _ProfileCard extends StatelessWidget {
+  const _ProfileCard({
     required this.isAuthenticated,
     required this.profileState,
     required this.onLoginTap,
@@ -255,15 +310,21 @@ class _ProfileSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (!isAuthenticated) {
-      return Padding(
-        padding: GBTSpacing.paddingPage,
+      return Container(
+        padding: const EdgeInsets.all(GBTSpacing.lg),
+        decoration: BoxDecoration(
+          color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
+          border: Border.all(
+            color: isDark ? GBTColors.darkBorderSubtle : GBTColors.border,
+            width: 0.5,
+          ),
+        ),
         child: Column(
           children: [
-            const SizedBox(height: GBTSpacing.sm),
             CircleAvatar(
               radius: 36,
               backgroundColor: isDark
@@ -282,14 +343,19 @@ class _ProfileSection extends StatelessWidget {
             Text(
               '로그인이 필요합니다',
               style: GBTTypography.titleMedium.copyWith(
-                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+                color: isDark
+                    ? GBTColors.darkTextPrimary
+                    : GBTColors.textPrimary,
               ),
             ),
-            const SizedBox(height: GBTSpacing.xs),
+            const SizedBox(height: GBTSpacing.xxs),
             Text(
               '로그인하여 모든 기능을 사용하세요',
               style: GBTTypography.bodySmall.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: isDark
+                    ? GBTColors.darkTextSecondary
+                    : GBTColors.textSecondary,
               ),
             ),
             const SizedBox(height: GBTSpacing.md),
@@ -304,29 +370,52 @@ class _ProfileSection extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: GBTSpacing.sm),
           ],
         ),
       );
     }
 
     return profileState?.when(
-          loading: () => const Padding(
-            padding: GBTSpacing.paddingPage,
-            child: GBTLoading(message: '프로필을 불러오는 중...'),
+          loading: () => Container(
+            padding: const EdgeInsets.all(GBTSpacing.lg),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? GBTColors.darkSurfaceElevated
+                  : GBTColors.surface,
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
+              border: Border.all(
+                color: isDark
+                    ? GBTColors.darkBorderSubtle
+                    : GBTColors.border,
+                width: 0.5,
+              ),
+            ),
+            child: const GBTLoading(message: '프로필을 불러오는 중...'),
           ),
-          error: (error, _) => Padding(
-            padding: GBTSpacing.paddingPage,
+          error: (error, _) => Container(
+            padding: const EdgeInsets.all(GBTSpacing.lg),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? GBTColors.darkSurfaceElevated
+                  : GBTColors.surface,
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
+              border: Border.all(
+                color: isDark
+                    ? GBTColors.darkBorderSubtle
+                    : GBTColors.border,
+                width: 0.5,
+              ),
+            ),
             child: Row(
               children: [
                 CircleAvatar(
-                  radius: 32,
+                  radius: 28,
                   backgroundColor: isDark
                       ? GBTColors.darkSurfaceVariant
                       : GBTColors.surfaceVariant,
                   child: Icon(
                     Icons.person,
-                    size: 36,
+                    size: 28,
                     color: isDark
                         ? GBTColors.darkTextTertiary
                         : GBTColors.textTertiary,
@@ -339,87 +428,105 @@ class _ProfileSection extends StatelessWidget {
                     children: [
                       Text(
                         '프로필을 불러오지 못했어요',
-                        style: GBTTypography.titleMedium.copyWith(
-                          color: colorScheme.onSurface,
+                        style: GBTTypography.bodyMedium.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: isDark
+                              ? GBTColors.darkTextPrimary
+                              : GBTColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: GBTSpacing.xs),
+                      const SizedBox(height: 2),
                       Text(
                         '잠시 후 다시 시도해주세요',
                         style: GBTTypography.bodySmall.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+                          color: isDark
+                              ? GBTColors.darkTextSecondary
+                              : GBTColors.textSecondary,
                         ),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(Icons.refresh_rounded),
                   onPressed: onRetry,
                   tooltip: '프로필 다시 불러오기',
-                  // EN: Ensure min 48dp touch target
-                  // KO: 최소 48dp 터치 타겟 보장
-                  iconSize: GBTSpacing.iconMd,
                 ),
               ],
             ),
           ),
           data: (profile) {
-            if (profile == null) {
-              return const SizedBox.shrink();
-            }
-            return Padding(
-              padding: GBTSpacing.paddingPage,
-              child: Row(
-                children: [
-                  _ProfileAvatar(avatarUrl: profile.avatarUrl),
-                  const SizedBox(width: GBTSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          profile.displayName,
-                          style: GBTTypography.titleMedium.copyWith(
-                            color: colorScheme.onSurface,
+            if (profile == null) return const SizedBox.shrink();
+            return Container(
+              padding: const EdgeInsets.all(GBTSpacing.lg),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? GBTColors.darkSurfaceElevated
+                    : GBTColors.surface,
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
+                border: Border.all(
+                  color: isDark
+                      ? GBTColors.darkBorderSubtle
+                      : GBTColors.border,
+                  width: 0.5,
+                ),
+              ),
+              child: InkWell(
+                onTap: onEditTap,
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
+                child: Row(
+                  children: [
+                    _ProfileAvatar(avatarUrl: profile.avatarUrl),
+                    const SizedBox(width: GBTSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            profile.displayName,
+                            style: GBTTypography.titleMedium.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? GBTColors.darkTextPrimary
+                                  : GBTColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          // EN: Prevent overflow on long display names
-                          // KO: 긴 표시 이름에서 오버플로 방지
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: GBTSpacing.xxs),
-                        Text(
-                          profile.summaryLabel,
-                          style: GBTTypography.bodySmall.copyWith(
-                            color: colorScheme.onSurfaceVariant,
+                          const SizedBox(height: 2),
+                          Text(
+                            profile.summaryLabel,
+                            style: GBTTypography.bodySmall.copyWith(
+                              color: isDark
+                                  ? GBTColors.darkTextSecondary
+                                  : GBTColors.textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: GBTSpacing.xxs),
-                        Text(
-                          profile.email,
-                          style: GBTTypography.bodySmall.copyWith(
-                            color: isDark
-                                ? GBTColors.darkTextTertiary
-                                : GBTColors.textTertiary,
+                          const SizedBox(height: 2),
+                          Text(
+                            profile.email,
+                            style: GBTTypography.labelSmall.copyWith(
+                              color: isDark
+                                  ? GBTColors.darkTextTertiary
+                                  : GBTColors.textTertiary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: onEditTap,
-                    tooltip: '프로필 수정',
-                    // EN: Ensure min 48dp touch target (default for IconButton)
-                    // KO: 최소 48dp 터치 타겟 보장 (IconButton 기본값)
-                    iconSize: GBTSpacing.iconMd,
-                  ),
-                ],
+                    Icon(
+                      Icons.chevron_right,
+                      size: 20,
+                      color: isDark
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary,
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -439,13 +546,13 @@ class _ProfileAvatar extends StatelessWidget {
 
     if (avatarUrl == null || avatarUrl!.isEmpty) {
       return CircleAvatar(
-        radius: 32,
+        radius: 28,
         backgroundColor: isDark
             ? GBTColors.darkSurfaceVariant
             : GBTColors.surfaceVariant,
         child: Icon(
           Icons.person,
-          size: 36,
+          size: 28,
           color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
           semanticLabel: '기본 프로필 이미지',
         ),
@@ -455,8 +562,8 @@ class _ProfileAvatar extends StatelessWidget {
     return ClipOval(
       child: GBTImage(
         imageUrl: avatarUrl!,
-        width: 64,
-        height: 64,
+        width: 56,
+        height: 56,
         fit: BoxFit.cover,
         semanticLabel: '프로필 이미지',
       ),
@@ -464,106 +571,191 @@ class _ProfileAvatar extends StatelessWidget {
   }
 }
 
-/// EN: Section header widget.
-/// KO: 섹션 헤더 위젯.
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
+// ========================================
+// EN: Settings Group — iOS-style card container
+// KO: 설정 그룹 — iOS 스타일 카드 컨테이너
+// ========================================
+
+class _SettingsGroup extends StatelessWidget {
+  const _SettingsGroup({
+    required this.title,
+    required this.children,
+  });
 
   final String title;
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        GBTSpacing.md,
-        GBTSpacing.md,
-        GBTSpacing.md,
-        GBTSpacing.xs,
-      ),
-      child: Text(
-        title,
-        style: GBTTypography.labelMedium.copyWith(
-          // EN: Use theme-aware secondary text color
-          // KO: 테마 인식 보조 텍스트 색상 사용
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // EN: Section title — uppercase-style label
+        // KO: 섹션 제목 — 대문자 스타일 라벨
+        Padding(
+          padding: const EdgeInsets.only(
+            left: GBTSpacing.sm,
+            bottom: GBTSpacing.xs,
+          ),
+          child: Text(
+            title,
+            style: GBTTypography.labelSmall.copyWith(
+              color: isDark
+                  ? GBTColors.darkTextTertiary
+                  : GBTColors.textTertiary,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+          ),
         ),
-      ),
+        // EN: Card container with rounded corners
+        // KO: 둥근 모서리가 있는 카드 컨테이너
+        Container(
+          decoration: BoxDecoration(
+            color: isDark
+                ? GBTColors.darkSurfaceElevated
+                : GBTColors.surface,
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+            border: Border.all(
+              color: isDark
+                  ? GBTColors.darkBorderSubtle
+                  : GBTColors.border,
+              width: 0.5,
+            ),
+          ),
+          child: Column(children: children),
+        ),
+      ],
     );
   }
 }
 
-/// EN: Settings item widget with accessibility support.
-/// KO: 접근성을 지원하는 설정 아이템 위젯.
-class _SettingsItem extends StatelessWidget {
-  const _SettingsItem({
+// ========================================
+// EN: Settings Row — single item within a group
+// KO: 설정 행 — 그룹 내 단일 항목
+// ========================================
+
+class _SettingsRow extends StatelessWidget {
+  const _SettingsRow({
     required this.icon,
     required this.title,
-    this.subtitle,
     required this.onTap,
-    this.semanticLabel,
-    this.iconColor,
+    this.subtitle,
+    this.trailing,
+    this.iconBgColor,
+    this.isLast = false,
   });
 
   final IconData icon;
   final String title;
   final String? subtitle;
   final VoidCallback onTap;
-  final String? semanticLabel;
-
-  /// EN: Optional individual icon color — falls back to neutral if null.
-  /// KO: 선택적 개별 아이콘 색상 — null이면 뉴트럴 폴백.
-  final Color? iconColor;
+  final Widget? trailing;
+  final Color? iconBgColor;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    final resolvedIconColor =
-        iconColor ??
+    final resolvedIconColor = iconBgColor ??
         (isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary);
 
-    return Semantics(
-      button: true,
-      label: semanticLabel ?? title,
-      child: ListTile(
-        leading: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: isDark
-                ? GBTColors.darkSurfaceVariant
-                : GBTColors.surfaceVariant,
-            borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+    return Column(
+      children: [
+        Semantics(
+          button: true,
+          label: subtitle != null ? '$title - $subtitle' : title,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: GBTSpacing.md,
+                vertical: GBTSpacing.sm + 4,
+              ),
+              child: Row(
+                children: [
+                  // EN: Icon with colored background
+                  // KO: 색상 배경이 있는 아이콘
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: resolvedIconColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(
+                          GBTSpacing.radiusSm),
+                    ),
+                    child: Icon(
+                      icon,
+                      color: resolvedIconColor,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: GBTSpacing.md),
+                  // EN: Title and optional subtitle
+                  // KO: 제목 및 선택적 부제
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: GBTTypography.bodyMedium.copyWith(
+                            color: isDark
+                                ? GBTColors.darkTextPrimary
+                                : GBTColors.textPrimary,
+                          ),
+                        ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 1),
+                          Text(
+                            subtitle!,
+                            style: GBTTypography.labelSmall.copyWith(
+                              color: isDark
+                                  ? GBTColors.darkTextTertiary
+                                  : GBTColors.textTertiary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  // EN: Trailing widget or chevron
+                  // KO: 트레일링 위젯 또는 쉐브론
+                  trailing ??
+                      Icon(
+                        Icons.chevron_right,
+                        size: 18,
+                        color: isDark
+                            ? GBTColors.darkTextTertiary
+                            : GBTColors.textTertiary,
+                      ),
+                ],
+              ),
+            ),
           ),
-          child: Icon(icon, color: resolvedIconColor, size: GBTSpacing.iconSm),
         ),
-        title: Text(
-          title,
-          style: GBTTypography.bodyMedium.copyWith(
-            color: colorScheme.onSurface,
+        // EN: Divider between rows (skip for last item)
+        // KO: 행 사이 구분선 (마지막 항목은 건너뛰기)
+        if (!isLast)
+          Divider(
+            height: 1,
+            indent: GBTSpacing.md + 32 + GBTSpacing.md,
+            endIndent: GBTSpacing.md,
+            color: isDark ? GBTColors.darkBorderSubtle : GBTColors.divider,
           ),
-        ),
-        subtitle: subtitle != null
-            ? Text(
-                subtitle!,
-                style: GBTTypography.bodySmall.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              )
-            : null,
-        trailing: Icon(
-          Icons.arrow_forward_ios,
-          size: GBTSpacing.iconXs,
-          color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
-        ),
-        onTap: onTap,
-      ),
+      ],
     );
   }
 }
+
+// ========================================
+// EN: Theme picker and utilities
+// KO: 테마 선택기 및 유틸리티
+// ========================================
 
 String _themeLabel(String mode) {
   return switch (mode) {
@@ -573,50 +765,191 @@ String _themeLabel(String mode) {
   };
 }
 
-void _showThemePicker(BuildContext context, WidgetRef ref, String currentMode) {
+void _showThemePicker(
+    BuildContext context, WidgetRef ref, String currentMode) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+
   showModalBottomSheet<void>(
     context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(GBTSpacing.radiusLg),
+      ),
+    ),
     builder: (context) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Semantics(
-            selected: currentMode == 'system',
-            child: ListTile(
-              title: const Text('시스템 설정'),
-              trailing: currentMode == 'system'
-                  ? const Icon(Icons.check)
-                  : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // EN: Drag handle
+            // KO: 드래그 핸들
+            Center(
+              child: Container(
+                width: 32,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: GBTSpacing.md),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? GBTColors.darkTextTertiary
+                      : GBTColors.textTertiary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: GBTSpacing.md,
+              ),
+              child: Text(
+                '테마 설정',
+                style: GBTTypography.titleSmall.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: GBTSpacing.sm),
+            _ThemeOption(
+              icon: Icons.settings_suggest_rounded,
+              label: '시스템 설정',
+              description: '기기 설정에 따라 자동 변경',
+              isSelected: currentMode == 'system',
               onTap: () {
                 ref.read(themeModeProvider.notifier).state = 'system';
                 Navigator.of(context).pop();
               },
             ),
-          ),
-          Semantics(
-            selected: currentMode == 'light',
-            child: ListTile(
-              title: const Text('라이트 모드'),
-              trailing: currentMode == 'light' ? const Icon(Icons.check) : null,
+            _ThemeOption(
+              icon: Icons.light_mode_rounded,
+              label: '라이트 모드',
+              description: '항상 밝은 테마 사용',
+              isSelected: currentMode == 'light',
               onTap: () {
                 ref.read(themeModeProvider.notifier).state = 'light';
                 Navigator.of(context).pop();
               },
             ),
-          ),
-          Semantics(
-            selected: currentMode == 'dark',
-            child: ListTile(
-              title: const Text('다크 모드'),
-              trailing: currentMode == 'dark' ? const Icon(Icons.check) : null,
+            _ThemeOption(
+              icon: Icons.dark_mode_rounded,
+              label: '다크 모드',
+              description: '항상 어두운 테마 사용',
+              isSelected: currentMode == 'dark',
               onTap: () {
                 ref.read(themeModeProvider.notifier).state = 'dark';
                 Navigator.of(context).pop();
               },
             ),
-          ),
-        ],
+          ],
+        ),
       ),
+    ),
+  );
+}
+
+/// EN: Theme option row with radio indicator.
+/// KO: 라디오 인디케이터가 있는 테마 옵션 행.
+class _ThemeOption extends StatelessWidget {
+  const _ThemeOption({
+    required this.icon,
+    required this.label,
+    required this.description,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String description;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+
+    return Semantics(
+      selected: isSelected,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: GBTSpacing.md,
+            vertical: GBTSpacing.sm + 2,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 22,
+                color: isSelected
+                    ? primaryColor
+                    : (isDark
+                        ? GBTColors.darkTextSecondary
+                        : GBTColors.textSecondary),
+              ),
+              const SizedBox(width: GBTSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: GBTTypography.bodyMedium.copyWith(
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w400,
+                        color: isDark
+                            ? GBTColors.darkTextPrimary
+                            : GBTColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      description,
+                      style: GBTTypography.labelSmall.copyWith(
+                        color: isDark
+                            ? GBTColors.darkTextTertiary
+                            : GBTColors.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                Icon(Icons.check_circle_rounded,
+                    color: primaryColor, size: 22)
+              else
+                Icon(
+                  Icons.circle_outlined,
+                  color: isDark
+                      ? GBTColors.darkTextTertiary
+                      : GBTColors.textTertiary,
+                  size: 22,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<bool?> _showLogoutConfirm(BuildContext context) {
+  return showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('로그아웃'),
+      content: const Text('정말로 로그아웃하시겠어요?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('취소'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('로그아웃'),
+        ),
+      ],
     ),
   );
 }
