@@ -137,15 +137,20 @@ class SettingsPage extends ConsumerWidget {
                       onTap: () => context.push('/settings/admin'),
                     ),
                   _SettingsRow(
+                    icon: Icons.build_circle_rounded,
+                    iconBgColor: const Color(0xFF6366F1),
+                    title: '계정 도구',
+                    subtitle: '차단/권한요청/이의제기 관리',
+                    onTap: () => context.push('/settings/account-tools'),
+                  ),
+                  _SettingsRow(
                     icon: Icons.logout_rounded,
                     iconBgColor: const Color(0xFFEF4444),
                     title: '로그아웃',
                     onTap: () async {
                       final confirm = await _showLogoutConfirm(context);
                       if (confirm != true) return;
-                      await ref
-                          .read(authControllerProvider.notifier)
-                          .logout();
+                      await ref.read(authControllerProvider.notifier).logout();
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('로그아웃되었습니다')),
@@ -209,8 +214,7 @@ class SettingsPage extends ConsumerWidget {
                           : GBTColors.textTertiary,
                     ),
                   ),
-                  onTap: () =>
-                      _showComingSoon(context, '언어 설정은 준비 중입니다.'),
+                  onTap: () => _showComingSoon(context, '언어 설정은 준비 중입니다.'),
                   isLast: true,
                 ),
               ],
@@ -226,27 +230,23 @@ class SettingsPage extends ConsumerWidget {
                   icon: Icons.help_rounded,
                   iconBgColor: const Color(0xFF3B82F6),
                   title: '도움말',
-                  onTap: () =>
-                      _showComingSoon(context, '도움말은 준비 중입니다.'),
+                  onTap: () => _showComingSoon(context, '도움말은 준비 중입니다.'),
                 ),
                 _SettingsRow(
                   icon: Icons.feedback_rounded,
                   iconBgColor: const Color(0xFFEC4899),
                   title: '피드백 보내기',
-                  onTap: () =>
-                      _showComingSoon(context, '피드백 기능은 준비 중입니다.'),
+                  onTap: () => _showComingSoon(context, '피드백 기능은 준비 중입니다.'),
                 ),
                 _SettingsRow(
                   icon: Icons.description_rounded,
                   title: '이용약관',
-                  onTap: () =>
-                      _showComingSoon(context, '이용약관은 준비 중입니다.'),
+                  onTap: () => _showComingSoon(context, '이용약관은 준비 중입니다.'),
                 ),
                 _SettingsRow(
                   icon: Icons.privacy_tip_rounded,
                   title: '개인정보 처리방침',
-                  onTap: () =>
-                      _showComingSoon(context, '개인정보 처리방침은 준비 중입니다.'),
+                  onTap: () => _showComingSoon(context, '개인정보 처리방침은 준비 중입니다.'),
                   isLast: true,
                 ),
               ],
@@ -379,14 +379,10 @@ class _ProfileCard extends StatelessWidget {
           loading: () => Container(
             padding: const EdgeInsets.all(GBTSpacing.lg),
             decoration: BoxDecoration(
-              color: isDark
-                  ? GBTColors.darkSurfaceElevated
-                  : GBTColors.surface,
+              color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface,
               borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
               border: Border.all(
-                color: isDark
-                    ? GBTColors.darkBorderSubtle
-                    : GBTColors.border,
+                color: isDark ? GBTColors.darkBorderSubtle : GBTColors.border,
                 width: 0.5,
               ),
             ),
@@ -395,14 +391,10 @@ class _ProfileCard extends StatelessWidget {
           error: (error, _) => Container(
             padding: const EdgeInsets.all(GBTSpacing.lg),
             decoration: BoxDecoration(
-              color: isDark
-                  ? GBTColors.darkSurfaceElevated
-                  : GBTColors.surface,
+              color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface,
               borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
               border: Border.all(
-                color: isDark
-                    ? GBTColors.darkBorderSubtle
-                    : GBTColors.border,
+                color: isDark ? GBTColors.darkBorderSubtle : GBTColors.border,
                 width: 0.5,
               ),
             ),
@@ -465,9 +457,7 @@ class _ProfileCard extends StatelessWidget {
                     : GBTColors.surface,
                 borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
                 border: Border.all(
-                  color: isDark
-                      ? GBTColors.darkBorderSubtle
-                      : GBTColors.border,
+                  color: isDark ? GBTColors.darkBorderSubtle : GBTColors.border,
                   width: 0.5,
                 ),
               ),
@@ -577,10 +567,7 @@ class _ProfileAvatar extends StatelessWidget {
 // ========================================
 
 class _SettingsGroup extends StatelessWidget {
-  const _SettingsGroup({
-    required this.title,
-    required this.children,
-  });
+  const _SettingsGroup({required this.title, required this.children});
 
   final String title;
   final List<Widget> children;
@@ -614,14 +601,10 @@ class _SettingsGroup extends StatelessWidget {
         // KO: 둥근 모서리가 있는 카드 컨테이너
         Container(
           decoration: BoxDecoration(
-            color: isDark
-                ? GBTColors.darkSurfaceElevated
-                : GBTColors.surface,
+            color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface,
             borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
             border: Border.all(
-              color: isDark
-                  ? GBTColors.darkBorderSubtle
-                  : GBTColors.border,
+              color: isDark ? GBTColors.darkBorderSubtle : GBTColors.border,
               width: 0.5,
             ),
           ),
@@ -659,7 +642,8 @@ class _SettingsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final resolvedIconColor = iconBgColor ??
+    final resolvedIconColor =
+        iconBgColor ??
         (isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary);
 
     return Column(
@@ -683,14 +667,9 @@ class _SettingsRow extends StatelessWidget {
                     height: 32,
                     decoration: BoxDecoration(
                       color: resolvedIconColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(
-                          GBTSpacing.radiusSm),
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
                     ),
-                    child: Icon(
-                      icon,
-                      color: resolvedIconColor,
-                      size: 18,
-                    ),
+                    child: Icon(icon, color: resolvedIconColor, size: 18),
                   ),
                   const SizedBox(width: GBTSpacing.md),
                   // EN: Title and optional subtitle
@@ -765,8 +744,7 @@ String _themeLabel(String mode) {
   };
 }
 
-void _showThemePicker(
-    BuildContext context, WidgetRef ref, String currentMode) {
+void _showThemePicker(BuildContext context, WidgetRef ref, String currentMode) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
 
   showModalBottomSheet<void>(
@@ -799,9 +777,7 @@ void _showThemePicker(
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: GBTSpacing.md,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
               child: Text(
                 '테마 설정',
                 style: GBTTypography.titleSmall.copyWith(
@@ -886,8 +862,8 @@ class _ThemeOption extends StatelessWidget {
                 color: isSelected
                     ? primaryColor
                     : (isDark
-                        ? GBTColors.darkTextSecondary
-                        : GBTColors.textSecondary),
+                          ? GBTColors.darkTextSecondary
+                          : GBTColors.textSecondary),
               ),
               const SizedBox(width: GBTSpacing.md),
               Expanded(
@@ -897,8 +873,9 @@ class _ThemeOption extends StatelessWidget {
                     Text(
                       label,
                       style: GBTTypography.bodyMedium.copyWith(
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.w400,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w400,
                         color: isDark
                             ? GBTColors.darkTextPrimary
                             : GBTColors.textPrimary,
@@ -916,8 +893,7 @@ class _ThemeOption extends StatelessWidget {
                 ),
               ),
               if (isSelected)
-                Icon(Icons.check_circle_rounded,
-                    color: primaryColor, size: 22)
+                Icon(Icons.check_circle_rounded, color: primaryColor, size: 22)
               else
                 Icon(
                   Icons.circle_outlined,

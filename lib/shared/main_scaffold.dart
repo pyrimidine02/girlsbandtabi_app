@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -40,14 +41,18 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   @override
   Widget build(BuildContext context) {
     final currentIndex = widget.navigationShell.currentIndex;
+    final canNavigateBack = GoRouter.of(context).canPop();
     if (_lastSyncedIndex != currentIndex) {
       _scheduleSync(currentIndex);
     }
 
     return PopScope(
-      canPop: false,
+      canPop: canNavigateBack,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
+        if (didPop || canNavigateBack) return;
+        if (defaultTargetPlatform != TargetPlatform.android) {
+          return;
+        }
         final now = DateTime.now();
         if (_lastBackPressed != null &&
             now.difference(_lastBackPressed!) < const Duration(seconds: 2)) {

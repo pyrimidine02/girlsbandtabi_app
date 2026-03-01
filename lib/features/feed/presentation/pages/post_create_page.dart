@@ -456,7 +456,10 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
       if (!mounted) {
         return;
       }
-      router.goNamed(AppRoutes.postDetail, pathParameters: {'postId': data.id});
+      router.pushReplacementNamed(
+        AppRoutes.postDetail,
+        pathParameters: {'postId': data.id},
+      );
     } else if (result case Err<PostDetail>(:final failure)) {
       messenger.showSnackBar(SnackBar(content: Text(failure.userMessage)));
     }

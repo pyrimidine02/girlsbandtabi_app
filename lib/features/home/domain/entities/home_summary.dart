@@ -57,6 +57,8 @@ class HomePlaceItem {
       id: dto.id,
       name: dto.name,
       visitCount: dto.count,
+      imageUrl: dto.imageUrl,
+      location: dto.location,
     );
   }
 }
@@ -109,6 +111,9 @@ class HomeNewsItem {
     return HomeNewsItem(
       id: dto.id,
       title: dto.title,
+      summary: dto.summary,
+      imageUrl: dto.imageUrl,
+      publishedAt: dto.publishedAt,
     );
   }
 }

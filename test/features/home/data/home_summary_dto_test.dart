@@ -9,6 +9,8 @@ void main() {
         {
           'id': 'place-1',
           'name': 'Tokyo Dome',
+          'thumbnailUrl': 'https://example.com/place.png',
+          'location': '도쿄',
           'types': ['VENUE'],
           'latitude': 35.7056,
           'longitude': 139.7519,
@@ -22,12 +24,15 @@ void main() {
           'status': 'UPCOMING',
           'projectIds': ['proj-1'],
           'unitIds': ['unit-1'],
+          'banner': {'url': 'https://example.com/live-poster.png'},
         },
       ],
       'latestNews': [
         {
           'id': 'news-1',
           'title': 'News Title',
+          'summary': 'summary',
+          'imageUrl': 'https://example.com/news.png',
           'publishedAt': '2026-01-28T00:00:00Z',
         },
       ],
@@ -37,5 +42,14 @@ void main() {
     expect(dto.recommendedPlaces.length, 1);
     expect(dto.trendingLiveEvents.length, 1);
     expect(dto.latestNews.length, 1);
+    expect(
+      dto.recommendedPlaces.first.imageUrl,
+      'https://example.com/place.png',
+    );
+    expect(
+      dto.trendingLiveEvents.first.bannerUrl,
+      'https://example.com/live-poster.png',
+    );
+    expect(dto.latestNews.first.imageUrl, 'https://example.com/news.png');
   });
 }

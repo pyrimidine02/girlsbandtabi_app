@@ -178,7 +178,7 @@ class GBTEventCardCarousel extends StatelessWidget {
   }
 
   Widget _buildPoster(bool isDark) {
-    if (posterUrl != null) {
+    if (posterUrl != null && posterUrl!.trim().isNotEmpty) {
       return GBTImage(
         imageUrl: posterUrl!,
         fit: BoxFit.cover,

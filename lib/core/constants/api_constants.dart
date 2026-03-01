@@ -76,6 +76,9 @@ class ApiEndpoints {
   // ============================================================
   static const String projects = '$apiVersion/projects';
   static String project(String projectId) => '$projects/$projectId';
+  static const String projectRoleRequests = '$projects/role-requests';
+  static String projectRoleRequest(String requestId) =>
+      '$projectRoleRequests/$requestId';
 
   // EN: Unit endpoints
   // KO: 유닛 엔드포인트

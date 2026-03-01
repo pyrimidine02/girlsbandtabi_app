@@ -11,6 +11,22 @@
 - **UI/UX/FAVORITES**: Added favorites intro summary card with count badge and unified segmented tabs for category browsing.
 - **UI/UX/PHASE3**: Rolled page-level consistency pattern into additional major routes (`live_events`, `places_map`, `visit_history`, `visit_stats`, `notification_settings`, `profile_edit`) using intro cards, segmented controls, and clearer summary badges.
 - **THEME/COLOR**: Refreshed primary brand palette from periwinkle to sky-blue (`#2F7DFF`) and updated related dark/app background tones and CTA semantics to reduce purple bias while preserving accessibility.
+- **NAVIGATION/IOS**: Restored iOS-friendly back behavior by switching adaptive page construction for detail/overlay routes to platform-friendly material pages on iOS/macOS (instead of custom transition pages without interactive back gesture).
+- **NAVIGATION/STACK**: Changed detail-oriented navigation helpers from `go*` replacement semantics to `push*` stack semantics (`place/live/news/post/detail/create/search/visit`), so back returns to the immediate previous page.
+- **NAVIGATION/FLOW**: Improved edge navigation flows: post deletion now pops back when possible; post-create success now replaces with post-detail to avoid stale create-page stacking.
+- **HOME/UI**: Upgraded home greeting header to support live image-backed hero visuals with readability overlays and a tappable featured-live chip.
+- **HOME/API**: Expanded home summary DTO compatibility for image fields (`banner/poster/image/thumbnail` variants and nested `{url}` objects) so trending live posters render reliably.
+- **HOME/CONTENT**: Connected home header image fallback order (`trending live` -> `recommended places` -> `latest news`) to reduce color-only headers.
+- **HOME/FIX**: Prevented home header `RenderFlex` overflow on small screens by using dynamic hero height (featured-live + text-scale aware) and single-line ellipsis for greeting copy.
+- **COMMUNITY/UI**: Refined post-detail comments UX with client-side sort chips (`최신순`/`등록순`), card-style comment items, clearer metadata (`수정됨`), and improved reply-thread CTA visibility.
+- **COMMUNITY/INPUT**: Upgraded comment composer to multiline input + enabled-state send button and wired the comment action button to jump focus to the composer.
+- **PLACES/UI**: Restored places-region filter discoverability with selected-count AppBar badge + always-visible bottom-sheet quick controls and added a searchable multi-select region filter sheet (clear/apply flow).
+- **PLACES/FIX**: Fixed region-filter infinite loading by making the filter sheet reactively watch provider state (instead of tap-time snapshots), listening to both project key/ID changes, and returning an empty-ready state when no project is selected.
+- **PLACES/UI**: Replaced wide bottom-sheet region filter controls with compact chip-style actions (`지역 선택` + small clear icon) to reduce header space usage.
+- **HOME/RESILIENCE**: Hardened home summary loading against backend 5xx by retrying only transient failures (`network`, `429/502/503`) and adding short same-request failure cooldown to prevent retry storms/log spam.
+- **SETTINGS/API**: Added account-tools coverage for user-facing missing endpoints: block list (`/users/me/blocks`), project role requests (`/projects/role-requests`), and verification appeals (`/projects/{projectId}/verification-appeals`).
+- **SETTINGS/UI**: Added new `계정 도구` page (`/settings/account-tools`) with unified UX for 차단 해제, 권한 요청 생성/취소, and 이의제기 제출/조회, and wired it from Settings > 계정.
+- **TESTING**: Added DTO unit tests for account-tools payload parsing (`account_tools_dto_test.dart`).
 
 ## 2026-02-28
 - **COMMUNITY/API**: Re-synced community endpoint usage against live `http://localhost:8080/v3/api-docs` and added missing client constants/catalog entries for `feed/cursor`, `subscriptions`, `posts/cursor`, `posts/search`, `posts/trending`, `posts/{postId}/bookmark`, and `posts/{postId}/comments/thread`.
@@ -434,3 +450,8 @@
 - Added direct multipart upload support with presigned fallback and updated profile/review/post image flows to use the unified upload helper.
 - Expanded direct-upload fallback to presigned on 5xx errors to keep uploads working when the direct endpoint fails.
 - Applied dark mode styling to Google Maps on the Places map view.
+
+## 2026-03-01
+- Fixed iOS interactive back-swipe blocking in the tab shell by changing `MainScaffold` `PopScope.canPop` from a fixed `false` to dynamic `GoRouter.canPop()`.
+- Kept Android-only double-back app-exit handling at root routes while allowing normal stack pop behavior on pushed pages.
+- Continued stack-first navigation semantics so detail/create/profile flows return to the immediate previous page on back.

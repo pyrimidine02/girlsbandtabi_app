@@ -31,18 +31,14 @@ class HomeSummaryDto {
         json['trendingLiveEvents'],
         HomeTrendingLiveEventDto.fromJson,
       ),
-      latestNews: _parseList(
-        json['latestNews'],
-        HomeLatestNewsDto.fromJson,
-      ),
+      latestNews: _parseList(json['latestNews'], HomeLatestNewsDto.fromJson),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'recommendedPlaces': recommendedPlaces.map((e) => e.toJson()).toList(),
-      'trendingLiveEvents':
-          trendingLiveEvents.map((e) => e.toJson()).toList(),
+      'trendingLiveEvents': trendingLiveEvents.map((e) => e.toJson()).toList(),
       'latestNews': latestNews.map((e) => e.toJson()).toList(),
     };
   }
@@ -65,22 +61,48 @@ class HomeRecommendedPlaceDto {
     required this.id,
     required this.name,
     required this.count,
+    this.location,
+    this.imageUrl,
   });
 
   final String id;
   final String name;
   final int count;
+  final String? location;
+  final String? imageUrl;
 
   factory HomeRecommendedPlaceDto.fromJson(Map<String, dynamic> json) {
+    final rawImageUrl = _firstNonEmptyString([
+      json['imageUrl'],
+      json['image_url'],
+      json['thumbnailUrl'],
+      json['thumbnail_url'],
+      json['posterUrl'],
+      _nestedString(json['image'], 'url'),
+      _nestedString(json['thumbnail'], 'url'),
+    ]);
+
     return HomeRecommendedPlaceDto(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       count: _int(json['count']),
+      location: _firstNonEmptyString([
+        json['location'],
+        json['address'],
+        json['regionName'],
+      ]),
+      imageUrl: rawImageUrl,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {'id': id, 'name': name, 'count': count};
+    return {
+      'id': id,
+      'name': name,
+      'count': count,
+      if (location != null) 'location': location,
+      if (imageUrl != null) 'imageUrl': imageUrl,
+    };
   }
 }
 
@@ -126,22 +148,49 @@ class HomeTrendingLiveEventDto {
   final String? bannerUrl;
 
   factory HomeTrendingLiveEventDto.fromJson(Map<String, dynamic> json) {
+    final startTimeRaw = _firstNonEmptyString([
+      json['startTime'],
+      json['start_time'],
+      json['showStartTime'],
+      json['show_start_time'],
+    ]);
+    final showStartTimeRaw = _firstNonEmptyString([
+      json['showStartTime'],
+      json['show_start_time'],
+      json['startTime'],
+      json['start_time'],
+    ]);
+
     // EN: Accept several field names the server may use for the poster image.
     // KO: 서버가 포스터 이미지에 사용할 수 있는 여러 필드명을 허용합니다.
-    final rawBannerUrl = json['bannerUrl'] as String? ??
-        json['banner_url'] as String? ??
-        json['posterUrl'] as String? ??
-        json['thumbnailUrl'] as String?;
+    final rawBannerUrl = _firstNonEmptyString([
+      json['bannerUrl'],
+      json['banner_url'],
+      json['posterUrl'],
+      json['poster_url'],
+      json['posterImageUrl'],
+      json['poster_image_url'],
+      json['coverImageUrl'],
+      json['cover_image_url'],
+      json['imageUrl'],
+      json['image_url'],
+      json['thumbnailUrl'],
+      json['thumbnail_url'],
+      _nestedString(json['banner'], 'url'),
+      _nestedString(json['poster'], 'url'),
+      _nestedString(json['thumbnail'], 'url'),
+      _nestedString(json['image'], 'url'),
+    ]);
 
     return HomeTrendingLiveEventDto(
       id: json['id'] as String? ?? '',
       title: json['title'] as String? ?? '',
-      startTime: _dateTime(json['startTime']),
-      showStartTime: _dateTime(json['showStartTime']),
+      startTime: _dateTime(startTimeRaw),
+      showStartTime: _dateTime(showStartTimeRaw),
       doorsOpenTime: _dateTimeOrNull(json['doorsOpenTime']),
-      ticketUrl: json['ticketUrl'] as String?,
+      ticketUrl: _string(json['ticketUrl']),
       projectIds: _stringList(json['projectIds']),
-      bannerUrl: rawBannerUrl?.isNotEmpty == true ? rawBannerUrl : null,
+      bannerUrl: rawBannerUrl,
     );
   }
 
@@ -175,20 +224,49 @@ class HomeLatestNewsDto {
   const HomeLatestNewsDto({
     required this.id,
     required this.title,
+    this.summary,
+    this.imageUrl,
+    this.publishedAt,
   });
 
   final String id;
   final String title;
+  final String? summary;
+  final String? imageUrl;
+  final DateTime? publishedAt;
 
   factory HomeLatestNewsDto.fromJson(Map<String, dynamic> json) {
+    final rawImageUrl = _firstNonEmptyString([
+      json['imageUrl'],
+      json['image_url'],
+      json['thumbnailUrl'],
+      json['thumbnail_url'],
+      json['coverImageUrl'],
+      _nestedString(json['image'], 'url'),
+      _nestedString(json['thumbnail'], 'url'),
+    ]);
+
     return HomeLatestNewsDto(
       id: json['id'] as String? ?? '',
       title: json['title'] as String? ?? '',
+      summary: _firstNonEmptyString([
+        json['summary'],
+        json['description'],
+        json['excerpt'],
+      ]),
+      imageUrl: rawImageUrl,
+      publishedAt: _dateTimeOrNull(json['publishedAt']),
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {'id': id, 'title': title};
+    return {
+      'id': id,
+      'title': title,
+      if (summary != null) 'summary': summary,
+      if (imageUrl != null) 'imageUrl': imageUrl,
+      if (publishedAt != null) 'publishedAt': publishedAt!.toIso8601String(),
+    };
   }
 }
 
@@ -228,4 +306,28 @@ List<String> _stringList(dynamic value) {
     return value.whereType<String>().toList();
   }
   return <String>[];
+}
+
+String? _string(dynamic value) {
+  if (value is String && value.trim().isNotEmpty) {
+    return value.trim();
+  }
+  return null;
+}
+
+String? _firstNonEmptyString(List<dynamic> candidates) {
+  for (final candidate in candidates) {
+    final value = _string(candidate);
+    if (value != null) {
+      return value;
+    }
+  }
+  return null;
+}
+
+String? _nestedString(dynamic raw, String key) {
+  if (raw is! Map<String, dynamic>) {
+    return null;
+  }
+  return _string(raw[key]);
 }

@@ -64,7 +64,7 @@ class UserProfilePage extends ConsumerWidget {
     Widget? headerAction;
     if (isMyProfile) {
       headerAction = OutlinedButton(
-        onPressed: () => context.goNamed(AppRoutes.profileEdit),
+        onPressed: () => context.pushNamed(AppRoutes.profileEdit),
         child: const Text('프로필 수정'),
       );
     } else if (isAuthenticated) {
@@ -274,15 +274,24 @@ class _ProfileHeader extends StatelessWidget {
                           // EN: Dummy title (칭호) badges mimicking backend achievements
                           // KO: 백엔드 업적을 모방한 더미 칭호 뱃지
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(
+                                GBTSpacing.radiusSm,
+                              ),
                             ),
                             child: Text(
                               '도쿄 정복자',
                               style: GBTTypography.labelSmall.copyWith(
-                                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onPrimaryContainer,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -351,10 +360,16 @@ class _AchievementBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: isPrimary ? colorScheme.primaryContainer.withAlpha(50) : (isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant),
+        color: isPrimary
+            ? colorScheme.primaryContainer.withAlpha(50)
+            : (isDark
+                  ? GBTColors.darkSurfaceVariant
+                  : GBTColors.surfaceVariant),
         borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
         border: Border.all(
-          color: isPrimary ? colorScheme.primary.withAlpha(100) : (isDark ? GBTColors.darkBorder : GBTColors.border),
+          color: isPrimary
+              ? colorScheme.primary.withAlpha(100)
+              : (isDark ? GBTColors.darkBorder : GBTColors.border),
           width: 1,
         ),
       ),
@@ -368,7 +383,11 @@ class _AchievementBadge extends StatelessWidget {
           Text(
             label,
             style: GBTTypography.labelSmall.copyWith(
-              color: isPrimary ? colorScheme.primary : (isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary),
+              color: isPrimary
+                  ? colorScheme.primary
+                  : (isDark
+                        ? GBTColors.darkTextSecondary
+                        : GBTColors.textSecondary),
               fontSize: 10,
             ),
           ),

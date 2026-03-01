@@ -127,6 +127,9 @@ class PlacesRegionOptionsController
     _ref.listen<String?>(selectedProjectKeyProvider, (_, __) {
       load(forceRefresh: true);
     });
+    _ref.listen<String?>(selectedProjectIdProvider, (_, __) {
+      load(forceRefresh: true);
+    });
   }
 
   final Ref _ref;
@@ -136,6 +139,7 @@ class PlacesRegionOptionsController
     final projectId = _ref.read(selectedProjectIdProvider);
     if (projectKey == null || projectKey.isEmpty) {
       if (projectId == null || projectId.isEmpty) {
+        state = AsyncData(_emptyRegionFilterOptions);
         return;
       }
     }
@@ -143,6 +147,7 @@ class PlacesRegionOptionsController
         ? projectKey!
         : projectId!;
     if (resolvedProjectKey.isEmpty) {
+      state = AsyncData(_emptyRegionFilterOptions);
       return;
     }
 
@@ -168,6 +173,15 @@ class PlacesRegionOptionsController
       state = AsyncError(result.failure, StackTrace.current);
     }
   }
+
+  static const RegionFilterOptions _emptyRegionFilterOptions =
+      RegionFilterOptions(
+        countries: <RegionOption>[],
+        popularRegions: <RegionOption>[],
+        totalRegions: 0,
+        totalPlaces: 0,
+        lastUpdated: '',
+      );
 }
 
 class PlaceDetailController extends StateNotifier<AsyncValue<PlaceDetail>> {

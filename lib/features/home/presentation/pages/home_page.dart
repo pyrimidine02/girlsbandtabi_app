@@ -195,13 +195,26 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildContent(HomeSummary summary) {
+    final featuredLive = _pickFeaturedLive(summary.trendingLiveEvents);
+    final headerImageUrl = _pickHeaderImage(summary, featuredLive);
+
     return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(
         parent: BouncingScrollPhysics(),
       ),
       slivers: [
         // 1. GBTGreetingHeader (includes SafeArea + AppBar space)
-        const SliverToBoxAdapter(child: GBTGreetingHeader()),
+        SliverToBoxAdapter(
+          child: GBTGreetingHeader(
+            backgroundImageUrl: headerImageUrl,
+            featuredTitle: featuredLive?.title,
+            featuredDate: featuredLive?.dateLabel,
+            featuredPosterUrl: featuredLive?.posterUrl,
+            onFeaturedTap: featuredLive == null
+                ? null
+                : () => context.goToLiveDetail(featuredLive.id),
+          ),
+        ),
 
         // 2. ProjectSelector — edge-to-edge avatar row (Blip style)
         const SliverToBoxAdapter(
@@ -314,6 +327,35 @@ class _HomePageState extends ConsumerState<HomePage> {
       ],
     );
   }
+
+  HomeEventItem? _pickFeaturedLive(List<HomeEventItem> events) {
+    if (events.isEmpty) {
+      return null;
+    }
+    for (final event in events) {
+      if (_hasText(event.posterUrl)) {
+        return event;
+      }
+    }
+    return events.first;
+  }
+
+  String? _pickHeaderImage(HomeSummary summary, HomeEventItem? featuredLive) {
+    final candidates = <String?>[
+      featuredLive?.posterUrl,
+      ...summary.trendingLiveEvents.map((event) => event.posterUrl),
+      ...summary.recommendedPlaces.map((place) => place.imageUrl),
+      ...summary.latestNews.map((news) => news.imageUrl),
+    ];
+    for (final candidate in candidates) {
+      if (_hasText(candidate)) {
+        return candidate!.trim();
+      }
+    }
+    return null;
+  }
+
+  bool _hasText(String? value) => value != null && value.trim().isNotEmpty;
 }
 
 /// EN: Section header widget — headlineLarge style
@@ -342,8 +384,9 @@ class _SectionHeader extends StatelessWidget {
             child: Text(
               title,
               style: GBTTypography.headlineLarge.copyWith(
-                color:
-                    isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
+                color: isDark
+                    ? GBTColors.darkTextPrimary
+                    : GBTColors.textPrimary,
               ),
             ),
           ),
