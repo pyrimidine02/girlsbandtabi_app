@@ -450,7 +450,11 @@ extension AppRouterExtension on BuildContext {
   /// EN: Navigate to post edit.
   /// KO: 게시글 수정으로 이동
   void goToPostEdit(PostDetail post) {
-    pushNamed(AppRoutes.postEdit, pathParameters: {'postId': post.id}, extra: post);
+    pushNamed(
+      AppRoutes.postEdit,
+      pathParameters: {'postId': post.id},
+      extra: post,
+    );
   }
 
   /// EN: Navigate to user profile.
@@ -507,5 +511,11 @@ extension AppRouterExtension on BuildContext {
   /// KO: 방문 통계로 이동
   void goToVisitStats() {
     goNamed(AppRoutes.visitStats);
+  }
+
+  /// EN: Navigate to visit history
+  /// KO: 방문 기록으로 이동
+  void goToVisitHistory() {
+    goNamed(AppRoutes.visitHistory);
   }
 }

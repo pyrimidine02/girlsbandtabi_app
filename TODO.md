@@ -1,5 +1,10 @@
 # TODO
 
+- Run visual QA pass on all primary routes after the new global theme/chrome layer (`home`, `places`, `live-events`, `community`, `search`, `settings`) and capture before/after screenshots (remove once reviewed).
+- Roll out `GBTPageIntroCard` + `GBTSegmentedTabBar` to remaining content routes (`home`, `info`, `feed`, `travel_review_detail`, `visit_detail`) for full-page parity (remove once completed).
+- Run color-contrast QA for the new blue primary palette on CTA-heavy screens (`auth`, `post_create`, `profile_edit`) in both light/dark mode (remove once validated).
+- Verify no keyboard-dismiss side effects in rich editor flows (`post_create`, `post_edit`, `profile_edit`) after global tap-to-dismiss was enabled (remove once QA passes).
+- Add widget golden tests for global theme consistency (card radius, input radius, popup/tooltip colors, list tile density) to prevent drift (remove once coverage lands).
 - Add widget tests for `PostCreatePage` (draft-exit confirmation, image max/duplicate handling, submit button enablement) and `ProfileEditPage` (dirty-state save enablement + unsaved-exit confirmation).
 - Add a HomePage widget test that verifies the ProjectSelector renders during loading and triggers a reload after selection (remove once CI covers the flow).
 - Add a CI step (or pre-commit hook) to run `build_runner` so generated files stay in sync.

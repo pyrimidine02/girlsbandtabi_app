@@ -22,23 +22,37 @@ class GBTTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      visualDensity: VisualDensity.adaptivePlatformDensity,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
       colorScheme: _lightColorScheme,
       textTheme: _textTheme,
+      pageTransitionsTheme: _pageTransitionsTheme,
       appBarTheme: _lightAppBarTheme,
       bottomNavigationBarTheme: _lightBottomNavTheme,
       cardTheme: _cardTheme,
       elevatedButtonTheme: _elevatedButtonTheme,
+      filledButtonTheme: _filledButtonTheme,
       outlinedButtonTheme: _outlinedButtonTheme,
       textButtonTheme: _textButtonTheme,
+      iconButtonTheme: _iconButtonTheme,
+      listTileTheme: _listTileTheme,
       inputDecorationTheme: _inputDecorationTheme,
+      progressIndicatorTheme: _progressIndicatorTheme,
       dividerTheme: _dividerTheme,
       chipTheme: _chipTheme,
       floatingActionButtonTheme: _fabTheme,
       bottomSheetTheme: _bottomSheetTheme,
       dialogTheme: _dialogTheme,
+      popupMenuTheme: _popupMenuTheme,
+      scrollbarTheme: _scrollbarTheme,
+      tooltipTheme: _tooltipTheme,
       snackBarTheme: _snackBarTheme,
+      switchTheme: _switchTheme,
+      checkboxTheme: _checkboxTheme,
+      radioTheme: _radioTheme,
+      segmentedButtonTheme: _segmentedButtonTheme,
       tabBarTheme: _tabBarTheme,
-      scaffoldBackgroundColor: GBTColors.background,
+      scaffoldBackgroundColor: GBTColors.appBackground,
       splashColor: GBTColors.ripple,
       highlightColor: Colors.transparent,
     );
@@ -52,23 +66,37 @@ class GBTTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      visualDensity: VisualDensity.adaptivePlatformDensity,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
       colorScheme: _darkColorScheme,
       textTheme: _darkTextTheme,
+      pageTransitionsTheme: _pageTransitionsTheme,
       appBarTheme: _darkAppBarTheme,
       bottomNavigationBarTheme: _darkBottomNavTheme,
       cardTheme: _darkCardTheme,
       elevatedButtonTheme: _darkElevatedButtonTheme,
+      filledButtonTheme: _darkFilledButtonTheme,
       outlinedButtonTheme: _darkOutlinedButtonTheme,
       textButtonTheme: _darkTextButtonTheme,
+      iconButtonTheme: _darkIconButtonTheme,
+      listTileTheme: _darkListTileTheme,
       inputDecorationTheme: _darkInputDecorationTheme,
+      progressIndicatorTheme: _darkProgressIndicatorTheme,
       dividerTheme: _darkDividerTheme,
       chipTheme: _darkChipTheme,
       floatingActionButtonTheme: _darkFabTheme,
       bottomSheetTheme: _darkBottomSheetTheme,
       dialogTheme: _darkDialogTheme,
+      popupMenuTheme: _darkPopupMenuTheme,
+      scrollbarTheme: _darkScrollbarTheme,
+      tooltipTheme: _darkTooltipTheme,
       snackBarTheme: _darkSnackBarTheme,
+      switchTheme: _darkSwitchTheme,
+      checkboxTheme: _darkCheckboxTheme,
+      radioTheme: _darkRadioTheme,
+      segmentedButtonTheme: _darkSegmentedButtonTheme,
       tabBarTheme: _darkTabBarTheme,
-      scaffoldBackgroundColor: GBTColors.darkBackground,
+      scaffoldBackgroundColor: GBTColors.darkAppBackground,
       splashColor: GBTColors.ripple,
       highlightColor: Colors.transparent,
     );
@@ -81,9 +109,9 @@ class GBTTheme {
   static ColorScheme get _lightColorScheme => ColorScheme(
     brightness: Brightness.light,
     primary: GBTColors.primary,
-    onPrimary: GBTColors.textPrimary,
+    onPrimary: GBTColors.textInverse,
     primaryContainer: GBTColors.primaryLight,
-    onPrimaryContainer: GBTColors.primaryPressed,
+    onPrimaryContainer: GBTColors.textPrimary,
     // EN: Secondary mapped to neutral for default usage; pink reserved for explicit use.
     // KO: Secondary는 기본 사용시 뉴트럴로 매핑; 핑크는 명시적 사용 시에만.
     secondary: GBTColors.textSecondary,
@@ -223,10 +251,12 @@ class GBTTheme {
   // KO: 앱바 테마
   // ========================================
   static AppBarTheme get _lightAppBarTheme => AppBarTheme(
-    backgroundColor: GBTColors.surface,
+    backgroundColor: GBTColors.appBackground,
     foregroundColor: GBTColors.textPrimary,
     elevation: 0,
     scrolledUnderElevation: 0.5,
+    surfaceTintColor: Colors.transparent,
+    toolbarHeight: GBTSpacing.appBarHeight,
     centerTitle: true,
     titleTextStyle: GBTTypography.titleMedium.copyWith(
       color: GBTColors.textPrimary,
@@ -240,10 +270,12 @@ class GBTTheme {
   );
 
   static AppBarTheme get _darkAppBarTheme => AppBarTheme(
-    backgroundColor: GBTColors.darkBackground,
+    backgroundColor: GBTColors.darkAppBackground,
     foregroundColor: GBTColors.darkTextPrimary,
     elevation: 0,
     scrolledUnderElevation: 0.5,
+    surfaceTintColor: Colors.transparent,
+    toolbarHeight: GBTSpacing.appBarHeight,
     centerTitle: true,
     titleTextStyle: GBTTypography.titleMedium.copyWith(
       color: GBTColors.darkTextPrimary,
@@ -293,8 +325,9 @@ class GBTTheme {
   static CardThemeData get _cardTheme => CardThemeData(
     color: GBTColors.surface,
     elevation: 0,
+    surfaceTintColor: Colors.transparent,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
       side: BorderSide(color: GBTColors.border.withValues(alpha: 0.5)),
     ),
     margin: EdgeInsets.zero,
@@ -303,8 +336,9 @@ class GBTTheme {
   static CardThemeData get _darkCardTheme => CardThemeData(
     color: GBTColors.darkSurfaceVariant,
     elevation: 0,
+    surfaceTintColor: Colors.transparent,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
       side: const BorderSide(color: GBTColors.darkBorderSubtle, width: 0.5),
     ),
     margin: EdgeInsets.zero,
@@ -342,6 +376,31 @@ class GBTTheme {
             horizontal: GBTSpacing.lg,
             vertical: GBTSpacing.md,
           ),
+          minimumSize: const Size(120, GBTSpacing.touchTarget),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          ),
+          textStyle: GBTTypography.button,
+        ),
+      );
+
+  static FilledButtonThemeData get _filledButtonTheme => FilledButtonThemeData(
+    style: FilledButton.styleFrom(
+      backgroundColor: GBTColors.primary,
+      foregroundColor: GBTColors.textInverse,
+      minimumSize: const Size(120, GBTSpacing.touchTarget),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      ),
+      textStyle: GBTTypography.button,
+    ),
+  );
+
+  static FilledButtonThemeData get _darkFilledButtonTheme =>
+      FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: GBTColors.darkPrimary,
+          foregroundColor: GBTColors.darkBackground,
           minimumSize: const Size(120, GBTSpacing.touchTarget),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
@@ -414,6 +473,34 @@ class GBTTheme {
     ),
   );
 
+  static IconButtonThemeData get _iconButtonTheme => IconButtonThemeData(
+    style: IconButton.styleFrom(
+      minimumSize: const Size(
+        GBTSpacing.minTouchTarget,
+        GBTSpacing.minTouchTarget,
+      ),
+      padding: const EdgeInsets.all(GBTSpacing.sm),
+      foregroundColor: GBTColors.textPrimary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      ),
+    ),
+  );
+
+  static IconButtonThemeData get _darkIconButtonTheme => IconButtonThemeData(
+    style: IconButton.styleFrom(
+      minimumSize: const Size(
+        GBTSpacing.minTouchTarget,
+        GBTSpacing.minTouchTarget,
+      ),
+      padding: const EdgeInsets.all(GBTSpacing.sm),
+      foregroundColor: GBTColors.darkTextPrimary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      ),
+    ),
+  );
+
   // ========================================
   // EN: Input Decoration Theme
   // KO: 입력 데코레이션 테마
@@ -421,25 +508,29 @@ class GBTTheme {
   static InputDecorationTheme get _inputDecorationTheme => InputDecorationTheme(
     filled: true,
     fillColor: GBTColors.surfaceVariant,
-    contentPadding: const EdgeInsets.all(GBTSpacing.md),
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: GBTSpacing.md,
+      vertical: GBTSpacing.md2,
+    ),
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
       borderSide: const BorderSide(color: GBTColors.border),
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
       borderSide: const BorderSide(color: GBTColors.border),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
       borderSide: const BorderSide(color: GBTColors.primary, width: 2),
     ),
     errorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
       borderSide: const BorderSide(color: GBTColors.error),
     ),
     focusedErrorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
       borderSide: const BorderSide(color: GBTColors.error, width: 2),
     ),
     hintStyle: GBTTypography.bodyMedium.copyWith(color: GBTColors.textTertiary),
@@ -453,25 +544,29 @@ class GBTTheme {
       InputDecorationTheme(
         filled: true,
         fillColor: GBTColors.darkSurfaceVariant,
-        contentPadding: const EdgeInsets.all(GBTSpacing.md),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: GBTSpacing.md,
+          vertical: GBTSpacing.md2,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
           borderSide: const BorderSide(color: GBTColors.darkBorder),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
           borderSide: const BorderSide(color: GBTColors.darkBorder),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
           borderSide: const BorderSide(color: GBTColors.darkPrimary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
           borderSide: const BorderSide(color: GBTColors.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
           borderSide: const BorderSide(color: GBTColors.error, width: 2),
         ),
         hintStyle: GBTTypography.bodyMedium.copyWith(
@@ -481,6 +576,50 @@ class GBTTheme {
           color: GBTColors.darkTextSecondary,
         ),
         errorStyle: GBTTypography.bodySmall.copyWith(color: GBTColors.error),
+      );
+
+  // ========================================
+  // EN: List & Progress Theme
+  // KO: 리스트 및 진행 상태 테마
+  // ========================================
+  static ListTileThemeData get _listTileTheme => ListTileThemeData(
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: GBTSpacing.md,
+      vertical: GBTSpacing.xs,
+    ),
+    minLeadingWidth: GBTSpacing.lg,
+    horizontalTitleGap: GBTSpacing.sm,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+    ),
+    iconColor: GBTColors.textSecondary,
+    textColor: GBTColors.textPrimary,
+  );
+
+  static ListTileThemeData get _darkListTileTheme => ListTileThemeData(
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: GBTSpacing.md,
+      vertical: GBTSpacing.xs,
+    ),
+    minLeadingWidth: GBTSpacing.lg,
+    horizontalTitleGap: GBTSpacing.sm,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+    ),
+    iconColor: GBTColors.darkTextSecondary,
+    textColor: GBTColors.darkTextPrimary,
+  );
+
+  static ProgressIndicatorThemeData get _progressIndicatorTheme =>
+      const ProgressIndicatorThemeData(
+        color: GBTColors.primary,
+        circularTrackColor: GBTColors.surfaceVariant,
+      );
+
+  static ProgressIndicatorThemeData get _darkProgressIndicatorTheme =>
+      const ProgressIndicatorThemeData(
+        color: GBTColors.darkPrimary,
+        circularTrackColor: GBTColors.darkSurfaceVariant,
       );
 
   // ========================================
@@ -560,6 +699,9 @@ class GBTTheme {
   // ========================================
   static BottomSheetThemeData get _bottomSheetTheme => BottomSheetThemeData(
     backgroundColor: GBTColors.surface,
+    surfaceTintColor: Colors.transparent,
+    showDragHandle: true,
+    dragHandleColor: GBTColors.textTertiary,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
         top: Radius.circular(GBTSpacing.radiusLg),
@@ -569,7 +711,10 @@ class GBTTheme {
   );
 
   static BottomSheetThemeData get _darkBottomSheetTheme => BottomSheetThemeData(
-    backgroundColor: GBTColors.darkBackground,
+    backgroundColor: GBTColors.darkSurface,
+    surfaceTintColor: Colors.transparent,
+    showDragHandle: true,
+    dragHandleColor: GBTColors.darkTextTertiary,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
         top: Radius.circular(GBTSpacing.radiusLg),
@@ -620,6 +765,16 @@ class GBTTheme {
       color: GBTColors.textInverse,
     ),
     behavior: SnackBarBehavior.floating,
+    insetPadding: const EdgeInsets.fromLTRB(
+      GBTSpacing.md,
+      GBTSpacing.sm,
+      GBTSpacing.md,
+      GBTSpacing.md,
+    ),
+    actionTextColor: GBTColors.primaryLight,
+    disabledActionTextColor: GBTColors.textDisabled,
+    showCloseIcon: true,
+    closeIconColor: GBTColors.textInverse,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
     ),
@@ -631,10 +786,228 @@ class GBTTheme {
       color: GBTColors.darkTextPrimary,
     ),
     behavior: SnackBarBehavior.floating,
+    insetPadding: const EdgeInsets.fromLTRB(
+      GBTSpacing.md,
+      GBTSpacing.sm,
+      GBTSpacing.md,
+      GBTSpacing.md,
+    ),
+    actionTextColor: GBTColors.darkPrimary,
+    disabledActionTextColor: GBTColors.darkTextTertiary,
+    showCloseIcon: true,
+    closeIconColor: GBTColors.darkTextPrimary,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
     ),
   );
+
+  // ========================================
+  // EN: Menus, Tooltips, Scrollbars
+  // KO: 메뉴, 툴팁, 스크롤바
+  // ========================================
+  static PopupMenuThemeData get _popupMenuTheme => PopupMenuThemeData(
+    color: GBTColors.surface,
+    surfaceTintColor: Colors.transparent,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
+      side: const BorderSide(color: GBTColors.border),
+    ),
+    textStyle: GBTTypography.bodyMedium.copyWith(color: GBTColors.textPrimary),
+  );
+
+  static PopupMenuThemeData get _darkPopupMenuTheme => PopupMenuThemeData(
+    color: GBTColors.darkSurfaceVariant,
+    surfaceTintColor: Colors.transparent,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
+      side: const BorderSide(color: GBTColors.darkBorder),
+    ),
+    textStyle: GBTTypography.bodyMedium.copyWith(
+      color: GBTColors.darkTextPrimary,
+    ),
+  );
+
+  static ScrollbarThemeData get _scrollbarTheme => ScrollbarThemeData(
+    radius: const Radius.circular(GBTSpacing.radiusFull),
+    thickness: const WidgetStatePropertyAll<double>(6),
+    thumbColor: WidgetStateProperty.resolveWith<Color?>((states) {
+      if (states.contains(WidgetState.dragged)) {
+        return GBTColors.textSecondary;
+      }
+      return GBTColors.textTertiary.withValues(alpha: 0.6);
+    }),
+    trackColor: WidgetStatePropertyAll(
+      GBTColors.surfaceVariant.withValues(alpha: 0.4),
+    ),
+  );
+
+  static ScrollbarThemeData get _darkScrollbarTheme => ScrollbarThemeData(
+    radius: const Radius.circular(GBTSpacing.radiusFull),
+    thickness: const WidgetStatePropertyAll<double>(6),
+    thumbColor: WidgetStateProperty.resolveWith<Color?>((states) {
+      if (states.contains(WidgetState.dragged)) {
+        return GBTColors.darkTextSecondary;
+      }
+      return GBTColors.darkTextTertiary.withValues(alpha: 0.75);
+    }),
+    trackColor: WidgetStatePropertyAll(
+      GBTColors.darkSurfaceVariant.withValues(alpha: 0.45),
+    ),
+  );
+
+  static TooltipThemeData get _tooltipTheme => TooltipThemeData(
+    decoration: BoxDecoration(
+      color: GBTColors.textPrimary,
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+    ),
+    textStyle: GBTTypography.bodySmall.copyWith(color: GBTColors.textInverse),
+    waitDuration: const Duration(milliseconds: 450),
+    preferBelow: false,
+  );
+
+  static TooltipThemeData get _darkTooltipTheme => TooltipThemeData(
+    decoration: BoxDecoration(
+      color: GBTColors.darkSurfaceElevated,
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+    ),
+    textStyle: GBTTypography.bodySmall.copyWith(
+      color: GBTColors.darkTextPrimary,
+    ),
+    waitDuration: const Duration(milliseconds: 450),
+    preferBelow: false,
+  );
+
+  // ========================================
+  // EN: Selection Controls
+  // KO: 선택 컨트롤
+  // ========================================
+  static SwitchThemeData get _switchTheme => SwitchThemeData(
+    thumbColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) {
+        return GBTColors.primary;
+      }
+      return GBTColors.surface;
+    }),
+    trackColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) {
+        return GBTColors.primary.withValues(alpha: 0.45);
+      }
+      return GBTColors.surfaceAlternate;
+    }),
+  );
+
+  static SwitchThemeData get _darkSwitchTheme => SwitchThemeData(
+    thumbColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) {
+        return GBTColors.darkPrimary;
+      }
+      return GBTColors.darkTextTertiary;
+    }),
+    trackColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) {
+        return GBTColors.darkPrimary.withValues(alpha: 0.45);
+      }
+      return GBTColors.darkSurfaceElevated;
+    }),
+  );
+
+  static CheckboxThemeData get _checkboxTheme => CheckboxThemeData(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
+    ),
+    side: const BorderSide(color: GBTColors.border, width: 1.4),
+    fillColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) {
+        return GBTColors.primary;
+      }
+      return GBTColors.surface;
+    }),
+    checkColor: const WidgetStatePropertyAll(GBTColors.textInverse),
+  );
+
+  static CheckboxThemeData get _darkCheckboxTheme => CheckboxThemeData(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
+    ),
+    side: const BorderSide(color: GBTColors.darkBorder, width: 1.4),
+    fillColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) {
+        return GBTColors.darkPrimary;
+      }
+      return GBTColors.darkSurface;
+    }),
+    checkColor: const WidgetStatePropertyAll(GBTColors.darkBackground),
+  );
+
+  static RadioThemeData get _radioTheme => RadioThemeData(
+    fillColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) {
+        return GBTColors.primary;
+      }
+      return GBTColors.textTertiary;
+    }),
+  );
+
+  static RadioThemeData get _darkRadioTheme => RadioThemeData(
+    fillColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) {
+        return GBTColors.darkPrimary;
+      }
+      return GBTColors.darkTextTertiary;
+    }),
+  );
+
+  static SegmentedButtonThemeData get _segmentedButtonTheme =>
+      SegmentedButtonThemeData(
+        style: ButtonStyle(
+          textStyle: WidgetStatePropertyAll(GBTTypography.labelMedium),
+          padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(
+              horizontal: GBTSpacing.md,
+              vertical: GBTSpacing.sm,
+            ),
+          ),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+            ),
+          ),
+        ),
+      );
+
+  static SegmentedButtonThemeData get _darkSegmentedButtonTheme =>
+      SegmentedButtonThemeData(
+        style: ButtonStyle(
+          textStyle: WidgetStatePropertyAll(GBTTypography.labelMedium),
+          padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(
+              horizontal: GBTSpacing.md,
+              vertical: GBTSpacing.sm,
+            ),
+          ),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+            ),
+          ),
+        ),
+      );
+
+  // ========================================
+  // EN: Navigation Transitions
+  // KO: 화면 전환
+  // ========================================
+  static PageTransitionsTheme get _pageTransitionsTheme =>
+      const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: ZoomPageTransitionsBuilder(),
+        },
+      );
 
   // ========================================
   // EN: TabBar Theme

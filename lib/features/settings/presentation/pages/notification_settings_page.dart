@@ -13,6 +13,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/layout/gbt_page_intro_card.dart';
 import '../../application/settings_controller.dart';
 import '../../domain/entities/notification_settings.dart';
 
@@ -81,7 +82,15 @@ class _NotificationSettingsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
+      padding: GBTSpacing.paddingPage,
       children: [
+        GBTPageIntroCard(
+          icon: Icons.notifications_active_rounded,
+          title: '알림 환경 설정',
+          description: '원하는 채널과 콘텐츠 유형만 선택해 필요한 알림만 받으세요.',
+          trailing: _NotificationEnabledBadge(settings: settings),
+        ),
+        const SizedBox(height: GBTSpacing.md),
         const _SectionHeader(title: '수신 채널'),
         _SettingsSwitchTile(
           title: '푸시 알림',
@@ -128,6 +137,42 @@ class _NotificationSettingsView extends StatelessWidget {
         ),
         const SizedBox(height: GBTSpacing.lg),
       ],
+    );
+  }
+}
+
+class _NotificationEnabledBadge extends StatelessWidget {
+  const _NotificationEnabledBadge({required this.settings});
+
+  final NotificationSettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final enabledCount = [
+      settings.pushEnabled,
+      settings.emailEnabled,
+      settings.liveEventsEnabled,
+      settings.favoritesEnabled,
+      settings.commentsEnabled,
+    ].where((enabled) => enabled).length;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.sm,
+        vertical: GBTSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: isDark ? GBTColors.darkSurface : GBTColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+      ),
+      child: Text(
+        '활성 $enabledCount',
+        style: GBTTypography.labelSmall.copyWith(
+          color: isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
@@ -187,9 +232,9 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
+        GBTSpacing.none,
         GBTSpacing.md,
-        GBTSpacing.md,
-        GBTSpacing.md,
+        GBTSpacing.none,
         GBTSpacing.xs,
       ),
       child: Text(

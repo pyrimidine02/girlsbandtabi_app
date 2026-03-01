@@ -16,6 +16,7 @@ import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
+import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../../settings/application/settings_controller.dart';
 import '../../application/community_ban_view_helper.dart';
@@ -76,8 +77,6 @@ class _BoardPageState extends ConsumerState<BoardPage>
       data: (profile) => _isAdminRole(profile?.role),
       orElse: () => false,
     );
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('게시판'),
@@ -106,56 +105,18 @@ class _BoardPageState extends ConsumerState<BoardPage>
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
-          child: Container(
-            margin: const EdgeInsets.symmetric(
-              horizontal: GBTSpacing.md,
-            ),
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? GBTColors.darkSurfaceVariant
-                  : GBTColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              indicator: BoxDecoration(
-                color: isDark ? GBTColors.darkSurface : GBTColors.surface,
-                borderRadius: BorderRadius.circular(GBTSpacing.radiusSm + 1),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-              indicatorSize: TabBarIndicatorSize.tab,
-              dividerColor: Colors.transparent,
-              labelColor: isDark
-                  ? GBTColors.darkTextPrimary
-                  : GBTColors.textPrimary,
-              unselectedLabelColor: isDark
-                  ? GBTColors.darkTextTertiary
-                  : GBTColors.textTertiary,
-              labelStyle: GBTTypography.labelLarge.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              unselectedLabelStyle: GBTTypography.labelLarge,
-              tabs: const [
-                Tab(text: '커뮤니티'),
-                Tab(text: '여행후기'),
-              ],
-            ),
+          child: GBTSegmentedTabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(text: '커뮤니티'),
+              Tab(text: '여행후기'),
+            ],
           ),
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          _CommunityTab(),
-          _TravelReviewTab(),
-        ],
+        children: const [_CommunityTab(), _TravelReviewTab()],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
@@ -399,10 +360,7 @@ class _FilterChipModern extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 8,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
               ? primaryColor.withValues(alpha: 0.12)
@@ -412,8 +370,8 @@ class _FilterChipModern extends StatelessWidget {
             color: isSelected
                 ? primaryColor
                 : isDark
-                    ? GBTColors.darkBorder
-                    : GBTColors.border,
+                ? GBTColors.darkBorder
+                : GBTColors.border,
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -423,8 +381,8 @@ class _FilterChipModern extends StatelessWidget {
             color: isSelected
                 ? primaryColor
                 : isDark
-                    ? GBTColors.darkTextSecondary
-                    : GBTColors.textSecondary,
+                ? GBTColors.darkTextSecondary
+                : GBTColors.textSecondary,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
           ),
         ),
@@ -461,8 +419,7 @@ class _TravelReviewTab extends ConsumerWidget {
         'id': '2',
         'authorName': '뉴비리뷰어',
         'title': '3박 4일 일정 공유해봐 (아키하바라 위주)',
-        'content':
-            '이번엔 유명한 애니 성지 위주로만 골라서 가봤는데 너무 좋았어!! 다음엔 다른 지역도 가보고 싶다.',
+        'content': '이번엔 유명한 애니 성지 위주로만 골라서 가봤는데 너무 좋았어!! 다음엔 다른 지역도 가보고 싶다.',
         'image':
             'https://storage.googleapis.com/girlsbandtabi/thumbnails/placeholder_map2.webp',
         'likeCount': 105,
@@ -893,8 +850,7 @@ class _CommunityList extends StatelessWidget {
               if (index >= state.posts.length - 1) {
                 return const SizedBox.shrink();
               }
-              final isDark =
-                  Theme.of(context).brightness == Brightness.dark;
+              final isDark = Theme.of(context).brightness == Brightness.dark;
               return Divider(
                 height: 1,
                 thickness: 0.5,
@@ -1132,9 +1088,7 @@ class _CommunityPostCard extends ConsumerWidget {
                               ? '${raw.substring(0, 100)}…'
                               : raw;
                           return Padding(
-                            padding: const EdgeInsets.only(
-                              top: GBTSpacing.xs,
-                            ),
+                            padding: const EdgeInsets.only(top: GBTSpacing.xs),
                             child: Text(
                               snippet,
                               style: GBTTypography.bodySmall.copyWith(
@@ -1153,9 +1107,7 @@ class _CommunityPostCard extends ConsumerWidget {
                 if (firstImageUrl != null) ...[
                   const SizedBox(width: GBTSpacing.md),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(
-                      GBTSpacing.radiusSm,
-                    ),
+                    borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
                     child: GBTImage(
                       imageUrl: firstImageUrl,
                       width: 80,

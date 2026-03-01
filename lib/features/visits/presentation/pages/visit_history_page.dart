@@ -12,6 +12,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/layout/gbt_page_intro_card.dart';
 import '../../../places/domain/entities/place_entities.dart';
 import '../../application/visits_controller.dart';
 import '../../domain/entities/visit_entities.dart';
@@ -77,8 +78,7 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage> {
               );
             }
 
-            final sorted = [...visits]
-              ..sort((a, b) => _compareVisitedAt(b, a));
+            final sorted = [...visits]..sort((a, b) => _compareVisitedAt(b, a));
             final placesLoading = placesMapState is AsyncLoading;
             final placeMap =
                 placesMapState.valueOrNull ?? const <String, PlaceSummary>{};
@@ -92,22 +92,35 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage> {
                 parent: BouncingScrollPhysics(),
               ),
               slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      GBTSpacing.pageHorizontal,
+                      GBTSpacing.sm,
+                      GBTSpacing.pageHorizontal,
+                      GBTSpacing.sm,
+                    ),
+                    child: GBTPageIntroCard(
+                      icon: Icons.history_rounded,
+                      title: '방문 타임라인',
+                      description: '월별 방문 기록과 장소 인증 이력을 확인하세요.',
+                      trailing: _HistoryCountBadge(count: sorted.length),
+                    ),
+                  ),
+                ),
                 // EN: Summary header card
                 // KO: 요약 헤더 카드
                 SliverToBoxAdapter(
                   child: _SummaryHeader(
                     totalVisits: sorted.length,
-                    uniquePlaces:
-                        sorted.map((v) => v.placeId).toSet().length,
+                    uniquePlaces: sorted.map((v) => v.placeId).toSet().length,
                   ),
                 ),
 
                 for (final entry in grouped.entries) ...[
                   // EN: Month section header
                   // KO: 월별 섹션 헤더
-                  SliverToBoxAdapter(
-                    child: _MonthHeader(label: entry.key),
-                  ),
+                  SliverToBoxAdapter(child: _MonthHeader(label: entry.key)),
 
                   // EN: Visit cards for this month
                   // KO: 이 달의 방문 카드
@@ -121,8 +134,7 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage> {
                           const SizedBox(height: GBTSpacing.sm),
                       itemBuilder: (context, index) {
                         final visit = entry.value[index];
-                        final placeFound =
-                            placeMap.containsKey(visit.placeId);
+                        final placeFound = placeMap.containsKey(visit.placeId);
                         final place = placeMap[visit.placeId];
                         final showLoading = placesLoading && !placeFound;
 
@@ -133,8 +145,7 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage> {
                           onTap: () => context.goToVisitDetail(
                             visitId: visit.id,
                             placeId: visit.placeId,
-                            visitedAt:
-                                visit.visitedAt?.toIso8601String(),
+                            visitedAt: visit.visitedAt?.toIso8601String(),
                             latitude: visit.latitude,
                             longitude: visit.longitude,
                           ),
@@ -181,16 +192,41 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage> {
   }
 }
 
+class _HistoryCountBadge extends StatelessWidget {
+  const _HistoryCountBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.sm,
+        vertical: GBTSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: isDark ? GBTColors.darkSurface : GBTColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+      ),
+      child: Text(
+        '$count건',
+        style: GBTTypography.labelSmall.copyWith(
+          color: isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // EN: Summary header with total visits and unique places
 // KO: 총 방문 및 고유 장소 요약 헤더
 // ---------------------------------------------------------------------------
 
 class _SummaryHeader extends StatelessWidget {
-  const _SummaryHeader({
-    required this.totalVisits,
-    required this.uniquePlaces,
-  });
+  const _SummaryHeader({required this.totalVisits, required this.uniquePlaces});
 
   final int totalVisits;
   final int uniquePlaces;
@@ -210,10 +246,7 @@ class _SummaryHeader extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark
-              ? [
-                  GBTColors.darkSurfaceElevated,
-                  GBTColors.darkSurfaceVariant,
-                ]
+              ? [GBTColors.darkSurfaceElevated, GBTColors.darkSurfaceVariant]
               : [
                   GBTColors.primaryLight,
                   GBTColors.primary.withValues(alpha: 0.08),
@@ -288,8 +321,9 @@ class _SummaryItem extends StatelessWidget {
         Text(
           label,
           style: GBTTypography.bodySmall.copyWith(
-            color:
-                isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
+            color: isDark
+                ? GBTColors.darkTextSecondary
+                : GBTColors.textSecondary,
           ),
         ),
       ],
@@ -370,11 +404,7 @@ class _VisitCard extends StatelessWidget {
               children: [
                 // EN: Place thumbnail
                 // KO: 장소 썸네일
-                SizedBox(
-                  width: 88,
-                  height: 88,
-                  child: _buildThumbnail(isDark),
-                ),
+                SizedBox(width: 88, height: 88, child: _buildThumbnail(isDark)),
 
                 // EN: Visit info
                 // KO: 방문 정보
@@ -434,8 +464,7 @@ class _VisitCard extends StatelessWidget {
 
                         // EN: Location info
                         // KO: 위치 정보
-                        if (place != null &&
-                            place!.address.isNotEmpty) ...[
+                        if (place != null && place!.address.isNotEmpty) ...[
                           const SizedBox(height: 2),
                           Row(
                             children: [
@@ -514,8 +543,9 @@ class _VisitCard extends StatelessWidget {
         height: 16,
         width: 120,
         decoration: BoxDecoration(
-          color:
-              isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
+          color: isDark
+              ? GBTColors.darkSurfaceVariant
+              : GBTColors.surfaceVariant,
           borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
         ),
       ),
@@ -552,8 +582,9 @@ class _VisitEmptyState extends StatelessWidget {
           message,
           textAlign: TextAlign.center,
           style: GBTTypography.bodyLarge.copyWith(
-            color:
-                isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
+            color: isDark
+                ? GBTColors.darkTextSecondary
+                : GBTColors.textSecondary,
           ),
         ),
         if (onRetry != null) ...[

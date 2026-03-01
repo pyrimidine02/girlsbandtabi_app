@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-03-01
+- **UI/UX/SYSTEM**: Applied app-wide visual consistency layer by introducing unified app background tokens/gradients and wiring them through global app chrome.
+- **UI/UX/SYSTEM**: Added global tap-to-dismiss keyboard behavior in `MaterialApp.builder` to reduce form friction across all pages.
+- **DESIGN/THEME**: Expanded `GBTTheme` with cross-page component defaults (page transitions, icon/list tile style, filled button, popup menu, tooltip, scrollbar, segmented button, switch/checkbox/radio).
+- **DESIGN/THEME**: Standardized card/input/app bar surfaces (radius, tint handling, spacing density) for consistent look-and-feel across feature pages.
+- **UI/UX/PAGES**: Added reusable page-level consistency widgets (`GBTPageIntroCard`, `GBTSegmentedTabBar`) and integrated them into core routes (`board`, `favorites`, `notifications`, `search`).
+- **UI/UX/NOTIFICATIONS**: Improved notification discoverability with client-side unread filter (`전체`/`읽지 않음`) and unread-count summary chip.
+- **UI/UX/SEARCH**: Updated search scope control to segmented mode (`현재 프로젝트`/`전체 프로젝트`) and added contextual search intro state.
+- **UI/UX/FAVORITES**: Added favorites intro summary card with count badge and unified segmented tabs for category browsing.
+- **UI/UX/PHASE3**: Rolled page-level consistency pattern into additional major routes (`live_events`, `places_map`, `visit_history`, `visit_stats`, `notification_settings`, `profile_edit`) using intro cards, segmented controls, and clearer summary badges.
+- **THEME/COLOR**: Refreshed primary brand palette from periwinkle to sky-blue (`#2F7DFF`) and updated related dark/app background tones and CTA semantics to reduce purple bias while preserving accessibility.
+
 ## 2026-02-28
 - **COMMUNITY/API**: Re-synced community endpoint usage against live `http://localhost:8080/v3/api-docs` and added missing client constants/catalog entries for `feed/cursor`, `subscriptions`, `posts/cursor`, `posts/search`, `posts/trending`, `posts/{postId}/bookmark`, and `posts/{postId}/comments/thread`.
 - **COMMUNITY/FEED**: Extended feed data/repository/domain layers with cursor feed, search, trending, subscriptions, bookmark state/toggle, and threaded comment retrieval models.

@@ -13,6 +13,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/layout/gbt_page_intro_card.dart';
 import '../../../places/domain/entities/place_entities.dart';
 import '../../application/visits_controller.dart';
 import '../../domain/entities/visit_entities.dart';
@@ -42,7 +43,16 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
     final rankingState = ref.watch(userRankingProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('방문 통계')),
+      appBar: AppBar(
+        title: const Text('방문 통계'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history_rounded),
+            tooltip: '방문 기록',
+            onPressed: () => context.goToVisitHistory(),
+          ),
+        ],
+      ),
       body: visitsState.when(
         loading: () =>
             const Center(child: GBTLoading(message: '통계를 불러오는 중...')),
@@ -83,6 +93,25 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
                 parent: BouncingScrollPhysics(),
               ),
               slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      GBTSpacing.pageHorizontal,
+                      GBTSpacing.sm,
+                      GBTSpacing.pageHorizontal,
+                      GBTSpacing.sm,
+                    ),
+                    child: GBTPageIntroCard(
+                      icon: Icons.insights_rounded,
+                      title: '방문 통계 대시보드',
+                      description: '방문 추이와 자주 가는 장소를 한눈에 확인하세요.',
+                      trailing: _StatSummaryBadge(
+                        totalVisits: stats.totalVisits,
+                        uniquePlaces: stats.uniquePlaces,
+                      ),
+                    ),
+                  ),
+                ),
                 // EN: [0] Ranking banner
                 // KO: [0] 랭킹 배너
                 SliverToBoxAdapter(
@@ -185,8 +214,7 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
                           const SizedBox(height: GBTSpacing.sm),
                       itemBuilder: (context, index) {
                         final item = stats.topPlaces[index];
-                        final placeFound =
-                            placeMap.containsKey(item.placeId);
+                        final placeFound = placeMap.containsKey(item.placeId);
                         final showLoading = placesLoading && !placeFound;
                         final place = placeMap[item.placeId];
 
@@ -195,8 +223,7 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
                           place: place,
                           visitCount: item.count,
                           isLoading: showLoading,
-                          onTap: () =>
-                              context.goToPlaceDetail(item.placeId),
+                          onTap: () => context.goToPlaceDetail(item.placeId),
                         );
                       },
                     ),
@@ -206,14 +233,46 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
                 // KO: 하단 안전 영역
                 SliverToBoxAdapter(
                   child: SizedBox(
-                    height: MediaQuery.of(context).padding.bottom +
-                        GBTSpacing.xl,
+                    height:
+                        MediaQuery.of(context).padding.bottom + GBTSpacing.xl,
                   ),
                 ),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _StatSummaryBadge extends StatelessWidget {
+  const _StatSummaryBadge({
+    required this.totalVisits,
+    required this.uniquePlaces,
+  });
+
+  final int totalVisits;
+  final int uniquePlaces;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.sm,
+        vertical: GBTSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: isDark ? GBTColors.darkSurface : GBTColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+      ),
+      child: Text(
+        '$totalVisits회 · $uniquePlaces곳',
+        style: GBTTypography.labelSmall.copyWith(
+          color: isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -302,17 +361,14 @@ class _RankingBanner extends StatelessWidget {
                   '${ranking.rank}',
                   style: GBTTypography.headlineMedium.copyWith(
                     fontWeight: FontWeight.w800,
-                    color:
-                        isDark ? GBTColors.darkPrimary : GBTColors.primary,
+                    color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
                     height: 1,
                   ),
                 ),
                 Text(
                   '등',
                   style: GBTTypography.labelSmall.copyWith(
-                    color: isDark
-                        ? GBTColors.darkPrimary
-                        : GBTColors.primary,
+                    color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
                     fontSize: 10,
                   ),
                 ),
@@ -346,8 +402,7 @@ class _RankingBanner extends StatelessWidget {
                 // EN: Progress bar showing rank position
                 // KO: 순위 위치를 보여주는 진행 바
                 ClipRRect(
-                  borderRadius:
-                      BorderRadius.circular(GBTSpacing.radiusFull),
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
                   child: LinearProgressIndicator(
                     value: ranking.totalUsers > 0
                         ? 1 - (ranking.rank / ranking.totalUsers)
@@ -356,9 +411,7 @@ class _RankingBanner extends StatelessWidget {
                     backgroundColor: isDark
                         ? GBTColors.darkSurfaceVariant
                         : GBTColors.surfaceVariant,
-                    color: isDark
-                        ? GBTColors.darkPrimary
-                        : GBTColors.primary,
+                    color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
                   ),
                 ),
               ],
@@ -534,8 +587,7 @@ class _TopPlaceCard extends StatelessWidget {
                 // EN: Place thumbnail
                 // KO: 장소 썸네일
                 ClipRRect(
-                  borderRadius:
-                      BorderRadius.circular(GBTSpacing.radiusSm),
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
                   child: SizedBox(
                     width: 48,
                     height: 48,
@@ -677,10 +729,11 @@ class _VisitStats {
       }
     }
 
-    final topPlaces = placeCounts.entries
-        .map((entry) => _PlaceCount(entry.key, entry.value))
-        .toList()
-      ..sort((a, b) => b.count.compareTo(a.count));
+    final topPlaces =
+        placeCounts.entries
+            .map((entry) => _PlaceCount(entry.key, entry.value))
+            .toList()
+          ..sort((a, b) => b.count.compareTo(a.count));
 
     return _VisitStats(
       totalVisits: totalVisits,
@@ -733,8 +786,9 @@ class _StatsEmptyState extends StatelessWidget {
           message,
           textAlign: TextAlign.center,
           style: GBTTypography.bodyLarge.copyWith(
-            color:
-                isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
+            color: isDark
+                ? GBTColors.darkTextSecondary
+                : GBTColors.textSecondary,
           ),
         ),
         if (onRetry != null) ...[
