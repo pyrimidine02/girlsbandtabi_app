@@ -1,5 +1,5 @@
-/// EN: Board page showing community posts.
-/// KO: 커뮤니티 게시글을 표시하는 게시판 페이지.
+/// EN: Board page showing community posts with modern SNS-style design.
+/// KO: 모던 SNS 스타일 디자인의 커뮤니티 게시글을 표시하는 게시판 페이지.
 library;
 
 import 'package:flutter/material.dart';
@@ -24,8 +24,8 @@ import '../../application/feed_controller.dart';
 import '../../domain/entities/community_moderation.dart';
 import '../../domain/entities/feed_entities.dart';
 
-/// EN: Board page widget displaying tabs.
-/// KO: 탭을 표시하는 게시판 페이지 위젯.
+/// EN: Board page widget displaying tabs with refined design.
+/// KO: 세련된 디자인의 탭을 표시하는 게시판 페이지 위젯.
 class BoardPage extends ConsumerStatefulWidget {
   const BoardPage({super.key});
 
@@ -41,8 +41,6 @@ class _BoardPageState extends ConsumerState<BoardPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    // EN: Rebuild AppBar when tab changes so the refresh button reflects current tab state.
-    // KO: 탭 변경 시 AppBar를 다시 빌드하여 새로고침 버튼이 현재 탭 상태를 반영하도록 합니다.
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
@@ -78,13 +76,12 @@ class _BoardPageState extends ConsumerState<BoardPage>
       data: (profile) => _isAdminRole(profile?.role),
       orElse: () => false,
     );
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('게시판'),
         actions: [
-          // EN: Refresh community posts — only active on community tab (index 0).
-          // KO: 커뮤니티 게시글 새로고침 — 커뮤니티 탭(인덱스 0)에서만 활성화됩니다.
           if (_tabController.index == 0)
             IconButton(
               icon: const Icon(Icons.refresh),
@@ -107,46 +104,78 @@ class _BoardPageState extends ConsumerState<BoardPage>
             ),
           const GBTProfileAction(),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelStyle: GBTTypography.titleSmall.copyWith(
-            fontWeight: FontWeight.bold,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            margin: const EdgeInsets.symmetric(
+              horizontal: GBTSpacing.md,
+            ),
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? GBTColors.darkSurfaceVariant
+                  : GBTColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                color: isDark ? GBTColors.darkSurface : GBTColors.surface,
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusSm + 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent,
+              labelColor: isDark
+                  ? GBTColors.darkTextPrimary
+                  : GBTColors.textPrimary,
+              unselectedLabelColor: isDark
+                  ? GBTColors.darkTextTertiary
+                  : GBTColors.textTertiary,
+              labelStyle: GBTTypography.labelLarge.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              unselectedLabelStyle: GBTTypography.labelLarge,
+              tabs: const [
+                Tab(text: '커뮤니티'),
+                Tab(text: '여행후기'),
+              ],
+            ),
           ),
-          unselectedLabelStyle: GBTTypography.titleSmall,
-          tabs: const [
-            Tab(text: '커뮤니티'),
-            Tab(text: '여행후기'),
-          ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          // EN: Tab 1: Community
-          // KO: 첫 번째 탭: 커뮤니티
-          const _CommunityTab(),
-
-          // EN: Tab 2: Travel Review
-          // KO: 두 번째 탭: 여행후기
-          const _TravelReviewTab(),
+        children: const [
+          _CommunityTab(),
+          _TravelReviewTab(),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           if (_tabController.index == 0) {
             context.goToPostCreate();
           } else {
-            // EN: Go to travel review create
-            // KO: 여행후기 작성 페이지로 이동
             context.pushNamed(AppRoutes.travelReviewCreate);
           }
         },
-        tooltip: '새 글 작성',
-        child: const Icon(Icons.edit),
+        icon: const Icon(Icons.edit_outlined),
+        label: Text(_tabController.index == 0 ? '글쓰기' : '후기 작성'),
       ),
     );
   }
 }
+
+// ========================================
+// EN: Community Tab
+// KO: 커뮤니티 탭
+// ========================================
 
 class _CommunityTab extends ConsumerStatefulWidget {
   const _CommunityTab();
@@ -187,19 +216,22 @@ class _CommunityTabState extends ConsumerState<_CommunityTab> {
     final feedState = ref.watch(communityFeedControllerProvider);
     final notifier = ref.read(communityFeedControllerProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
+        // EN: Project selector
+        // KO: 프로젝트 선택기
+        const Padding(
+          padding: EdgeInsets.fromLTRB(
             GBTSpacing.md,
             GBTSpacing.md,
             GBTSpacing.md,
             GBTSpacing.sm,
           ),
-          child: const ProjectSelectorCompact(),
+          child: ProjectSelectorCompact(),
         ),
+        // EN: Search bar — borderless, pill-style
+        // KO: 검색바 — 테두리 없는 필 스타일
         Padding(
           padding: const EdgeInsets.fromLTRB(
             GBTSpacing.md,
@@ -207,50 +239,84 @@ class _CommunityTabState extends ConsumerState<_CommunityTab> {
             GBTSpacing.md,
             GBTSpacing.sm,
           ),
-          child: TextField(
-            controller: _searchController,
-            textInputAction: TextInputAction.search,
-            onSubmitted: (value) {
-              notifier.applySearch(value);
-            },
-            decoration: InputDecoration(
-              hintText: '게시글 검색 (제목/내용)',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: feedState.searchQuery.isNotEmpty
-                  ? IconButton(
-                      onPressed: () {
-                        _searchController.clear();
-                        notifier.clearSearch();
-                      },
-                      icon: const Icon(Icons.close),
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark
+                  ? GBTColors.darkSurfaceVariant
+                  : GBTColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+            ),
+            child: TextField(
+              controller: _searchController,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (value) {
+                notifier.applySearch(value);
+              },
+              decoration: InputDecoration(
+                hintText: '게시글 검색',
+                hintStyle: GBTTypography.bodyMedium.copyWith(
+                  color: isDark
+                      ? GBTColors.darkTextTertiary
+                      : GBTColors.textTertiary,
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: isDark
+                      ? GBTColors.darkTextTertiary
+                      : GBTColors.textTertiary,
+                  size: 20,
+                ),
+                suffixIcon: feedState.searchQuery.isNotEmpty
+                    ? IconButton(
+                        onPressed: () {
+                          _searchController.clear();
+                          notifier.clearSearch();
+                        },
+                        icon: Icon(
+                          Icons.close,
+                          size: 18,
+                          color: isDark
+                              ? GBTColors.darkTextTertiary
+                              : GBTColors.textTertiary,
+                        ),
+                      )
+                    : null,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: GBTSpacing.md,
+                  vertical: GBTSpacing.sm + 2,
+                ),
+                isDense: true,
               ),
-              isDense: true,
+              style: GBTTypography.bodyMedium,
             ),
           ),
         ),
+        // EN: Filter chips — horizontal scroll, modern pill style
+        // KO: 필터 칩 — 가로 스크롤, 모던 필 스타일
         SizedBox(
-          height: 42,
+          height: 40,
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
             children: CommunityFeedMode.values
                 .map(
                   (mode) => Padding(
-                    padding: const EdgeInsets.only(right: GBTSpacing.xs),
-                    child: ChoiceChip(
-                      label: Text(mode.label),
-                      selected: feedState.mode == mode,
-                      onSelected: (_) => notifier.setMode(mode),
+                    padding: const EdgeInsets.only(right: GBTSpacing.sm),
+                    child: _FilterChipModern(
+                      label: mode.label,
+                      isSelected: feedState.mode == mode,
+                      onTap: () => notifier.setMode(mode),
                     ),
                   ),
                 )
                 .toList(),
           ),
         ),
+        // EN: Following subscriptions row
+        // KO: 구독 목록 행
         if (feedState.mode == CommunityFeedMode.following) ...[
           const SizedBox(height: GBTSpacing.xs),
           SizedBox(
@@ -295,7 +361,9 @@ class _CommunityTabState extends ConsumerState<_CommunityTab> {
                   ),
           ),
         ],
-        Divider(height: 1, color: borderColor),
+        const SizedBox(height: GBTSpacing.xs),
+        // EN: Content list
+        // KO: 콘텐츠 리스트
         Expanded(
           child: _CommunityList(
             state: feedState,
@@ -309,13 +377,72 @@ class _CommunityTabState extends ConsumerState<_CommunityTab> {
   }
 }
 
+/// EN: Modern filter chip with filled/outlined toggle style.
+/// KO: 채워진/아웃라인 토글 스타일의 모던 필터 칩.
+class _FilterChipModern extends StatelessWidget {
+  const _FilterChipModern({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? primaryColor.withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+          border: Border.all(
+            color: isSelected
+                ? primaryColor
+                : isDark
+                    ? GBTColors.darkBorder
+                    : GBTColors.border,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GBTTypography.labelMedium.copyWith(
+            color: isSelected
+                ? primaryColor
+                : isDark
+                    ? GBTColors.darkTextSecondary
+                    : GBTColors.textSecondary,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ========================================
+// EN: Travel Review Tab
+// KO: 여행 후기 탭
+// ========================================
+
 class _TravelReviewTab extends ConsumerWidget {
   const _TravelReviewTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // EN: Dummy mockup data for Travel Reviews
-    // KO: 여행 후기를 위한 더미 목업 데이터
     final mockReviews = [
       {
         'id': '1',
@@ -334,7 +461,8 @@ class _TravelReviewTab extends ConsumerWidget {
         'id': '2',
         'authorName': '뉴비리뷰어',
         'title': '3박 4일 일정 공유해봐 (아키하바라 위주)',
-        'content': '이번엔 유명한 애니 성지 위주로만 골라서 가봤는데 너무 좋았어!! 다음엔 다른 지역도 가보고 싶다.',
+        'content':
+            '이번엔 유명한 애니 성지 위주로만 골라서 가봤는데 너무 좋았어!! 다음엔 다른 지역도 가보고 싶다.',
         'image':
             'https://storage.googleapis.com/girlsbandtabi/thumbnails/placeholder_map2.webp',
         'likeCount': 105,
@@ -357,131 +485,177 @@ class _TravelReviewTab extends ConsumerWidget {
     ];
 
     return ListView.builder(
-      padding: GBTSpacing.paddingPage,
+      padding: const EdgeInsets.only(
+        left: GBTSpacing.md,
+        right: GBTSpacing.md,
+        top: GBTSpacing.md,
+        bottom: 80,
+      ),
       itemCount: mockReviews.length,
       itemBuilder: (context, index) {
         final review = mockReviews[index];
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        final places = review['places'] as List<String>;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: GBTSpacing.md),
+          child: _TravelReviewCard(review: review),
+        );
+      },
+    );
+  }
+}
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: GBTSpacing.md),
-          child: InkWell(
-            onTap: () {
-              // EN: Navigate to mock detail
-              // KO: 목업 상세 페이지로 이동
-              context.pushNamed(
-                AppRoutes.travelReviewDetail,
-                pathParameters: {'reviewId': review['id'] as String},
-              );
-            },
-            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-            child: Padding(
-              padding: GBTSpacing.paddingMd,
+/// EN: Travel review card with modern design — image header, route badges.
+/// KO: 모던 디자인의 여행 후기 카드 — 이미지 헤더, 경로 배지.
+class _TravelReviewCard extends StatelessWidget {
+  const _TravelReviewCard({required this.review});
+
+  final Map<String, dynamic> review;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+    final places = review['places'] as List<String>;
+    final likeCount = review['likeCount'] as int;
+    final commentCount = review['commentCount'] as int;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surface,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
+        border: Border.all(
+          color: isDark
+              ? GBTColors.darkBorderSubtle
+              : GBTColors.border.withValues(alpha: 0.5),
+          width: 0.5,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          context.pushNamed(
+            AppRoutes.travelReviewDetail,
+            pathParameters: {'reviewId': review['id'] as String},
+          );
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // EN: Map placeholder with gradient overlay
+            // KO: 그라디언트 오버레이가 있는 지도 플레이스홀더
+            Container(
+              width: double.infinity,
+              height: 160,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [
+                          GBTColors.darkSurfaceElevated,
+                          GBTColors.darkSurfaceVariant,
+                        ]
+                      : [
+                          GBTColors.primaryLight,
+                          GBTColors.primaryMuted.withValues(alpha: 0.5),
+                        ],
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Center(
+                    child: Icon(
+                      Icons.map_outlined,
+                      size: 48,
+                      color: colorScheme.primary.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  // EN: Route badge count overlay
+                  // KO: 경로 배지 카운트 오버레이
+                  Positioned(
+                    top: GBTSpacing.sm,
+                    right: GBTSpacing.sm,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(
+                          GBTSpacing.radiusFull,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.place,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${places.length}곳',
+                            style: GBTTypography.labelSmall.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // EN: Route badges — horizontal scroll
+            // KO: 경로 배지 — 가로 스크롤
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                GBTSpacing.md,
+                GBTSpacing.sm + 2,
+                GBTSpacing.md,
+                0,
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (int i = 0; i < places.length; i++) ...[
+                      _RouteBadge(index: i + 1, name: places[i]),
+                      if (i < places.length - 1)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 3),
+                          child: Icon(
+                            Icons.arrow_forward_ios,
+                            size: 10,
+                            color: isDark
+                                ? GBTColors.darkTextTertiary
+                                : GBTColors.textTertiary,
+                          ),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            // EN: Content section
+            // KO: 콘텐츠 섹션
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                GBTSpacing.md,
+                GBTSpacing.sm + 2,
+                GBTSpacing.md,
+                0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 16,
-                        backgroundColor: isDark
-                            ? GBTColors.darkSurfaceVariant
-                            : GBTColors.surfaceVariant,
-                        child: Icon(
-                          Icons.person,
-                          size: 16,
-                          color: isDark
-                              ? GBTColors.darkTextTertiary
-                              : GBTColors.textTertiary,
-                        ),
-                      ),
-                      const SizedBox(width: GBTSpacing.sm),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              review['authorName'] as String,
-                              style: GBTTypography.labelMedium,
-                            ),
-                            Text(
-                              review['timeAgo'] as String,
-                              style: GBTTypography.labelSmall.copyWith(
-                                color: isDark
-                                    ? GBTColors.darkTextTertiary
-                                    : GBTColors.textTertiary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: GBTSpacing.sm),
-                  Container(
-                    width: double.infinity,
-                    height: 140,
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? GBTColors.darkSurfaceVariant
-                          : GBTColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.map,
-                        size: 48,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.primary.withAlpha(100),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: GBTSpacing.sm),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (int i = 0; i < places.length; i++) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              '${i + 1}. ${places[i]}',
-                              style: GBTTypography.labelSmall.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onPrimaryContainer,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          if (i < places.length - 1)
-                            const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 4),
-                              child: Icon(
-                                Icons.chevron_right,
-                                size: 14,
-                                color: Colors.grey,
-                              ),
-                            ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: GBTSpacing.sm),
                   Text(
                     review['title'] as String,
-                    style: GBTTypography.titleMedium,
+                    style: GBTTypography.titleSmall.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -496,56 +670,155 @@ class _TravelReviewTab extends ConsumerWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: GBTSpacing.md),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.favorite_border,
-                        size: 16,
-                        color: isDark
-                            ? GBTColors.darkTextTertiary
-                            : GBTColors.textTertiary,
-                      ),
-                      const SizedBox(width: GBTSpacing.xs),
-                      Text(
-                        '${review['likeCount']}',
-                        style: GBTTypography.labelSmall.copyWith(
-                          color: isDark
-                              ? GBTColors.darkTextTertiary
-                              : GBTColors.textTertiary,
-                        ),
-                      ),
-                      const SizedBox(width: GBTSpacing.md),
-                      Icon(
-                        Icons.comment_outlined,
-                        size: 16,
-                        color: isDark
-                            ? GBTColors.darkTextTertiary
-                            : GBTColors.textTertiary,
-                      ),
-                      const SizedBox(width: GBTSpacing.xs),
-                      Text(
-                        '${review['commentCount']}',
-                        style: GBTTypography.labelSmall.copyWith(
-                          color: isDark
-                              ? GBTColors.darkTextTertiary
-                              : GBTColors.textTertiary,
-                        ),
-                      ),
-                    ],
+                ],
+              ),
+            ),
+            // EN: Bottom bar — author + engagement
+            // KO: 하단 바 — 작성자 + 인게이지먼트
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                GBTSpacing.md,
+                GBTSpacing.sm + 2,
+                GBTSpacing.md,
+                GBTSpacing.md,
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 12,
+                    backgroundColor: isDark
+                        ? GBTColors.darkSurfaceElevated
+                        : GBTColors.surfaceAlternate,
+                    child: Icon(
+                      Icons.person,
+                      size: 14,
+                      color: isDark
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(width: GBTSpacing.xs),
+                  Text(
+                    review['authorName'] as String,
+                    style: GBTTypography.labelSmall.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: GBTSpacing.xs),
+                  Text(
+                    review['timeAgo'] as String,
+                    style: GBTTypography.labelSmall.copyWith(
+                      color: isDark
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.favorite_border,
+                    size: 14,
+                    color: isDark
+                        ? GBTColors.darkTextTertiary
+                        : GBTColors.textTertiary,
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    '$likeCount',
+                    style: GBTTypography.labelSmall.copyWith(
+                      color: isDark
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(width: GBTSpacing.sm),
+                  Icon(
+                    Icons.chat_bubble_outline,
+                    size: 14,
+                    color: isDark
+                        ? GBTColors.darkTextTertiary
+                        : GBTColors.textTertiary,
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    '$commentCount',
+                    style: GBTTypography.labelSmall.copyWith(
+                      color: isDark
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary,
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }
 
-/// EN: Community list widget.
-/// KO: 커뮤니티 리스트 위젯.
+/// EN: Route badge chip with numbered index and place name.
+/// KO: 번호 인덱스와 장소명이 있는 경로 배지 칩.
+class _RouteBadge extends StatelessWidget {
+  const _RouteBadge({required this.index, required this.name});
+
+  final int index;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: primaryColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+        border: Border.all(
+          color: primaryColor.withValues(alpha: 0.25),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              color: primaryColor,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '$index',
+              style: GBTTypography.caption.copyWith(
+                color: isDark ? GBTColors.darkBackground : Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 9,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            name,
+            style: GBTTypography.labelSmall.copyWith(
+              color: primaryColor,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ========================================
+// EN: Community List
+// KO: 커뮤니티 리스트
+// ========================================
+
 class _CommunityList extends StatelessWidget {
   const _CommunityList({
     required this.state,
@@ -611,11 +884,25 @@ class _CommunityList extends StatelessWidget {
             );
           }
 
-          return ListView.builder(
+          return ListView.separated(
             controller: scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: GBTSpacing.paddingPage,
+            padding: const EdgeInsets.only(bottom: 80),
             itemCount: state.posts.length + (state.isLoadingMore ? 1 : 0),
+            separatorBuilder: (context, index) {
+              if (index >= state.posts.length - 1) {
+                return const SizedBox.shrink();
+              }
+              final isDark =
+                  Theme.of(context).brightness == Brightness.dark;
+              return Divider(
+                height: 1,
+                thickness: 0.5,
+                color: isDark ? GBTColors.darkBorder : GBTColors.divider,
+                indent: GBTSpacing.md,
+                endIndent: GBTSpacing.md,
+              );
+            },
             itemBuilder: (context, index) {
               if (index >= state.posts.length) {
                 return const Padding(
@@ -630,10 +917,7 @@ class _CommunityList extends StatelessWidget {
                 );
               }
               final post = state.posts[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: GBTSpacing.md),
-                child: _CommunityPostCard(post: post),
-              );
+              return _CommunityPostCard(post: post);
             },
           );
         },
@@ -642,12 +926,13 @@ class _CommunityList extends StatelessWidget {
   }
 }
 
-/// EN: Possible actions for the post action sheet.
-/// KO: 게시글 액션시트에서 선택 가능한 동작 열거형.
+// ========================================
+// EN: Community Post Card — SNS-style, divider-separated
+// KO: 커뮤니티 게시글 카드 — SNS 스타일, 구분선 분리
+// ========================================
+
 enum _PostCardAction { edit, delete, ban }
 
-/// EN: Community post card widget with context-aware actions.
-/// KO: 사용자 역할에 따른 액션을 제공하는 커뮤니티 게시글 카드 위젯.
 class _CommunityPostCard extends ConsumerWidget {
   const _CommunityPostCard({required this.post});
 
@@ -663,16 +948,16 @@ class _CommunityPostCard extends ConsumerWidget {
         : null;
     final commentCount = post.commentCount ?? 0;
     final likeCount = post.likeCount ?? 0;
-    // EN: Use theme-aware colors for dark mode compatibility.
-    // KO: 다크 모드 호환성을 위해 테마 인식 색상을 사용합니다.
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryTextColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
     final tertiaryColor = isDark
         ? GBTColors.darkTextTertiary
         : GBTColors.textTertiary;
+
     // EN: Resolve first image URL for thumbnail.
     // KO: 썸네일용 첫 번째 이미지 URL을 해석합니다.
-    // EN: Priority: imageUrls → content extraction → thumbnailUrl.
-    // KO: 우선순위: imageUrls → 콘텐츠 추출 → thumbnailUrl.
     final String? firstImageUrl;
     if (post.imageUrls.isNotEmpty) {
       firstImageUrl = resolveMediaUrl(post.imageUrls.first);
@@ -689,8 +974,6 @@ class _CommunityPostCard extends ConsumerWidget {
       }
     }
 
-    // EN: Determine current user identity and admin status.
-    // KO: 현재 사용자 ID와 관리자 여부를 확인합니다.
     final isAuthenticated = ref.watch(isAuthenticatedProvider);
     final profileState = ref.watch(userProfileControllerProvider);
     final currentUserId = profileState.maybeWhen(
@@ -702,212 +985,215 @@ class _CommunityPostCard extends ConsumerWidget {
       orElse: () => false,
     );
     final isAuthor = currentUserId != null && currentUserId == post.authorId;
-    // EN: Show the more button only for the author or admin.
-    // KO: 작성자 또는 관리자에게만 더보기 버튼을 표시합니다.
     final showMoreButton = isAuthenticated && (isAuthor || isAdmin);
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: () => context.goToPostDetail(post.id),
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        child: Padding(
-          padding: GBTSpacing.paddingMd,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _Avatar(
-                    url: avatarUrl,
-                    radius: 16,
-                    semanticLabel: '$authorLabel 프로필 사진',
-                    onTap: () => context.goToUserProfile(post.authorId),
+    return InkWell(
+      onTap: () => context.goToPostDetail(post.id),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: GBTSpacing.md,
+          vertical: GBTSpacing.md,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // EN: Author row
+            // KO: 작성자 행
+            Row(
+              children: [
+                _Avatar(
+                  url: avatarUrl,
+                  radius: 18,
+                  semanticLabel: '$authorLabel 프로필 사진',
+                  onTap: () => context.goToUserProfile(post.authorId),
+                ),
+                const SizedBox(width: GBTSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        authorLabel,
+                        style: GBTTypography.labelLarge.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        post.timeAgoLabel,
+                        style: GBTTypography.caption.copyWith(
+                          color: tertiaryColor,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: GBTSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          authorLabel,
-                          style: GBTTypography.labelMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          post.timeAgoLabel,
-                          style: GBTTypography.labelSmall.copyWith(
-                            color: tertiaryColor,
-                          ),
-                        ),
-                      ],
+                ),
+                if (showMoreButton)
+                  PopupMenuButton<_PostCardAction>(
+                    icon: Icon(
+                      Icons.more_horiz,
+                      size: 20,
+                      color: tertiaryColor,
                     ),
-                  ),
-                  if (showMoreButton)
-                    PopupMenuButton<_PostCardAction>(
-                      icon: const Icon(Icons.more_vert, size: 20),
-                      tooltip: '더 보기',
-                      padding: EdgeInsets.zero,
-                      onSelected: (action) {
-                        switch (action) {
-                          case _PostCardAction.edit:
-                            // EN: Navigate to detail page for editing.
-                            // KO: 수정을 위해 상세 페이지로 이동합니다.
-                            context.goToPostDetail(post.id);
-                          case _PostCardAction.delete:
-                            _confirmDeletePost(
-                              context,
-                              ref,
-                              isAuthor: isAuthor,
-                              isAdmin: isAdmin,
-                            );
-                          case _PostCardAction.ban:
-                            _confirmBanUser(context, ref);
-                        }
-                      },
-                      itemBuilder: (menuContext) {
-                        final cs = Theme.of(menuContext).colorScheme;
-                        return [
-                          if (isAuthor)
-                            const PopupMenuItem(
-                              value: _PostCardAction.edit,
-                              child: Row(
-                                children: [
-                                  Icon(Icons.edit_outlined, size: 18),
-                                  SizedBox(width: GBTSpacing.sm),
-                                  Text('수정'),
-                                ],
-                              ),
-                            ),
-                          if (isAuthor) const PopupMenuDivider(),
-                          PopupMenuItem(
-                            value: _PostCardAction.delete,
+                    tooltip: '더 보기',
+                    padding: EdgeInsets.zero,
+                    onSelected: (action) {
+                      switch (action) {
+                        case _PostCardAction.edit:
+                          context.goToPostDetail(post.id);
+                        case _PostCardAction.delete:
+                          _confirmDeletePost(
+                            context,
+                            ref,
+                            isAuthor: isAuthor,
+                            isAdmin: isAdmin,
+                          );
+                        case _PostCardAction.ban:
+                          _confirmBanUser(context, ref);
+                      }
+                    },
+                    itemBuilder: (menuContext) {
+                      final cs = Theme.of(menuContext).colorScheme;
+                      return [
+                        if (isAuthor)
+                          const PopupMenuItem(
+                            value: _PostCardAction.edit,
                             child: Row(
                               children: [
-                                Icon(
-                                  Icons.delete_outline,
-                                  size: 18,
-                                  color: cs.error,
-                                ),
+                                Icon(Icons.edit_outlined, size: 18),
                                 SizedBox(width: GBTSpacing.sm),
-                                Text(
-                                  isAuthor ? '삭제' : '관리 삭제',
-                                  style: TextStyle(color: cs.error),
-                                ),
+                                Text('수정'),
                               ],
                             ),
                           ),
-                          if (isAdmin && !isAuthor)
-                            PopupMenuItem(
-                              value: _PostCardAction.ban,
-                              child: Row(
-                                children: [
-                                  Icon(Icons.block, size: 18, color: cs.error),
-                                  SizedBox(width: GBTSpacing.sm),
-                                  Text('차단', style: TextStyle(color: cs.error)),
-                                ],
+                        if (isAuthor) const PopupMenuDivider(),
+                        PopupMenuItem(
+                          value: _PostCardAction.delete,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.delete_outline,
+                                size: 18,
+                                color: cs.error,
                               ),
+                              SizedBox(width: GBTSpacing.sm),
+                              Text(
+                                isAuthor ? '삭제' : '관리 삭제',
+                                style: TextStyle(color: cs.error),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isAdmin && !isAuthor)
+                          PopupMenuItem(
+                            value: _PostCardAction.ban,
+                            child: Row(
+                              children: [
+                                Icon(Icons.block, size: 18, color: cs.error),
+                                SizedBox(width: GBTSpacing.sm),
+                                Text('차단', style: TextStyle(color: cs.error)),
+                              ],
                             ),
-                        ];
-                      },
+                          ),
+                      ];
+                    },
+                  ),
+              ],
+            ),
+            const SizedBox(height: GBTSpacing.sm + 2),
+            // EN: Title — semi-bold
+            // KO: 제목 — 세미볼드
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.title,
+                        style: GBTTypography.titleSmall.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      // EN: Content snippet
+                      // KO: 내용 스니펫
+                      Builder(
+                        builder: (context) {
+                          if (post.content == null || post.content!.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          final raw = stripImageMarkdown(post.content!);
+                          if (raw.isEmpty) return const SizedBox.shrink();
+                          final snippet = raw.length > 100
+                              ? '${raw.substring(0, 100)}…'
+                              : raw;
+                          return Padding(
+                            padding: const EdgeInsets.only(
+                              top: GBTSpacing.xs,
+                            ),
+                            child: Text(
+                              snippet,
+                              style: GBTTypography.bodySmall.copyWith(
+                                color: secondaryTextColor,
+                                height: 1.4,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                if (firstImageUrl != null) ...[
+                  const SizedBox(width: GBTSpacing.md),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(
+                      GBTSpacing.radiusSm,
                     ),
-                ],
-              ),
-              const SizedBox(height: GBTSpacing.sm),
-              // EN: Title row with optional thumbnail on the right.
-              // KO: 오른쪽에 선택적 썸네일이 있는 제목 행.
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      post.title,
-                      style: GBTTypography.bodyMedium,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
+                    child: GBTImage(
+                      imageUrl: firstImageUrl,
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      semanticLabel: '${post.title} 첨부 이미지',
                     ),
                   ),
-                  if (firstImageUrl != null) ...[
-                    const SizedBox(width: GBTSpacing.md),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-                      child: GBTImage(
-                        imageUrl: firstImageUrl,
-                        width: 88,
-                        height: 88,
-                        fit: BoxFit.cover,
-                        semanticLabel: '${post.title} 첨부 이미지',
-                      ),
-                    ),
-                  ],
+                ],
+              ],
+            ),
+            const SizedBox(height: GBTSpacing.sm + 2),
+            // EN: Engagement stats row
+            // KO: 인게이지먼트 통계 행
+            Semantics(
+              label: '좋아요 $likeCount개, 댓글 $commentCount개',
+              child: Row(
+                children: [
+                  _EngagementStat(
+                    icon: Icons.favorite_border,
+                    count: likeCount,
+                    color: tertiaryColor,
+                  ),
+                  const SizedBox(width: GBTSpacing.lg),
+                  _EngagementStat(
+                    icon: Icons.chat_bubble_outline,
+                    count: commentCount,
+                    color: tertiaryColor,
+                  ),
                 ],
               ),
-              // EN: Content snippet below the title row, images stripped.
-              // KO: 이미지 제거 후 제목 하단에 내용 스니펫 표시.
-              Builder(
-                builder: (context) {
-                  if (post.content == null || post.content!.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  final raw = stripImageMarkdown(post.content!);
-                  if (raw.isEmpty) return const SizedBox.shrink();
-                  final snippet = raw.length > 80
-                      ? '${raw.substring(0, 80)}…'
-                      : raw;
-                  return Padding(
-                    padding: const EdgeInsets.only(top: GBTSpacing.xs),
-                    child: Text(
-                      snippet,
-                      style: GBTTypography.bodySmall.copyWith(
-                        color: isDark
-                            ? GBTColors.darkTextSecondary
-                            : GBTColors.textSecondary,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: GBTSpacing.sm),
-              Semantics(
-                label: '좋아요 $likeCount개, 댓글 $commentCount개',
-                child: Row(
-                  children: [
-                    Icon(Icons.favorite_border, size: 16, color: tertiaryColor),
-                    const SizedBox(width: GBTSpacing.xs),
-                    Text(
-                      likeCount.toString(),
-                      style: GBTTypography.labelSmall.copyWith(
-                        color: tertiaryColor,
-                      ),
-                    ),
-                    const SizedBox(width: GBTSpacing.md),
-                    Icon(
-                      Icons.comment_outlined,
-                      size: 16,
-                      color: tertiaryColor,
-                    ),
-                    const SizedBox(width: GBTSpacing.xs),
-                    Text(
-                      commentCount.toString(),
-                      style: GBTTypography.labelSmall.copyWith(
-                        color: tertiaryColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  /// EN: Show delete confirmation dialog and delete the post.
-  /// KO: 삭제 확인 다이얼로그를 표시하고 게시글을 삭제합니다.
   Future<void> _confirmDeletePost(
     BuildContext context,
     WidgetRef ref, {
@@ -968,8 +1254,6 @@ class _CommunityPostCard extends ConsumerWidget {
     }
   }
 
-  /// EN: Show ban confirmation dialog and ban the post author.
-  /// KO: 차단 확인 다이얼로그를 표시하고 게시글 작성자를 차단합니다.
   Future<void> _confirmBanUser(BuildContext context, WidgetRef ref) async {
     final authorLabel = post.authorName?.isNotEmpty == true
         ? post.authorName!
@@ -1030,6 +1314,41 @@ class _CommunityPostCard extends ConsumerWidget {
   }
 }
 
+/// EN: Engagement stat — icon + count pair.
+/// KO: 인게이지먼트 통계 — 아이콘 + 카운트 쌍.
+class _EngagementStat extends StatelessWidget {
+  const _EngagementStat({
+    required this.icon,
+    required this.count,
+    required this.color,
+  });
+
+  final IconData icon;
+  final int count;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: GBTSpacing.xs),
+        Text(
+          _formatCount(count),
+          style: GBTTypography.labelSmall.copyWith(color: color),
+        ),
+      ],
+    );
+  }
+
+  String _formatCount(int count) {
+    if (count >= 10000) return '${(count / 10000).toStringAsFixed(1)}만';
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}천';
+    return count.toString();
+  }
+}
+
 /// EN: Returns true when a role has admin/moderator privileges.
 /// KO: 관리자/모더레이터 권한이 있는 역할인지 반환합니다.
 bool _isAdminRole(String? role) {
@@ -1037,6 +1356,11 @@ bool _isAdminRole(String? role) {
   final normalized = role.toUpperCase();
   return normalized.contains('ADMIN') || normalized.contains('MODERATOR');
 }
+
+// ========================================
+// EN: Bottom Sheets — My Reports & Community Ban
+// KO: 바텀 시트 — 내 신고 내역 & 커뮤니티 제재
+// ========================================
 
 class _MyReportsSheet extends ConsumerStatefulWidget {
   const _MyReportsSheet();
@@ -1638,6 +1962,11 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
   }
 }
 
+// ========================================
+// EN: Helper functions
+// KO: 헬퍼 함수
+// ========================================
+
 String _reportStatusLabel(CommunityReportStatus status) {
   switch (status) {
     case CommunityReportStatus.open:
@@ -1701,8 +2030,6 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // EN: Use theme-aware placeholder colors.
-    // KO: 테마 인식 플레이스홀더 색상을 사용합니다.
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark
         ? GBTColors.darkSurfaceVariant
@@ -1731,8 +2058,6 @@ class _Avatar extends StatelessWidget {
 
     if (onTap == null) return content;
 
-    // EN: Ensure minimum 48x48 touch target for accessibility.
-    // KO: 접근성을 위해 최소 48x48 터치 타겟을 보장합니다.
     return Semantics(
       button: true,
       label: semanticLabel ?? '프로필 보기',

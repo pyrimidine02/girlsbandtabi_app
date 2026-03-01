@@ -18,8 +18,8 @@ import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../application/feed_controller.dart';
 import '../../domain/entities/feed_entities.dart';
 
-/// EN: Info page widget with TabBar for news, units, members, songs.
-/// KO: 소식, 유닛, 멤버, 악곡 탭바가 있는 정보 페이지 위젯.
+/// EN: Info page widget with pill-style segmented tab bar.
+/// KO: 필 스타일 세그먼트 탭바가 있는 정보 페이지 위젯.
 class InfoPage extends ConsumerStatefulWidget {
   const InfoPage({super.key});
 
@@ -65,41 +65,63 @@ class _InfoPageState extends ConsumerState<InfoPage>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('정보'),
         actions: const [GBTProfileAction()],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          indicatorColor: isDark ? GBTColors.darkPrimary : GBTColors.primary,
-          labelColor: isDark ? GBTColors.darkPrimary : GBTColors.primary,
-          unselectedLabelColor: isDark
-              ? GBTColors.darkTextSecondary
-              : GBTColors.textSecondary,
-          labelStyle: GBTTypography.labelLarge,
-          unselectedLabelStyle: GBTTypography.labelLarge,
-          tabs: const [
-            Tab(icon: Icon(Icons.newspaper_outlined), text: '소식'),
-            Tab(icon: Icon(Icons.groups_outlined), text: '유닛'),
-            Tab(icon: Icon(Icons.person_outlined), text: '멤버'),
-            Tab(icon: Icon(Icons.music_note_outlined), text: '악곡'),
-          ],
+        // EN: Scrollable tab bar with modern styling
+        // KO: 모던 스타일의 스크롤 가능한 탭바
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(52),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: GBTSpacing.xs),
+            child: SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: GBTSpacing.md,
+                ),
+                children: List.generate(4, (index) {
+                  const labels = ['소식', '유닛', '멤버', '악곡'];
+                  const icons = [
+                    Icons.newspaper_outlined,
+                    Icons.groups_outlined,
+                    Icons.person_outlined,
+                    Icons.music_note_outlined,
+                  ];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      right: index < 3 ? GBTSpacing.sm : 0,
+                    ),
+                    child: _InfoTabChip(
+                      icon: icons[index],
+                      label: labels[index],
+                      isSelected: _tabController.index == index,
+                      onTap: () {
+                        _tabController.animateTo(index);
+                        setState(() {});
+                      },
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
         ),
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
+          // EN: Project selector — compact, consistent with other pages
+          // KO: 프로젝트 선택기 — 컴팩트, 다른 페이지와 일관
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
               GBTSpacing.md,
               GBTSpacing.md,
               GBTSpacing.md,
               0,
             ),
-            child: const ProjectSelectorCompact(),
+            child: ProjectSelectorCompact(),
           ),
           Expanded(
             child: RefreshIndicator(
@@ -121,9 +143,73 @@ class _InfoPageState extends ConsumerState<InfoPage>
   }
 }
 
+/// EN: Info tab chip — modern pill-style filter button.
+/// KO: 정보 탭 칩 — 모던 필 스타일 필터 버튼.
+class _InfoTabChip extends StatelessWidget {
+  const _InfoTabChip({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final bgColor = isSelected
+        ? (isDark ? GBTColors.darkPrimary : GBTColors.primary)
+        : Colors.transparent;
+    final fgColor = isSelected
+        ? Colors.white
+        : (isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary);
+    final borderColor = isSelected
+        ? Colors.transparent
+        : (isDark
+            ? GBTColors.darkTextTertiary.withValues(alpha: 0.3)
+            : GBTColors.textTertiary.withValues(alpha: 0.3));
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(
+          horizontal: GBTSpacing.md,
+          vertical: GBTSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: fgColor),
+            const SizedBox(width: GBTSpacing.xs),
+            Text(
+              label,
+              style: GBTTypography.labelMedium.copyWith(
+                color: fgColor,
+                fontWeight:
+                    isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ========================================
-// EN: News tab — existing news list logic
-// KO: 소식 탭 — 기존 뉴스 리스트 로직
+// EN: News tab — divider-separated, borderless
+// KO: 소식 탭 — 구분선 분리, 무테두리
 // ========================================
 
 class _NewsTab extends ConsumerWidget {
@@ -143,7 +229,8 @@ class _NewsTab extends ConsumerWidget {
         ],
       ),
       error: (error, _) {
-        final message = error is Failure ? error.userMessage : '뉴스를 불러오지 못했어요';
+        final message =
+            error is Failure ? error.userMessage : '뉴스를 불러오지 못했어요';
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: GBTSpacing.paddingPage,
@@ -170,16 +257,20 @@ class _NewsTab extends ConsumerWidget {
           );
         }
 
-        return ListView.builder(
+        // EN: Divider-separated news list — consistent with feed & board pages
+        // KO: 구분선 분리 뉴스 리스트 — 피드 & 게시판 페이지와 일관
+        return ListView.separated(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: GBTSpacing.paddingPage,
+          padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
           itemCount: newsList.length,
+          separatorBuilder: (_, __) => const Divider(
+            height: 1,
+            indent: GBTSpacing.pageHorizontal,
+            endIndent: GBTSpacing.pageHorizontal,
+          ),
           itemBuilder: (context, index) {
             final news = newsList[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: GBTSpacing.md),
-              child: _NewsCard(news: news),
-            );
+            return _NewsCardBorderless(news: news);
           },
         );
       },
@@ -187,9 +278,109 @@ class _NewsTab extends ConsumerWidget {
   }
 }
 
+/// EN: Borderless news card for info page — consistent with feed_page.
+/// KO: 정보 페이지용 무테두리 뉴스 카드 — feed_page와 일관.
+class _NewsCardBorderless extends StatelessWidget {
+  const _NewsCardBorderless({required this.news});
+
+  final NewsSummary news;
+
+  @override
+  Widget build(BuildContext context) {
+    final thumbnail = news.thumbnailUrl;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tertiaryColor =
+        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+
+    return InkWell(
+      onTap: () => context.goToNewsDetail(news.id),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: GBTSpacing.pageHorizontal,
+          vertical: GBTSpacing.md,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // EN: Square thumbnail — 80x80
+            // KO: 정사각 썸네일 — 80x80
+            _InfoNewsThumbnail(imageUrl: thumbnail),
+            const SizedBox(width: GBTSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    news.title,
+                    style: GBTTypography.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? GBTColors.darkTextPrimary
+                          : GBTColors.textPrimary,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: GBTSpacing.xs),
+                  Text(
+                    news.dateLabel,
+                    style: GBTTypography.labelSmall.copyWith(
+                      color: tertiaryColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// EN: News thumbnail widget for info page.
+/// KO: 정보 페이지용 뉴스 썸네일 위젯.
+class _InfoNewsThumbnail extends StatelessWidget {
+  const _InfoNewsThumbnail({required this.imageUrl});
+
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (imageUrl == null || imageUrl!.isEmpty) {
+      return Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          color: isDark
+              ? GBTColors.darkSurfaceVariant
+              : GBTColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        ),
+        child: Icon(
+          Icons.article_outlined,
+          color:
+              isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+          size: 28,
+        ),
+      );
+    }
+
+    return GBTImage(
+      imageUrl: imageUrl!,
+      width: 80,
+      height: 80,
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      semanticLabel: '뉴스 썸네일',
+    );
+  }
+}
+
 // ========================================
-// EN: Units tab — band/unit list from API
-// KO: 유닛 탭 — API에서 밴드/유닛 목록
+// EN: Units tab — modern card with color accents
+// KO: 유닛 탭 — 컬러 악센트가 있는 모던 카드
 // ========================================
 
 /// EN: Deterministic palette for unit avatars.
@@ -237,7 +428,8 @@ class _UnitsTab extends ConsumerWidget {
         ],
       ),
       error: (error, _) {
-        final message = error is Failure ? error.userMessage : '유닛을 불러오지 못했어요';
+        final message =
+            error is Failure ? error.userMessage : '유닛을 불러오지 못했어요';
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: GBTSpacing.paddingPage,
@@ -246,7 +438,8 @@ class _UnitsTab extends ConsumerWidget {
             GBTErrorState(
               message: message,
               onRetry: () => ref
-                  .read(projectUnitsControllerProvider(projectKey).notifier)
+                  .read(
+                      projectUnitsControllerProvider(projectKey).notifier)
                   .load(forceRefresh: true),
             ),
           ],
@@ -267,39 +460,88 @@ class _UnitsTab extends ConsumerWidget {
           );
         }
 
-        return ListView.builder(
+        // EN: Divider-separated unit list — consistent design
+        // KO: 구분선 분리 유닛 리스트 — 일관된 디자인
+        return ListView.separated(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: GBTSpacing.paddingPage,
+          padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
           itemCount: units.length,
+          separatorBuilder: (_, __) => const Divider(
+            height: 1,
+            indent: GBTSpacing.pageHorizontal + 48 + GBTSpacing.md,
+            endIndent: GBTSpacing.pageHorizontal,
+          ),
           itemBuilder: (context, index) {
             final unit = units[index];
-            final paletteColor =
-                _avatarPalette[unit.displayName.hashCode.abs() %
-                    _avatarPalette.length];
+            final paletteColor = _avatarPalette[
+                unit.displayName.hashCode.abs() % _avatarPalette.length];
 
-            return Card(
-              margin: const EdgeInsets.only(bottom: GBTSpacing.sm),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: paletteColor,
-                  child: Text(
-                    unit.displayName.isNotEmpty
-                        ? unit.displayName[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+            return InkWell(
+              onTap: () {},
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: GBTSpacing.pageHorizontal,
+                  vertical: GBTSpacing.md,
                 ),
-                title: Text(unit.displayName, style: GBTTypography.titleSmall),
-                subtitle: Text(
-                  unit.code,
-                  style: GBTTypography.bodySmall.copyWith(
-                    color: isDark
-                        ? GBTColors.darkTextTertiary
-                        : GBTColors.textTertiary,
-                  ),
+                child: Row(
+                  children: [
+                    // EN: Color avatar with initial letter
+                    // KO: 이니셜 문자가 있는 컬러 아바타
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: paletteColor,
+                        borderRadius: BorderRadius.circular(
+                            GBTSpacing.radiusMd),
+                      ),
+                      child: Center(
+                        child: Text(
+                          unit.displayName.isNotEmpty
+                              ? unit.displayName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: GBTSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            unit.displayName,
+                            style: GBTTypography.bodyMedium.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? GBTColors.darkTextPrimary
+                                  : GBTColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            unit.code,
+                            style: GBTTypography.labelSmall.copyWith(
+                              color: isDark
+                                  ? GBTColors.darkTextTertiary
+                                  : GBTColors.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 20,
+                      color: isDark
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary,
+                    ),
+                  ],
                 ),
               ),
             );
@@ -324,7 +566,8 @@ class _MembersTab extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       children: const [
         SizedBox(height: GBTSpacing.lg),
-        GBTEmptyState(icon: Icons.person_outlined, message: '멤버 소개를 준비 중입니다'),
+        GBTEmptyState(
+            icon: Icons.person_outlined, message: '멤버 소개를 준비 중입니다'),
       ],
     );
   }
@@ -349,106 +592,6 @@ class _SongsTab extends StatelessWidget {
           message: '악곡 소개를 준비 중입니다',
         ),
       ],
-    );
-  }
-}
-
-// ========================================
-// EN: News card widget
-// KO: 뉴스 카드 위젯
-// ========================================
-
-class _NewsCard extends StatelessWidget {
-  const _NewsCard({required this.news});
-
-  final NewsSummary news;
-
-  @override
-  Widget build(BuildContext context) {
-    final thumbnail = news.thumbnailUrl;
-    // EN: Use theme-aware colors for dark mode compatibility.
-    // KO: 다크 모드 호환성을 위해 테마 인식 색상을 사용합니다.
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tertiaryColor = isDark
-        ? GBTColors.darkTextTertiary
-        : GBTColors.textTertiary;
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: () => context.goToNewsDetail(news.id),
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        child: Padding(
-          padding: GBTSpacing.paddingMd,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _NewsThumbnail(imageUrl: thumbnail),
-              const SizedBox(width: GBTSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      news.title,
-                      style: GBTTypography.titleSmall,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: GBTSpacing.xs),
-                    Text(
-                      news.dateLabel,
-                      style: GBTTypography.labelSmall.copyWith(
-                        color: tertiaryColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// EN: News thumbnail widget.
-/// KO: 뉴스 썸네일 위젯.
-class _NewsThumbnail extends StatelessWidget {
-  const _NewsThumbnail({required this.imageUrl});
-
-  final String? imageUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    // EN: Use theme-aware placeholder colors.
-    // KO: 테마 인식 플레이스홀더 색상을 사용합니다.
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    if (imageUrl == null || imageUrl!.isEmpty) {
-      return Container(
-        width: 100,
-        height: 70,
-        decoration: BoxDecoration(
-          color: isDark
-              ? GBTColors.darkSurfaceVariant
-              : GBTColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-        ),
-        child: Icon(
-          Icons.image,
-          color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
-        ),
-      );
-    }
-
-    return GBTImage(
-      imageUrl: imageUrl!,
-      width: 100,
-      height: 70,
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-      semanticLabel: '뉴스 썸네일',
     );
   }
 }

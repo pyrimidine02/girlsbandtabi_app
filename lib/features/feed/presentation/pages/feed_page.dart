@@ -1,5 +1,5 @@
-/// EN: Feed page with news and community tabs.
-/// KO: 뉴스 및 커뮤니티 탭을 포함한 피드 페이지.
+/// EN: Feed page with news and community tabs — unified SNS-style design.
+/// KO: 뉴스 및 커뮤니티 탭을 포함한 피드 페이지 — 통일된 SNS 스타일 디자인.
 library;
 
 import 'package:flutter/material.dart';
@@ -16,8 +16,8 @@ import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../application/feed_controller.dart';
 import '../../domain/entities/feed_entities.dart';
 
-/// EN: Feed page widget.
-/// KO: 피드 페이지 위젯.
+/// EN: Feed page widget with modern pill-style segmented tab bar.
+/// KO: 모던 필 스타일 세그먼트 탭바를 포함한 피드 페이지 위젯.
 class FeedPage extends ConsumerStatefulWidget {
   const FeedPage({super.key});
 
@@ -56,17 +56,11 @@ class _FeedPageState extends ConsumerState<FeedPage>
   Widget build(BuildContext context) {
     final newsState = ref.watch(newsListControllerProvider);
     final postState = ref.watch(postListControllerProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('소식'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: '뉴스'),
-            Tab(text: '커뮤니티'),
-          ],
-        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -74,17 +68,67 @@ class _FeedPageState extends ConsumerState<FeedPage>
             tooltip: '검색',
           ),
         ],
+        // EN: Pill-style segmented tab bar — matches board_page design
+        // KO: 필 스타일 세그먼트 탭바 — board_page 디자인과 일치
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            margin: const EdgeInsets.symmetric(
+              horizontal: GBTSpacing.md,
+            ),
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? GBTColors.darkSurfaceVariant
+                  : GBTColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                color: isDark ? GBTColors.darkSurface : GBTColors.surface,
+                borderRadius:
+                    BorderRadius.circular(GBTSpacing.radiusSm + 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent,
+              labelColor: isDark
+                  ? GBTColors.darkTextPrimary
+                  : GBTColors.textPrimary,
+              unselectedLabelColor: isDark
+                  ? GBTColors.darkTextTertiary
+                  : GBTColors.textTertiary,
+              labelStyle: GBTTypography.labelLarge.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              unselectedLabelStyle: GBTTypography.labelLarge,
+              tabs: const [
+                Tab(text: '뉴스'),
+                Tab(text: '커뮤니티'),
+              ],
+            ),
+          ),
+        ),
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
+          // EN: Project selector — compact style
+          // KO: 프로젝트 선택기 — 컴팩트 스타일
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
               GBTSpacing.md,
               GBTSpacing.md,
               GBTSpacing.md,
               0,
             ),
-            child: const ProjectSelectorCompact(),
+            child: ProjectSelectorCompact(),
           ),
           Expanded(
             child: TabBarView(
@@ -107,19 +151,21 @@ class _FeedPageState extends ConsumerState<FeedPage>
           ),
         ],
       ),
+      // EN: Extended FAB for consistency with board page
+      // KO: 게시판 페이지와 일관성을 위한 확장 FAB
       floatingActionButton: _showCommunityFab
-          ? FloatingActionButton(
+          ? FloatingActionButton.extended(
               onPressed: () => context.goToPostCreate(),
-              tooltip: '새 글 작성',
-              child: const Icon(Icons.edit),
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('글쓰기'),
             )
           : null,
     );
   }
 }
 
-/// EN: News list widget.
-/// KO: 뉴스 리스트 위젯.
+/// EN: News list widget — divider-separated, borderless cards.
+/// KO: 뉴스 리스트 위젯 — 구분선 분리, 무테두리 카드.
 class _NewsList extends StatelessWidget {
   const _NewsList({required this.state, required this.onRetry});
 
@@ -130,6 +176,7 @@ class _NewsList extends StatelessWidget {
   Widget build(BuildContext context) {
     return state.when(
       loading: () => ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: GBTSpacing.paddingPage,
         children: const [
           SizedBox(height: GBTSpacing.lg),
@@ -137,8 +184,10 @@ class _NewsList extends StatelessWidget {
         ],
       ),
       error: (error, _) {
-        final message = error is Failure ? error.userMessage : '뉴스를 불러오지 못했어요';
+        final message =
+            error is Failure ? error.userMessage : '뉴스를 불러오지 못했어요';
         return ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: GBTSpacing.paddingPage,
           children: [
             const SizedBox(height: GBTSpacing.lg),
@@ -149,6 +198,7 @@ class _NewsList extends StatelessWidget {
       data: (newsList) {
         if (newsList.isEmpty) {
           return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: GBTSpacing.paddingPage,
             children: const [
               SizedBox(height: GBTSpacing.lg),
@@ -157,15 +207,20 @@ class _NewsList extends StatelessWidget {
           );
         }
 
-        return ListView.builder(
-          padding: GBTSpacing.paddingPage,
+        // EN: Divider-separated list for modern look
+        // KO: 모던한 느낌의 구분선 분리 리스트
+        return ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
           itemCount: newsList.length,
+          separatorBuilder: (_, __) => const Divider(
+            height: 1,
+            indent: GBTSpacing.pageHorizontal,
+            endIndent: GBTSpacing.pageHorizontal,
+          ),
           itemBuilder: (context, index) {
             final news = newsList[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: GBTSpacing.md),
-              child: _NewsCard(news: news),
-            );
+            return _NewsCard(news: news);
           },
         );
       },
@@ -173,8 +228,8 @@ class _NewsList extends StatelessWidget {
   }
 }
 
-/// EN: News card widget.
-/// KO: 뉴스 카드 위젯.
+/// EN: News card widget — borderless with thumbnail.
+/// KO: 뉴스 카드 위젯 — 썸네일 포함 무테두리.
 class _NewsCard extends StatelessWidget {
   const _NewsCard({required this.news});
 
@@ -183,55 +238,58 @@ class _NewsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final thumbnail = news.thumbnailUrl;
-    // EN: Use theme-aware colors for dark mode compatibility.
-    // KO: 다크 모드 호환성을 위해 테마 인식 색상을 사용합니다.
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tertiaryColor = isDark
-        ? GBTColors.darkTextTertiary
-        : GBTColors.textTertiary;
+    final tertiaryColor =
+        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: () => context.goToNewsDetail(news.id),
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        child: Padding(
-          padding: GBTSpacing.paddingMd,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _NewsThumbnail(imageUrl: thumbnail),
-              const SizedBox(width: GBTSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      news.title,
-                      style: GBTTypography.titleSmall,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+    // EN: Borderless card — no Card wrapper, just InkWell + Padding
+    // KO: 무테두리 카드 — Card 래퍼 없이, InkWell + Padding만 사용
+    return InkWell(
+      onTap: () => context.goToNewsDetail(news.id),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: GBTSpacing.pageHorizontal,
+          vertical: GBTSpacing.md,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _NewsThumbnail(imageUrl: thumbnail),
+            const SizedBox(width: GBTSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    news.title,
+                    style: GBTTypography.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? GBTColors.darkTextPrimary
+                          : GBTColors.textPrimary,
                     ),
-                    const SizedBox(height: GBTSpacing.xs),
-                    Text(
-                      news.dateLabel,
-                      style: GBTTypography.labelSmall.copyWith(
-                        color: tertiaryColor,
-                      ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: GBTSpacing.xs),
+                  Text(
+                    news.dateLabel,
+                    style: GBTTypography.labelSmall.copyWith(
+                      color: tertiaryColor,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// EN: News thumbnail widget.
-/// KO: 뉴스 썸네일 위젯.
+/// EN: News thumbnail widget with rounded corners.
+/// KO: 둥근 모서리의 뉴스 썸네일 위젯.
 class _NewsThumbnail extends StatelessWidget {
   const _NewsThumbnail({required this.imageUrl});
 
@@ -239,39 +297,39 @@ class _NewsThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // EN: Use theme-aware placeholder colors.
-    // KO: 테마 인식 플레이스홀더 색상을 사용합니다.
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (imageUrl == null || imageUrl!.isEmpty) {
       return Container(
-        width: 100,
-        height: 70,
+        width: 80,
+        height: 80,
         decoration: BoxDecoration(
           color: isDark
               ? GBTColors.darkSurfaceVariant
               : GBTColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
         ),
         child: Icon(
-          Icons.image,
-          color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+          Icons.article_outlined,
+          color:
+              isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+          size: 28,
         ),
       );
     }
 
     return GBTImage(
       imageUrl: imageUrl!,
-      width: 100,
-      height: 70,
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+      width: 80,
+      height: 80,
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
       semanticLabel: '뉴스 썸네일',
     );
   }
 }
 
-/// EN: Community list widget.
-/// KO: 커뮤니티 리스트 위젯.
+/// EN: Community list widget — divider-separated, SNS-style.
+/// KO: 커뮤니티 리스트 위젯 — 구분선 분리, SNS 스타일.
 class _CommunityList extends StatelessWidget {
   const _CommunityList({required this.state, required this.onRetry});
 
@@ -282,6 +340,7 @@ class _CommunityList extends StatelessWidget {
   Widget build(BuildContext context) {
     return state.when(
       loading: () => ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: GBTSpacing.paddingPage,
         children: const [
           SizedBox(height: GBTSpacing.lg),
@@ -293,6 +352,7 @@ class _CommunityList extends StatelessWidget {
             ? error.userMessage
             : '커뮤니티 글을 불러오지 못했어요';
         return ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: GBTSpacing.paddingPage,
           children: [
             const SizedBox(height: GBTSpacing.lg),
@@ -303,6 +363,7 @@ class _CommunityList extends StatelessWidget {
       data: (posts) {
         if (posts.isEmpty) {
           return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: GBTSpacing.paddingPage,
             children: const [
               SizedBox(height: GBTSpacing.lg),
@@ -311,15 +372,20 @@ class _CommunityList extends StatelessWidget {
           );
         }
 
-        return ListView.builder(
-          padding: GBTSpacing.paddingPage,
+        // EN: Divider-separated SNS-style list
+        // KO: 구분선 분리 SNS 스타일 리스트
+        return ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
           itemCount: posts.length,
+          separatorBuilder: (_, __) => const Divider(
+            height: 1,
+            indent: GBTSpacing.pageHorizontal,
+            endIndent: GBTSpacing.pageHorizontal,
+          ),
           itemBuilder: (context, index) {
             final post = posts[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: GBTSpacing.md),
-              child: _CommunityPostCard(post: post),
-            );
+            return _CommunityPostCard(post: post);
           },
         );
       },
@@ -327,8 +393,8 @@ class _CommunityList extends StatelessWidget {
   }
 }
 
-/// EN: Community post card widget.
-/// KO: 커뮤니티 게시글 카드 위젯.
+/// EN: Community post card — borderless, divider-separated SNS style.
+/// KO: 커뮤니티 게시글 카드 — 무테두리, 구분선 분리 SNS 스타일.
 class _CommunityPostCard extends StatelessWidget {
   const _CommunityPostCard({required this.post});
 
@@ -344,97 +410,107 @@ class _CommunityPostCard extends StatelessWidget {
         : null;
     final commentCount = post.commentCount ?? 0;
     final likeCount = post.likeCount ?? 0;
-    // EN: Use theme-aware colors for dark mode compatibility.
-    // KO: 다크 모드 호환성을 위해 테마 인식 색상을 사용합니다.
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tertiaryColor = isDark
-        ? GBTColors.darkTextTertiary
-        : GBTColors.textTertiary;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: () => context.goToPostDetail(post.id),
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        child: Padding(
-          padding: GBTSpacing.paddingMd,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _Avatar(
-                    url: avatarUrl,
-                    radius: 16,
-                    semanticLabel: '$authorLabel 프로필 사진',
-                    onTap: () => context.goToUserProfile(post.authorId),
+    final tertiaryColor =
+        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+
+    // EN: Borderless post card — no Card wrapper
+    // KO: 무테두리 게시글 카드 — Card 래퍼 없음
+    return InkWell(
+      onTap: () => context.goToPostDetail(post.id),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: GBTSpacing.pageHorizontal,
+          vertical: GBTSpacing.md,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // EN: Author row
+            // KO: 작성자 행
+            Row(
+              children: [
+                _Avatar(
+                  url: avatarUrl,
+                  radius: 18,
+                  semanticLabel: '$authorLabel 프로필 사진',
+                  onTap: () => context.goToUserProfile(post.authorId),
+                ),
+                const SizedBox(width: GBTSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        authorLabel,
+                        style: GBTTypography.labelMedium.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        post.timeAgoLabel,
+                        style: GBTTypography.labelSmall.copyWith(
+                          color: tertiaryColor,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: GBTSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          authorLabel,
-                          style: GBTTypography.labelMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          post.timeAgoLabel,
-                          style: GBTTypography.labelSmall.copyWith(
-                            color: tertiaryColor,
-                          ),
-                        ),
-                      ],
+                ),
+                // EN: Horizontal more icon — matches board page
+                // KO: 수평 더보기 아이콘 — 게시판 페이지와 일치
+                Icon(
+                  Icons.more_horiz,
+                  size: 20,
+                  color: tertiaryColor,
+                ),
+              ],
+            ),
+            const SizedBox(height: GBTSpacing.sm),
+            // EN: Title with semi-bold weight
+            // KO: 세미볼드 가중치의 제목
+            Text(
+              post.title,
+              style: GBTTypography.bodyMedium.copyWith(
+                fontWeight: FontWeight.w500,
+                color: isDark
+                    ? GBTColors.darkTextPrimary
+                    : GBTColors.textPrimary,
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: GBTSpacing.sm),
+            // EN: Engagement stats row
+            // KO: 참여 통계 행
+            Semantics(
+              label: '좋아요 $likeCount개, 댓글 $commentCount개',
+              child: Row(
+                children: [
+                  Icon(Icons.favorite_border,
+                      size: 16, color: tertiaryColor),
+                  const SizedBox(width: GBTSpacing.xxs),
+                  Text(
+                    likeCount.toString(),
+                    style: GBTTypography.labelSmall.copyWith(
+                      color: tertiaryColor,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.more_vert),
-                    iconSize: 20,
-                    tooltip: '더 보기',
-                    onPressed: () {},
+                  const SizedBox(width: GBTSpacing.md),
+                  Icon(Icons.chat_bubble_outline,
+                      size: 16, color: tertiaryColor),
+                  const SizedBox(width: GBTSpacing.xxs),
+                  Text(
+                    commentCount.toString(),
+                    style: GBTTypography.labelSmall.copyWith(
+                      color: tertiaryColor,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: GBTSpacing.sm),
-              Text(
-                post.title,
-                style: GBTTypography.bodyMedium,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: GBTSpacing.sm),
-              const SizedBox(height: GBTSpacing.xs),
-              Semantics(
-                label: '좋아요 $likeCount개, 댓글 $commentCount개',
-                child: Row(
-                  children: [
-                    Icon(Icons.favorite_border, size: 16, color: tertiaryColor),
-                    const SizedBox(width: GBTSpacing.xs),
-                    Text(
-                      likeCount.toString(),
-                      style: GBTTypography.labelSmall.copyWith(
-                        color: tertiaryColor,
-                      ),
-                    ),
-                    const SizedBox(width: GBTSpacing.md),
-                    Icon(
-                      Icons.comment_outlined,
-                      size: 16,
-                      color: tertiaryColor,
-                    ),
-                    const SizedBox(width: GBTSpacing.xs),
-                    Text(
-                      commentCount.toString(),
-                      style: GBTTypography.labelSmall.copyWith(
-                        color: tertiaryColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -458,15 +534,11 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // EN: Use theme-aware placeholder colors.
-    // KO: 테마 인식 플레이스홀더 색상을 사용합니다.
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark
-        ? GBTColors.darkSurfaceVariant
-        : GBTColors.surfaceVariant;
-    final iconColor = isDark
-        ? GBTColors.darkTextTertiary
-        : GBTColors.textTertiary;
+    final bgColor =
+        isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant;
+    final iconColor =
+        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
 
     final fallback = CircleAvatar(
       radius: radius,
