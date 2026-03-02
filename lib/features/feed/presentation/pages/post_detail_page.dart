@@ -207,7 +207,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                 .read(postLikeControllerProvider(post.id).notifier)
                 .toggleLike();
             if (result is Err<PostLikeStatus> && context.mounted) {
-              _showSnackBar(context, '좋아요를 반영하지 못했어요');
+              _showSnackBar(context, '좋아요/좋아요 취소를 반영하지 못했어요');
             }
           },
           onToggleBookmark: () async {
@@ -353,30 +353,87 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     required PostComment comment,
   }) async {
     final controller = TextEditingController(text: comment.content);
-    final newContent = await showDialog<String>(
+    final newContent = await showModalBottomSheet<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('댓글 수정'),
-        content: TextField(
-          controller: controller,
-          maxLines: 5,
-          decoration: const InputDecoration(hintText: '댓글 내용을 입력하세요'),
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(GBTSpacing.radiusLg),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final trimmed = controller.text.trim();
-              if (trimmed.isEmpty) return;
-              Navigator.of(dialogContext).pop(trimmed);
-            },
-            child: const Text('저장'),
-          ),
-        ],
       ),
+      builder: (sheetContext) {
+        final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            GBTSpacing.md,
+            GBTSpacing.sm,
+            GBTSpacing.md,
+            bottomInset + GBTSpacing.md,
+          ),
+          child: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (context, value, _) {
+              final trimmed = value.text.trim();
+              final canSave = trimmed.isNotEmpty && trimmed != comment.content;
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '댓글 수정',
+                    style: GBTTypography.titleSmall.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: GBTSpacing.sm),
+                  TextField(
+                    controller: controller,
+                    minLines: 3,
+                    maxLines: 6,
+                    textInputAction: TextInputAction.newline,
+                    decoration: InputDecoration(
+                      hintText: '댓글 내용을 입력하세요',
+                      filled: true,
+                      fillColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          GBTSpacing.radiusMd,
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.all(GBTSpacing.md),
+                    ),
+                  ),
+                  const SizedBox(height: GBTSpacing.md),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          child: const Text('취소'),
+                        ),
+                      ),
+                      const SizedBox(width: GBTSpacing.sm),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: canSave
+                              ? () => Navigator.of(sheetContext).pop(trimmed)
+                              : null,
+                          child: const Text('저장'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
     controller.dispose();
 
@@ -756,6 +813,9 @@ class _PostDetailContent extends StatelessWidget {
         ? GBTColors.darkTextSecondary
         : GBTColors.textSecondary;
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
+    final commentActionColor = isDark
+        ? GBTColors.darkPrimary
+        : GBTColors.accentBlue;
 
     return Column(
       children: [
@@ -765,6 +825,7 @@ class _PostDetailContent extends StatelessWidget {
             padding: GBTSpacing.paddingPage,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _Avatar(
                     url: authorAvatarUrl,
@@ -774,44 +835,56 @@ class _PostDetailContent extends StatelessWidget {
                   ),
                   const SizedBox(width: GBTSpacing.sm),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          post.title,
-                          style: GBTTypography.titleSmall,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          authorLabel,
-                          style: GBTTypography.labelSmall.copyWith(
-                            color: tertiaryColor,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  authorLabel,
+                                  style: GBTTypography.labelLarge.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: GBTSpacing.xs),
+                              Text(
+                                '· ${post.timeAgoLabel}',
+                                style: GBTTypography.labelSmall.copyWith(
+                                  color: tertiaryColor,
+                                ),
+                              ),
+                              if (post.updatedAt != null &&
+                                  post.updatedAt!.isAfter(post.createdAt)) ...[
+                                const SizedBox(width: GBTSpacing.xs),
+                                Text(
+                                  '수정됨',
+                                  style: GBTTypography.labelSmall.copyWith(
+                                    color: tertiaryColor,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          post.timeAgoLabel,
-                          style: GBTTypography.labelSmall.copyWith(
-                            color: tertiaryColor,
+                          const SizedBox(height: 2),
+                          Text(
+                            post.title,
+                            style: GBTTypography.titleMedium.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                  if (!isOwnPost)
-                    TextButton(
-                      onPressed: () {
-                        // EN: TODO: Follow user.
-                        // KO: TODO: 사용자 팔로우.
-                      },
-                      child: const Text('팔로우'),
-                    ),
                 ],
               ),
-              const SizedBox(height: GBTSpacing.md),
+              const SizedBox(height: GBTSpacing.sm + 2),
               if (post.moderationStatus == ContentModerationStatus.quarantined)
                 Container(
                   width: double.infinity,
@@ -872,44 +945,31 @@ class _PostDetailContent extends StatelessWidget {
                     '댓글 $commentCountLabel개',
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: Icon(
-                        isLiked ? Icons.favorite : Icons.favorite_border,
-                        color: isLiked ? GBTColors.favorite : null,
-                      ),
-                      tooltip: isLiked ? '좋아요 취소' : '좋아요',
-                      onPressed: onToggleLike,
-                    ),
-                    Text(
-                      likeCount.toString(),
-                      style: GBTTypography.labelMedium.copyWith(
-                        color: secondaryColor,
+                    Expanded(
+                      child: _TimelineActionButton(
+                        icon: Icons.mode_comment_outlined,
+                        label: commentCountLabel,
+                        color: commentActionColor,
+                        onTap: onFocusComment,
                       ),
                     ),
-                    const SizedBox(width: GBTSpacing.md),
-                    IconButton(
-                      icon: const Icon(Icons.comment_outlined),
-                      tooltip: '댓글',
-                      onPressed: onFocusComment,
-                    ),
-                    Text(
-                      commentCountLabel,
-                      style: GBTTypography.labelMedium.copyWith(
-                        color: secondaryColor,
+                    Expanded(
+                      child: _TimelineActionButton(
+                        icon: isLiked ? Icons.favorite : Icons.favorite_border,
+                        label: _compactCountLabel(likeCount),
+                        color: isLiked ? GBTColors.favorite : tertiaryColor,
+                        onTap: onToggleLike,
                       ),
                     ),
-                    const Spacer(),
-                    IconButton(
-                      icon: Icon(
-                        isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                    Expanded(
+                      child: _TimelineActionButton(
+                        icon: isBookmarked
+                            ? Icons.bookmark
+                            : Icons.bookmark_border,
+                        label: '',
+                        color: tertiaryColor,
+                        onTap: onToggleBookmark,
                       ),
-                      tooltip: isBookmarked ? '북마크 해제' : '북마크',
-                      onPressed: onToggleBookmark,
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.share),
-                      tooltip: '공유',
-                      onPressed: () {},
                     ),
                   ],
                 ),
@@ -925,6 +985,7 @@ class _PostDetailContent extends StatelessWidget {
               const SizedBox(height: GBTSpacing.md),
               _PostCommentsSection(
                 state: commentsState,
+                postAuthorId: post.authorId,
                 onTapAuthor: onTapAuthor,
                 currentUserId: currentUserId,
                 isAdmin: isAdmin,
@@ -939,7 +1000,12 @@ class _PostDetailContent extends StatelessWidget {
         ),
         if (isAuthenticated)
           Container(
-            padding: const EdgeInsets.all(GBTSpacing.md),
+            padding: const EdgeInsets.fromLTRB(
+              GBTSpacing.md,
+              GBTSpacing.xs,
+              GBTSpacing.md,
+              GBTSpacing.sm,
+            ),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               border: Border(top: BorderSide(color: borderColor)),
@@ -959,15 +1025,14 @@ class _PostDetailContent extends StatelessWidget {
                           controller: commentController,
                           focusNode: commentFocusNode,
                           minLines: 1,
-                          maxLines: 4,
+                          maxLines: 3,
                           textInputAction: TextInputAction.newline,
                           decoration: InputDecoration(
-                            hintText: '댓글을 입력하세요...',
+                            hintText: '댓글 작성...',
                             filled: true,
-                            fillColor: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest
-                                .withValues(alpha: 0.35),
+                            fillColor: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(
                                 GBTSpacing.radiusFull,
@@ -981,17 +1046,9 @@ class _PostDetailContent extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: GBTSpacing.sm),
-                      FilledButton(
+                      IconButton.filled(
                         onPressed: canSubmit ? onSubmitComment : null,
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size(56, 44),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              GBTSpacing.radiusFull,
-                            ),
-                          ),
-                        ),
-                        child: isSubmitting
+                        icon: isSubmitting
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
@@ -1001,6 +1058,7 @@ class _PostDetailContent extends StatelessWidget {
                                 ),
                               )
                             : const Icon(Icons.send_rounded, size: 18),
+                        tooltip: '댓글 등록',
                       ),
                     ],
                   );
@@ -1146,6 +1204,7 @@ class _ReportSheetState extends State<_ReportSheet> {
 class _PostCommentsSection extends StatefulWidget {
   const _PostCommentsSection({
     required this.state,
+    required this.postAuthorId,
     required this.onTapAuthor,
     required this.currentUserId,
     required this.isAdmin,
@@ -1157,6 +1216,7 @@ class _PostCommentsSection extends StatefulWidget {
   });
 
   final AsyncValue<List<PostComment>> state;
+  final String postAuthorId;
   final ValueChanged<String> onTapAuthor;
   final String? currentUserId;
   final bool isAdmin;
@@ -1188,6 +1248,10 @@ class _PostCommentsSectionState extends State<_PostCommentsSection> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    final selectedColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
 
     return widget.state.when(
       loading: () => const GBTLoading(message: '댓글을 불러오는 중...'),
@@ -1202,63 +1266,64 @@ class _PostCommentsSectionState extends State<_PostCommentsSection> {
         final sortedComments = _sortedComments(comments);
 
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                Text(
+                  '${comments.length}개 댓글',
+                  style: GBTTypography.labelLarge.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                _CommentSortTextButton(
+                  label: '최신순',
+                  selected: _sort == _CommentSort.latest,
+                  selectedColor: selectedColor,
+                  textColor: tertiaryColor,
+                  onTap: () => setState(() => _sort = _CommentSort.latest),
+                ),
+                const SizedBox(width: GBTSpacing.xs),
+                _CommentSortTextButton(
+                  label: '등록순',
+                  selected: _sort == _CommentSort.oldest,
+                  selectedColor: selectedColor,
+                  textColor: tertiaryColor,
+                  onTap: () => setState(() => _sort = _CommentSort.oldest),
+                ),
+              ],
+            ),
+            const SizedBox(height: GBTSpacing.sm),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(GBTSpacing.sm),
               decoration: BoxDecoration(
-                border: Border.all(color: borderColor),
-                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-              ),
-              child: Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                runSpacing: GBTSpacing.xs,
-                spacing: GBTSpacing.sm,
-                children: [
-                  Text(
-                    '${comments.length}개 댓글',
-                    style: GBTTypography.labelMedium.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Wrap(
-                    spacing: GBTSpacing.xs,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('최신순'),
-                        selected: _sort == _CommentSort.latest,
-                        onSelected: (_) =>
-                            setState(() => _sort = _CommentSort.latest),
-                      ),
-                      ChoiceChip(
-                        label: const Text('등록순'),
-                        selected: _sort == _CommentSort.oldest,
-                        onSelected: (_) =>
-                            setState(() => _sort = _CommentSort.oldest),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: GBTSpacing.md),
-            ...sortedComments.map(
-              (comment) => Padding(
-                padding: const EdgeInsets.only(bottom: GBTSpacing.md),
-                child: _CommentItem(
-                  comment: comment,
-                  onTapAuthor: widget.onTapAuthor,
-                  canEdit: widget.currentUserId == comment.authorId,
-                  canDelete:
-                      widget.currentUserId == comment.authorId ||
-                      (widget.isAdmin && widget.currentUserId != null),
-                  canReport: widget.isAuthenticated,
-                  onEdit: widget.onEditComment,
-                  onDelete: widget.onDeleteComment,
-                  onReport: widget.onReportComment,
-                  onOpenThread: widget.onOpenCommentThread,
+                border: Border.symmetric(
+                  horizontal: BorderSide(color: borderColor),
                 ),
+              ),
+              child: Column(
+                children: [
+                  for (var index = 0; index < sortedComments.length; index++)
+                    _CommentItem(
+                      comment: sortedComments[index],
+                      postAuthorId: widget.postAuthorId,
+                      showDivider: index < sortedComments.length - 1,
+                      onTapAuthor: widget.onTapAuthor,
+                      canEdit:
+                          widget.currentUserId ==
+                          sortedComments[index].authorId,
+                      canDelete:
+                          widget.currentUserId ==
+                              sortedComments[index].authorId ||
+                          (widget.isAdmin && widget.currentUserId != null),
+                      canReport: widget.isAuthenticated,
+                      onEdit: widget.onEditComment,
+                      onDelete: widget.onDeleteComment,
+                      onReport: widget.onReportComment,
+                      onOpenThread: widget.onOpenCommentThread,
+                    ),
+                ],
               ),
             ),
           ],
@@ -1273,6 +1338,8 @@ class _PostCommentsSectionState extends State<_PostCommentsSection> {
 class _CommentItem extends StatelessWidget {
   const _CommentItem({
     required this.comment,
+    required this.postAuthorId,
+    required this.showDivider,
     required this.onTapAuthor,
     required this.canEdit,
     required this.canDelete,
@@ -1284,6 +1351,8 @@ class _CommentItem extends StatelessWidget {
   });
 
   final PostComment comment;
+  final String postAuthorId;
+  final bool showDivider;
   final ValueChanged<String> onTapAuthor;
   final bool canEdit;
   final bool canDelete;
@@ -1301,38 +1370,71 @@ class _CommentItem extends StatelessWidget {
     final avatarUrl = comment.authorAvatarUrl?.isNotEmpty == true
         ? comment.authorAvatarUrl
         : null;
-    // EN: Use theme-aware colors for dark mode compatibility.
-    // KO: 다크 모드 호환성을 위해 테마 인식 색상을 사용합니다.
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark
-        ? GBTColors.darkSurfaceVariant.withValues(alpha: 0.28)
-        : GBTColors.surfaceVariant.withValues(alpha: 0.42);
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
-    final secondaryColor = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
+    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final contentColor = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
     final tertiaryColor = isDark
         ? GBTColors.darkTextTertiary
         : GBTColors.textTertiary;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final nestedSurfaceColor = isDark
+        ? GBTColors.darkSurfaceVariant.withValues(alpha: 0.18)
+        : GBTColors.surfaceVariant.withValues(alpha: 0.48);
+    final replyActionColor = isDark
+        ? GBTColors.darkPrimary
+        : GBTColors.accentBlue;
     final isEdited =
         comment.updatedAt != null &&
         comment.updatedAt!.isAfter(comment.createdAt);
     final replyCount = comment.replyCount ?? 0;
+    final rawDepth = comment.depth ?? 0;
+    final normalizedDepth = comment.parentCommentId == null
+        ? 0
+        : (rawDepth > 1 ? rawDepth - 1 : 1);
+    final indent = normalizedDepth > 0
+        ? (normalizedDepth * 10.0).clamp(10.0, 30.0)
+        : 0.0;
+    final isPostAuthor = comment.authorId == postAuthorId;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(GBTSpacing.md),
+      margin: EdgeInsets.only(left: indent),
       decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        border: Border.all(color: borderColor),
+        color: normalizedDepth > 0 ? nestedSurfaceColor : null,
+        border: showDivider
+            ? Border(bottom: BorderSide(color: borderColor))
+            : null,
+      ),
+      padding: const EdgeInsets.fromLTRB(
+        GBTSpacing.sm,
+        GBTSpacing.sm,
+        GBTSpacing.sm,
+        GBTSpacing.sm2,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (normalizedDepth > 0)
+            Container(
+              width: 2,
+              height: 50,
+              margin: const EdgeInsets.only(
+                top: GBTSpacing.xxs,
+                right: GBTSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: borderColor,
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+              ),
+            ),
           _Avatar(
             url: avatarUrl,
-            radius: 16,
+            radius: 14,
             semanticLabel: '$authorLabel 프로필 사진',
             onTap: () => onTapAuthor(comment.authorId),
           ),
@@ -1342,16 +1444,62 @@ class _CommentItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    if (normalizedDepth > 0) ...[
+                      Icon(
+                        Icons.subdirectory_arrow_right_rounded,
+                        size: 14,
+                        color: tertiaryColor,
+                      ),
+                      const SizedBox(width: GBTSpacing.xs),
+                    ],
                     Flexible(
-                      child: Text(
-                        authorLabel,
-                        style: GBTTypography.labelMedium,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: InkWell(
+                        onTap: () => onTapAuthor(comment.authorId),
+                        borderRadius: BorderRadius.circular(
+                          GBTSpacing.radiusXs,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 2,
+                            vertical: 1,
+                          ),
+                          child: Text(
+                            authorLabel,
+                            style: GBTTypography.labelMedium.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: contentColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: GBTSpacing.xs),
+                    if (isPostAuthor) ...[
+                      const SizedBox(width: GBTSpacing.xs),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: GBTSpacing.xs,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(
+                            GBTSpacing.radiusFull,
+                          ),
+                        ),
+                        child: Text(
+                          '글쓴이',
+                          style: GBTTypography.labelSmall.copyWith(
+                            color: primaryColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const Spacer(),
                     Text(
                       comment.timeAgoLabel,
                       style: GBTTypography.labelSmall.copyWith(
@@ -1361,16 +1509,25 @@ class _CommentItem extends StatelessWidget {
                     if (isEdited) ...[
                       const SizedBox(width: GBTSpacing.xs),
                       Text(
-                        '수정됨',
+                        '수정',
                         style: GBTTypography.labelSmall.copyWith(
                           color: tertiaryColor,
                         ),
                       ),
                     ],
-                    if (canEdit || canDelete || canReport) const Spacer(),
                     if (canEdit || canDelete)
                       PopupMenuButton<_CommentAction>(
                         tooltip: '댓글 관리',
+                        icon: Icon(
+                          Icons.more_horiz,
+                          size: 18,
+                          color: tertiaryColor,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
                         onSelected: (action) {
                           if (action == _CommentAction.edit) {
                             onEdit(comment);
@@ -1394,6 +1551,16 @@ class _CommentItem extends StatelessWidget {
                     else if (canReport)
                       PopupMenuButton<_CommentOtherAction>(
                         tooltip: '댓글 옵션',
+                        icon: Icon(
+                          Icons.more_horiz,
+                          size: 18,
+                          color: tertiaryColor,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
                         onSelected: (_) => onReport(comment),
                         itemBuilder: (context) => const [
                           PopupMenuItem(
@@ -1404,25 +1571,60 @@ class _CommentItem extends StatelessWidget {
                       ),
                   ],
                 ),
-                const SizedBox(height: GBTSpacing.xs),
+                const SizedBox(height: GBTSpacing.xxs),
                 Text(
                   comment.content,
-                  style: GBTTypography.bodySmall.copyWith(
-                    color: secondaryColor,
-                    height: 1.45,
+                  style: GBTTypography.bodyMedium.copyWith(
+                    color: contentColor,
+                    fontWeight: FontWeight.w500,
+                    height: 1.52,
                   ),
                 ),
-                if (replyCount > 0) ...[
-                  const SizedBox(height: GBTSpacing.xs),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: () => onOpenThread(comment),
-                      icon: const Icon(Icons.forum_outlined, size: 16),
-                      label: Text('답글 $replyCount개 보기'),
+                const SizedBox(height: GBTSpacing.xs),
+                Wrap(
+                  spacing: GBTSpacing.sm,
+                  runSpacing: GBTSpacing.xxs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    InkWell(
+                      onTap: () => onOpenThread(comment),
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 2,
+                          vertical: 1,
+                        ),
+                        child: Text(
+                          '답글',
+                          style: GBTTypography.labelSmall.copyWith(
+                            color: secondaryColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                    if (replyCount > 0)
+                      InkWell(
+                        onTap: () => onOpenThread(comment),
+                        borderRadius: BorderRadius.circular(
+                          GBTSpacing.radiusXs,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 2,
+                            vertical: 1,
+                          ),
+                          child: Text(
+                            '답글 $replyCount개 보기',
+                            style: GBTTypography.labelSmall.copyWith(
+                              color: replyActionColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -1430,6 +1632,91 @@ class _CommentItem extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CommentSortTextButton extends StatelessWidget {
+  const _CommentSortTextButton({
+    required this.label,
+    required this.selected,
+    required this.selectedColor,
+    required this.textColor,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final Color selectedColor;
+  final Color textColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? selectedColor : textColor;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: GBTSpacing.xs,
+          vertical: GBTSpacing.xs,
+        ),
+        child: Text(
+          label,
+          style: GBTTypography.labelSmall.copyWith(
+            color: color,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TimelineActionButton extends StatelessWidget {
+  const _TimelineActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 36),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: GBTSpacing.xs),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 17, color: color),
+              if (label.isNotEmpty) ...[
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: GBTTypography.labelSmall.copyWith(color: color),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _compactCountLabel(int count) {
+  if (count >= 10000) return '${(count / 10000).toStringAsFixed(1)}만';
+  if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}천';
+  return count.toString();
 }
 
 class _CommentThreadNodeView extends StatelessWidget {

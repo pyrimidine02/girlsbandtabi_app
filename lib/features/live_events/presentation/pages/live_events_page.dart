@@ -10,6 +10,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_spacing.dart';
+import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/cards/gbt_event_card.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/layout/gbt_page_intro_card.dart';
@@ -72,9 +73,18 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
       appBar: AppBar(
         title: const Text('라이브'),
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
+          preferredSize: const Size.fromHeight(44),
           child: GBTSegmentedTabBar(
             controller: _tabController,
+            height: 44,
+            margin: const EdgeInsets.symmetric(horizontal: GBTSpacing.md2),
+            padding: const EdgeInsets.all(2),
+            borderRadius: GBTSpacing.radiusSm,
+            indicatorBorderRadius: GBTSpacing.radiusSm,
+            indicatorShadow: false,
+            labelStyle: GBTTypography.tabLabel,
+            unselectedLabelStyle: GBTTypography.labelMedium,
+            labelPadding: const EdgeInsets.symmetric(horizontal: GBTSpacing.sm),
             tabs: const [
               Tab(text: '예정'),
               Tab(text: '완료'),

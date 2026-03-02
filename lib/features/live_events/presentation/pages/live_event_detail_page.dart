@@ -68,6 +68,14 @@ class LiveEventDetailPage extends ConsumerWidget {
     WidgetRef ref,
     LiveEventDetail event,
   ) {
+    // EN: Expand header height so portrait posters can be shown without crop.
+    // KO: 세로형 포스터를 잘리지 않게 보여주기 위해 헤더 높이를 늘립니다.
+    final posterExpandedHeight = (MediaQuery.sizeOf(context).width * 1.45)
+        .clamp(300.0, 620.0);
+    final topInset = MediaQuery.paddingOf(context).top;
+    // EN: Push poster down slightly so status-bar area remains visually clean.
+    // KO: 상태바 영역이 덜 가려지도록 포스터를 약간 아래로 내립니다.
+    final posterTopOffset = topInset + GBTSpacing.lg2;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final secondaryColor = isDark
         ? GBTColors.darkTextSecondary
@@ -75,6 +83,12 @@ class LiveEventDetailPage extends ConsumerWidget {
     final surfaceVariantColor = isDark
         ? GBTColors.darkSurfaceVariant
         : GBTColors.surfaceVariant;
+    final posterBackgroundTop = isDark
+        ? const Color(0xFF1A1D22)
+        : const Color(0xFFF2F4F7);
+    final posterBackgroundBottom = isDark
+        ? const Color(0xFF121418)
+        : const Color(0xFFE8ECF3);
     final favoritesState = ref.watch(favoritesControllerProvider);
     final isFavorite = favoritesState.maybeWhen(
       data: (items) => items.any(
@@ -86,17 +100,65 @@ class LiveEventDetailPage extends ConsumerWidget {
 
     return [
       SliverAppBar(
-        expandedHeight: 300,
+        expandedHeight: posterExpandedHeight,
         pinned: true,
+        leadingWidth: 56,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: GBTSpacing.xs),
+          child: _OverlayIconButton(
+            tooltip: '뒤로 가기',
+            icon: Icons.arrow_back_ios_new_rounded,
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
+        ),
         flexibleSpace: FlexibleSpaceBar(
           background: event.bannerUrl != null
-              ? Hero(
-                  tag: GBTHeroTags.eventPoster(event.id),
-                  child: GBTImage(
-                    imageUrl: event.bannerUrl!,
-                    fit: BoxFit.cover,
-                    semanticLabel: '${event.title} 포스터',
-                  ),
+              ? Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // EN: Neutral gradient background for letterbox area.
+                    // KO: 레터박스 영역은 중립 그라데이션 배경으로 처리합니다.
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [posterBackgroundTop, posterBackgroundBottom],
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        GBTSpacing.md,
+                        posterTopOffset,
+                        GBTSpacing.md,
+                        GBTSpacing.lg,
+                      ),
+                      child: Hero(
+                        tag: GBTHeroTags.eventPoster(event.id),
+                        child: GBTImage(
+                          imageUrl: event.bannerUrl!,
+                          fit: BoxFit.contain,
+                          semanticLabel: '${event.title} 포스터',
+                        ),
+                      ),
+                    ),
+                    // EN: Keep top controls readable on bright posters.
+                    // KO: 밝은 포스터에서도 상단 컨트롤 가독성을 유지합니다.
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.center,
+                          colors: [
+                            Color(0x66000000),
+                            Color(0x22000000),
+                            Color(0x00000000),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 )
               : Container(
                   color: surfaceVariantColor,
@@ -126,8 +188,8 @@ class LiveEventDetailPage extends ConsumerWidget {
                 ),
         ),
         actions: [
-          IconButton(
-            icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
+          _OverlayIconButton(
+            icon: isFavorite ? Icons.favorite : Icons.favorite_border,
             tooltip: isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가',
             onPressed: () => ref
                 .read(favoritesControllerProvider.notifier)
@@ -137,8 +199,8 @@ class LiveEventDetailPage extends ConsumerWidget {
                   isCurrentlyFavorite: isFavorite,
                 ),
           ),
-          IconButton(
-            icon: const Icon(Icons.share),
+          _OverlayIconButton(
+            icon: Icons.share,
             tooltip: '이벤트 공유',
             onPressed: () {
               // EN: TODO: Share event
@@ -240,6 +302,35 @@ class LiveEventDetailPage extends ConsumerWidget {
         ),
       ),
     ];
+  }
+}
+
+/// EN: Header icon button with readability backdrop.
+/// KO: 가독성 배경이 있는 헤더 아이콘 버튼.
+class _OverlayIconButton extends StatelessWidget {
+  const _OverlayIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: tooltip,
+      style: IconButton.styleFrom(
+        foregroundColor: Colors.white,
+        backgroundColor: const Color(0x5C000000),
+        minimumSize: const Size(38, 38),
+        padding: const EdgeInsets.all(8),
+      ),
+      icon: Icon(icon),
+    );
   }
 }
 

@@ -23,6 +23,8 @@ class MainScaffold extends ConsumerStatefulWidget {
 }
 
 class _MainScaffoldState extends ConsumerState<MainScaffold> {
+  static const Duration _androidExitBackWindow = Duration(seconds: 3);
+
   int? _lastSyncedIndex;
   bool _syncScheduled = false;
   DateTime? _lastBackPressed;
@@ -55,15 +57,17 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         }
         final now = DateTime.now();
         if (_lastBackPressed != null &&
-            now.difference(_lastBackPressed!) < const Duration(seconds: 2)) {
+            now.difference(_lastBackPressed!) < _androidExitBackWindow) {
           SystemNavigator.pop();
           return;
         }
         _lastBackPressed = now;
-        ScaffoldMessenger.of(context).showSnackBar(
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
           const SnackBar(
-            content: Text("'뒤로' 버튼을 한 번 더 누르시면 종료됩니다"),
-            duration: Duration(seconds: 2),
+            content: Text('뒤로 버튼을 한 번 더 누르면 앱이 종료됩니다'),
+            duration: _androidExitBackWindow,
           ),
         );
       },

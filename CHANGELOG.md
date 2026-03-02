@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-03-02
+- **LIVE/UI**: Updated live event detail poster header to render full poster bounds (`BoxFit.contain`) with responsive expanded height so poster edges are no longer cropped.
+- **LIVE/UI**: Refined live detail header controls for poster mode by adding high-contrast overlay icon buttons (back/favorite/share) and replacing hard black letterbox with soft poster backdrop + top gradient for readability.
+- **LIVE/UI**: Adjusted poster vertical placement to sit lower under the status bar area and removed poster-reflection style backdrop under the image (switched to neutral gradient background).
+- **LIVE/BOARD/UI**: Slimmed the `예정/완료` and `커뮤니티/여행 후기` segmented tabs with compact sizing (reduced height/padding, softer indicator) to remove oversized button feel in app bars.
+- **ANDROID/NAV**: Main shell back behavior updated to double-press exit with a 3-second window (Android only) and clearer exit guidance snackbar copy.
+- **COMMUNITY/UI**: Reworked board feed cards into a timeline-first layout (left avatar, compact author/time meta, text-first body, full-width media, and balanced 4-action row) for faster scanning on mobile.
+- **COMMUNITY/UI**: Reworked post-detail header/actions to the same timeline interaction rhythm for consistent board → detail visual flow.
+- **COMMUNITY/COMMENTS**: Switched comments from card blocks to compact list threading (reduced padding, divider-based separation, depth indentation + thread line, denser reply CTA) inspired by forum-first reading UX.
+- **COMMUNITY/INPUT**: Simplified comment composer into a compact quick-reply bar (`댓글 작성...` + filled send icon) to reduce vertical footprint.
+- **COMMUNITY/UI (PHASE2)**: Tuned action hierarchy with intent colors (comment/repost/like) and normalized action tap heights for better thumb ergonomics on small screens.
+- **COMMUNITY/COMMENTS (PHASE2)**: Enhanced nested reply readability with subtle depth background + `답글` badge and stronger reply CTA color contrast.
+- **COMMUNITY/UI (PHASE3)**: Removed non-functional repost action from board/detail action rows to match actual feature set and keep interaction affordances consistent.
+- **COMMUNITY/UX (PHASE3)**: Updated like toggle failure copy to explicitly cover both like and unlike flows (`좋아요/좋아요 취소를 반영하지 못했어요`).
+- **COMMUNITY/COMMENTS (PHASE3)**: Increased comment body readability with unified comment container styling and higher-contrast content text.
+- **COMMUNITY/COMMENTS (PHASE4)**: Rebuilt post-detail comment list to an Everytime-like text-first thread layout (no avatar rows, slimmer sort controls, author/meta emphasis, `글쓴이` badge, clearer nested reply lane, and compact reply actions) while keeping edit/delete/report/thread features.
+- **COMMUNITY/COMMENTS (PHASE5)**: Fixed left-offset drift by normalizing API depth values (supports both root-depth `0` and `1` contracts), tightened author/content spacing, restored left avatar tap-to-profile behavior, and unified comment-edit UX into a bottom-sheet editor consistent with in-page comment input patterns.
+- **AUTH/NETWORK (PHASE3)**: Fixed auth-retry error propagation so when token refresh succeeds but retried API fails (e.g. 500), the app surfaces the retried error instead of masking it as the original 401.
+- **TESTING**: Verified updated community presentation files with `flutter analyze` and `flutter test test/features/feed`.
+
 ## 2026-03-01
 - **UI/UX/SYSTEM**: Applied app-wide visual consistency layer by introducing unified app background tokens/gradients and wiring them through global app chrome.
 - **UI/UX/SYSTEM**: Added global tap-to-dismiss keyboard behavior in `MaterialApp.builder` to reduce form friction across all pages.

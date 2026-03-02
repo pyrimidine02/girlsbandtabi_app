@@ -18,6 +18,13 @@ class GBTSegmentedTabBar extends StatelessWidget {
     this.margin,
     this.padding = const EdgeInsets.all(3),
     this.isScrollable = false,
+    this.height,
+    this.borderRadius = GBTSpacing.radiusMd,
+    this.indicatorBorderRadius = GBTSpacing.radiusSm + 1,
+    this.indicatorShadow = true,
+    this.labelStyle,
+    this.unselectedLabelStyle,
+    this.labelPadding,
   });
 
   final List<Widget> tabs;
@@ -25,31 +32,44 @@ class GBTSegmentedTabBar extends StatelessWidget {
   final EdgeInsetsGeometry? margin;
   final EdgeInsetsGeometry padding;
   final bool isScrollable;
+  final double? height;
+  final double borderRadius;
+  final double indicatorBorderRadius;
+  final bool indicatorShadow;
+  final TextStyle? labelStyle;
+  final TextStyle? unselectedLabelStyle;
+  final EdgeInsetsGeometry? labelPadding;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final resolvedLabelStyle = (labelStyle ?? GBTTypography.labelLarge)
+        .copyWith(fontWeight: FontWeight.w600);
+    final resolvedUnselectedLabelStyle =
+        unselectedLabelStyle ?? labelStyle ?? GBTTypography.labelLarge;
 
-    return Container(
+    final segmented = Container(
       margin: margin ?? const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
       padding: padding,
       decoration: BoxDecoration(
         color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(borderRadius),
       ),
       child: TabBar(
         controller: controller,
         isScrollable: isScrollable,
         indicator: BoxDecoration(
           color: isDark ? GBTColors.darkSurface : GBTColors.surface,
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusSm + 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(indicatorBorderRadius),
+          boxShadow: indicatorShadow
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
         ),
         indicatorSize: TabBarIndicatorSize.tab,
         dividerColor: Colors.transparent,
@@ -57,12 +77,16 @@ class GBTSegmentedTabBar extends StatelessWidget {
         unselectedLabelColor: isDark
             ? GBTColors.darkTextTertiary
             : GBTColors.textTertiary,
-        labelStyle: GBTTypography.labelLarge.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
-        unselectedLabelStyle: GBTTypography.labelLarge,
+        labelStyle: resolvedLabelStyle,
+        unselectedLabelStyle: resolvedUnselectedLabelStyle,
+        labelPadding: labelPadding,
         tabs: tabs,
       ),
     );
+
+    if (height == null) {
+      return segmented;
+    }
+    return SizedBox(height: height, child: segmented);
   }
 }

@@ -298,8 +298,7 @@ class _AuthInterceptor extends Interceptor {
     // KO: 무한 재시도 루프 방지를 위해 _authRetried 플래그를 사용합니다.
     final alreadyRetried = err.requestOptions.extra['_authRetried'] == true;
     if (!alreadyRetried &&
-        (err.response?.statusCode == 401 ||
-            err.response?.statusCode == 403)) {
+        (err.response?.statusCode == 401 || err.response?.statusCode == 403)) {
       try {
         final refreshOutcome = await _refreshOrWait();
         if (refreshOutcome == _RefreshOutcome.refreshed) {
@@ -309,8 +308,21 @@ class _AuthInterceptor extends Interceptor {
           err.requestOptions.headers[ApiHeaders.authorization] =
               '${ApiHeaders.bearer} $token';
           err.requestOptions.extra['_authRetried'] = true;
-          final response = await _dio.fetch(err.requestOptions);
-          return handler.resolve(response);
+          try {
+            final response = await _dio.fetch(err.requestOptions);
+            return handler.resolve(response);
+          } on DioException catch (retryError) {
+            // EN: Refresh succeeded but retried request failed (for example 5xx).
+            // EN: Propagate the retried request error itself instead of the original
+            // EN: 401/403, so the UI receives the real failure cause.
+            // KO: 토큰 갱신은 성공했지만 재시도 요청이 실패한 경우(예: 5xx),
+            // KO: 원본 401/403이 아닌 재시도 요청 오류를 그대로 전달합니다.
+            AppLogger.error(
+              'Retried request failed after token refresh',
+              error: retryError,
+            );
+            return handler.next(retryError);
+          }
         }
 
         if (refreshOutcome == _RefreshOutcome.invalidSession) {
@@ -329,7 +341,7 @@ class _AuthInterceptor extends Interceptor {
           );
         }
       } catch (e) {
-        AppLogger.error('Token refresh failed', error: e);
+        AppLogger.error('Token refresh flow failed', error: e);
       }
     }
 

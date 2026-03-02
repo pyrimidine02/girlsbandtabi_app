@@ -1,9 +1,14 @@
 # TODO
 
+- Verify live-event detail poster visibility on small iPhone screens and landscape mode after switching header image fit to `BoxFit.contain` (remove once QA passes).
+- Verify live-detail header controls (back/favorite/share) remain clearly visible on bright/dark posters after overlay-button update (remove once QA passes).
+- Verify live-detail poster top offset (status-bar clearance) and neutral gradient background look natural across notch/non-notch iPhones and Android devices (remove once QA passes).
+- Verify compact segmented-tab sizing (`라이브: 예정/완료`, `게시판: 커뮤니티/여행 후기`) looks balanced with Korean text scaling on iOS/Android (remove once QA passes).
 - Run visual QA pass on all primary routes after the new global theme/chrome layer (`home`, `places`, `live-events`, `community`, `search`, `settings`) and capture before/after screenshots (remove once reviewed).
 - Roll out `GBTPageIntroCard` + `GBTSegmentedTabBar` to remaining content routes (`home`, `info`, `feed`, `travel_review_detail`, `visit_detail`) for full-page parity (remove once completed).
 - Run color-contrast QA for the new blue primary palette on CTA-heavy screens (`auth`, `post_create`, `profile_edit`) in both light/dark mode (remove once validated).
 - Run iOS device QA for interactive swipe-back on detail/overlay routes (`place_detail`, `live_detail`, `news_detail`, `settings`) after stack-first navigation change (remove once validated).
+- Run Android QA for shell-root double-back exit (3-second grace window, snackbar visibility, and no impact on in-stack back behavior) on physical devices (remove once validated).
 - Run iOS device QA for shell-nested community/profile flows (`board/posts/:id`, `users/:id`, `settings/profile`) after dynamic `PopScope` back handling update (remove once validated).
 - Verify no keyboard-dismiss side effects in rich editor flows (`post_create`, `post_edit`, `profile_edit`) after global tap-to-dismiss was enabled (remove once QA passes).
 - Add widget golden tests for global theme consistency (card radius, input radius, popup/tooltip colors, list tile density) to prevent drift (remove once coverage lands).
@@ -11,10 +16,15 @@
 - Add a HomePage widget test that verifies the ProjectSelector renders during loading and triggers a reload after selection (remove once CI covers the flow).
 - Run on-device QA for home hero image fallback and featured-live chip tap flow (poster present/absent cases) and capture screenshots (remove once validated).
 - Run QA for post-detail comment UX updates (sort chip behavior, composer focus jump from comment icon, multiline submit disabled/enabled states) on iOS/Android (remove once validated).
+- Run QA for redesigned board/post timeline UX (feed action-row tap targets, full-width media cropping, compact comment thread indentation/readability, quick-reply composer height) on iOS/Android (remove once validated).
+- Run QA for redesigned community action colors (comment/like/bookmark/share contrast in light/dark, color-blind legibility, pressed state visibility) on iOS/Android (remove once validated).
+- Run QA after repost-action removal (3-action row balance and accidental-tap rate on board/detail) on iOS/Android (remove once validated).
+- Verify like toggle failure copy in both directions (like and unlike) and confirm localization tone with product owner (remove once validated).
 - Run QA for places region filter UX updates (reactive loading without stuck spinner, compact chip entry, multi-select search/apply/clear, selected-count badge, single-region camera move) on iOS/Android (remove once validated).
 - Run QA for `계정 도구` flows on iOS/Android: blocks list load/unblock, role request submit/cancel, verification appeal submit/list (remove once validated).
 - Request backend fix: `GET /api/v1/home/summary` currently returns 500 (confirmed on both slug and UUID `projectId` as of 2026-03-01).
 - Request backend fix: `GET /api/v1/users/me` returns 500 in authenticated app bootstrap flow (as of 2026-03-01).
+- Request backend fix: `DELETE /api/v1/projects/{projectId}/posts/{postId}/like` intermittently returns 500 after token refresh on valid authenticated flow (observed 2026-03-02, projectId `girls-band-cry`).
 - Add a CI step (or pre-commit hook) to run `build_runner` so generated files stay in sync.
 - Add CI check to compare `ApiEndpoints` against `/v3/api-docs` and fail on missing/removed paths.
 - Verify community-ban management sheet filter/sort controls (query/sort chips) remain usable without overflow on small-width devices (remove once mobile QA passes).
@@ -90,6 +100,8 @@
 - Verify logout cache clear behavior for stale list/detail screens after re-login (remove once QA confirms).
 - Verify cache-first background revalidation cadence (10m) against backend rate limits and tune interval if needed.
 - Verify report sheet keyboard dismiss behavior (tap outside/drag/done) on iOS and Android keyboards.
+- QA post-detail comment thread readability after PHASE4 redesign (small-width devices, long-text wrapping, and deep reply indentation at depth >= 2).
+- QA PHASE5 comment fixes on iOS/Android: root/reply indentation alignment, avatar tap-to-profile navigation, and bottom-sheet edit flow keyboard/submit behavior.
 - Confirm user profile `bio` and `coverImageUrl` are returned on public profile endpoints (read + update).
 - Confirm whether `username` should be an email for registration and align login labels accordingly.
 - Confirm unit name/description semantics (`code` vs `displayName`) with backend and update mapping if the contract changes.

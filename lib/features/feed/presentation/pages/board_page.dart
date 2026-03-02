@@ -104,12 +104,21 @@ class _BoardPageState extends ConsumerState<BoardPage>
           const GBTProfileAction(),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
+          preferredSize: const Size.fromHeight(44),
           child: GBTSegmentedTabBar(
             controller: _tabController,
+            height: 44,
+            margin: const EdgeInsets.symmetric(horizontal: GBTSpacing.md2),
+            padding: const EdgeInsets.all(2),
+            borderRadius: GBTSpacing.radiusSm,
+            indicatorBorderRadius: GBTSpacing.radiusSm,
+            indicatorShadow: false,
+            labelStyle: GBTTypography.tabLabel,
+            unselectedLabelStyle: GBTTypography.labelMedium,
+            labelPadding: const EdgeInsets.symmetric(horizontal: GBTSpacing.sm),
             tabs: const [
               Tab(text: '커뮤니티'),
-              Tab(text: '여행후기'),
+              Tab(text: '여행 후기'),
             ],
           ),
         ),
@@ -911,6 +920,10 @@ class _CommunityPostCard extends ConsumerWidget {
     final tertiaryColor = isDark
         ? GBTColors.darkTextTertiary
         : GBTColors.textTertiary;
+    final commentActionColor = isDark
+        ? GBTColors.darkPrimary
+        : GBTColors.accentBlue;
+    final likeActionColor = likeCount > 0 ? GBTColors.secondary : tertiaryColor;
 
     // EN: Resolve first image URL for thumbnail.
     // KO: 썸네일용 첫 번째 이미지 URL을 해석합니다.
@@ -948,41 +961,84 @@ class _CommunityPostCard extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: GBTSpacing.md,
-          vertical: GBTSpacing.md,
+          vertical: GBTSpacing.sm + 2,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // EN: Author row
-            // KO: 작성자 행
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _Avatar(
                   url: avatarUrl,
-                  radius: 18,
+                  radius: 17,
                   semanticLabel: '$authorLabel 프로필 사진',
                   onTap: () => context.goToUserProfile(post.authorId),
                 ),
                 const SizedBox(width: GBTSpacing.sm),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        authorLabel,
-                        style: GBTTypography.labelLarge.copyWith(
-                          fontWeight: FontWeight.w600,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                authorLabel,
+                                style: GBTTypography.labelLarge.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: GBTSpacing.xs),
+                            Text(
+                              '· ${post.timeAgoLabel}',
+                              style: GBTTypography.caption.copyWith(
+                                color: tertiaryColor,
+                              ),
+                            ),
+                          ],
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        post.timeAgoLabel,
-                        style: GBTTypography.caption.copyWith(
-                          color: tertiaryColor,
+                        const SizedBox(height: 1),
+                        Text(
+                          post.title,
+                          style: GBTTypography.bodyLarge.copyWith(
+                            fontWeight: FontWeight.w600,
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
+                        if (post.content != null && post.content!.isNotEmpty)
+                          Builder(
+                            builder: (context) {
+                              final raw = stripImageMarkdown(post.content!);
+                              if (raw.isEmpty) return const SizedBox.shrink();
+                              final snippet = raw.length > 130
+                                  ? '${raw.substring(0, 130)}…'
+                                  : raw;
+                              return Padding(
+                                padding: const EdgeInsets.only(
+                                  top: GBTSpacing.xs,
+                                ),
+                                child: Text(
+                                  snippet,
+                                  style: GBTTypography.bodySmall.copyWith(
+                                    color: secondaryTextColor,
+                                    height: 1.42,
+                                  ),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
                   ),
                 ),
                 if (showMoreButton)
@@ -1057,85 +1113,48 @@ class _CommunityPostCard extends ConsumerWidget {
                   ),
               ],
             ),
-            const SizedBox(height: GBTSpacing.sm + 2),
-            // EN: Title — semi-bold
-            // KO: 제목 — 세미볼드
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        post.title,
-                        style: GBTTypography.titleSmall.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      // EN: Content snippet
-                      // KO: 내용 스니펫
-                      Builder(
-                        builder: (context) {
-                          if (post.content == null || post.content!.isEmpty) {
-                            return const SizedBox.shrink();
-                          }
-                          final raw = stripImageMarkdown(post.content!);
-                          if (raw.isEmpty) return const SizedBox.shrink();
-                          final snippet = raw.length > 100
-                              ? '${raw.substring(0, 100)}…'
-                              : raw;
-                          return Padding(
-                            padding: const EdgeInsets.only(top: GBTSpacing.xs),
-                            child: Text(
-                              snippet,
-                              style: GBTTypography.bodySmall.copyWith(
-                                color: secondaryTextColor,
-                                height: 1.4,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+            if (firstImageUrl != null) ...[
+              const SizedBox(height: GBTSpacing.sm + 2),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                child: AspectRatio(
+                  aspectRatio: 16 / 10,
+                  child: GBTImage(
+                    imageUrl: firstImageUrl,
+                    fit: BoxFit.cover,
+                    semanticLabel: '${post.title} 첨부 이미지',
                   ),
                 ),
-                if (firstImageUrl != null) ...[
-                  const SizedBox(width: GBTSpacing.md),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-                    child: GBTImage(
-                      imageUrl: firstImageUrl,
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.cover,
-                      semanticLabel: '${post.title} 첨부 이미지',
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: GBTSpacing.sm + 2),
-            // EN: Engagement stats row
-            // KO: 인게이지먼트 통계 행
+              ),
+            ],
+            const SizedBox(height: GBTSpacing.xs),
             Semantics(
               label: '좋아요 $likeCount개, 댓글 $commentCount개',
               child: Row(
                 children: [
-                  _EngagementStat(
-                    icon: Icons.favorite_border,
-                    count: likeCount,
-                    color: tertiaryColor,
+                  Expanded(
+                    child: _FeedActionButton(
+                      icon: Icons.mode_comment_outlined,
+                      label: _formatCount(commentCount),
+                      color: commentActionColor,
+                      onTap: () => context.goToPostDetail(post.id),
+                    ),
                   ),
-                  const SizedBox(width: GBTSpacing.lg),
-                  _EngagementStat(
-                    icon: Icons.chat_bubble_outline,
-                    count: commentCount,
-                    color: tertiaryColor,
+                  Expanded(
+                    child: _FeedActionButton(
+                      icon: Icons.favorite_border,
+                      label: _formatCount(likeCount),
+                      color: likeActionColor,
+                      onTap: () => context.goToPostDetail(post.id),
+                    ),
+                  ),
+                  Expanded(
+                    child: _FeedActionButton(
+                      icon: Icons.ios_share_outlined,
+                      label: '',
+                      color: tertiaryColor,
+                      onTap: () => context.goToPostDetail(post.id),
+                    ),
                   ),
                 ],
               ),
@@ -1266,39 +1285,53 @@ class _CommunityPostCard extends ConsumerWidget {
   }
 }
 
-/// EN: Engagement stat — icon + count pair.
-/// KO: 인게이지먼트 통계 — 아이콘 + 카운트 쌍.
-class _EngagementStat extends StatelessWidget {
-  const _EngagementStat({
+/// EN: Compact feed action button used in timeline-style cards.
+/// KO: 타임라인형 카드에서 사용하는 컴팩트 액션 버튼.
+class _FeedActionButton extends StatelessWidget {
+  const _FeedActionButton({
     required this.icon,
-    required this.count,
+    required this.label,
     required this.color,
+    required this.onTap,
   });
 
   final IconData icon;
-  final int count;
+  final String label;
   final Color color;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: GBTSpacing.xs),
-        Text(
-          _formatCount(count),
-          style: GBTTypography.labelSmall.copyWith(color: color),
+    return InkWell(
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 36),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: GBTSpacing.xs),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 17, color: color),
+              if (label.isNotEmpty) ...[
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: GBTTypography.labelSmall.copyWith(color: color),
+                ),
+              ],
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
+}
 
-  String _formatCount(int count) {
-    if (count >= 10000) return '${(count / 10000).toStringAsFixed(1)}만';
-    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}천';
-    return count.toString();
-  }
+String _formatCount(int count) {
+  if (count >= 10000) return '${(count / 10000).toStringAsFixed(1)}만';
+  if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}천';
+  return count.toString();
 }
 
 /// EN: Returns true when a role has admin/moderator privileges.
