@@ -231,6 +231,47 @@ final projectUnitsControllerProvider =
       return ProjectUnitsController(ref, projectKey);
     });
 
+/// EN: Controller for loading members of a specific unit.
+/// KO: 특정 유닛의 멤버 목록을 불러오는 컨트롤러.
+class UnitMembersController
+    extends StateNotifier<AsyncValue<List<UnitMember>>> {
+  UnitMembersController(this._ref, this._projectId, this._unitId)
+    : super(const AsyncLoading()) {
+    load();
+  }
+
+  final Ref _ref;
+  final String _projectId;
+  final String _unitId;
+
+  Future<void> load({bool forceRefresh = false}) async {
+    state = const AsyncLoading();
+    final repository = await _ref.read(projectsRepositoryProvider.future);
+    final result = await repository.getUnitMembers(
+      projectId: _projectId,
+      unitId: _unitId,
+      forceRefresh: forceRefresh,
+    );
+
+    if (result is Success<List<UnitMember>>) {
+      state = AsyncData(result.data);
+    } else if (result is Err<List<UnitMember>>) {
+      state = AsyncError(result.failure, StackTrace.current);
+    }
+  }
+}
+
+/// EN: Unit members controller provider — keyed by (projectId, unitId) tuple.
+/// KO: (projectId, unitId) 쌍으로 키 지정된 유닛 멤버 컨트롤러 프로바이더.
+final unitMembersControllerProvider =
+    StateNotifierProvider.family<
+      UnitMembersController,
+      AsyncValue<List<UnitMember>>,
+      (String, String)
+    >((ref, args) {
+      return UnitMembersController(ref, args.$1, args.$2);
+    });
+
 /// EN: Project selection controller provider.
 /// KO: 프로젝트 선택 컨트롤러 프로바이더.
 final projectSelectionControllerProvider =

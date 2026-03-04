@@ -1,5 +1,49 @@
 # Changelog
 
+## 2026-03-04 (Info Page — Wiki Polish Pass: Shimmer, Badges, Birthday)
+- **INFO/SHIMMER**: All tab skeleton loaders replaced with `GBTShimmer` + `GBTShimmerContainer` (animated sweep effect).
+- **INFO/NEWS**: `_NewsRowItem` list items show a `NEW` badge (red pill) when `publishedAt` is within the last 24 hours.
+- **INFO/UNITS**: Unit accordion header displays member count badge (e.g. "5명") using `paletteColor` tint after members load.
+- **INFO/MEMBERS**: `_MemberProfileCard` shows birthday countdown (🎂 N일 후 생일 / 🎂 오늘 생일!) parsed from `birthdate` field — up to 7 days ahead; today's birthday uses `GBTColors.secondary` (pink), upcoming uses `GBTColors.accent` (amber).
+- **UTILS**: Added `_daysUntilBirthday(String?)` top-level utility — handles MM-DD, YYYY-MM-DD, MM/DD, YYYY/MM/DD formats.
+
+## 2026-03-04 (Info Page — Wiki Redesign + Member/VA Data Layer)
+- **INFO/APPBAR**: `ProjectSelectorCompact` moved inline into AppBar title row with separator (consistent with live/board pattern).
+- **INFO/TABS**: TabBar replaced custom chip row with native `TabBar` (icon + label) anchored to AppBar bottom.
+- **INFO/NEWS**: First news item displays as hero card (16:9 AspectRatio image + NEW badge overlay + gradient + title); subsequent items as compact 80×80 thumb rows with section header.
+- **INFO/UNITS**: 2-col grid replaced with single-column accordion list — tap unit to expand inline member+성우 roster (animated SizeTransition + chevron rotation). Members loaded via real API on first expand.
+- **INFO/MEMBERS**: New real members tab — sections per unit (color-coded dot header) with 2-col `_MemberProfileCard` grid showing avatar, name, instrument/role tag, 성우(성우) row with mic icon.
+- **INFO/SONGS**: Coming-soon placeholder upgraded — album icon, title, 3-col colorful placeholder grid for visual depth.
+- **DATA/MEMBER**: Added full member data pipeline:
+  - `ApiEndpoints.unitMembers(projectId, unitId)` + `unitMember(...)`
+  - `MemberDto` (id, name, role, voiceActorName, imageUrl, order, birthdate, instrument, isActive)
+  - `UnitMember` domain entity with `fromDto` factory
+  - `ProjectsRemoteDataSource.fetchUnitMembers()` — GET `/units/{unitId}/members`
+  - `ProjectsRepository.getUnitMembers()` + `ProjectsRepositoryImpl` with 15-min cache
+  - `UnitMembersController` StateNotifier + `unitMembersControllerProvider` (family keyed by `(projectId, unitId)`)
+
+## 2026-03-04 (Board + Post Detail Redesign — Phase 2: Engagement Features)
+- **BOARD/APPBAR**: `ProjectSelectorCompact` moved inline into `AppBar` title row with separator (matches live page pattern).
+- **BOARD/FILTER**: Filter chips now auto-sort active chip first; each chip has a contextual icon (schedule/fire/group).
+- **BOARD/CARD**: Added `_HotBadge` (amber, fire icon, "인기") overlay on post cards with ≥10 likes; multi-image badge overlay shows photo count.
+- **BOARD/TRENDING**: Added `_PopularPostsCarousel` — horizontal scroll section of top-liked posts when in latest mode.
+- **POST-DETAIL/ACTIONBAR**: Stats bar "좋아요 N명이 공감했어요" above action buttons; action row redesigned as card with vertical dividers between comment/like/bookmark.
+- **POST-DETAIL/COMMENTS**: Comment section header now has `chat_bubble_outline_rounded` icon prefix.
+- **POST-DETAIL/EMPTY**: Motivational empty comment state replaces generic `GBTEmptyState` — circle icon + "아직 댓글이 없어요" + "첫 번째로 생각을 남겨보세요!".
+- **POST-DETAIL/COMPOSER**: User avatar `CircleAvatar` (radius 14, person icon) prepended to comment input row for social context.
+
+## 2026-03-04 (Board + Post Detail Redesign — Weverse/Twitter-style)
+- **BOARD/UI**: `IconButton` → `GBTAppBarIconButton` for refresh/flag/gavel actions in board AppBar (consistency).
+- **BOARD/CARD**: `_CommunityPostCard` restructured to segmented layout — header+content in padded section, image full-card-width with 16:9 aspect ratio (was 16:10), avatar radius 17→20 (40px diameter, Weverse-scale).
+- **BOARD/TRAVEL**: `_TravelReviewCard` now shows real `GBTImage` when URL provided, falling back to gradient placeholder; image height 160→180.
+- **POST-DETAIL/UX**: Loading spinner → `_PostDetailSkeleton` (GBTShimmer-based — author row, body lines, 16:9 image placeholder, action bar row).
+- **POST-DETAIL/IMAGE**: `_ImageCarousel` fixed height 260 → `AspectRatio(16/9)` for responsive display across device sizes.
+- **POST-DETAIL/UI**: Post author avatar radius 20→22 for better visual presence in detail view.
+
+## 2026-03-04 (Detail Pages Redesign — Live Event & Place + API Investigation)
+- **USER-PROFILE/FIX**: Applied `FontWeight.w700` cap to follower/following count value text (was w800, corrected to match design system max weight).
+- **PLACES/API**: Investigated region filter empty state — confirmed data layer is correct per Swagger spec; `/regions/available` requires USER/ADMIN auth, empty state reflects no server-side region data for the project (not a Flutter bug). All contract tests pass.
+
 ## 2026-03-04 (Detail Pages Redesign — Live Event & Place)
 - **LIVE/UI**: Full rewrite of `LiveEventDetailPage` — skeleton loading (GBTShimmer) replaces spinner; LIVE overlay badge (red glow) + D-day badge on poster hero area; `_StatusChip` (color-coded: live/upcoming/completed); horizontal scrollable `_InfoCard` row (날짜/시간/대상); ticket section as `OutlinedButton.icon` with `url_launcher` instead of inline link.
 - **LIVE/UI**: Redesigned `live_events_page` top area — `ProjectSelectorCompact` moved into `AppBar` title beside "라이브" separator label; `groups_outlined` action removed; `_BandFilterBar` replaced with horizontal scrollable `_BandChipFilterRow` + animated `_BandChip` (primary tint on selection).

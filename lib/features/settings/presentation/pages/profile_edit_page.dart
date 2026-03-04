@@ -1,5 +1,5 @@
-/// EN: Profile edit page for updating display name/avatar/bio/cover.
-/// KO: 표시 이름/아바타/소개/배경 이미지를 수정하는 프로필 편집 페이지.
+/// EN: Profile edit page — iOS-settings style, consistent with SettingsPage.
+/// KO: 프로필 편집 페이지 — SettingsPage와 동일한 iOS 설정 스타일.
 library;
 
 import 'package:flutter/material.dart';
@@ -16,7 +16,6 @@ import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
-import '../../../../core/widgets/layout/gbt_page_intro_card.dart';
 import '../../../uploads/application/uploads_controller.dart';
 import '../../../uploads/utils/webp_image_converter.dart';
 import '../../application/settings_controller.dart';
@@ -56,29 +55,23 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
   bool get _isBusy => _isSaving || _isUploadingAvatar || _isUploadingCover;
 
   bool get _hasPendingChanges {
-    if (!_didSetInitial) {
-      return false;
-    }
-
+    if (!_didSetInitial) return false;
     final currentDisplayName = _displayNameController.text.trim();
     final currentBio = _normalizeOptional(_bioController.text);
     final baselineDisplayName = (_initialDisplayName ?? '').trim();
     final baselineBio = _normalizeOptional(_initialBio ?? '');
-
     final currentAvatar = _pendingAvatarUrl ?? _initialAvatarUrl;
     final currentCover = _pendingCoverUrl ?? _initialCoverUrl;
-
     return currentDisplayName != baselineDisplayName ||
         currentBio != baselineBio ||
         currentAvatar != _initialAvatarUrl ||
         currentCover != _initialCoverUrl;
   }
 
-  bool get _canSaveProfile {
-    return !_isBusy &&
-        _hasPendingChanges &&
-        _displayNameController.text.trim().isNotEmpty;
-  }
+  bool get _canSaveProfile =>
+      !_isBusy &&
+      _hasPendingChanges &&
+      _displayNameController.text.trim().isNotEmpty;
 
   @override
   void initState() {
@@ -99,9 +92,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
   }
 
   void _onFormChanged() {
-    if (!mounted || _isHydrating) {
-      return;
-    }
+    if (!mounted || _isHydrating) return;
     setState(() {});
   }
 
@@ -115,7 +106,6 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     _displayNameController.text = profile.displayName;
     _bioController.text = profile.bio ?? '';
     _isHydrating = false;
-
     _initialDisplayName = profile.displayName;
     _initialBio = profile.bio;
     _initialAvatarUrl = profile.avatarUrl;
@@ -126,17 +116,14 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
   }
 
   Future<bool> _handleWillPop() async {
-    if (_isBusy) {
-      return false;
-    }
-
-    if (!_hasPendingChanges) {
-      return true;
-    }
-
+    if (_isBusy) return false;
+    if (!_hasPendingChanges) return true;
     final shouldDiscard = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
+        ),
         title: const Text('저장하지 않고 나갈까요?'),
         content: const Text('프로필 변경 사항이 사라집니다.'),
         actions: [
@@ -151,14 +138,12 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
         ],
       ),
     );
-
     return shouldDiscard ?? false;
   }
 
   Future<void> _saveProfile() async {
     final displayName = _displayNameController.text.trim();
     final bio = _normalizeOptional(_bioController.text);
-
     if (displayName.isEmpty) {
       _showMessage('표시 이름을 입력해주세요');
       return;
@@ -167,9 +152,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
       _showMessage('변경된 내용이 없어요');
       return;
     }
-
     setState(() => _isSaving = true);
-
     final profile = ref.read(userProfileControllerProvider).valueOrNull;
     final result = await ref
         .read(userProfileControllerProvider.notifier)
@@ -179,26 +162,20 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
           bio: bio,
           coverImageUrl: _pendingCoverUrl ?? profile?.coverImageUrl,
         );
-
-    if (!mounted) {
-      return;
-    }
-
+    if (!mounted) return;
     setState(() => _isSaving = false);
-
     if (result case Success<UserProfile>(:final data)) {
       _hydrateFromProfile(data);
       _showMessage('프로필이 저장되었습니다');
       context.pop();
       return;
     }
-
     _showMessage('프로필 저장에 실패했습니다');
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isAuthenticated = ref.watch(isAuthenticatedProvider);
 
     if (!isAuthenticated) {
@@ -213,13 +190,9 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     return PopScope<Object?>(
       canPop: !_isBusy && !_hasPendingChanges,
       onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) {
-          return;
-        }
+        if (didPop) return;
         final shouldPop = await _handleWillPop();
-        if (!mounted || !shouldPop) {
-          return;
-        }
+        if (!mounted || !shouldPop) return;
         Navigator.of(this.context).pop(result);
       },
       child: GestureDetector(
@@ -232,20 +205,22 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
                 button: true,
                 label: _isSaving ? '저장 중' : '프로필 저장',
                 enabled: _canSaveProfile,
-                child: TextButton(
-                  onPressed: _canSaveProfile ? _saveProfile : null,
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(
-                      GBTSpacing.touchTarget,
-                      GBTSpacing.touchTarget,
-                    ),
-                  ),
-                  child: Text(
-                    _isSaving ? '저장 중' : '저장',
-                    style: GBTTypography.bodyMedium.copyWith(
-                      color: _canSaveProfile
-                          ? colorScheme.primary
-                          : colorScheme.onSurfaceVariant,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: GBTSpacing.xs),
+                  child: TextButton(
+                    onPressed: _canSaveProfile ? _saveProfile : null,
+                    child: Text(
+                      _isSaving ? '저장 중' : '저장',
+                      style: GBTTypography.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: _canSaveProfile
+                            ? (isDark
+                                ? GBTColors.darkPrimary
+                                : GBTColors.primary)
+                            : (isDark
+                                ? GBTColors.darkTextTertiary
+                                : GBTColors.textTertiary),
+                      ),
                     ),
                   ),
                 ),
@@ -262,67 +237,19 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
                 ? '배경 이미지 업로드 중...'
                 : null,
             child: state.when(
-              loading: () => const GBTLoading(message: '프로필을 불러오는 중...'),
-              error: (error, _) => Center(
-                child: Padding(
-                  padding: GBTSpacing.paddingPage,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: GBTSpacing.xxl,
-                        color: colorScheme.error,
-                        semanticLabel: '오류 아이콘',
-                      ),
-                      const SizedBox(height: GBTSpacing.md),
-                      Text(
-                        '프로필 정보를 불러오지 못했어요',
-                        style: GBTTypography.titleSmall.copyWith(
-                          color: colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: GBTSpacing.sm),
-                      Text(
-                        '잠시 후 다시 시도해주세요',
-                        style: GBTTypography.bodySmall.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: GBTSpacing.lg),
-                      Semantics(
-                        button: true,
-                        label: '프로필 정보 다시 불러오기',
-                        child: ElevatedButton(
-                          onPressed: () => ref
-                              .read(userProfileControllerProvider.notifier)
-                              .load(forceRefresh: true),
-                          style: ElevatedButton.styleFrom(
-                            minimumSize: const Size(
-                              GBTSpacing.touchTarget,
-                              GBTSpacing.touchTarget,
-                            ),
-                          ),
-                          child: const Text('다시 시도'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              loading: () =>
+                  const GBTLoading(message: '프로필을 불러오는 중...'),
+              error: (error, _) => _ProfileLoadError(
+                onRetry: () => ref
+                    .read(userProfileControllerProvider.notifier)
+                    .load(forceRefresh: true),
               ),
               data: (profile) {
-                if (profile == null) {
-                  return const SizedBox.shrink();
-                }
-
-                if (!_didSetInitial) {
-                  _hydrateFromProfile(profile);
-                }
+                if (profile == null) return const SizedBox.shrink();
+                if (!_didSetInitial) _hydrateFromProfile(profile);
 
                 final avatarUrl = _pendingAvatarUrl ?? profile.avatarUrl;
                 final coverUrl = _pendingCoverUrl ?? profile.coverImageUrl;
-                final hasPendingAvatar = avatarUrl != profile.avatarUrl;
-                final hasPendingCover = coverUrl != profile.coverImageUrl;
 
                 return _ProfileForm(
                   profile: profile,
@@ -332,9 +259,8 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
                   bioController: _bioController,
                   maxDisplayNameLength: _maxDisplayNameLength,
                   maxBioLength: _maxBioLength,
-                  hasPendingChanges: _hasPendingChanges,
-                  hasPendingAvatar: hasPendingAvatar,
-                  hasPendingCover: hasPendingCover,
+                  hasPendingAvatar: _pendingAvatarUrl != null,
+                  hasPendingCover: _pendingCoverUrl != null,
                   isUploadingAvatar: _isUploadingAvatar,
                   isUploadingCover: _isUploadingCover,
                   onChangeAvatar: _changeAvatar,
@@ -358,12 +284,8 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
       maxHeight: 1024,
       imageQuality: 90,
     );
-    if (picked == null) {
-      return;
-    }
-
+    if (picked == null) return;
     setState(() => _isUploadingAvatar = true);
-
     try {
       final payload = await convertToWebp(
         path: picked.path,
@@ -372,31 +294,26 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
         maxHeight: 1024,
         quality: 85,
       );
-      final uploadController = ref.read(uploadsControllerProvider.notifier);
-
-      final uploadResult = await uploadController.uploadImageBytes(
-        bytes: payload.bytes,
-        filename: payload.filename,
-        contentType: payload.contentType,
-      );
+      final uploadResult = await ref
+          .read(uploadsControllerProvider.notifier)
+          .uploadImageBytes(
+            bytes: payload.bytes,
+            filename: payload.filename,
+            contentType: payload.contentType,
+          );
       if (uploadResult case Err(:final failure)) {
         _handleUploadFailure(failure);
         return;
       }
-
       final upload = switch (uploadResult) {
         Success(:final data) => data,
         Err(:final failure) => throw failure,
       };
-
       if (upload.url.isEmpty) {
         _showMessage('업로드 정보를 가져오지 못했습니다.');
         return;
       }
-
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() => _pendingAvatarUrl = upload.url);
       _showMessage('사진이 업로드되었습니다. 저장을 눌러 반영하세요.');
     } on Failure catch (failure) {
@@ -404,9 +321,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     } catch (_) {
       _showMessage('사진 업로드에 실패했습니다.');
     } finally {
-      if (mounted) {
-        setState(() => _isUploadingAvatar = false);
-      }
+      if (mounted) setState(() => _isUploadingAvatar = false);
     }
   }
 
@@ -417,12 +332,8 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
       maxHeight: 1080,
       imageQuality: 90,
     );
-    if (picked == null) {
-      return;
-    }
-
+    if (picked == null) return;
     setState(() => _isUploadingCover = true);
-
     try {
       final payload = await convertToWebp(
         path: picked.path,
@@ -431,31 +342,26 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
         maxHeight: 1080,
         quality: 80,
       );
-      final uploadController = ref.read(uploadsControllerProvider.notifier);
-
-      final uploadResult = await uploadController.uploadImageBytes(
-        bytes: payload.bytes,
-        filename: payload.filename,
-        contentType: payload.contentType,
-      );
+      final uploadResult = await ref
+          .read(uploadsControllerProvider.notifier)
+          .uploadImageBytes(
+            bytes: payload.bytes,
+            filename: payload.filename,
+            contentType: payload.contentType,
+          );
       if (uploadResult case Err(:final failure)) {
         _handleUploadFailure(failure);
         return;
       }
-
       final upload = switch (uploadResult) {
         Success(:final data) => data,
         Err(:final failure) => throw failure,
       };
-
       if (upload.url.isEmpty) {
         _showMessage('업로드 정보를 가져오지 못했습니다.');
         return;
       }
-
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() => _pendingCoverUrl = upload.url);
       _showMessage('배경 이미지가 업로드되었습니다. 저장을 눌러 반영하세요.');
     } on Failure catch (failure) {
@@ -463,16 +369,12 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     } catch (_) {
       _showMessage('배경 이미지 업로드에 실패했습니다.');
     } finally {
-      if (mounted) {
-        setState(() => _isUploadingCover = false);
-      }
+      if (mounted) setState(() => _isUploadingCover = false);
     }
   }
 
   void _handleUploadFailure(Failure failure) {
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
     final message = failure is AuthFailure && failure.code == '403'
         ? '아직 준비중입니다.'
         : failure.userMessage;
@@ -480,15 +382,17 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
   }
 
   void _showMessage(String message) {
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
+// ========================================
+// EN: Main profile form — iOS-settings layout matching SettingsPage
+// KO: 메인 프로필 폼 — SettingsPage와 동일한 iOS 설정 레이아웃
+// ========================================
 class _ProfileForm extends StatelessWidget {
   const _ProfileForm({
     required this.profile,
@@ -498,7 +402,6 @@ class _ProfileForm extends StatelessWidget {
     required this.coverUrl,
     required this.maxDisplayNameLength,
     required this.maxBioLength,
-    required this.hasPendingChanges,
     required this.hasPendingAvatar,
     required this.hasPendingCover,
     required this.isUploadingAvatar,
@@ -515,7 +418,6 @@ class _ProfileForm extends StatelessWidget {
   final String? coverUrl;
   final int maxDisplayNameLength;
   final int maxBioLength;
-  final bool hasPendingChanges;
   final bool hasPendingAvatar;
   final bool hasPendingCover;
   final bool isUploadingAvatar;
@@ -526,239 +428,317 @@ class _ProfileForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: GBTSpacing.paddingPage,
+        padding: const EdgeInsets.symmetric(
+          horizontal: GBTSpacing.md,
+          vertical: GBTSpacing.sm,
+        ),
         children: [
-          GBTPageIntroCard(
-            icon: Icons.edit_note_rounded,
-            title: '프로필 편집',
-            description: '이미지/닉네임/소개를 수정한 뒤 저장하면 공개 프로필에 반영됩니다.',
-            trailing: _EditProgressBadge(hasPendingChanges: hasPendingChanges),
+          // ── 이미지 섹션 ──────────────────────────────────────
+          _SectionHeader('이미지', isDark: isDark),
+          const SizedBox(height: GBTSpacing.xs),
+          _ImageSectionCard(
+            coverUrl: coverUrl,
+            avatarUrl: avatarUrl,
+            isUploadingCover: isUploadingCover,
+            isUploadingAvatar: isUploadingAvatar,
+            hasPendingCover: hasPendingCover,
+            hasPendingAvatar: hasPendingAvatar,
+            onChangeCover: onChangeCover,
+            onChangeAvatar: onChangeAvatar,
+            isDark: isDark,
           ),
-          const SizedBox(height: GBTSpacing.md),
-          _PendingChangesBanner(hasPendingChanges: hasPendingChanges),
-          const SizedBox(height: GBTSpacing.md),
-          _ProfileSectionCard(
-            title: '프로필 이미지',
-            description: '이미지를 변경한 뒤 저장 버튼을 눌러야 최종 반영됩니다.',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _ProfileCoverPreview(
-                  coverUrl: coverUrl,
-                  isUploading: isUploadingCover,
-                ),
-                const SizedBox(height: GBTSpacing.sm),
-                Row(
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: isUploadingCover ? null : onChangeCover,
-                      icon: const Icon(Icons.image_outlined),
-                      label: Text(isUploadingCover ? '업로드 중...' : '배경 변경'),
-                    ),
-                    if (hasPendingCover) ...[
-                      const SizedBox(width: GBTSpacing.sm),
-                      const _PendingBadge(),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: GBTSpacing.lg),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    _ProfileAvatar(
-                      avatarUrl: avatarUrl,
-                      isUploading: isUploadingAvatar,
-                    ),
-                    const SizedBox(width: GBTSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '프로필 사진',
-                            style: GBTTypography.titleSmall.copyWith(
-                              color: colorScheme.onSurface,
-                            ),
-                          ),
-                          const SizedBox(height: GBTSpacing.xxs),
-                          Text(
-                            '정사각형 이미지를 권장합니다.',
-                            style: GBTTypography.bodySmall.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: GBTSpacing.sm),
-                          Wrap(
-                            spacing: GBTSpacing.sm,
-                            runSpacing: GBTSpacing.sm,
-                            children: [
-                              OutlinedButton.icon(
-                                onPressed: isUploadingAvatar
-                                    ? null
-                                    : onChangeAvatar,
-                                icon: const Icon(Icons.camera_alt_outlined),
-                                label: Text(
-                                  isUploadingAvatar ? '업로드 중...' : '사진 변경',
-                                ),
-                              ),
-                              if (hasPendingAvatar) const _PendingBadge(),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+
+          // ── 기본 정보 섹션 ────────────────────────────────────
+          const SizedBox(height: GBTSpacing.lg),
+          _SectionHeader('기본 정보', isDark: isDark),
+          const SizedBox(height: GBTSpacing.xs),
+          _BasicInfoCard(
+            displayNameController: displayNameController,
+            bioController: bioController,
+            maxDisplayNameLength: maxDisplayNameLength,
+            maxBioLength: maxBioLength,
+            isDark: isDark,
           ),
-          const SizedBox(height: GBTSpacing.md),
-          _ProfileSectionCard(
-            title: '기본 정보',
-            description: '작성한 정보는 댓글과 게시글 작성자 정보에 표시됩니다.',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: displayNameController,
-                  maxLength: maxDisplayNameLength,
-                  textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(
-                    labelText: '표시 이름',
-                    hintText: '표시 이름을 입력하세요',
-                    helperText: '최대 $maxDisplayNameLength자',
-                    prefixIcon: const Icon(Icons.badge_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: GBTSpacing.md),
-                TextField(
-                  controller: bioController,
-                  minLines: 3,
-                  maxLines: 5,
-                  maxLength: maxBioLength,
-                  decoration: InputDecoration(
-                    labelText: '소개',
-                    hintText: '간단한 소개를 입력하세요',
-                    helperText: '최대 $maxBioLength자',
-                    alignLabelWithHint: true,
-                    prefixIcon: const Padding(
-                      padding: EdgeInsets.only(bottom: 40),
-                      child: Icon(Icons.subject_outlined),
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+
+          // ── 계정 정보 섹션 (읽기 전용) ─────────────────────
+          const SizedBox(height: GBTSpacing.lg),
+          _SectionHeader('계정 정보', isDark: isDark),
+          const SizedBox(height: GBTSpacing.xs),
+          _AccountInfoCard(profile: profile, isDark: isDark),
+
+          SizedBox(
+            height: GBTSpacing.xl + MediaQuery.of(context).padding.bottom,
           ),
-          const SizedBox(height: GBTSpacing.md),
-          _ProfileSectionCard(
-            title: '계정 정보',
-            description: '이메일과 권한 정보는 읽기 전용입니다.',
-            child: Column(
-              children: [
-                _ReadOnlyInfoRow(
-                  label: '이메일',
-                  value: profile.email,
-                  icon: Icons.mail_outline,
-                ),
-                const SizedBox(height: GBTSpacing.sm),
-                _ReadOnlyInfoRow(
-                  label: '권한',
-                  value: profile.role,
-                  icon: Icons.verified_user_outlined,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: GBTSpacing.xl),
         ],
       ),
     );
   }
 }
 
-class _EditProgressBadge extends StatelessWidget {
-  const _EditProgressBadge({required this.hasPendingChanges});
+// ========================================
+// EN: Section header — matches SettingsPage _SettingsGroup label style
+// KO: 섹션 헤더 — SettingsPage _SettingsGroup 라벨 스타일 동일
+// ========================================
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader(this.title, {required this.isDark});
 
-  final bool hasPendingChanges;
+  final String title;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: GBTSpacing.xs2),
+      child: Text(
+        title,
+        style: GBTTypography.labelSmall.copyWith(
+          color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+}
+
+// ========================================
+// EN: Section card container — matches _SettingsGroup card style exactly
+// KO: 섹션 카드 컨테이너 — _SettingsGroup 카드 스타일과 완전히 동일
+// ========================================
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.child});
+
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = hasPendingChanges
-        ? (isDark ? GBTColors.warningDark : GBTColors.warningLight)
-        : (isDark ? GBTColors.darkSurface : GBTColors.surfaceVariant);
-    final fg = hasPendingChanges
-        ? (isDark ? GBTColors.darkBackground : GBTColors.warningDark)
-        : (isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary);
-    final label = hasPendingChanges ? '저장 필요' : '동기화됨';
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        border: Border.all(
+          color: isDark ? GBTColors.darkBorderSubtle : GBTColors.border,
+          width: 0.5,
+        ),
+      ),
+      child: child,
+    );
+  }
+}
 
+// ========================================
+// EN: Image section card — cover preview + avatar row
+// KO: 이미지 섹션 카드 — 커버 미리보기 + 아바타 행
+// ========================================
+class _ImageSectionCard extends StatelessWidget {
+  const _ImageSectionCard({
+    required this.coverUrl,
+    required this.avatarUrl,
+    required this.isUploadingCover,
+    required this.isUploadingAvatar,
+    required this.hasPendingCover,
+    required this.hasPendingAvatar,
+    required this.onChangeCover,
+    required this.onChangeAvatar,
+    required this.isDark,
+  });
+
+  final String? coverUrl;
+  final String? avatarUrl;
+  final bool isUploadingCover;
+  final bool isUploadingAvatar;
+  final bool hasPendingCover;
+  final bool hasPendingAvatar;
+  final VoidCallback onChangeCover;
+  final VoidCallback onChangeAvatar;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final dividerColor =
+        isDark ? GBTColors.darkBorderSubtle : GBTColors.divider;
+
+    return _SectionCard(
+      child: Column(
+        children: [
+          // EN: Cover photo tap area — rounded top corners
+          // KO: 커버 사진 탭 영역 — 상단 모서리 둥글게
+          Semantics(
+            button: true,
+            label: '배경 이미지 변경',
+            child: _CoverTile(
+              coverUrl: coverUrl,
+              isUploading: isUploadingCover,
+              hasPending: hasPendingCover,
+              onTap: isUploadingCover ? null : onChangeCover,
+              isDark: isDark,
+            ),
+          ),
+          Divider(height: 1, color: dividerColor),
+          // EN: Avatar row — settings-row style
+          // KO: 아바타 행 — 설정 행 스타일
+          _AvatarTile(
+            avatarUrl: avatarUrl,
+            isUploading: isUploadingAvatar,
+            hasPending: hasPendingAvatar,
+            onTap: isUploadingAvatar ? null : onChangeAvatar,
+            isDark: isDark,
+            isLast: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ========================================
+// EN: Cover photo tile — rounded top, camera overlay, pending badge
+// KO: 커버 사진 타일 — 상단 둥글기, 카메라 오버레이, 대기 뱃지
+// ========================================
+class _CoverTile extends StatelessWidget {
+  const _CoverTile({
+    required this.coverUrl,
+    required this.isUploading,
+    required this.hasPending,
+    required this.onTap,
+    required this.isDark,
+  });
+
+  final String? coverUrl;
+  final bool isUploading;
+  final bool hasPending;
+  final VoidCallback? onTap;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = coverUrl != null && coverUrl!.isNotEmpty;
+    const topRadius = BorderRadius.only(
+      topLeft: Radius.circular(GBTSpacing.radiusMd),
+      topRight: Radius.circular(GBTSpacing.radiusMd),
+    );
+
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: topRadius,
+        child: SizedBox(
+          height: 120,
+          width: double.infinity,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // EN: Cover image or placeholder gradient
+              // KO: 커버 이미지 또는 플레이스홀더 그라디언트
+              if (hasImage)
+                GBTImage(
+                  imageUrl: coverUrl!,
+                  width: double.infinity,
+                  height: 120,
+                  fit: BoxFit.cover,
+                  semanticLabel: '배경 이미지',
+                )
+              else
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: isDark
+                          ? [
+                              GBTColors.darkSurfaceVariant,
+                              GBTColors.darkSurfaceElevated,
+                            ]
+                          : [
+                              GBTColors.surfaceVariant,
+                              GBTColors.surfaceAlternate,
+                            ],
+                    ),
+                  ),
+                ),
+
+              // EN: Overlay with camera chip — always visible, not distracting
+              // KO: 카메라 칩 오버레이 — 항상 노출, 시각적으로 방해되지 않게
+              if (!isUploading)
+                Container(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  child: Center(
+                    child: _CameraChip(
+                      label: hasImage ? '배경 변경' : '배경 추가',
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  child: const Center(
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+
+              // EN: Pending upload dot — top right
+              // KO: 저장 대기 점 — 우상단
+              if (hasPending && !isUploading)
+                Positioned(
+                  top: GBTSpacing.sm,
+                  right: GBTSpacing.sm,
+                  child: _PendingDot(),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ========================================
+// EN: Camera chip — icon + label pill button on cover/avatar
+// KO: 카메라 칩 — 커버/아바타 위 아이콘+라벨 필 버튼
+// ========================================
+class _CameraChip extends StatelessWidget {
+  const _CameraChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: GBTSpacing.sm,
         vertical: GBTSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: bg,
+        color: Colors.black.withValues(alpha: 0.52),
         borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
       ),
-      child: Text(
-        label,
-        style: GBTTypography.labelSmall.copyWith(
-          color: fg,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _PendingChangesBanner extends StatelessWidget {
-  const _PendingChangesBanner({required this.hasPendingChanges});
-
-  final bool hasPendingChanges;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    final backgroundColor = hasPendingChanges
-        ? GBTColors.warningLight
-        : colorScheme.surfaceContainerHighest.withValues(alpha: 0.45);
-    final iconColor = hasPendingChanges
-        ? GBTColors.warningDark
-        : colorScheme.onSurfaceVariant;
-    final message = hasPendingChanges
-        ? '저장되지 않은 변경 사항이 있어요. 저장 버튼을 눌러 반영하세요.'
-        : '변경 사항이 없습니다. 필요한 항목만 수정해도 됩니다.';
-
-    return Container(
-      padding: const EdgeInsets.all(GBTSpacing.sm),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-      ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.info_outline, size: 18, color: iconColor),
-          const SizedBox(width: GBTSpacing.xs),
-          Expanded(
-            child: Text(
-              message,
-              style: GBTTypography.bodySmall.copyWith(color: iconColor),
+          const Icon(Icons.camera_alt_rounded, size: 13, color: Colors.white),
+          const SizedBox(width: GBTSpacing.xxs + 1),
+          Text(
+            label,
+            style: GBTTypography.labelSmall.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -767,121 +747,276 @@ class _PendingChangesBanner extends StatelessWidget {
   }
 }
 
-class _ProfileSectionCard extends StatelessWidget {
-  const _ProfileSectionCard({
-    required this.title,
-    required this.description,
-    required this.child,
+// ========================================
+// EN: Avatar settings-row tile — consistent with _SettingsRow pattern
+// KO: 아바타 설정 행 타일 — _SettingsRow 패턴과 동일
+// ========================================
+class _AvatarTile extends StatelessWidget {
+  const _AvatarTile({
+    required this.avatarUrl,
+    required this.isUploading,
+    required this.hasPending,
+    required this.onTap,
+    required this.isDark,
+    this.isLast = false,
   });
 
-  final String title;
-  final String description;
-  final Widget child;
+  final String? avatarUrl;
+  final bool isUploading;
+  final bool hasPending;
+  final VoidCallback? onTap;
+  final bool isDark;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final textPrimary =
+        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+    final textTertiary =
+        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final hasImage = avatarUrl != null && avatarUrl!.isNotEmpty;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        side: BorderSide(color: colorScheme.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(GBTSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: GBTTypography.titleMedium.copyWith(
-                color: colorScheme.onSurface,
+    return Semantics(
+      button: true,
+      label: '프로필 사진 변경',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: isLast
+            ? const BorderRadius.only(
+                bottomLeft: Radius.circular(GBTSpacing.radiusMd),
+                bottomRight: Radius.circular(GBTSpacing.radiusMd),
+              )
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: GBTSpacing.md,
+            vertical: GBTSpacing.sm + 4,
+          ),
+          child: Row(
+            children: [
+              // EN: Avatar thumbnail with loading/pending overlay
+              // KO: 로딩/대기 오버레이가 있는 아바타 썸네일
+              Stack(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isDark
+                          ? GBTColors.darkSurfaceVariant
+                          : GBTColors.surfaceVariant,
+                    ),
+                    child: hasImage
+                        ? ClipOval(
+                            child: GBTImage(
+                              imageUrl: avatarUrl!,
+                              width: 44,
+                              height: 44,
+                              fit: BoxFit.cover,
+                              semanticLabel: '프로필 이미지',
+                            ),
+                          )
+                        : Icon(
+                            Icons.person_rounded,
+                            size: 24,
+                            color: textTertiary,
+                          ),
+                  ),
+                  if (isUploading)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (hasPending && !isUploading)
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: _PendingDot(),
+                    ),
+                ],
               ),
-            ),
-            const SizedBox(height: GBTSpacing.xs),
-            Text(
-              description,
-              style: GBTTypography.bodySmall.copyWith(
-                color: colorScheme.onSurfaceVariant,
+              const SizedBox(width: GBTSpacing.md),
+              // EN: Label column
+              // KO: 레이블 컬럼
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '프로필 사진',
+                      style: GBTTypography.bodyMedium.copyWith(
+                        color: textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      isUploading ? '업로드 중...' : '갤러리에서 변경',
+                      style: GBTTypography.labelSmall.copyWith(
+                        color: textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: GBTSpacing.md),
-            child,
-          ],
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: textTertiary,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _PendingBadge extends StatelessWidget {
-  const _PendingBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: GBTSpacing.sm,
-        vertical: GBTSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        color: GBTColors.warningLight,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
-      ),
-      child: Text(
-        '저장 대기',
-        style: GBTTypography.labelSmall.copyWith(color: GBTColors.warningDark),
-      ),
-    );
-  }
-}
-
-class _ReadOnlyInfoRow extends StatelessWidget {
-  const _ReadOnlyInfoRow({
-    required this.label,
-    required this.value,
-    required this.icon,
+// ========================================
+// EN: Basic info card — name (inline) + bio (stacked), no visible borders
+// KO: 기본 정보 카드 — 이름(인라인) + 소개(스택), 테두리 없는 입력
+// ========================================
+class _BasicInfoCard extends StatelessWidget {
+  const _BasicInfoCard({
+    required this.displayNameController,
+    required this.bioController,
+    required this.maxDisplayNameLength,
+    required this.maxBioLength,
+    required this.isDark,
   });
 
-  final String label;
-  final String value;
-  final IconData icon;
+  final TextEditingController displayNameController;
+  final TextEditingController bioController;
+  final int maxDisplayNameLength;
+  final int maxBioLength;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final dividerColor =
+        isDark ? GBTColors.darkBorderSubtle : GBTColors.divider;
+    final textPrimary =
+        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+    final textSecondary =
+        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+    final textTertiary =
+        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final focusedColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(GBTSpacing.sm),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-      ),
-      child: Row(
+    return _SectionCard(
+      child: Column(
         children: [
-          Icon(icon, size: 18, color: colorScheme.onSurfaceVariant),
-          const SizedBox(width: GBTSpacing.sm),
-          Expanded(
+          // EN: Display name — label left, text field right (iOS-style inline)
+          // KO: 표시 이름 — 왼쪽 라벨, 오른쪽 텍스트 필드 (iOS 스타일 인라인)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: GBTSpacing.md,
+              vertical: GBTSpacing.sm + 4,
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 88,
+                  child: Text(
+                    '표시 이름',
+                    style: GBTTypography.bodyMedium.copyWith(
+                      color: textPrimary,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: displayNameController,
+                    maxLength: maxDisplayNameLength,
+                    textAlign: TextAlign.end,
+                    textInputAction: TextInputAction.next,
+                    style: GBTTypography.bodyMedium.copyWith(
+                      color: textSecondary,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '닉네임 입력',
+                      hintStyle: GBTTypography.bodyMedium.copyWith(
+                        color: textTertiary,
+                      ),
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: focusedColor, width: 1.5),
+                      ),
+                      counterText: '',
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, indent: GBTSpacing.md, color: dividerColor),
+          // EN: Bio — label + counter on top, multiline field below
+          // KO: 소개 — 상단 라벨+카운터, 하단 멀티라인 필드
+          Padding(
+            padding: const EdgeInsets.all(GBTSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: GBTTypography.labelSmall.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      '소개',
+                      style: GBTTypography.bodyMedium.copyWith(
+                        color: textPrimary,
+                      ),
+                    ),
+                    const Spacer(),
+                    ListenableBuilder(
+                      listenable: bioController,
+                      builder: (context, _) => Text(
+                        '${bioController.text.length}/$maxBioLength',
+                        style: GBTTypography.labelSmall.copyWith(
+                          color: textTertiary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: GBTSpacing.xxs),
-                Text(
-                  value,
+                const SizedBox(height: GBTSpacing.xs2),
+                TextField(
+                  controller: bioController,
+                  maxLength: maxBioLength,
+                  maxLines: null,
+                  minLines: 3,
                   style: GBTTypography.bodyMedium.copyWith(
-                    color: colorScheme.onSurface,
+                    color: textSecondary,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  decoration: InputDecoration(
+                    hintText: '나를 간단히 소개해 보세요',
+                    hintStyle: GBTTypography.bodyMedium.copyWith(
+                      color: textTertiary,
+                    ),
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    counterText: '',
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
                 ),
               ],
             ),
@@ -892,65 +1027,44 @@ class _ReadOnlyInfoRow extends StatelessWidget {
   }
 }
 
-class _ProfileAvatar extends StatelessWidget {
-  const _ProfileAvatar({this.avatarUrl, this.isUploading = false});
+// ========================================
+// EN: Account info card — read-only rows matching _SettingsRow style
+// KO: 계정 정보 카드 — _SettingsRow 스타일의 읽기 전용 행
+// ========================================
+class _AccountInfoCard extends StatelessWidget {
+  const _AccountInfoCard({required this.profile, required this.isDark});
 
-  final String? avatarUrl;
-  final bool isUploading;
+  final UserProfile profile;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dividerColor =
+        isDark ? GBTColors.darkBorderSubtle : GBTColors.divider;
 
-    final avatar = avatarUrl == null || avatarUrl!.isEmpty
-        ? CircleAvatar(
-            radius: 40,
-            backgroundColor: isDark
-                ? GBTColors.darkSurfaceVariant
-                : GBTColors.surfaceVariant,
-            child: Icon(
-              Icons.person,
-              size: 40,
-              color: isDark
-                  ? GBTColors.darkTextTertiary
-                  : GBTColors.textTertiary,
-              semanticLabel: '기본 프로필 이미지',
-            ),
-          )
-        : ClipOval(
-            child: GBTImage(
-              imageUrl: avatarUrl!,
-              width: 80,
-              height: 80,
-              fit: BoxFit.cover,
-              semanticLabel: '프로필 이미지',
-            ),
-          );
-
-    if (!isUploading) {
-      return avatar;
-    }
-
-    final overlayAlpha = isDark ? 0.5 : 0.35;
-
-    return Semantics(
-      label: '프로필 이미지 업로드 중',
-      child: Stack(
-        alignment: Alignment.center,
+    return _SectionCard(
+      child: Column(
         children: [
-          avatar,
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: overlayAlpha),
-              shape: BoxShape.circle,
-            ),
+          _AccountInfoRow(
+            icon: Icons.mail_outline_rounded,
+            iconBgColor: const Color(0xFF3B82F6),
+            label: '이메일',
+            value: profile.email,
+            isDark: isDark,
           ),
-          const SizedBox(
-            width: 28,
-            height: 28,
-            child: CircularProgressIndicator(strokeWidth: 2),
+          Divider(
+            height: 1,
+            indent: GBTSpacing.md + 36 + GBTSpacing.md,
+            endIndent: GBTSpacing.md,
+            color: dividerColor,
+          ),
+          _AccountInfoRow(
+            icon: Icons.verified_user_outlined,
+            iconBgColor: const Color(0xFF10B981),
+            label: '권한',
+            value: profile.role,
+            isDark: isDark,
+            isLast: true,
           ),
         ],
       ),
@@ -958,69 +1072,67 @@ class _ProfileAvatar extends StatelessWidget {
   }
 }
 
-class _ProfileCoverPreview extends StatelessWidget {
-  const _ProfileCoverPreview({
-    required this.coverUrl,
-    this.isUploading = false,
+// ========================================
+// EN: Account info row — mirrors _SettingsRow but without InkWell (read-only)
+// KO: 계정 정보 행 — InkWell 없는 읽기 전용 _SettingsRow 미러
+// ========================================
+class _AccountInfoRow extends StatelessWidget {
+  const _AccountInfoRow({
+    required this.icon,
+    required this.iconBgColor,
+    required this.label,
+    required this.value,
+    required this.isDark,
+    this.isLast = false,
   });
 
-  final String? coverUrl;
-  final bool isUploading;
+  final IconData icon;
+  final Color iconBgColor;
+  final String label;
+  final String value;
+  final bool isDark;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary =
+        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+    final textTertiary =
+        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
 
-    final preview = ClipRRect(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-      child: coverUrl == null || coverUrl!.isEmpty
-          ? Container(
-              height: 140,
-              color: isDark
-                  ? GBTColors.darkSurfaceVariant
-                  : GBTColors.surfaceVariant,
-              alignment: Alignment.center,
-              child: Text(
-                '배경 이미지 없음',
-                style: GBTTypography.labelSmall.copyWith(
-                  color: isDark
-                      ? GBTColors.darkTextTertiary
-                      : GBTColors.textTertiary,
-                ),
-              ),
-            )
-          : GBTImage(
-              imageUrl: coverUrl!,
-              width: double.infinity,
-              height: 140,
-              fit: BoxFit.cover,
-              semanticLabel: '프로필 배경 이미지',
-            ),
-    );
-
-    if (!isUploading) {
-      return preview;
-    }
-
-    final overlayAlpha = isDark ? 0.5 : 0.35;
-
-    return Semantics(
-      label: '배경 이미지 업로드 중',
-      child: Stack(
-        alignment: Alignment.center,
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.md,
+        vertical: GBTSpacing.sm + 4,
+      ),
+      child: Row(
         children: [
-          preview,
+          // EN: Colored icon container — same as _SettingsRow 36x36
+          // KO: 컬러 아이콘 컨테이너 — _SettingsRow 36x36과 동일
           Container(
-            height: 140,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: overlayAlpha),
-              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+              color: iconBgColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
             ),
+            child: Icon(icon, color: iconBgColor, size: 20),
           ),
-          const SizedBox(
-            width: 28,
-            height: 28,
-            child: CircularProgressIndicator(strokeWidth: 2),
+          const SizedBox(width: GBTSpacing.md),
+          // EN: Label
+          // KO: 라벨
+          Text(
+            label,
+            style: GBTTypography.bodyMedium.copyWith(color: textPrimary),
+          ),
+          const Spacer(),
+          // EN: Value (right-aligned, muted)
+          // KO: 값 (우측 정렬, 회색 처리)
+          Text(
+            value,
+            style: GBTTypography.bodySmall.copyWith(color: textTertiary),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -1028,16 +1140,42 @@ class _ProfileCoverPreview extends StatelessWidget {
   }
 }
 
-class _LoginRequired extends StatelessWidget {
-  const _LoginRequired({required this.onLogin});
+// ========================================
+// EN: Pending dot — small orange indicator for unsaved uploads
+// KO: 저장 대기 점 — 업로드 대기 중 주황색 인디케이터
+// ========================================
+class _PendingDot extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: GBTColors.warning,
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? GBTColors.darkSurfaceElevated
+              : GBTColors.surface,
+          width: 1.5,
+        ),
+      ),
+    );
+  }
+}
 
-  final VoidCallback onLogin;
+// ========================================
+// EN: Profile load error state
+// KO: 프로필 로드 오류 상태
+// ========================================
+class _ProfileLoadError extends StatelessWidget {
+  const _ProfileLoadError({required this.onRetry});
+
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Center(
       child: Padding(
         padding: GBTSpacing.paddingPage,
@@ -1045,7 +1183,64 @@ class _LoginRequired extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.lock_outline,
+              Icons.error_outline_rounded,
+              size: GBTSpacing.xxl,
+              color: GBTColors.error,
+              semanticLabel: '오류 아이콘',
+            ),
+            const SizedBox(height: GBTSpacing.md),
+            Text(
+              '프로필 정보를 불러오지 못했어요',
+              style: GBTTypography.titleSmall.copyWith(
+                color:
+                    isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: GBTSpacing.sm),
+            Text(
+              '잠시 후 다시 시도해주세요',
+              style: GBTTypography.bodySmall.copyWith(
+                color: isDark
+                    ? GBTColors.darkTextSecondary
+                    : GBTColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: GBTSpacing.lg),
+            Semantics(
+              button: true,
+              label: '프로필 정보 다시 불러오기',
+              child: FilledButton(
+                onPressed: onRetry,
+                child: const Text('다시 시도'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ========================================
+// EN: Login required state
+// KO: 로그인 필요 상태
+// ========================================
+class _LoginRequired extends StatelessWidget {
+  const _LoginRequired({required this.onLogin});
+
+  final VoidCallback onLogin;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Center(
+      child: Padding(
+        padding: GBTSpacing.paddingPage,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.lock_outline_rounded,
               size: GBTSpacing.touchTarget,
               color: isDark
                   ? GBTColors.darkTextTertiary
@@ -1056,14 +1251,17 @@ class _LoginRequired extends StatelessWidget {
             Text(
               '로그인이 필요합니다',
               style: GBTTypography.titleSmall.copyWith(
-                color: colorScheme.onSurface,
+                color:
+                    isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
               ),
             ),
             const SizedBox(height: GBTSpacing.sm),
             Text(
               '프로필을 수정하려면 로그인해주세요.',
               style: GBTTypography.bodySmall.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: isDark
+                    ? GBTColors.darkTextSecondary
+                    : GBTColors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -1071,14 +1269,8 @@ class _LoginRequired extends StatelessWidget {
             Semantics(
               button: true,
               label: '로그인 페이지로 이동',
-              child: ElevatedButton(
+              child: FilledButton(
                 onPressed: onLogin,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(
-                    GBTSpacing.touchTarget,
-                    GBTSpacing.touchTarget,
-                  ),
-                ),
                 child: const Text('로그인'),
               ),
             ),

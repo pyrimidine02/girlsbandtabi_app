@@ -421,7 +421,12 @@ class LiveEventDetailPage extends ConsumerWidget {
                     height: 52,
                     child: FilledButton.icon(
                       onPressed: () {
-                        _showVerificationSheet(context, ref, event.id);
+                        _showVerificationSheet(
+                          context,
+                          ref,
+                          event.id,
+                          eventTitle: event.title,
+                        );
                       },
                       icon: const Icon(Icons.check_circle_outline_rounded),
                       label: const Text('참석 인증하기'),
@@ -789,8 +794,9 @@ Future<void> _launchUrl(String url) async {
 void _showVerificationSheet(
   BuildContext context,
   WidgetRef ref,
-  String eventId,
-) {
+  String eventId, {
+  String? eventTitle,
+}) {
   ref.read(verificationControllerProvider.notifier).reset();
   showModalBottomSheet<void>(
     context: context,
@@ -800,7 +806,11 @@ void _showVerificationSheet(
       description: '현장에 도착했는지 확인하여 참석 인증을 진행합니다.',
       onVerify: () => ref
           .read(verificationControllerProvider.notifier)
-          .verifyLiveEvent(eventId, verificationMethod: 'MANUAL'),
+          .verifyLiveEvent(
+            eventId,
+            verificationMethod: 'MANUAL',
+            targetName: eventTitle,
+          ),
     ),
   );
 }

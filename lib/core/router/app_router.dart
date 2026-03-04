@@ -20,9 +20,12 @@ import '../../features/live_events/presentation/pages/live_events_page.dart';
 import '../../features/live_events/presentation/pages/live_event_detail_page.dart';
 import '../../features/feed/presentation/pages/board_page.dart';
 import '../../features/feed/presentation/pages/info_page.dart';
+import '../../features/feed/presentation/pages/member_detail_page.dart';
 import '../../features/feed/presentation/pages/news_detail_page.dart';
 import '../../features/feed/presentation/pages/post_create_page.dart';
 import '../../features/feed/presentation/pages/post_detail_page.dart';
+import '../../features/feed/presentation/pages/unit_detail_page.dart';
+import '../../features/projects/domain/entities/project_entities.dart' show Unit, UnitMember;
 import '../../features/feed/presentation/pages/post_edit_page.dart';
 import '../../features/feed/presentation/pages/travel_review_create_page.dart';
 import '../../features/feed/presentation/pages/travel_review_detail_page.dart';
@@ -94,6 +97,8 @@ class AppRoutes {
   static const String board = 'board';
   static const String info = 'info';
   static const String newsDetail = 'news-detail';
+  static const String unitDetail = 'unit-detail';
+  static const String memberDetail = 'member-detail';
   static const String postDetail = 'post-detail';
   static const String postCreate = 'post-create';
   static const String travelReviewCreate = 'travelReviewCreate';
@@ -320,6 +325,41 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       );
                     },
                   ),
+                  GoRoute(
+                    path: 'units/:unitId',
+                    name: AppRoutes.unitDetail,
+                    pageBuilder: (context, state) {
+                      final unit = state.extra as Unit;
+                      final projectId =
+                          state.uri.queryParameters['projectId'] ?? '';
+                      return _buildAdaptiveDetailPage(
+                        key: state.pageKey,
+                        child: UnitDetailPage(
+                          unit: unit,
+                          projectId: projectId,
+                        ),
+                      );
+                    },
+                    routes: [
+                      GoRoute(
+                        path: 'members/:memberId',
+                        name: AppRoutes.memberDetail,
+                        pageBuilder: (context, state) {
+                          final extra =
+                              state.extra as Map<String, dynamic>;
+                          final member = extra['member'] as UnitMember;
+                          final unit = extra['unit'] as Unit;
+                          return _buildAdaptiveDetailPage(
+                            key: state.pageKey,
+                            child: MemberDetailPage(
+                              member: member,
+                              unit: unit,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ],
@@ -359,36 +399,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             name: AppRoutes.adminOps,
             builder: (context, state) => const AdminOpsPage(),
           ),
-          GoRoute(
-            path: 'visits',
-            name: AppRoutes.visitHistory,
-            builder: (context, state) => const VisitHistoryPage(),
-            routes: [
-              GoRoute(
-                path: ':visitId',
-                name: AppRoutes.visitDetail,
-                builder: (context, state) {
-                  final visitId = state.pathParameters['visitId']!;
-                  final placeId = state.uri.queryParameters['placeId'] ?? '';
-                  final visitedAt = state.uri.queryParameters['visitedAt'];
-                  final latStr = state.uri.queryParameters['latitude'];
-                  final lngStr = state.uri.queryParameters['longitude'];
-                  return VisitDetailPage(
-                    visitId: visitId,
-                    placeId: placeId,
-                    visitedAt: visitedAt,
-                    latitude: latStr != null ? double.tryParse(latStr) : null,
-                    longitude: lngStr != null ? double.tryParse(lngStr) : null,
-                  );
-                },
-              ),
-            ],
-          ),
-          GoRoute(
-            path: 'stats',
-            name: AppRoutes.visitStats,
-            builder: (context, state) => const VisitStatsPage(),
-          ),
         ],
       ),
 
@@ -411,6 +421,39 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/favorites',
         name: AppRoutes.favorites,
         builder: (context, state) => const FavoritesPage(),
+      ),
+
+      // EN: Visit routes (top-level overlays to avoid duplicate key with /settings)
+      // KO: 방문 라우트 (중복 key 방지를 위해 /settings 외부의 최상위 오버레이)
+      GoRoute(
+        path: '/visits',
+        name: AppRoutes.visitHistory,
+        builder: (context, state) => const VisitHistoryPage(),
+        routes: [
+          GoRoute(
+            path: ':visitId',
+            name: AppRoutes.visitDetail,
+            builder: (context, state) {
+              final visitId = state.pathParameters['visitId']!;
+              final placeId = state.uri.queryParameters['placeId'] ?? '';
+              final visitedAt = state.uri.queryParameters['visitedAt'];
+              final latStr = state.uri.queryParameters['latitude'];
+              final lngStr = state.uri.queryParameters['longitude'];
+              return VisitDetailPage(
+                visitId: visitId,
+                placeId: placeId,
+                visitedAt: visitedAt,
+                latitude: latStr != null ? double.tryParse(latStr) : null,
+                longitude: lngStr != null ? double.tryParse(lngStr) : null,
+              );
+            },
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/visit-stats',
+        name: AppRoutes.visitStats,
+        builder: (context, state) => const VisitStatsPage(),
       ),
       GoRoute(
         path: '/users/:userId',
@@ -492,6 +535,32 @@ extension AppRouterExtension on BuildContext {
   /// KO: 뉴스 상세로 이동
   void goToNewsDetail(String newsId) {
     pushNamed(AppRoutes.newsDetail, pathParameters: {'newsId': newsId});
+  }
+
+  /// EN: Navigate to unit detail page.
+  /// KO: 유닛 상세 페이지로 이동.
+  void goToUnitDetail({required Unit unit, required String projectId}) {
+    pushNamed(
+      AppRoutes.unitDetail,
+      pathParameters: {'unitId': unit.id},
+      queryParameters: {'projectId': projectId},
+      extra: unit,
+    );
+  }
+
+  /// EN: Navigate to member (character + VA) detail page.
+  /// KO: 멤버(캐릭터 + 성우) 상세 페이지로 이동.
+  void goToMemberDetail({
+    required Unit unit,
+    required UnitMember member,
+    required String projectId,
+  }) {
+    pushNamed(
+      AppRoutes.memberDetail,
+      pathParameters: {'unitId': unit.id, 'memberId': member.id},
+      queryParameters: {'projectId': projectId},
+      extra: {'member': member, 'unit': unit},
+    );
   }
 
   /// EN: Navigate to post detail

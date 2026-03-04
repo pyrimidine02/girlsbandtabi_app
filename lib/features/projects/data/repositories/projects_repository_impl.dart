@@ -9,6 +9,7 @@ import '../../../../core/utils/result.dart';
 import '../../domain/entities/project_entities.dart';
 import '../../domain/repositories/projects_repository.dart';
 import '../datasources/projects_remote_data_source.dart';
+import '../dto/member_dto.dart';
 import '../dto/project_dto.dart';
 import '../dto/unit_dto.dart';
 
@@ -145,7 +146,71 @@ class ProjectsRepositoryImpl implements ProjectsRepository {
     throw const UnknownFailure('Unknown units result', code: 'unknown_units');
   }
 
+  @override
+  Future<Result<List<UnitMember>>> getUnitMembers({
+    required String projectId,
+    required String unitId,
+    bool forceRefresh = false,
+  }) async {
+    final policy = forceRefresh
+        ? CachePolicy.networkFirst
+        : CachePolicy.staleWhileRevalidate;
+
+    try {
+      final cacheResult = await _cacheManager.resolve<List<MemberDto>>(
+        key: _membersCacheKey(projectId, unitId),
+        policy: policy,
+        ttl: const Duration(minutes: 15),
+        fetcher: () => _fetchUnitMembers(projectId, unitId),
+        toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
+        fromJson: (json) {
+          final items = json['items'];
+          if (items is List) {
+            return items
+                .whereType<Map<String, dynamic>>()
+                .map(MemberDto.fromJson)
+                .toList();
+          }
+          return <MemberDto>[];
+        },
+      );
+
+      final entities = cacheResult.data
+          .map((dto) => UnitMember.fromDto(dto))
+          .toList();
+      return Result.success(entities);
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  Future<List<MemberDto>> _fetchUnitMembers(
+    String projectId,
+    String unitId,
+  ) async {
+    final result = await _remoteDataSource.fetchUnitMembers(
+      projectId: projectId,
+      unitId: unitId,
+    );
+
+    if (result is Success<List<MemberDto>>) {
+      return result.data;
+    }
+    if (result is Err<List<MemberDto>>) {
+      throw result.failure;
+    }
+
+    throw const UnknownFailure(
+      'Unknown members result',
+      code: 'unknown_members',
+    );
+  }
+
   static const String _projectsCacheKey = 'projects_list';
 
   String _unitsCacheKey(String projectId) => 'project_units:$projectId';
+
+  String _membersCacheKey(String projectId, String unitId) =>
+      'unit_members:$projectId:$unitId';
 }

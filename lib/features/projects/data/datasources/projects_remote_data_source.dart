@@ -5,6 +5,7 @@ library;
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/utils/result.dart';
+import '../dto/member_dto.dart';
 import '../dto/project_dto.dart';
 import '../dto/unit_dto.dart';
 
@@ -67,6 +68,42 @@ class ProjectsRemoteDataSource {
           }
         }
         return <UnitDto>[];
+      },
+    );
+  }
+
+  /// EN: Fetches members for a unit including voice actor info.
+  /// KO: 유닛의 멤버 목록(성우 정보 포함)을 불러옵니다.
+  Future<Result<List<MemberDto>>> fetchUnitMembers({
+    required String projectId,
+    required String unitId,
+    int page = 0,
+    int size = 50,
+  }) {
+    return _apiClient.get<List<MemberDto>>(
+      ApiEndpoints.unitMembers(projectId, unitId),
+      queryParameters: {'page': page, 'size': size},
+      fromJson: (json) {
+        if (json is List) {
+          return json
+              .whereType<Map<String, dynamic>>()
+              .map(MemberDto.fromJson)
+              .toList();
+        }
+        if (json is Map<String, dynamic>) {
+          final items =
+              json['items'] ??
+              json['data'] ??
+              json['results'] ??
+              json['members'];
+          if (items is List) {
+            return items
+                .whereType<Map<String, dynamic>>()
+                .map(MemberDto.fromJson)
+                .toList();
+          }
+        }
+        return <MemberDto>[];
       },
     );
   }

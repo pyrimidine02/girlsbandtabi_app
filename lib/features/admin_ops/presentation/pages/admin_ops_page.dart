@@ -78,6 +78,8 @@ class _AccessDeniedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Center(
       child: Padding(
         padding: GBTSpacing.paddingPage,
@@ -95,7 +97,9 @@ class _AccessDeniedView extends StatelessWidget {
             Text(
               '관리자 또는 앱 매니저 권한이 필요합니다.',
               style: GBTTypography.bodyMedium.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: isDark
+                    ? GBTColors.darkTextSecondary
+                    : GBTColors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -162,6 +166,11 @@ class _OverviewTab extends ConsumerWidget {
   }
 }
 
+// ========================================
+// EN: Headline card — dark slate background with urgent badge and admin icon
+// KO: 헤드라인 카드 — 다크 슬레이트 배경, 긴급 배지, 관리자 아이콘
+// ========================================
+
 class _HeadlineCard extends StatelessWidget {
   const _HeadlineCard({required this.summary});
 
@@ -169,39 +178,91 @@ class _HeadlineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // EN: Show urgent red badge when there are open reports
+    // KO: 접수된 신고가 있을 때 빨간 긴급 배지 표시
+    final hasUrgent = summary.openReports > 0;
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1F2937), Color(0xFF111827)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: const Color(0xFF0F172A),
         borderRadius: BorderRadius.circular(20),
       ),
       padding: const EdgeInsets.all(GBTSpacing.lg),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '운영 대기 항목',
-            style: GBTTypography.labelLarge.copyWith(
-              color: Colors.white.withValues(alpha: 0.8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      '운영 대기 항목',
+                      style: GBTTypography.labelLarge.copyWith(
+                        color: Colors.white.withValues(alpha: 0.8),
+                      ),
+                    ),
+                    if (hasUrgent) ...[
+                      const SizedBox(width: GBTSpacing.xs),
+                      // EN: Urgent badge — shown when openReports > 0
+                      // KO: 긴급 배지 — openReports > 0일 때 표시
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: GBTSpacing.xs,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: GBTColors.error,
+                          borderRadius: BorderRadius.circular(
+                            GBTSpacing.radiusFull,
+                          ),
+                        ),
+                        child: Text(
+                          '긴급',
+                          style: GBTTypography.labelSmall.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: GBTSpacing.sm),
+                Text(
+                  '${summary.totalPendingItems}',
+                  style: GBTTypography.displaySmall.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: GBTSpacing.xs),
+                Text(
+                  '신고/이의제기/권한 요청을 한 화면에서 점검하세요',
+                  style: GBTTypography.bodySmall.copyWith(
+                    color: Colors.white.withValues(alpha: 0.82),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: GBTSpacing.sm),
-          Text(
-            '${summary.totalPendingItems}',
-            style: GBTTypography.displaySmall.copyWith(
+          const SizedBox(width: GBTSpacing.md),
+          // EN: 36px admin icon container on the right side
+          // KO: 우측 36px 관리자 아이콘 컨테이너
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+            ),
+            child: const Icon(
+              Icons.admin_panel_settings_rounded,
+              size: 20,
               color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: GBTSpacing.xs),
-          Text(
-            '신고/이의제기/권한 요청을 한 화면에서 점검하세요',
-            style: GBTTypography.bodySmall.copyWith(
-              color: Colors.white.withValues(alpha: 0.82),
             ),
           ),
         ],
@@ -209,6 +270,11 @@ class _HeadlineCard extends StatelessWidget {
     );
   }
 }
+
+// ========================================
+// EN: Stat grid — 2-column GridView for metric cards
+// KO: 통계 그리드 — 지표 카드를 위한 2열 GridView
+// ========================================
 
 class _StatGrid extends StatelessWidget {
   const _StatGrid({required this.summary});
@@ -256,20 +322,15 @@ class _StatGrid extends StatelessWidget {
       ),
     ];
 
-    return Wrap(
-      spacing: GBTSpacing.sm,
-      runSpacing: GBTSpacing.sm,
+    return GridView.count(
+      crossAxisCount: 2,
+      childAspectRatio: 1.6,
+      mainAxisSpacing: GBTSpacing.sm,
+      crossAxisSpacing: GBTSpacing.sm,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       children: cards
-          .map(
-            (data) => SizedBox(
-              width:
-                  (MediaQuery.sizeOf(context).width -
-                      (GBTSpacing.md * 2) -
-                      GBTSpacing.sm) /
-                  2,
-              child: _StatCard(data: data),
-            ),
-          )
+          .map((data) => _StatCard(data: data))
           .toList(growable: false),
     );
   }
@@ -296,13 +357,21 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-      ),
-      padding: const EdgeInsets.all(GBTSpacing.md),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // EN: Show colored left accent border when value > 0
+    // KO: 값이 있을 때 왼쪽 컬러 accent 테두리 표시
+    final hasValue = data.value > 0;
+
+    final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? GBTColors.darkSurfaceElevated : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor),
+          ),
+          padding: const EdgeInsets.all(GBTSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -317,10 +386,13 @@ class _StatCard extends StatelessWidget {
                 child: Icon(data.icon, size: 16, color: data.color),
               ),
               const Spacer(),
+              // EN: Apply color to value text when value > 0
+              // KO: 값이 있으면 값 텍스트에 해당 색상 적용
               Text(
                 '${data.value}',
                 style: GBTTypography.titleLarge.copyWith(
                   fontWeight: FontWeight.w700,
+                  color: hasValue ? data.color : null,
                 ),
               ),
             ],
@@ -329,14 +401,38 @@ class _StatCard extends StatelessWidget {
           Text(
             data.label,
             style: GBTTypography.bodySmall.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: isDark
+                  ? GBTColors.darkTextSecondary
+                  : GBTColors.textSecondary,
             ),
           ),
         ],
       ),
+        ),
+        // EN: Left accent bar overlay when value > 0
+        // KO: 값이 있을 때 왼쪽 컬러 accent 바 오버레이
+        if (hasValue)
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                bottomLeft: Radius.circular(16),
+              ),
+              child: Container(width: 3, color: data.color),
+            ),
+          ),
+      ],
     );
   }
 }
+
+// ========================================
+// EN: Extra metrics section — custom Row layout with Divider
+// KO: 추가 지표 섹션 — 구분선이 있는 커스텀 Row 레이아웃
+// ========================================
 
 class _ExtraMetricsSection extends StatelessWidget {
   const _ExtraMetricsSection({required this.extraMetrics});
@@ -348,11 +444,21 @@ class _ExtraMetricsSection extends StatelessWidget {
     final entries = extraMetrics.entries.toList(growable: false)
       ..sort((a, b) => b.value.compareTo(a.value));
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary =
+        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+    final textSecondary =
+        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+    final dividerColor =
+        isDark ? GBTColors.darkBorder : GBTColors.divider;
+
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: isDark ? GBTColors.darkSurfaceElevated : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        border: Border.all(
+          color: isDark ? GBTColors.darkBorder : GBTColors.border,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -366,17 +472,41 @@ class _ExtraMetricsSection extends StatelessWidget {
             ),
             child: Text('추가 지표', style: GBTTypography.titleSmall),
           ),
-          for (final entry in entries)
-            ListTile(
-              dense: true,
-              title: Text(entry.key, style: GBTTypography.bodySmall),
-              trailing: Text(
-                '${entry.value}',
-                style: GBTTypography.labelLarge.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+          for (int i = 0; i < entries.length; i++) ...[
+            if (i > 0)
+              Divider(
+                height: 1,
+                indent: GBTSpacing.md,
+                endIndent: GBTSpacing.md,
+                color: dividerColor,
+              ),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: GBTSpacing.md,
+                vertical: GBTSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      entries[i].key,
+                      style: GBTTypography.bodySmall.copyWith(
+                        color: textSecondary,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${entries[i].value}',
+                    style: GBTTypography.labelLarge.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: textPrimary,
+                    ),
+                  ),
+                ],
               ),
             ),
+          ],
+          const SizedBox(height: GBTSpacing.xs),
         ],
       ),
     );
@@ -442,6 +572,11 @@ class _ReportsTab extends ConsumerWidget {
   }
 }
 
+// ========================================
+// EN: Report filter row — custom InkWell chip style (no ChoiceChip)
+// KO: 신고 필터 행 — ChoiceChip 없이 커스텀 InkWell 칩 스타일
+// ========================================
+
 class _ReportFilterRow extends ConsumerWidget {
   const _ReportFilterRow({required this.selected});
 
@@ -449,27 +584,72 @@ class _ReportFilterRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final surfaceVariantColor =
+        isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant;
+    final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
+    final textSecondary =
+        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: AdminReportFilter.values
             .map(
-              (filter) => Padding(
-                padding: const EdgeInsets.only(right: GBTSpacing.xs),
-                child: ChoiceChip(
-                  label: Text(filter.label),
-                  selected: filter == selected,
-                  onSelected: (_) => ref
-                      .read(adminReportsControllerProvider.notifier)
-                      .load(filter: filter, forceRefresh: true),
-                ),
-              ),
+              (filter) {
+                final isSelected = filter == selected;
+                return Padding(
+                  padding: const EdgeInsets.only(right: GBTSpacing.xs),
+                  child: InkWell(
+                    onTap: () => ref
+                        .read(adminReportsControllerProvider.notifier)
+                        .load(filter: filter, forceRefresh: true),
+                    borderRadius:
+                        BorderRadius.circular(GBTSpacing.radiusFull),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: GBTSpacing.md,
+                        vertical: GBTSpacing.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        // EN: Selected chip — indigo background, unselected — surfaceVariant
+                        // KO: 선택된 칩 — indigo 배경, 미선택 — surfaceVariant
+                        color: isSelected
+                            ? primary.withValues(alpha: 0.14)
+                            : surfaceVariantColor,
+                        borderRadius:
+                            BorderRadius.circular(GBTSpacing.radiusFull),
+                        border: Border.all(
+                          color: isSelected
+                              ? primary.withValues(alpha: 0.45)
+                              : borderColor,
+                        ),
+                      ),
+                      child: Text(
+                        filter.label,
+                        style: GBTTypography.labelMedium.copyWith(
+                          color: isSelected ? primary : textSecondary,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             )
             .toList(growable: false),
       ),
     );
   }
 }
+
+// ========================================
+// EN: Report card — Material + Container + InkWell, improved meta row
+// KO: 신고 카드 — Material + Container + InkWell, 메타라인 Row 개선
+// ========================================
 
 class _ReportCard extends ConsumerWidget {
   const _ReportCard({required this.report, required this.isMutating});
@@ -479,88 +659,133 @@ class _ReportCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = _paletteFor(report.status);
+    final textSecondary =
+        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+    final surfaceColor =
+        isDark ? GBTColors.darkSurfaceElevated : Colors.white;
+    final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
 
-    return Card(
-      margin: const EdgeInsets.only(top: GBTSpacing.sm),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: isMutating
-            ? null
-            : () => _showReportActionsSheet(context, ref, report),
-        child: Padding(
-          padding: const EdgeInsets.all(GBTSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+    return Padding(
+      padding: const EdgeInsets.only(top: GBTSpacing.sm),
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: borderColor),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: isMutating
+                ? null
+                : () => _showReportActionsSheet(context, ref, report),
+            child: Padding(
+              padding: const EdgeInsets.all(GBTSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: GBTSpacing.sm,
-                      vertical: 4,
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: GBTSpacing.sm,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: palette.background,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          report.status.label,
+                          style: GBTTypography.labelSmall.copyWith(
+                            color: palette.foreground,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: GBTSpacing.xs),
+                      Text(
+                        report.targetLabel,
+                        style: GBTTypography.labelSmall.copyWith(
+                          color: textSecondary,
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(
+                        Icons.chevron_right,
+                        size: 18,
+                        color: textSecondary,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: GBTSpacing.sm),
+                  Text(
+                    report.reason,
+                    style: GBTTypography.titleSmall.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
-                    decoration: BoxDecoration(
-                      color: palette.background,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      report.status.label,
-                      style: GBTTypography.labelSmall.copyWith(
-                        color: palette.foreground,
-                        fontWeight: FontWeight.w700,
+                  ),
+                  if (report.previewText != null &&
+                      report.previewText!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: GBTSpacing.xs),
+                      child: Text(
+                        report.previewText!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GBTTypography.bodySmall.copyWith(
+                          color: textSecondary,
+                        ),
                       ),
                     ),
+                  const SizedBox(height: GBTSpacing.sm),
+                  // EN: Meta row — date and assignee with icons
+                  // KO: 메타 행 — 날짜와 담당자를 아이콘과 함께 표시
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        size: 12,
+                        color: textSecondary,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        DateFormat('yyyy.MM.dd HH:mm').format(report.createdAt),
+                        style: GBTTypography.bodySmall.copyWith(
+                          color: textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(width: GBTSpacing.sm),
+                      Icon(
+                        Icons.person_outline,
+                        size: 12,
+                        color: textSecondary,
+                      ),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Text(
+                          report.assigneeName ?? '미할당',
+                          style: GBTTypography.bodySmall.copyWith(
+                            color: textSecondary,
+                            fontSize: 11,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: GBTSpacing.xs),
-                  Text(
-                    report.targetLabel,
-                    style: GBTTypography.labelSmall.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const Spacer(),
-                  const Icon(Icons.chevron_right, size: 18),
                 ],
               ),
-              const SizedBox(height: GBTSpacing.sm),
-              Text(
-                report.reason,
-                style: GBTTypography.titleSmall.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (report.previewText != null && report.previewText!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: GBTSpacing.xs),
-                  child: Text(
-                    report.previewText!,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GBTTypography.bodySmall.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              const SizedBox(height: GBTSpacing.sm),
-              Text(
-                _metaLine(report),
-                style: GBTTypography.bodySmall.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
-  }
-
-  String _metaLine(AdminCommunityReport report) {
-    final dateText = DateFormat('yyyy.MM.dd HH:mm').format(report.createdAt);
-    final reporter = report.reporterName ?? '알 수 없는 사용자';
-    final assignee = report.assigneeName ?? '미할당';
-    return '신고자: $reporter · 담당: $assignee · $dateText';
   }
 
   Future<void> _showReportActionsSheet(
@@ -631,6 +856,11 @@ class _ReportCard extends ConsumerWidget {
 
 enum _ReportAction { assignToMe, markInReview, markResolved, reject }
 
+// ========================================
+// EN: Report action sheet — styled action items with icon containers
+// KO: 신고 처리 액션 시트 — 아이콘 컨테이너가 있는 스타일링된 액션 항목
+// ========================================
+
 class _ReportActionSheet extends StatelessWidget {
   const _ReportActionSheet({required this.report});
 
@@ -638,6 +868,9 @@ class _ReportActionSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
+
     return SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -647,7 +880,7 @@ class _ReportActionSheet extends StatelessWidget {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.outlineVariant,
+              color: borderColor,
               borderRadius: BorderRadius.circular(999),
             ),
           ),
@@ -663,29 +896,109 @@ class _ReportActionSheet extends StatelessWidget {
               child: Text('신고 처리', style: GBTTypography.titleMedium),
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.person_add_alt_1),
-            title: const Text('나에게 할당'),
-            subtitle: Text(report.assigneeName ?? '현재 미할당'),
+          _ActionSheetItem(
+            icon: Icons.person_add_alt_1,
+            iconColor: GBTColors.info,
+            title: '나에게 할당',
+            subtitle: report.assigneeName ?? '현재 미할당',
             onTap: () => Navigator.of(context).pop(_ReportAction.assignToMe),
           ),
-          ListTile(
-            leading: const Icon(Icons.rule),
-            title: const Text('검토 중으로 변경'),
+          _ActionSheetItem(
+            icon: Icons.rule,
+            iconColor: GBTColors.warning,
+            title: '검토 중으로 변경',
             onTap: () => Navigator.of(context).pop(_ReportAction.markInReview),
           ),
-          ListTile(
-            leading: const Icon(Icons.check_circle, color: GBTColors.success),
-            title: const Text('조치 완료로 변경'),
+          _ActionSheetItem(
+            icon: Icons.check_circle,
+            iconColor: GBTColors.success,
+            title: '조치 완료로 변경',
             onTap: () => Navigator.of(context).pop(_ReportAction.markResolved),
           ),
-          ListTile(
-            leading: const Icon(Icons.block, color: GBTColors.error),
-            title: const Text('반려 처리'),
+          _ActionSheetItem(
+            icon: Icons.block,
+            iconColor: GBTColors.error,
+            title: '반려 처리',
             onTap: () => Navigator.of(context).pop(_ReportAction.reject),
           ),
           const SizedBox(height: GBTSpacing.sm),
         ],
+      ),
+    );
+  }
+}
+
+/// EN: Action sheet item with 36px icon container, title and optional subtitle.
+/// KO: 36px 아이콘 컨테이너, 타이틀, 선택적 서브타이틀을 포함한 액션 시트 항목.
+class _ActionSheetItem extends StatelessWidget {
+  const _ActionSheetItem({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.onTap,
+    this.subtitle,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary =
+        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+    final textSecondary =
+        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: GBTSpacing.md,
+          vertical: GBTSpacing.sm,
+        ),
+        child: Row(
+          children: [
+            // EN: 36px icon container with tinted background
+            // KO: 색조 배경이 있는 36px 아이콘 컨테이너
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+              ),
+              child: Icon(icon, size: 20, color: iconColor),
+            ),
+            const SizedBox(width: GBTSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GBTTypography.bodyMedium.copyWith(
+                      color: textPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      style: GBTTypography.labelSmall.copyWith(
+                        color: textSecondary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

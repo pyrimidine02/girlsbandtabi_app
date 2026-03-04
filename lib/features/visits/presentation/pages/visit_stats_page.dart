@@ -13,7 +13,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
-import '../../../../core/widgets/layout/gbt_page_intro_card.dart';
+import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../places/domain/entities/place_entities.dart';
 import '../../application/visits_controller.dart';
 import '../../domain/entities/visit_entities.dart';
@@ -46,8 +46,8 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
       appBar: AppBar(
         title: const Text('방문 통계'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.history_rounded),
+          GBTAppBarIconButton(
+            icon: Icons.history_rounded,
             tooltip: '방문 기록',
             onPressed: () => context.goToVisitHistory(),
           ),
@@ -93,25 +93,6 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
                 parent: BouncingScrollPhysics(),
               ),
               slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      GBTSpacing.pageHorizontal,
-                      GBTSpacing.sm,
-                      GBTSpacing.pageHorizontal,
-                      GBTSpacing.sm,
-                    ),
-                    child: GBTPageIntroCard(
-                      icon: Icons.insights_rounded,
-                      title: '방문 통계 대시보드',
-                      description: '방문 추이와 자주 가는 장소를 한눈에 확인하세요.',
-                      trailing: _StatSummaryBadge(
-                        totalVisits: stats.totalVisits,
-                        uniquePlaces: stats.uniquePlaces,
-                      ),
-                    ),
-                  ),
-                ),
                 // EN: [0] Ranking banner
                 // KO: [0] 랭킹 배너
                 SliverToBoxAdapter(
@@ -171,19 +152,29 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
                 // EN: [2] Top places section header
                 // KO: [2] 자주 방문한 장소 섹션 헤더
                 SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      GBTSpacing.pageHorizontal,
-                      GBTSpacing.xl,
-                      GBTSpacing.pageHorizontal,
-                      GBTSpacing.sm,
-                    ),
-                    child: Text(
-                      '자주 방문한 장소',
-                      style: GBTTypography.titleMedium.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                  child: Builder(
+                    builder: (context) {
+                      final isDark =
+                          Theme.of(context).brightness == Brightness.dark;
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          GBTSpacing.pageHorizontal,
+                          GBTSpacing.xl,
+                          GBTSpacing.pageHorizontal,
+                          GBTSpacing.xs,
+                        ),
+                        child: Text(
+                          '자주 방문한 장소',
+                          style: GBTTypography.labelSmall.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? GBTColors.darkTextTertiary
+                                : GBTColors.textTertiary,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
 
@@ -246,38 +237,6 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
   }
 }
 
-class _StatSummaryBadge extends StatelessWidget {
-  const _StatSummaryBadge({
-    required this.totalVisits,
-    required this.uniquePlaces,
-  });
-
-  final int totalVisits;
-  final int uniquePlaces;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: GBTSpacing.sm,
-        vertical: GBTSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: isDark ? GBTColors.darkSurface : GBTColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
-      ),
-      child: Text(
-        '$totalVisits회 · $uniquePlaces곳',
-        style: GBTTypography.labelSmall.copyWith(
-          color: isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
 // ---------------------------------------------------------------------------
 // EN: Ranking banner with gradient background
 // KO: 그라디언트 배경의 랭킹 배너
@@ -321,24 +280,11 @@ class _RankingBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(GBTSpacing.lg),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDark
-              ? [
-                  GBTColors.darkSurfaceElevated,
-                  GBTColors.darkPrimary.withValues(alpha: 0.15),
-                ]
-              : [
-                  GBTColors.primary.withValues(alpha: 0.08),
-                  GBTColors.primaryLight,
-                ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: isDark ? GBTColors.darkSurfaceElevated : Colors.white,
         borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
         border: Border.all(
-          color: isDark
-              ? GBTColors.darkPrimary.withValues(alpha: 0.2)
-              : GBTColors.primary.withValues(alpha: 0.15),
+          color: isDark ? GBTColors.darkBorder : GBTColors.border,
+          width: 0.5,
         ),
       ),
       child: Row(
@@ -463,6 +409,7 @@ class _StatCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
           border: Border.all(
             color: isDark ? GBTColors.darkBorder : GBTColors.border,
+            width: 0.5,
           ),
         ),
         child: Column(
@@ -547,6 +494,7 @@ class _TopPlaceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final placeName = place?.name ?? '장소 정보 없음';
+    final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
 
     return Semantics(
       label: isLoading
@@ -559,7 +507,11 @@ class _TopPlaceCard extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          child: Padding(
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: borderColor, width: 0.5),
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+            ),
             padding: const EdgeInsets.all(GBTSpacing.sm),
             child: Row(
               children: [
@@ -663,12 +615,12 @@ class _TopPlaceCard extends StatelessWidget {
       );
     }
     return Container(
-      color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.primaryLight,
+      color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
       child: Center(
         child: Icon(
           Icons.place_rounded,
           size: 20,
-          color: isDark ? GBTColors.darkTextTertiary : GBTColors.primaryMuted,
+          color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
         ),
       ),
     );

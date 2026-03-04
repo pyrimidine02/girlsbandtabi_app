@@ -185,7 +185,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('게시글'), actions: actions),
       body: state.when(
-        loading: () => const GBTLoading(message: '게시글을 불러오는 중...'),
+        loading: () => const _PostDetailSkeleton(),
         error: (error, _) {
           final message = error is Failure
               ? error.userMessage
@@ -876,7 +876,7 @@ class _PostDetailContent extends StatelessWidget {
                 children: [
                   _Avatar(
                     url: authorAvatarUrl,
-                    radius: 20,
+                    radius: 22,
                     semanticLabel: '$authorLabel 프로필 사진',
                     onTap: () => onTapAuthor(post.authorId),
                   ),
@@ -1028,51 +1028,113 @@ class _PostDetailContent extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: GBTSpacing.md),
-              Semantics(
-                label:
-                    '좋아요 $likeCount개, '
-                    '${isLiked ? "좋아요 누른 상태" : "좋아요 안 누른 상태"}, '
-                    '댓글 $commentCountLabel개',
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _TimelineActionButton(
-                        icon: GBTActionIcons.comment,
-                        label: commentCountLabel,
-                        color: commentActionColor,
-                        onTap: onFocusComment,
+              // EN: Stats bar — social proof context (like count) before actions
+              // KO: 액션 버튼 전에 소셜 증거(좋아요 수)를 보여주는 통계 바
+              if (likeCount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.favorite_rounded,
+                        size: 13,
+                        color: GBTColors.favorite.withValues(alpha: 0.85),
                       ),
-                    ),
-                    Expanded(
-                      child: _TimelineActionButton(
-                        icon: isLiked
-                            ? GBTActionIcons.likeActive
-                            : GBTActionIcons.like,
-                        label: _compactCountLabel(likeCount),
-                        color: isLiked ? GBTColors.favorite : tertiaryColor,
-                        onTap: onToggleLike,
+                      const SizedBox(width: 4),
+                      Text(
+                        '좋아요 $likeCount명이 공감했어요',
+                        style: GBTTypography.labelSmall.copyWith(
+                          color: secondaryColor,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                    Expanded(
-                      child: _TimelineActionButton(
-                        icon: isBookmarked
-                            ? GBTActionIcons.bookmarkActive
-                            : GBTActionIcons.bookmark,
-                        label: '',
-                        color: tertiaryColor,
-                        onTap: onToggleBookmark,
+                    ],
+                  ),
+                ),
+              // EN: Card-style action bar with vertical dividers between buttons
+              // KO: 버튼 사이 세로 구분선이 있는 카드 스타일 액션 바
+              Container(
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? GBTColors.darkSurfaceVariant.withValues(alpha: 0.4)
+                      : GBTColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                ),
+                child: Semantics(
+                  label:
+                      '좋아요 $likeCount개, '
+                      '${isLiked ? "좋아요 누른 상태" : "좋아요 안 누른 상태"}, '
+                      '댓글 $commentCountLabel개',
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _TimelineActionButton(
+                          icon: GBTActionIcons.comment,
+                          label: commentCountLabel,
+                          color: commentActionColor,
+                          onTap: onFocusComment,
+                        ),
                       ),
-                    ),
-                  ],
+                      Container(
+                        width: 1,
+                        height: 20,
+                        color: isDark ? GBTColors.darkBorder : GBTColors.border,
+                      ),
+                      Expanded(
+                        child: _TimelineActionButton(
+                          icon: isLiked
+                              ? GBTActionIcons.likeActive
+                              : GBTActionIcons.like,
+                          label: _compactCountLabel(likeCount),
+                          color: isLiked ? GBTColors.favorite : tertiaryColor,
+                          onTap: onToggleLike,
+                        ),
+                      ),
+                      Container(
+                        width: 1,
+                        height: 20,
+                        color: isDark ? GBTColors.darkBorder : GBTColors.border,
+                      ),
+                      Expanded(
+                        child: _TimelineActionButton(
+                          icon: isBookmarked
+                              ? GBTActionIcons.bookmarkActive
+                              : GBTActionIcons.bookmark,
+                          label: '',
+                          color: isBookmarked
+                              ? (isDark
+                                    ? GBTColors.darkPrimary
+                                    : GBTColors.primary)
+                              : tertiaryColor,
+                          onTap: onToggleBookmark,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
+              const SizedBox(height: GBTSpacing.md),
               const Divider(),
               const SizedBox(height: GBTSpacing.md),
-              Text(
-                '댓글 $commentCountLabel개',
-                style: GBTTypography.titleSmall.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+              // EN: Comment section header with icon for visual clarity.
+              // KO: 시각적 명확성을 위한 아이콘이 있는 댓글 섹션 헤더.
+              Row(
+                children: [
+                  Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    size: 18,
+                    color: isDark
+                        ? GBTColors.darkTextSecondary
+                        : GBTColors.textSecondary,
+                  ),
+                  const SizedBox(width: GBTSpacing.xs),
+                  Text(
+                    '댓글 $commentCountLabel개',
+                    style: GBTTypography.titleSmall.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: GBTSpacing.md),
               _PostCommentsSection(
@@ -1112,6 +1174,24 @@ class _PostDetailContent extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
+                        // EN: User avatar in composer for social context.
+                        // KO: 소셜 맥락을 위한 입력창 내 사용자 아바타.
+                        Padding(
+                          padding: const EdgeInsets.only(left: GBTSpacing.sm),
+                          child: CircleAvatar(
+                            radius: 14,
+                            backgroundColor: isDark
+                                ? GBTColors.darkSurfaceVariant
+                                : GBTColors.surfaceVariant,
+                            child: Icon(
+                              Icons.person_outline_rounded,
+                              size: 16,
+                              color: isDark
+                                  ? GBTColors.darkTextTertiary
+                                  : GBTColors.textTertiary,
+                            ),
+                          ),
+                        ),
                         Expanded(
                           child: TextField(
                             controller: commentController,
@@ -1243,7 +1323,54 @@ class _PostCommentsSectionState extends State<_PostCommentsSection> {
       },
       data: (comments) {
         if (comments.isEmpty) {
-          return const GBTEmptyState(message: '댓글이 아직 없습니다');
+          // EN: Motivational empty state CTA to encourage first comment.
+          // KO: 첫 댓글을 유도하는 동기부여 빈 상태 CTA.
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: GBTSpacing.xl),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? GBTColors.darkSurfaceVariant
+                          : GBTColors.surfaceVariant,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      size: 26,
+                      color: isDark
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: GBTSpacing.md),
+                  Text(
+                    '아직 댓글이 없어요',
+                    style: GBTTypography.bodyLarge.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? GBTColors.darkTextPrimary
+                          : GBTColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: GBTSpacing.xs),
+                  Text(
+                    '첫 번째로 생각을 남겨보세요!',
+                    style: GBTTypography.bodySmall.copyWith(
+                      color: isDark
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
         }
         final sortedComments = _sortedComments(comments);
 
@@ -1746,6 +1873,82 @@ bool _isAdminRole(String? role) {
   return normalized.contains('ADMIN') || normalized.contains('MODERATOR');
 }
 
+// ========================================
+// EN: Post detail skeleton loading state
+// KO: 게시글 상세 스켈레톤 로딩 상태
+// ========================================
+
+/// EN: Skeleton placeholder for post detail while data loads.
+/// KO: 데이터 로딩 중 게시글 상세의 스켈레톤 플레이스홀더.
+class _PostDetailSkeleton extends StatelessWidget {
+  const _PostDetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: GBTSpacing.paddingPage,
+      children: [
+        // EN: Author row — avatar + name + timestamp
+        // KO: 작성자 행 — 아바타 + 이름 + 타임스탬프
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            GBTShimmerContainer(
+              width: 44,
+              height: 44,
+              borderRadius: GBTSpacing.radiusFull,
+            ),
+            const SizedBox(width: GBTSpacing.sm),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GBTShimmerContainer(width: 100, height: 13),
+                const SizedBox(height: GBTSpacing.xs),
+                GBTShimmerContainer(width: 200, height: 20),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: GBTSpacing.md),
+        // EN: Body text skeleton
+        // KO: 본문 텍스트 스켈레톤
+        GBTShimmerContainer(width: double.infinity, height: 15),
+        const SizedBox(height: GBTSpacing.xs),
+        GBTShimmerContainer(width: double.infinity, height: 15),
+        const SizedBox(height: GBTSpacing.xs),
+        GBTShimmerContainer(width: 260, height: 15),
+        const SizedBox(height: GBTSpacing.xs),
+        GBTShimmerContainer(width: double.infinity, height: 15),
+        const SizedBox(height: GBTSpacing.xs),
+        GBTShimmerContainer(width: 180, height: 15),
+        const SizedBox(height: GBTSpacing.md),
+        // EN: Image placeholder skeleton (16:9)
+        // KO: 이미지 플레이스홀더 스켈레톤 (16:9)
+        AspectRatio(
+          aspectRatio: 16 / 9,
+          child: GBTShimmerContainer(
+            width: double.infinity,
+            height: double.infinity,
+            borderRadius: GBTSpacing.radiusMd,
+          ),
+        ),
+        const SizedBox(height: GBTSpacing.md),
+        // EN: Action bar skeleton
+        // KO: 액션 바 스켈레톤
+        Row(
+          children: [
+            Expanded(child: GBTShimmerContainer(width: double.infinity, height: 36)),
+            const SizedBox(width: GBTSpacing.sm),
+            Expanded(child: GBTShimmerContainer(width: double.infinity, height: 36)),
+            const SizedBox(width: GBTSpacing.sm),
+            Expanded(child: GBTShimmerContainer(width: double.infinity, height: 36)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 /// EN: Twitter-style horizontal swipeable image carousel with dot indicator.
 /// KO: 점 인디케이터가 있는 트위터 스타일 가로 스와이프 이미지 캐러셀.
 class _ImageCarousel extends StatefulWidget {
@@ -1783,8 +1986,8 @@ class _ImageCarouselState extends State<_ImageCarousel> {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-          child: SizedBox(
-            height: 260,
+          child: AspectRatio(
+            aspectRatio: 16 / 9,
             child: PageView.builder(
               controller: _pageController,
               itemCount: widget.imageUrls.length,
@@ -1799,7 +2002,6 @@ class _ImageCarouselState extends State<_ImageCarousel> {
                     child: GBTImage(
                       imageUrl: widget.imageUrls[index],
                       width: double.infinity,
-                      height: 260,
                       fit: BoxFit.cover,
                       semanticLabel: '첨부 이미지 ${index + 1}',
                     ),

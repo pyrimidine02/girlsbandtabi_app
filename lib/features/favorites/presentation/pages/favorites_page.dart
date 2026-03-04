@@ -133,11 +133,6 @@ class _FavoritesList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tertiaryColor = isDark
-        ? GBTColors.darkTextTertiary
-        : GBTColors.textTertiary;
-
     if (items.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -153,50 +148,19 @@ class _FavoritesList extends StatelessWidget {
 
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: GBTSpacing.paddingPage,
+      padding: const EdgeInsets.fromLTRB(
+        GBTSpacing.pageHorizontal,
+        GBTSpacing.sm,
+        GBTSpacing.pageHorizontal,
+        GBTSpacing.xl,
+      ),
       itemCount: items.length,
       itemBuilder: (context, index) {
-        final item = items[index];
-        return Semantics(
-          label:
-              '즐겨찾기: ${item.title ?? '즐겨찾기 항목'}, '
-              '${_typeLabel(item.type)}',
-          button: true,
-          child: Card(
-            margin: const EdgeInsets.only(bottom: GBTSpacing.sm),
-            child: ListTile(
-              leading: _FavoriteLeading(imageUrl: item.thumbnailUrl),
-              title: Text(
-                item.title ?? '즐겨찾기 항목',
-                style: GBTTypography.bodyMedium,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Text(
-                _typeLabel(item.type),
-                style: GBTTypography.bodySmall.copyWith(color: tertiaryColor),
-              ),
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: GBTSpacing.xs,
-                  vertical: 2,
-                ),
-                decoration: BoxDecoration(
-                  color: _typeColor(
-                    item.type,
-                    isDark: isDark,
-                  ).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
-                ),
-                child: Text(
-                  _typeLabel(item.type),
-                  style: GBTTypography.labelSmall.copyWith(
-                    color: _typeColor(item.type, isDark: isDark),
-                  ),
-                ),
-              ),
-              onTap: () => _openItem(context, item),
-            ),
+        return Padding(
+          padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
+          child: _FavoriteCard(
+            item: items[index],
+            onTap: () => _openItem(context, items[index]),
           ),
         );
       },
@@ -204,43 +168,173 @@ class _FavoritesList extends StatelessWidget {
   }
 }
 
-class _FavoriteLeading extends StatelessWidget {
-  const _FavoriteLeading({this.imageUrl});
+// ========================================
+// EN: Custom favorite card — 72px thumbnail + title + type badge
+// KO: 커스텀 즐겨찾기 카드 — 72px 썸네일 + 제목 + 타입 배지
+// ========================================
 
-  final String? imageUrl;
+class _FavoriteCard extends StatelessWidget {
+  const _FavoriteCard({required this.item, required this.onTap});
+
+  final FavoriteItem item;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = _typeColor(item.type);
+    final textPrimary =
+        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+    final textTertiary =
+        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final surfaceColor =
+        isDark ? GBTColors.darkSurfaceElevated : Colors.white;
+    final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
 
-    if (imageUrl == null || imageUrl!.isEmpty) {
-      return Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: isDark
-              ? GBTColors.darkSurfaceVariant
-              : GBTColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+    return Semantics(
+      label: '즐겨찾기: ${item.title ?? '즐겨찾기 항목'}, ${_typeLabel(item.type)}',
+      button: true,
+      child: Material(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: borderColor, width: 0.5),
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+            ),
+            child: Row(
+              children: [
+                // EN: Left thumbnail (72px) — image or icon fallback
+                // KO: 왼쪽 썸네일 (72px) — 이미지 또는 아이콘 폴백
+                _FavoriteThumbnail(
+                  imageUrl: item.thumbnailUrl,
+                  type: item.type,
+                  color: color,
+                  isDark: isDark,
+                ),
+                const SizedBox(width: GBTSpacing.md),
+                // EN: Title and type badge
+                // KO: 제목 및 타입 배지
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: GBTSpacing.md,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title ?? '즐겨찾기 항목',
+                          style: GBTTypography.bodyMedium.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: textPrimary,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: GBTSpacing.xs),
+                        _TypeBadge(type: item.type, color: color, isDark: isDark),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: GBTSpacing.sm),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: textTertiary,
+                ),
+                const SizedBox(width: GBTSpacing.sm),
+              ],
+            ),
+          ),
         ),
-        child: Icon(
-          Icons.favorite,
-          // EN: Use neutral tertiary instead of brand secondary.
-          // KO: 브랜드 보조색 대신 뉴트럴 tertiary를 사용합니다.
-          color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
-          size: 20,
+      ),
+    );
+  }
+}
+
+class _FavoriteThumbnail extends StatelessWidget {
+  const _FavoriteThumbnail({
+    required this.imageUrl,
+    required this.type,
+    required this.color,
+    required this.isDark,
+  });
+
+  final String? imageUrl;
+  final FavoriteType type;
+  final Color color;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl != null && imageUrl!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(GBTSpacing.radiusMd - 1),
+          bottomLeft: Radius.circular(GBTSpacing.radiusMd - 1),
+        ),
+        child: GBTImage(
+          imageUrl: imageUrl!,
+          width: 72,
+          height: 72,
+          fit: BoxFit.cover,
+          semanticLabel: '${_typeLabel(type)} 이미지',
         ),
       );
     }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-      child: GBTImage(
-        imageUrl: imageUrl!,
-        width: 40,
-        height: 40,
-        fit: BoxFit.cover,
-        semanticLabel: '즐겨찾기 이미지',
+    return Container(
+      width: 72,
+      height: 72,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.15 : 0.1),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(GBTSpacing.radiusMd - 1),
+          bottomLeft: Radius.circular(GBTSpacing.radiusMd - 1),
+        ),
+      ),
+      child: Icon(
+        _typeIcon(type),
+        size: 28,
+        color: color.withValues(alpha: 0.7),
+      ),
+    );
+  }
+}
+
+class _TypeBadge extends StatelessWidget {
+  const _TypeBadge({
+    required this.type,
+    required this.color,
+    required this.isDark,
+  });
+
+  final FavoriteType type;
+  final Color color;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.xs,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.15 : 0.1),
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+      ),
+      child: Text(
+        _typeLabel(type),
+        style: GBTTypography.labelSmall.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -260,10 +354,28 @@ String _typeLabel(FavoriteType type) {
   };
 }
 
-/// EN: Returns neutral color for type badge — decorative only, no brand colors.
-/// KO: 타입 배지용 뉴트럴 색상 반환 — 장식용이므로 브랜드 색상을 사용하지 않습니다.
-Color _typeColor(FavoriteType type, {required bool isDark}) {
-  return isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+/// EN: Returns category-specific accent color for type badge.
+/// KO: 타입 배지에 카테고리별 액센트 색상을 반환합니다.
+Color _typeColor(FavoriteType type) {
+  return switch (type) {
+    FavoriteType.place => const Color(0xFF14B8A6),      // teal
+    FavoriteType.liveEvent => const Color(0xFF6366F1),  // indigo
+    FavoriteType.news => const Color(0xFFF59E0B),       // amber
+    FavoriteType.post => const Color(0xFFEC4899),       // pink
+    FavoriteType.unknown => const Color(0xFF9E9E9E),    // neutral
+  };
+}
+
+/// EN: Returns category-specific icon for thumbnail fallback.
+/// KO: 썸네일 폴백용 카테고리별 아이콘을 반환합니다.
+IconData _typeIcon(FavoriteType type) {
+  return switch (type) {
+    FavoriteType.place => Icons.place_rounded,
+    FavoriteType.liveEvent => Icons.event_rounded,
+    FavoriteType.news => Icons.article_rounded,
+    FavoriteType.post => Icons.chat_bubble_rounded,
+    FavoriteType.unknown => Icons.favorite_rounded,
+  };
 }
 
 // EN: Use push so /favorites stays in the back stack — pressing back returns here.

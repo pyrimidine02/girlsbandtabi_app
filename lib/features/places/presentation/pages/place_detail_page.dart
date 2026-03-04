@@ -54,7 +54,12 @@ class PlaceDetailPage extends ConsumerWidget {
           ),
           child: FilledButton.icon(
             onPressed: state.hasValue
-                ? () => _showVerificationSheet(context, ref, placeId)
+                ? () => _showVerificationSheet(
+                      context,
+                      ref,
+                      placeId,
+                      placeName: state.valueOrNull?.name,
+                    )
                 : null,
             icon: const Icon(Icons.location_on_rounded),
             label: const Text('이곳에 다녀왔어요'),
@@ -1322,8 +1327,9 @@ String _formatPlaceType(String type) {
 void _showVerificationSheet(
   BuildContext context,
   WidgetRef ref,
-  String placeId,
-) {
+  String placeId, {
+  String? placeName,
+}) {
   ref.read(verificationControllerProvider.notifier).reset();
   showModalBottomSheet<void>(
     context: context,
@@ -1333,7 +1339,7 @@ void _showVerificationSheet(
       description: '현재 위치를 확인해 방문 인증을 진행합니다.',
       onVerify: () => ref
           .read(verificationControllerProvider.notifier)
-          .verifyPlace(placeId),
+          .verifyPlace(placeId, targetName: placeName),
       onWriteReview: () => _showReviewSheet(context, placeId),
     ),
   );

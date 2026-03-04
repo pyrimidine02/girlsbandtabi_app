@@ -12,8 +12,10 @@ import '../../../core/utils/result.dart';
 import '../../visits/application/visits_controller.dart';
 import '../data/datasources/verification_remote_data_source.dart';
 import '../data/repositories/verification_repository_impl.dart';
+import '../domain/entities/failed_verification_attempt.dart';
 import '../domain/entities/verification_entities.dart';
 import '../domain/repositories/verification_repository.dart';
+import 'failed_attempt_service.dart';
 import 'token_service.dart';
 
 class VerificationController
@@ -26,7 +28,10 @@ class VerificationController
     state = const AsyncData(null);
   }
 
-  Future<Result<VerificationResult>> verifyPlace(String placeId) async {
+  Future<Result<VerificationResult>> verifyPlace(
+    String placeId, {
+    String? targetName,
+  }) async {
     final isAuthenticated = _ref.read(isAuthenticatedProvider);
     if (!isAuthenticated) {
       const failure = AuthFailure('Login required', code: 'auth_required');
@@ -74,6 +79,9 @@ class VerificationController
           token: retryToken,
         ),
         placeId: placeId,
+        targetName: targetName,
+        targetType: 'PLACE_VISIT',
+        projectId: resolvedProjectKey,
       );
     }
 
@@ -84,6 +92,13 @@ class VerificationController
     }
     if (result is Err<VerificationResult>) {
       state = AsyncError(result.failure, StackTrace.current);
+      await _recordFailedAttempt(
+        targetType: 'PLACE_VISIT',
+        targetId: placeId,
+        projectId: resolvedProjectKey,
+        targetName: targetName,
+        failure: result.failure,
+      );
       return result;
     }
 
@@ -93,6 +108,7 @@ class VerificationController
   Future<Result<VerificationResult>> verifyLiveEvent(
     String liveEventId, {
     String? verificationMethod,
+    String? targetName,
   }) async {
     final isAuthenticated = _ref.read(isAuthenticatedProvider);
     if (!isAuthenticated) {
@@ -146,6 +162,10 @@ class VerificationController
           token: retryToken,
         ),
         placeId: null,
+        targetName: targetName,
+        targetType: 'LIVE_EVENT',
+        projectId: resolvedProjectKey,
+        targetId: liveEventId,
       );
     }
 
@@ -155,6 +175,13 @@ class VerificationController
     }
     if (result is Err<VerificationResult>) {
       state = AsyncError(result.failure, StackTrace.current);
+      await _recordFailedAttempt(
+        targetType: 'LIVE_EVENT',
+        targetId: liveEventId,
+        projectId: resolvedProjectKey,
+        targetName: targetName,
+        failure: result.failure,
+      );
       return result;
     }
 
@@ -179,6 +206,10 @@ class VerificationController
     required TokenService tokenService,
     required Future<Result<VerificationResult>> Function(String token) verify,
     required String? placeId,
+    String? targetName,
+    String? targetType,
+    String? projectId,
+    String? targetId,
   }) async {
     final secureStorage = _ref.read(secureStorageProvider);
     await secureStorage.clearVerificationKeys();
@@ -198,6 +229,17 @@ class VerificationController
       await _refreshVisitData(placeId);
     } else if (retryResult is Err<VerificationResult>) {
       state = AsyncError(retryResult.failure, StackTrace.current);
+      // EN: Record failure after key-reset retry as well.
+      // KO: 키 초기화 후 재시도에서도 실패 기록을 저장합니다.
+      if (targetType != null && targetId != null && projectId != null) {
+        await _recordFailedAttempt(
+          targetType: targetType,
+          targetId: targetId,
+          projectId: projectId,
+          targetName: targetName,
+          failure: retryResult.failure,
+        );
+      }
     }
     return retryResult;
   }
@@ -221,6 +263,39 @@ class VerificationController
         'Visit data refresh error',
         error: e,
         stackTrace: stackTrace,
+        tag: 'VerificationController',
+      );
+    }
+  }
+
+  /// EN: Persist a failed attempt locally and invalidate the attempts provider.
+  /// KO: 실패 기록을 로컬에 저장하고 프로바이더를 무효화합니다.
+  Future<void> _recordFailedAttempt({
+    required String targetType,
+    required String targetId,
+    required String projectId,
+    required Failure failure,
+    String? targetName,
+  }) async {
+    try {
+      final service = await _ref.read(failedAttemptServiceProvider.future);
+      await service.record(
+        FailedVerificationAttempt(
+          id: FailedVerificationAttempt.generateId(),
+          targetType: targetType,
+          targetId: targetId,
+          projectId: projectId,
+          targetName: targetName,
+          failureCode: failure.code ?? 'UNKNOWN',
+          failureMessage: failure.message,
+          attemptedAt: DateTime.now(),
+        ),
+      );
+      _ref.invalidate(failedVerificationAttemptsProvider);
+    } catch (e) {
+      AppLogger.warning(
+        'Failed to record failed verification attempt',
+        data: e,
         tag: 'VerificationController',
       );
     }
