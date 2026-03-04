@@ -1243,7 +1243,15 @@ class _RegionFilterSheetState extends ConsumerState<_RegionFilterSheet> {
       child: Padding(
         padding: const EdgeInsets.all(GBTSpacing.md),
         child: optionsState.when(
-          loading: () => const GBTLoading(message: '지역 정보를 불러오는 중...'),
+          loading: () => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const _SheetTitleRow(title: '지역 선택'),
+              const SizedBox(height: GBTSpacing.md),
+              const GBTLoading(message: '지역 정보를 불러오는 중...'),
+              const SizedBox(height: GBTSpacing.md),
+            ],
+          ),
           error: (error, _) {
             final message = error is Failure
                 ? error.userMessage
@@ -1251,6 +1259,8 @@ class _RegionFilterSheetState extends ConsumerState<_RegionFilterSheet> {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                const _SheetTitleRow(title: '지역 선택'),
+                const SizedBox(height: GBTSpacing.md),
                 Text(
                   message,
                   style: GBTTypography.bodySmall.copyWith(
@@ -1269,7 +1279,21 @@ class _RegionFilterSheetState extends ConsumerState<_RegionFilterSheet> {
           },
           data: (options) {
             if (options.countries.isEmpty && options.popularRegions.isEmpty) {
-              return const Center(child: Text('지역 정보가 없습니다'));
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const _SheetTitleRow(title: '지역 선택'),
+                  const SizedBox(height: GBTSpacing.lg),
+                  Text(
+                    '현재 프로젝트의 지역 정보가 없습니다',
+                    style: GBTTypography.bodyMedium.copyWith(
+                      color: context.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: GBTSpacing.md),
+                ],
+              );
             }
             final allOptions = _dedupeRegionOptions([
               ...options.popularRegions,
@@ -1289,12 +1313,7 @@ class _RegionFilterSheetState extends ConsumerState<_RegionFilterSheet> {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '지역 선택',
-                  style: GBTTypography.titleMedium.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                const _SheetTitleRow(title: '지역 선택'),
                 const SizedBox(height: GBTSpacing.md),
                 GBTSearchBar(
                   controller: _searchController,
@@ -2178,7 +2197,15 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
       child: Padding(
         padding: const EdgeInsets.all(GBTSpacing.md),
         child: projectsState.when(
-          loading: () => const GBTLoading(message: '프로젝트를 불러오는 중...'),
+          loading: () => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              _SheetTitleRow(title: '프로젝트 선택'),
+              SizedBox(height: GBTSpacing.md),
+              GBTLoading(message: '프로젝트를 불러오는 중...'),
+              SizedBox(height: GBTSpacing.md),
+            ],
+          ),
           error: (error, _) {
             final message = error is Failure
                 ? error.userMessage
@@ -2186,6 +2213,8 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                const _SheetTitleRow(title: '프로젝트 선택'),
+                const SizedBox(height: GBTSpacing.md),
                 Text(
                   message,
                   style: GBTTypography.bodySmall.copyWith(
@@ -2204,17 +2233,26 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
           },
           data: (projects) {
             if (projects.isEmpty) {
-              return const Center(child: Text('등록된 프로젝트가 없습니다'));
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const _SheetTitleRow(title: '프로젝트 선택'),
+                  const SizedBox(height: GBTSpacing.lg),
+                  Text(
+                    '등록된 프로젝트가 없습니다',
+                    style: GBTTypography.bodyMedium.copyWith(
+                      color: context.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: GBTSpacing.md),
+                ],
+              );
             }
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '프로젝트 선택',
-                  style: GBTTypography.titleMedium.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                const _SheetTitleRow(title: '프로젝트 선택'),
                 const SizedBox(height: GBTSpacing.md),
                 Flexible(
                   child: ListView.builder(
@@ -2257,6 +2295,42 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
           },
         ),
       ),
+    );
+  }
+}
+
+// ============================================================
+// EN: Sheet title row — title + close button for all bottom sheets
+// KO: 시트 제목 행 — 모든 바텀시트에 공통으로 사용하는 제목 + 닫기 버튼
+// ============================================================
+
+class _SheetTitleRow extends StatelessWidget {
+  const _SheetTitleRow({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          title,
+          style: GBTTypography.titleMedium.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const Spacer(),
+        IconButton(
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(
+            minWidth: GBTSpacing.minTouchTarget,
+            minHeight: GBTSpacing.minTouchTarget,
+          ),
+          tooltip: '닫기',
+        ),
+      ],
     );
   }
 }
