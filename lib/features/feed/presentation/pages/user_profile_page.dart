@@ -516,7 +516,7 @@ class _ConnectionStatTile extends StatelessWidget {
               value,
               style: GBTTypography.bodyMedium.copyWith(
                 color: colorScheme.primary,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(width: GBTSpacing.xs),

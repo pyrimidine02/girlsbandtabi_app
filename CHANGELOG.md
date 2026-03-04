@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-04 (Detail Pages Redesign — Live Event & Place + API Investigation)
+- **USER-PROFILE/FIX**: Applied `FontWeight.w700` cap to follower/following count value text (was w800, corrected to match design system max weight).
+- **PLACES/API**: Investigated region filter empty state — confirmed data layer is correct per Swagger spec; `/regions/available` requires USER/ADMIN auth, empty state reflects no server-side region data for the project (not a Flutter bug). All contract tests pass.
+
 ## 2026-03-04 (Detail Pages Redesign — Live Event & Place)
 - **LIVE/UI**: Full rewrite of `LiveEventDetailPage` — skeleton loading (GBTShimmer) replaces spinner; LIVE overlay badge (red glow) + D-day badge on poster hero area; `_StatusChip` (color-coded: live/upcoming/completed); horizontal scrollable `_InfoCard` row (날짜/시간/대상); ticket section as `OutlinedButton.icon` with `url_launcher` instead of inline link.
 - **LIVE/UI**: Redesigned `live_events_page` top area — `ProjectSelectorCompact` moved into `AppBar` title beside "라이브" separator label; `groups_outlined` action removed; `_BandFilterBar` replaced with horizontal scrollable `_BandChipFilterRow` + animated `_BandChip` (primary tint on selection).
