@@ -12,14 +12,14 @@ class GBTColors {
   GBTColors._();
 
   // ========================================
-  // EN: Primary Brand Colors (clear sky blue — trustworthy, lively tone)
-  // KO: 기본 브랜드 색상 (스카이 블루 — 신뢰감 있고 생동감 있는 톤)
+  // EN: Primary Brand Colors (professional social blue reference)
+  // KO: 기본 브랜드 색상 (프로페셔널 소셜 블루 레퍼런스)
   // ========================================
-  static const Color primary = Color(0xFF2F7DFF);
-  static const Color primaryLight = Color(0xFFEAF2FF);
-  static const Color primaryHover = Color(0xFF1E6EF0);
-  static const Color primaryPressed = Color(0xFF1457CC);
-  static const Color primaryMuted = Color(0xFFCFE1FF);
+  static const Color primary = Color(0xFF0A66C2);
+  static const Color primaryLight = Color(0xFFE8F3FF);
+  static const Color primaryHover = Color(0xFF004182);
+  static const Color primaryPressed = Color(0xFF003A75);
+  static const Color primaryMuted = Color(0xFFD2E9FF);
 
   // EN: Secondary (Pink — girl group energy)
   // KO: 보조 (핑크 — 걸그룹 에너지)
@@ -56,8 +56,8 @@ class GBTColors {
   static const Color surfaceAlternate = Color(0xFFEEEEEE);
   // EN: App-level background layers for consistent page chrome.
   // KO: 페이지 크롬 통일을 위한 앱 레벨 배경 레이어.
-  static const Color appBackground = Color(0xFFF7FAFF);
-  static const Color appBackgroundTopTint = Color(0xFFECF4FF);
+  static const Color appBackground = Color(0xFFF9F9F9);
+  static const Color appBackgroundTopTint = Color(0xFFF3F5F7);
 
   // ========================================
   // EN: Border & Divider Colors (neutral)
@@ -174,7 +174,7 @@ class GBTColors {
   /// EN: Greeting header gradient — solid deep indigo (dark mode)
   /// KO: 인사말 헤더 그라디언트 — 단색 딥 인디고 (다크 모드)
   static const LinearGradient darkGreetingGradient = LinearGradient(
-    colors: [Color(0xFF2F7DFF), Color(0xFF1E6EF0)],
+    colors: [Color(0xFF0A66C2), Color(0xFF004182)],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );

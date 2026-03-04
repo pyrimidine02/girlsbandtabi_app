@@ -15,7 +15,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
-import '../../../../core/widgets/layout/gbt_page_intro_card.dart';
+import '../../../../core/widgets/inputs/gbt_search_bar.dart';
 import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../application/search_controller.dart';
 import '../../domain/entities/search_entities.dart';
@@ -120,46 +120,27 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
-        title: Semantics(
-          label: '검색어 입력',
-          child: TextField(
+        // EN: Search bar fills available AppBar title space with right margin.
+        // KO: 검색바가 우측 여백과 함께 AppBar 타이틀 영역을 채움.
+        title: Padding(
+          padding: const EdgeInsets.only(right: GBTSpacing.md),
+          child: GBTSearchBar(
             controller: _searchController,
             focusNode: _focusNode,
-            decoration: InputDecoration(
-              hintText: '장소, 이벤트, 밴드 검색...',
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: GBTSpacing.md,
-              ),
-            ),
+            hint: '장소, 이벤트, 밴드 검색...',
+            autofocus: true,
             onChanged: _onQueryChanged,
             onSubmitted: _onSubmit,
+            onClear: () => _onQueryChanged(''),
           ),
         ),
-        actions: [
-          if (_query.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.clear),
-              tooltip: '검색어 지우기',
-              onPressed: () {
-                _searchController.clear();
-                _onQueryChanged('');
-              },
-            ),
-        ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              GBTSpacing.md,
-              GBTSpacing.md,
-              GBTSpacing.md,
-              GBTSpacing.xs,
-            ),
-            child: _SearchIntroCard(query: _query),
-          ),
-          _SearchScopeHeader(
+          // EN: Compact scope toggle — two pill buttons (Naver/Twitter style)
+          // KO: 컴팩트 스코프 토글 — 두 개의 필 버튼 (네이버/트위터 스타일)
+          _ScopeToggleRow(
             scopedToCurrentProject: _scopedToCurrentProject,
             projectScopeLabel: projectScopeLabel,
             onChanged: _toggleProjectScope,
@@ -203,8 +184,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 }
 
-class _SearchScopeHeader extends StatelessWidget {
-  const _SearchScopeHeader({
+// ============================================================
+// EN: Scope Toggle Row — compact pill pair (현재 프로젝트 / 전체)
+// KO: 스코프 토글 행 — 컴팩트 필 쌍
+// ============================================================
+
+class _ScopeToggleRow extends StatelessWidget {
+  const _ScopeToggleRow({
     required this.scopedToCurrentProject,
     required this.projectScopeLabel,
     required this.onChanged,
@@ -217,48 +203,31 @@ class _SearchScopeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final secondaryColor = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
-    final scopeText = scopedToCurrentProject
-        ? (projectScopeLabel != null
-              ? '현재 프로젝트 검색: $projectScopeLabel'
-              : '현재 프로젝트 검색')
-        : '전체 프로젝트 검색';
+    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         GBTSpacing.md,
-        GBTSpacing.xs,
-        GBTSpacing.md,
         GBTSpacing.sm,
+        GBTSpacing.md,
+        GBTSpacing.xs,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            scopeText,
-            style: GBTTypography.labelSmall.copyWith(color: secondaryColor),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          _ScopePill(
+            label: projectScopeLabel ?? '현재 프로젝트',
+            isSelected: scopedToCurrentProject,
+            onTap: () => onChanged(true),
+            primaryColor: primaryColor,
+            isDark: isDark,
           ),
-          const SizedBox(height: GBTSpacing.xs),
-          SegmentedButton<bool>(
-            showSelectedIcon: false,
-            segments: const [
-              ButtonSegment<bool>(value: true, label: Text('현재 프로젝트')),
-              ButtonSegment<bool>(value: false, label: Text('전체 프로젝트')),
-            ],
-            selected: <bool>{scopedToCurrentProject},
-            onSelectionChanged: (selection) {
-              onChanged(selection.first);
-            },
-            style: ButtonStyle(
-              visualDensity: VisualDensity.compact,
-              textStyle: WidgetStatePropertyAll(
-                GBTTypography.labelSmall.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ),
+          const SizedBox(width: GBTSpacing.xs),
+          _ScopePill(
+            label: '전체 검색',
+            isSelected: !scopedToCurrentProject,
+            onTap: () => onChanged(false),
+            primaryColor: primaryColor,
+            isDark: isDark,
           ),
         ],
       ),
@@ -266,53 +235,85 @@ class _SearchScopeHeader extends StatelessWidget {
   }
 }
 
-class _SearchIntroCard extends StatelessWidget {
-  const _SearchIntroCard({required this.query});
+class _ScopePill extends StatelessWidget {
+  const _ScopePill({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    required this.primaryColor,
+    required this.isDark,
+  });
 
-  final String query;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasQuery = query.trim().isNotEmpty;
-    return GBTPageIntroCard(
-      icon: Icons.manage_search_rounded,
-      title: '통합 검색',
-      description: hasQuery
-          ? '“${query.trim()}” 결과를 카테고리별로 확인하세요.'
-          : '장소, 이벤트, 뉴스, 커뮤니티를 한 번에 검색하세요.',
-      trailing: hasQuery ? const _ActiveSearchBadge() : null,
-    );
-  }
-}
-
-class _ActiveSearchBadge extends StatelessWidget {
-  const _ActiveSearchBadge();
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final Color primaryColor;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: GBTSpacing.sm,
-        vertical: GBTSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: isDark ? GBTColors.darkSurface : GBTColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
-      ),
-      child: Text(
-        '검색 중',
-        style: GBTTypography.labelSmall.copyWith(
-          color: isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
-          fontWeight: FontWeight.w600,
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: '$label 검색 범위 ${isSelected ? '선택됨' : ''}',
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? primaryColor.withValues(alpha: 0.10)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+            border: Border.all(
+              color: isSelected
+                  ? primaryColor
+                  : (isDark ? GBTColors.darkBorder : GBTColors.border),
+              width: isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isSelected) ...[
+                Icon(
+                  Icons.check_circle_rounded,
+                  size: 13,
+                  color: primaryColor,
+                ),
+                const SizedBox(width: 4),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  style: GBTTypography.labelSmall.copyWith(
+                    color: isSelected
+                        ? primaryColor
+                        : (isDark
+                              ? GBTColors.darkTextSecondary
+                              : GBTColors.textSecondary),
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// EN: Recent searches widget.
-/// KO: 최근 검색 위젯.
+// ============================================================
+// EN: Recent searches — horizontal chip row + trending tags
+// KO: 최근 검색 — 수평 칩 행 + 트렌딩 태그
+// ============================================================
+
 class _RecentSearches extends StatelessWidget {
   const _RecentSearches({
     required this.items,
@@ -326,87 +327,264 @@ class _RecentSearches extends StatelessWidget {
   final ValueChanged<String> onRemove;
   final VoidCallback onClear;
 
+  static const _trending = ['도쿄', '라이브', '2026', '신곡', '콘서트', '앨범'];
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
     final secondaryColor = isDark
         ? GBTColors.darkTextSecondary
         : GBTColors.textSecondary;
-    final tertiaryColor = isDark
-        ? GBTColors.darkTextTertiary
-        : GBTColors.textTertiary;
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: GBTSpacing.paddingPage,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '최근 검색',
-              style: GBTTypography.titleSmall.copyWith(
-                fontWeight: FontWeight.w600,
+        // EN: Recent search history section
+        // KO: 최근 검색 기록 섹션
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            GBTSpacing.md,
+            GBTSpacing.md,
+            GBTSpacing.sm,
+            GBTSpacing.xs,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '최근 검색어',
+                style: GBTTypography.labelMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: isDark
+                      ? GBTColors.darkTextSecondary
+                      : GBTColors.textSecondary,
+                ),
               ),
-            ),
-            TextButton(onPressed: onClear, child: const Text('전체 삭제')),
-          ],
+              if (items.isNotEmpty)
+                TextButton(
+                  onPressed: onClear,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: GBTSpacing.sm,
+                      vertical: GBTSpacing.xs,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    '전체 삭제',
+                    style: GBTTypography.labelSmall.copyWith(
+                      color: secondaryColor,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
-        const SizedBox(height: GBTSpacing.sm),
         if (items.isEmpty)
-          Text(
-            '최근 검색어가 없습니다.',
-            style: GBTTypography.bodySmall.copyWith(color: secondaryColor),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
+            child: Text(
+              '최근 검색어가 없습니다.',
+              style: GBTTypography.bodySmall.copyWith(color: secondaryColor),
+            ),
           )
         else
-          ...items.map(
-            (item) => Semantics(
-              label: '최근 검색어: $item',
-              child: ListTile(
-                leading: Icon(Icons.history, color: tertiaryColor),
-                title: Text(item, maxLines: 1, overflow: TextOverflow.ellipsis),
-                trailing: IconButton(
-                  icon: Icon(
-                    Icons.close,
-                    size: GBTSpacing.iconSm,
-                    color: tertiaryColor,
+          // EN: Horizontal scrollable recent chip row
+          // KO: 수평 스크롤 최근 검색어 칩 행
+          SizedBox(
+            height: 36,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
+              itemCount: items.length,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(width: GBTSpacing.xs),
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return Semantics(
+                  label: '최근 검색어: $item. 탭하여 검색',
+                  button: true,
+                  child: _RecentChip(
+                    label: item,
+                    onTap: () => onSelect(item),
+                    onRemove: () => onRemove(item),
+                    isDark: isDark,
                   ),
-                  tooltip: '$item 검색어 삭제',
-                  onPressed: () => onRemove(item),
-                ),
-                contentPadding: EdgeInsets.zero,
-                onTap: () => onSelect(item),
-              ),
+                );
+              },
             ),
           ),
-        const SizedBox(height: GBTSpacing.lg),
-        Text(
-          '인기 검색어',
-          style: GBTTypography.titleSmall.copyWith(fontWeight: FontWeight.w600),
+        // EN: Section divider
+        // KO: 섹션 구분선
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: GBTSpacing.lg),
+          child: Divider(
+            height: 1,
+            thickness: 0.5,
+            color: isDark
+                ? GBTColors.darkBorder.withValues(alpha: 0.5)
+                : GBTColors.border.withValues(alpha: 0.5),
+            indent: GBTSpacing.md,
+            endIndent: GBTSpacing.md,
+          ),
         ),
-        const SizedBox(height: GBTSpacing.md),
-        Wrap(
-          spacing: GBTSpacing.sm,
-          runSpacing: GBTSpacing.sm,
-          children: ['도쿄', '라이브', '2026', '신곡', '콘서트', '앨범']
-              .map(
-                (tag) => Semantics(
-                  label: '인기 검색어: $tag',
-                  child: ActionChip(
-                    label: Text(tag),
-                    onPressed: () => onSelect(tag),
-                  ),
+        // EN: Trending searches section
+        // KO: 인기 검색어 섹션
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
+          child: Row(
+            children: [
+              Icon(
+                Icons.trending_up_rounded,
+                size: 18,
+                color: primaryColor,
+              ),
+              const SizedBox(width: GBTSpacing.xs),
+              Text(
+                '인기 검색어',
+                style: GBTTypography.labelMedium.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
-              )
-              .toList(),
+              ),
+            ],
+          ),
         ),
+        // EN: Numbered trending list — Naver/Kakao/Melon style rank rows
+        // KO: 번호 순위 목록 — 네이버/카카오/멜론 스타일 순위 행
+        ..._trending.asMap().entries.map((entry) {
+          final rank = entry.key + 1;
+          final keyword = entry.value;
+          final isTop3 = rank <= 3;
+          final rankColor = isTop3
+              ? primaryColor
+              : (isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary);
+
+          return Semantics(
+            label: '인기 검색어 $rank위: $keyword',
+            button: true,
+            child: InkWell(
+              onTap: () => onSelect(keyword),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: GBTSpacing.md,
+                  vertical: GBTSpacing.sm2,
+                ),
+                child: Row(
+                  children: [
+                    // EN: Rank number — 24px fixed width, top-3 in primary color
+                    // KO: 순위 번호 — 24px 고정 너비, 상위 3위는 primary 색상
+                    SizedBox(
+                      width: 24,
+                      child: Text(
+                        '$rank',
+                        textAlign: TextAlign.center,
+                        style: GBTTypography.labelMedium.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: rankColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: GBTSpacing.md),
+                    Expanded(
+                      child: Text(
+                        keyword,
+                        style: GBTTypography.bodyMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+        const SizedBox(height: GBTSpacing.xl),
       ],
     );
   }
 }
 
-/// EN: Search results widget.
-/// KO: 검색 결과 위젯.
+/// EN: Recent search chip with history icon and delete button.
+/// KO: 히스토리 아이콘과 삭제 버튼이 있는 최근 검색 칩.
+class _RecentChip extends StatelessWidget {
+  const _RecentChip({
+    required this.label,
+    required this.onTap,
+    required this.onRemove,
+    required this.isDark,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final bgColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+    final textColor = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final iconColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.only(
+          left: GBTSpacing.sm,
+          right: GBTSpacing.xs,
+          top: GBTSpacing.xs,
+          bottom: GBTSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.history_rounded,
+              size: 14,
+              color: iconColor,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: GBTTypography.labelMedium.copyWith(color: textColor),
+            ),
+            const SizedBox(width: 4),
+            GestureDetector(
+              onTap: onRemove,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.all(3),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 12,
+                  color: iconColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// EN: Search results with tab filter
+// KO: 탭 필터가 있는 검색 결과
+// ============================================================
+
 class _SearchResults extends StatelessWidget {
   const _SearchResults({
     required this.query,
@@ -428,28 +606,6 @@ class _SearchResults extends StatelessWidget {
       length: 4,
       child: Column(
         children: [
-          if (scopedToCurrentProject)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                GBTSpacing.md,
-                0,
-                GBTSpacing.md,
-                GBTSpacing.xs,
-              ),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  projectScopeLabel != null
-                      ? '$projectScopeLabel 범위 결과'
-                      : '현재 프로젝트 범위 결과',
-                  style: GBTTypography.labelSmall.copyWith(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? GBTColors.darkTextSecondary
-                        : GBTColors.textSecondary,
-                  ),
-                ),
-              ),
-            ),
           const GBTSegmentedTabBar(
             margin: EdgeInsets.symmetric(horizontal: GBTSpacing.md),
             isScrollable: true,
@@ -460,14 +616,19 @@ class _SearchResults extends StatelessWidget {
               Tab(text: '뉴스'),
             ],
           ),
+          const SizedBox(height: GBTSpacing.xs),
           Expanded(
             child: state.when(
               loading: () => ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: GBTSpacing.paddingPage,
-                children: const [
-                  SizedBox(height: GBTSpacing.lg),
-                  GBTLoading(message: '검색 결과를 불러오는 중...'),
+                padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
+                children: [
+                  GBTListSkeleton(
+                    itemCount: 5,
+                    padding: EdgeInsets.zero,
+                    spacing: GBTSpacing.sm,
+                    itemBuilder: (_) => const GBTNewsCardSkeleton(),
+                  ),
                 ],
               ),
               error: (error, _) {
@@ -517,45 +678,43 @@ class _SearchResultList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final secondaryColor = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
 
     if (items.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: GBTSpacing.paddingPage,
-        children: [
-          Text(
-            '"$query" 검색 결과',
-            style: GBTTypography.labelMedium.copyWith(color: secondaryColor),
-          ),
-          const SizedBox(height: GBTSpacing.md),
-          const GBTEmptyState(
-            icon: Icons.search_off,
+        children: const [
+          SizedBox(height: GBTSpacing.lg),
+          GBTEmptyState(
+            icon: Icons.search_off_rounded,
             message: '검색 결과가 없습니다.\n다른 키워드로 검색해보세요.',
           ),
         ],
       );
     }
 
-    return ListView(
+    return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: GBTSpacing.paddingPage,
-      children: [
-        Text(
-          '"$query" 검색 결과',
-          style: GBTTypography.labelMedium.copyWith(color: secondaryColor),
-        ),
-        const SizedBox(height: GBTSpacing.md),
-        ...items.map((item) => _SearchResultItem(item: item)),
-      ],
+      padding: const EdgeInsets.only(bottom: GBTSpacing.xxl),
+      itemCount: items.length,
+      separatorBuilder: (context, index) => Divider(
+        height: 1,
+        thickness: 0.5,
+        // EN: Indent aligns with text content start (thumbnail 48 + gap 12 + horizontal 16)
+        // KO: 들여쓰기가 텍스트 시작점과 정렬됨 (썸네일 48 + 간격 12 + 수평 16)
+        indent: GBTSpacing.md + 48 + GBTSpacing.md,
+        endIndent: GBTSpacing.md,
+        color: isDark
+            ? GBTColors.darkBorder.withValues(alpha: 0.4)
+            : GBTColors.border.withValues(alpha: 0.4),
+      ),
+      itemBuilder: (context, index) => _SearchResultItem(item: items[index]),
     );
   }
 }
 
-/// EN: Search result item widget.
-/// KO: 검색 결과 아이템 위젯.
+/// EN: Search result item — clean row without Card, thumbnail + text + type badge.
+/// KO: 검색 결과 아이템 — Card 없는 클린 행, 썸네일 + 텍스트 + 타입 배지.
 class _SearchResultItem extends StatelessWidget {
   const _SearchResultItem({required this.item});
 
@@ -565,93 +724,153 @@ class _SearchResultItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final typeLabel = _typeLabel(item.type);
-    final color = _typeColor(item.type, isDark: isDark);
+    final accentColor = _typeAccentColor(item.type, isDark: isDark);
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
 
     return Semantics(
       label: '$typeLabel: ${item.title}',
       button: true,
-      child: Card(
-        margin: const EdgeInsets.only(bottom: GBTSpacing.sm),
-        child: ListTile(
-          leading: _SearchLeading(
-            imageUrl: item.imageUrl,
-            fallbackIcon: _typeIcon(item.type),
-            color: color,
+      child: InkWell(
+        onTap: () => _handleTap(context, item),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: GBTSpacing.md,
+            vertical: GBTSpacing.sm + 2,
           ),
-          title: Text(
-            item.title,
-            style: GBTTypography.bodyMedium,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // EN: Thumbnail — image or tinted icon box
+              // KO: 썸네일 — 이미지 또는 틴트 아이콘 박스
+              _SearchThumbnail(
+                imageUrl: item.imageUrl,
+                fallbackIcon: _typeIcon(item.type),
+                accentColor: accentColor,
+                isDark: isDark,
+              ),
+              const SizedBox(width: GBTSpacing.md),
+              // EN: Title + subtitle stack
+              // KO: 제목 + 부제목 스택
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      style: GBTTypography.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _subtitleText(item),
+                      style: GBTTypography.bodySmall.copyWith(
+                        color: secondaryColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: GBTSpacing.sm),
+              // EN: Type badge pill
+              // KO: 타입 배지 필
+              _TypeBadge(
+                label: typeLabel,
+                accentColor: accentColor,
+                isDark: isDark,
+              ),
+            ],
           ),
-          subtitle: Text(
-            _subtitleText(item),
-            style: GBTTypography.bodySmall.copyWith(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? GBTColors.darkTextTertiary
-                  : GBTColors.textTertiary,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: GBTSpacing.xs,
-              vertical: 2,
-            ),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
-            ),
-            child: Text(
-              typeLabel,
-              style: GBTTypography.labelSmall.copyWith(color: color),
-            ),
-          ),
-          onTap: () => _handleTap(context, item),
         ),
       ),
     );
   }
 }
 
-class _SearchLeading extends StatelessWidget {
-  const _SearchLeading({
+/// EN: 48×48 thumbnail widget for search result rows.
+/// KO: 검색 결과 행용 48×48 썸네일 위젯.
+class _SearchThumbnail extends StatelessWidget {
+  const _SearchThumbnail({
     required this.imageUrl,
     required this.fallbackIcon,
-    required this.color,
+    required this.accentColor,
+    required this.isDark,
   });
 
   final String? imageUrl;
   final IconData fallbackIcon;
-  final Color color;
+  final Color accentColor;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    if (imageUrl == null || imageUrl!.isEmpty) {
-      return Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+    if (imageUrl != null && imageUrl!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        child: GBTImage(
+          imageUrl: imageUrl!,
+          width: 48,
+          height: 48,
+          fit: BoxFit.cover,
+          semanticLabel: '검색 결과 이미지',
         ),
-        child: Icon(fallbackIcon, color: color, size: 20),
       );
     }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-      child: GBTImage(
-        imageUrl: imageUrl!,
-        width: 40,
-        height: 40,
-        fit: BoxFit.cover,
-        semanticLabel: '검색 결과 이미지',
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: isDark ? 0.18 : 0.10),
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      ),
+      child: Icon(fallbackIcon, color: accentColor, size: 22),
+    );
+  }
+}
+
+/// EN: Pill-shaped type badge for search result items.
+/// KO: 검색 결과 아이템용 필 형태의 타입 배지.
+class _TypeBadge extends StatelessWidget {
+  const _TypeBadge({
+    required this.label,
+    required this.accentColor,
+    required this.isDark,
+  });
+
+  final String label;
+  final Color accentColor;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: isDark ? 0.18 : 0.10),
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+      ),
+      child: Text(
+        label,
+        style: GBTTypography.labelSmall.copyWith(
+          color: accentColor,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
 }
+
+// ============================================================
+// EN: Helper functions
+// KO: 헬퍼 함수
+// ============================================================
 
 List<SearchItem> _filterByType(List<SearchItem> items, SearchItemType type) {
   return items.where((item) => item.type == type).toList();
@@ -671,20 +890,42 @@ String _typeLabel(SearchItemType type) {
 
 IconData _typeIcon(SearchItemType type) {
   return switch (type) {
-    SearchItemType.place => Icons.place,
-    SearchItemType.liveEvent => Icons.event,
-    SearchItemType.news => Icons.article,
-    SearchItemType.post => Icons.forum,
-    SearchItemType.unit => Icons.group,
-    SearchItemType.project => Icons.folder,
-    SearchItemType.unknown => Icons.search,
+    SearchItemType.place => Icons.place_rounded,
+    SearchItemType.liveEvent => Icons.event_rounded,
+    SearchItemType.news => Icons.article_rounded,
+    SearchItemType.post => Icons.forum_rounded,
+    SearchItemType.unit => Icons.group_rounded,
+    SearchItemType.project => Icons.folder_rounded,
+    SearchItemType.unknown => Icons.search_rounded,
   };
 }
 
-/// EN: Returns neutral color for type badge — decorative only, no brand colors.
-/// KO: 타입 배지용 뉴트럴 색상 반환 — 장식용이므로 브랜드 색상을 사용하지 않습니다.
-Color _typeColor(SearchItemType type, {required bool isDark}) {
-  return isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+/// EN: Accent color per search item type — distinct, accessible colors.
+/// KO: 검색 아이템 타입별 강조 색상 — 구분 가능하고 접근성 있는 색상.
+Color _typeAccentColor(SearchItemType type, {required bool isDark}) {
+  return switch (type) {
+    SearchItemType.place => isDark
+        ? const Color(0xFF2DD4BF)
+        : GBTColors.accentTeal,     // teal — location
+    SearchItemType.liveEvent => isDark
+        ? GBTColors.darkSecondary
+        : GBTColors.secondary,      // pink — live event
+    SearchItemType.news => isDark
+        ? const Color(0xFF60A5FA)
+        : GBTColors.accentBlue,     // blue — news
+    SearchItemType.post => isDark
+        ? GBTColors.darkPrimary
+        : GBTColors.primary,        // indigo — community
+    SearchItemType.unit => isDark
+        ? const Color(0xFFFBBF24)
+        : GBTColors.accent,         // amber — unit/band
+    SearchItemType.project => isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary,
+    SearchItemType.unknown => isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary,
+  };
 }
 
 String _subtitleText(SearchItem item) {

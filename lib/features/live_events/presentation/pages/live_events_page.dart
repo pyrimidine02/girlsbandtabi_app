@@ -7,20 +7,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/theme/gbt_animations.dart';
+import '../../../../core/theme/gbt_colors.dart';
+import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/cards/gbt_event_card.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
-import '../../../../core/widgets/layout/gbt_page_intro_card.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../application/live_events_controller.dart';
 import '../../domain/entities/live_event_entities.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
-import '../../../projects/presentation/widgets/band_filter_sheet.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
 
 /// EN: Live events page widget
@@ -50,6 +51,7 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final eventsState = ref.watch(liveEventsListControllerProvider);
     final selectedBandIds = ref.watch(selectedLiveBandIdsProvider);
     final projectKey = ref.watch(selectedProjectKeyProvider);
@@ -60,18 +62,34 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
     final unitsState = resolvedProjectKey.isNotEmpty
         ? ref.watch(projectUnitsControllerProvider(resolvedProjectKey))
         : const AsyncValue<List<Unit>>.data([]);
-    final bandLabel = _resolveBandLabel(unitsState, selectedBandIds);
-    final liveCounts = eventsState.maybeWhen(
-      data: (events) {
-        final upcoming = events.where((event) => event.isUpcoming).length;
-        return (upcoming, events.length - upcoming);
-      },
-      orElse: () => null,
-    );
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('라이브'),
+        // EN: titleSpacing 0 — spacing is controlled inline in the Row.
+        // KO: titleSpacing 0 — 간격은 Row 안에서 직접 제어.
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            const SizedBox(width: GBTSpacing.md),
+            Text(
+              '라이브',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.sm),
+              child: Container(
+                width: 1,
+                height: 16,
+                color: isDark ? GBTColors.darkBorder : GBTColors.border,
+              ),
+            ),
+            // EN: Project selector fills remaining AppBar title space.
+            // KO: 프로젝트 선택기가 남은 AppBar 타이틀 공간을 채움.
+            const Expanded(child: ProjectSelectorCompact()),
+          ],
+        ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(44),
           child: GBTSegmentedTabBar(
@@ -92,59 +110,37 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.calendar_month),
+          GBTAppBarIconButton(
+            icon: Icons.calendar_month_outlined,
             onPressed: () {
               _showCalendar(eventsState);
             },
             tooltip: '캘린더로 라이브 이벤트 보기',
-          ),
-          IconButton(
-            icon: const Icon(Icons.groups),
-            onPressed: () =>
-                _showBandFilter(resolvedProjectKey, selectedBandIds),
-            tooltip: '밴드 필터 선택',
           ),
           const GBTProfileAction(),
         ],
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              GBTSpacing.md,
-              GBTSpacing.md,
-              GBTSpacing.md,
-              0,
-            ),
-            child: const ProjectSelectorCompact(),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              GBTSpacing.md,
-              GBTSpacing.sm,
-              GBTSpacing.md,
-              GBTSpacing.xs,
-            ),
-            child: GBTPageIntroCard(
-              icon: Icons.music_note_rounded,
-              title: '라이브 일정',
-              description: '예정/완료 공연을 날짜순으로 빠르게 확인하세요.',
-              trailing: liveCounts == null
-                  ? null
-                  : _LiveCountBadge(
-                      upcomingCount: liveCounts.$1,
-                      completedCount: liveCounts.$2,
-                    ),
-            ),
-          ),
-          _BandFilterBar(
-            label: bandLabel,
-            hasSelection: selectedBandIds.isNotEmpty,
-            onSelect: () =>
-                _showBandFilter(resolvedProjectKey, selectedBandIds),
-            onClear: () {
+          // EN: Inline band chip filter — replaces the two-row (ProjectSelector + BandFilterBar) layout.
+          // KO: 인라인 밴드 칩 필터 — 기존 두 줄(ProjectSelector + BandFilterBar) 레이아웃을 대체.
+          _BandChipFilterRow(
+            unitsState: unitsState,
+            selectedBandIds: selectedBandIds,
+            onSelectAll: () {
               ref.read(selectedLiveBandIdsProvider.notifier).state = [];
+            },
+            onToggleBand: (id) {
+              final current = ref.read(selectedLiveBandIdsProvider);
+              if (current.contains(id)) {
+                ref.read(selectedLiveBandIdsProvider.notifier).state =
+                    current.where((e) => e != id).toList();
+              } else {
+                ref.read(selectedLiveBandIdsProvider.notifier).state = [
+                  ...current,
+                  id,
+                ];
+              }
             },
           ),
           Expanded(
@@ -176,45 +172,6 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
           ),
         ],
       ),
-    );
-  }
-
-  void _showBandFilter(String projectKey, List<String> selectedBandIds) {
-    if (projectKey.isEmpty) return;
-    showBandFilterSheet(
-      context: context,
-      ref: ref,
-      projectKey: projectKey,
-      selectedBandIds: selectedBandIds,
-      onApply: (ids) {
-        ref.read(selectedLiveBandIdsProvider.notifier).state = ids;
-      },
-    );
-  }
-
-  String _resolveBandLabel(
-    AsyncValue<List<Unit>> unitsState,
-    List<String> selectedBandIds,
-  ) {
-    if (selectedBandIds.isEmpty) {
-      return '전체 밴드';
-    }
-
-    return unitsState.maybeWhen(
-      data: (units) {
-        final names = units
-            .where((unit) => selectedBandIds.contains(unit.id))
-            .map((unit) => unit.code.isNotEmpty ? unit.code : unit.displayName)
-            .toList();
-        if (names.isEmpty) {
-          return '밴드 ${selectedBandIds.length}개';
-        }
-        if (names.length == 1) {
-          return names.first;
-        }
-        return '${names.first} 외 ${names.length - 1}';
-      },
-      orElse: () => '밴드 ${selectedBandIds.length}개',
     );
   }
 
@@ -374,39 +331,6 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
   }
 }
 
-class _LiveCountBadge extends StatelessWidget {
-  const _LiveCountBadge({
-    required this.upcomingCount,
-    required this.completedCount,
-  });
-
-  final int upcomingCount;
-  final int completedCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: GBTSpacing.sm,
-        vertical: GBTSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: isDark
-            ? Theme.of(context).colorScheme.surface
-            : Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
-      ),
-      child: Text(
-        '예정 $upcomingCount · 완료 $completedCount',
-        style: Theme.of(
-          context,
-        ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-}
-
 /// EN: Event list widget
 /// KO: 이벤트 리스트 위젯
 class _EventList extends StatelessWidget {
@@ -429,10 +353,14 @@ class _EventList extends StatelessWidget {
       child: state.when(
         loading: () => ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: GBTSpacing.paddingPage,
-          children: const [
-            SizedBox(height: GBTSpacing.lg),
-            GBTLoading(message: '라이브 이벤트를 불러오는 중...'),
+          padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
+          children: [
+            GBTListSkeleton(
+              itemCount: 4,
+              padding: EdgeInsets.zero,
+              spacing: GBTSpacing.sm,
+              itemBuilder: (_) => const GBTEventCardSkeleton(),
+            ),
           ],
         ),
         error: (error, _) {
@@ -475,23 +403,54 @@ class _EventList extends StatelessWidget {
             );
           }
 
+          // EN: Render today/live events as featured cards, rest as list cards
+          // KO: 오늘/LIVE 이벤트는 피처드 카드로, 나머지는 일반 카드로 표시
           return ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: GBTSpacing.paddingPage,
+            padding: const EdgeInsets.fromLTRB(
+              GBTSpacing.md,
+              GBTSpacing.sm,
+              GBTSpacing.md,
+              GBTSpacing.xl,
+            ),
             itemCount: filtered.length,
             itemBuilder: (context, index) {
               final event = filtered[index];
+              final isLive = event.statusLabel.toLowerCase() == 'live';
+              final isTodayEvent = event.dDayLabel == 'D-day';
+              final timeStr = DateFormat('HH:mm').format(
+                event.showStartTime.toLocal(),
+              );
+
+              // EN: Featured card for live or today events (upcoming tab only)
+              // KO: 업커밍 탭에서 LIVE·오늘 이벤트는 피처드 카드로 강조
+              if (isUpcoming && (isLive || isTodayEvent)) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: GBTSpacing.md),
+                  child: GBTFeaturedEventCard(
+                    eventId: event.id,
+                    title: event.title,
+                    subtitle: event.statusLabel,
+                    meta: '$timeStr · ${event.metaLabel}',
+                    date: event.dateLabel,
+                    posterUrl: event.bannerUrl,
+                    isLive: isLive,
+                    onTap: () => context.goToLiveDetail(event.id),
+                  ),
+                );
+              }
+
               return Padding(
-                padding: const EdgeInsets.only(bottom: GBTSpacing.md),
+                padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
                 child: GBTEventCard(
                   eventId: event.id,
                   title: event.title,
                   subtitle: event.statusLabel,
-                  meta: event.metaLabel,
+                  meta: '$timeStr · ${event.metaLabel}',
                   date: event.dateLabel,
                   dDayLabel: event.dDayLabel,
                   posterUrl: event.bannerUrl,
-                  isLive: event.statusLabel.toLowerCase() == 'live',
+                  isLive: isLive,
                   isUpcoming: event.isUpcoming,
                   onTap: () => context.goToLiveDetail(event.id),
                 ),
@@ -504,48 +463,122 @@ class _EventList extends StatelessWidget {
   }
 }
 
-class _BandFilterBar extends StatelessWidget {
-  const _BandFilterBar({
-    required this.label,
-    required this.hasSelection,
-    required this.onSelect,
-    required this.onClear,
+// ========================================
+// EN: Inline band chip filter row
+// KO: 인라인 밴드 칩 필터 행
+// ========================================
+
+/// EN: Horizontal scrollable band filter chips — "전체" + one chip per unit.
+/// KO: 가로 스크롤 밴드 필터 칩 — "전체" + 유닛별 칩.
+class _BandChipFilterRow extends StatelessWidget {
+  const _BandChipFilterRow({
+    required this.unitsState,
+    required this.selectedBandIds,
+    required this.onSelectAll,
+    required this.onToggleBand,
   });
 
-  final String label;
-  final bool hasSelection;
-  final VoidCallback onSelect;
-  final VoidCallback onClear;
+  final AsyncValue<List<Unit>> unitsState;
+  final List<String> selectedBandIds;
+  final VoidCallback onSelectAll;
+  final ValueChanged<String> onToggleBand;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        GBTSpacing.md,
-        GBTSpacing.sm,
-        GBTSpacing.md,
-        GBTSpacing.xs,
-      ),
-      child: Row(
-        children: [
-          if (hasSelection)
-            Semantics(
-              label: '밴드 필터: $label. 삭제하려면 탭하세요',
-              child: InputChip(
-                label: Text(label),
-                onDeleted: onClear,
-                deleteButtonTooltipMessage: '필터 해제',
+    return unitsState.when(
+      // EN: Skip filter row while loading — no height penalty.
+      // KO: 로딩 중에는 필터 행 표시 안 함 — 레이아웃 높이 페널티 없음.
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (units) {
+        if (units.isEmpty) return const SizedBox.shrink();
+        return SizedBox(
+          height: 44,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+              horizontal: GBTSpacing.md,
+              vertical: GBTSpacing.xs2,
+            ),
+            children: [
+              _BandChip(
+                label: '전체',
+                isSelected: selectedBandIds.isEmpty,
+                onTap: onSelectAll,
               ),
-            )
-          else
-            Text(label, style: Theme.of(context).textTheme.bodySmall),
-          const Spacer(),
-          TextButton.icon(
-            onPressed: onSelect,
-            icon: const Icon(Icons.groups),
-            label: const Text('밴드 선택'),
+              ...units.map((unit) {
+                final label =
+                    unit.code.isNotEmpty ? unit.code : unit.displayName;
+                return Padding(
+                  padding: const EdgeInsets.only(left: GBTSpacing.xs2),
+                  child: _BandChip(
+                    label: label,
+                    isSelected: selectedBandIds.contains(unit.id),
+                    onTap: () => onToggleBand(unit.id),
+                  ),
+                );
+              }),
+            ],
           ),
-        ],
+        );
+      },
+    );
+  }
+}
+
+/// EN: Single band filter chip with animated selected state.
+/// KO: 애니메이션 선택 상태를 가진 단일 밴드 필터 칩.
+class _BandChip extends StatelessWidget {
+  const _BandChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final bgColor = isSelected
+        ? primaryColor.withValues(alpha: isDark ? 0.20 : 0.10)
+        : (isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant);
+    final textColor = isSelected
+        ? primaryColor
+        : (isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary);
+    final borderColor = isSelected ? primaryColor : Colors.transparent;
+
+    return Semantics(
+      label: '$label 밴드${isSelected ? ', 선택됨' : ''}',
+      button: true,
+      selected: isSelected,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: GBTAnimations.fast,
+          curve: GBTAnimations.defaultCurve,
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+            border: Border.all(color: borderColor, width: 1.5),
+          ),
+          child: Center(
+            child: AnimatedDefaultTextStyle(
+              duration: GBTAnimations.fast,
+              curve: GBTAnimations.defaultCurve,
+              style: GBTTypography.labelMedium.copyWith(
+                color: textColor,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              ),
+              child: Text(label),
+            ),
+          ),
+        ),
       ),
     );
   }

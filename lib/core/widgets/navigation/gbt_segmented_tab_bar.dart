@@ -43,44 +43,59 @@ class GBTSegmentedTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
     final resolvedLabelStyle = (labelStyle ?? GBTTypography.labelLarge)
         .copyWith(fontWeight: FontWeight.w600);
     final resolvedUnselectedLabelStyle =
         unselectedLabelStyle ?? labelStyle ?? GBTTypography.labelLarge;
 
-    final segmented = Container(
-      margin: margin ?? const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
-      padding: padding,
-      decoration: BoxDecoration(
-        color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(borderRadius),
-      ),
-      child: TabBar(
-        controller: controller,
-        isScrollable: isScrollable,
-        indicator: BoxDecoration(
-          color: isDark ? GBTColors.darkSurface : GBTColors.surface,
-          borderRadius: BorderRadius.circular(indicatorBorderRadius),
-          boxShadow: indicatorShadow
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ]
-              : null,
+    final segmented = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: GBTSpacing.minTouchTarget),
+      child: Container(
+        margin: margin ?? const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
+        padding: padding,
+        decoration: BoxDecoration(
+          color: isDark
+              ? GBTColors.darkSurfaceVariant
+              : GBTColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(borderRadius),
+          border: Border.all(
+            color: isDark
+                ? GBTColors.darkBorder
+                : GBTColors.border.withValues(alpha: 0.8),
+          ),
         ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        dividerColor: Colors.transparent,
-        labelColor: isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
-        unselectedLabelColor: isDark
-            ? GBTColors.darkTextTertiary
-            : GBTColors.textTertiary,
-        labelStyle: resolvedLabelStyle,
-        unselectedLabelStyle: resolvedUnselectedLabelStyle,
-        labelPadding: labelPadding,
-        tabs: tabs,
+        child: TabBar(
+          controller: controller,
+          isScrollable: isScrollable,
+          indicator: BoxDecoration(
+            color: activeColor.withValues(alpha: isDark ? 0.22 : 0.14),
+            borderRadius: BorderRadius.circular(indicatorBorderRadius),
+            border: Border.all(
+              color: activeColor.withValues(alpha: isDark ? 0.5 : 0.32),
+              width: 1,
+            ),
+            boxShadow: indicatorShadow
+                ? [
+                    BoxShadow(
+                      color: activeColor.withValues(alpha: 0.18),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          indicatorSize: TabBarIndicatorSize.tab,
+          dividerColor: Colors.transparent,
+          labelColor: activeColor,
+          unselectedLabelColor: isDark
+              ? GBTColors.darkTextTertiary
+              : GBTColors.textTertiary,
+          labelStyle: resolvedLabelStyle,
+          unselectedLabelStyle: resolvedUnselectedLabelStyle,
+          labelPadding: labelPadding,
+          tabs: tabs,
+        ),
       ),
     );
 

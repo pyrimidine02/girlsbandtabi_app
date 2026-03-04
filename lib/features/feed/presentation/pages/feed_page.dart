@@ -6,15 +6,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/utils/result.dart';
+import '../../../../core/widgets/common/gbt_action_icons.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
+import '../../../settings/application/settings_controller.dart';
+import '../../application/community_moderation_controller.dart';
 import '../../application/feed_controller.dart';
+import '../../application/report_rate_limiter.dart';
+import '../../domain/entities/community_moderation.dart';
 import '../../domain/entities/feed_entities.dart';
+import '../widgets/community_report_sheet.dart';
+
+/// EN: Actions available on a community post card.
+/// KO: 커뮤니티 게시글 카드에서 사용 가능한 액션.
+enum _FeedPostCardAction { report }
 
 /// EN: Feed page widget with modern pill-style segmented tab bar.
 /// KO: 모던 필 스타일 세그먼트 탭바를 포함한 피드 페이지 위젯.
@@ -56,7 +69,6 @@ class _FeedPageState extends ConsumerState<FeedPage>
   Widget build(BuildContext context) {
     final newsState = ref.watch(newsListControllerProvider);
     final postState = ref.watch(postListControllerProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -71,49 +83,15 @@ class _FeedPageState extends ConsumerState<FeedPage>
         // EN: Pill-style segmented tab bar — matches board_page design
         // KO: 필 스타일 세그먼트 탭바 — board_page 디자인과 일치
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Container(
-            margin: const EdgeInsets.symmetric(
-              horizontal: GBTSpacing.md,
-            ),
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? GBTColors.darkSurfaceVariant
-                  : GBTColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              indicator: BoxDecoration(
-                color: isDark ? GBTColors.darkSurface : GBTColors.surface,
-                borderRadius:
-                    BorderRadius.circular(GBTSpacing.radiusSm + 1),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-              indicatorSize: TabBarIndicatorSize.tab,
-              dividerColor: Colors.transparent,
-              labelColor: isDark
-                  ? GBTColors.darkTextPrimary
-                  : GBTColors.textPrimary,
-              unselectedLabelColor: isDark
-                  ? GBTColors.darkTextTertiary
-                  : GBTColors.textTertiary,
-              labelStyle: GBTTypography.labelLarge.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              unselectedLabelStyle: GBTTypography.labelLarge,
-              tabs: const [
-                Tab(text: '뉴스'),
-                Tab(text: '커뮤니티'),
-              ],
-            ),
+          preferredSize: const Size.fromHeight(44),
+          child: GBTSegmentedTabBar(
+            controller: _tabController,
+            height: 44,
+            margin: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
+            tabs: const [
+              Tab(text: '뉴스'),
+              Tab(text: '커뮤니티'),
+            ],
           ),
         ),
       ),
@@ -151,13 +129,13 @@ class _FeedPageState extends ConsumerState<FeedPage>
           ),
         ],
       ),
-      // EN: Extended FAB for consistency with board page
-      // KO: 게시판 페이지와 일관성을 위한 확장 FAB
+      // EN: Compact FAB reduces visual weight in timeline screens.
+      // KO: 타임라인 화면에서 시각적 부담을 줄이기 위한 컴팩트 FAB.
       floatingActionButton: _showCommunityFab
-          ? FloatingActionButton.extended(
+          ? FloatingActionButton(
               onPressed: () => context.goToPostCreate(),
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('글쓰기'),
+              tooltip: '글쓰기',
+              child: const Icon(Icons.edit_outlined),
             )
           : null,
     );
@@ -177,15 +155,18 @@ class _NewsList extends StatelessWidget {
     return state.when(
       loading: () => ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: GBTSpacing.paddingPage,
-        children: const [
-          SizedBox(height: GBTSpacing.lg),
-          GBTLoading(message: '뉴스를 불러오는 중...'),
+        padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
+        children: [
+          GBTListSkeleton(
+            itemCount: 4,
+            padding: EdgeInsets.zero,
+            spacing: GBTSpacing.sm,
+            itemBuilder: (_) => const GBTNewsCardSkeleton(),
+          ),
         ],
       ),
       error: (error, _) {
-        final message =
-            error is Failure ? error.userMessage : '뉴스를 불러오지 못했어요';
+        final message = error is Failure ? error.userMessage : '뉴스를 불러오지 못했어요';
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: GBTSpacing.paddingPage,
@@ -239,8 +220,9 @@ class _NewsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final thumbnail = news.thumbnailUrl;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tertiaryColor =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
 
     // EN: Borderless card — no Card wrapper, just InkWell + Padding
     // KO: 무테두리 카드 — Card 래퍼 없이, InkWell + Padding만 사용
@@ -311,8 +293,7 @@ class _NewsThumbnail extends StatelessWidget {
         ),
         child: Icon(
           Icons.article_outlined,
-          color:
-              isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+          color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
           size: 28,
         ),
       );
@@ -341,10 +322,14 @@ class _CommunityList extends StatelessWidget {
     return state.when(
       loading: () => ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: GBTSpacing.paddingPage,
-        children: const [
-          SizedBox(height: GBTSpacing.lg),
-          GBTLoading(message: '커뮤니티 글을 불러오는 중...'),
+        padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
+        children: [
+          GBTListSkeleton(
+            itemCount: 5,
+            padding: EdgeInsets.zero,
+            spacing: GBTSpacing.none,
+            itemBuilder: (_) => const GBTCommunityPostSkeleton(),
+          ),
         ],
       ),
       error: (error, _) {
@@ -395,13 +380,13 @@ class _CommunityList extends StatelessWidget {
 
 /// EN: Community post card — borderless, divider-separated SNS style.
 /// KO: 커뮤니티 게시글 카드 — 무테두리, 구분선 분리 SNS 스타일.
-class _CommunityPostCard extends StatelessWidget {
+class _CommunityPostCard extends ConsumerWidget {
   const _CommunityPostCard({required this.post});
 
   final PostSummary post;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final authorLabel = post.authorName?.isNotEmpty == true
         ? post.authorName!
         : '익명';
@@ -411,8 +396,16 @@ class _CommunityPostCard extends StatelessWidget {
     final commentCount = post.commentCount ?? 0;
     final likeCount = post.likeCount ?? 0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tertiaryColor =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+
+    // EN: Determine if the current user can report this post.
+    // KO: 현재 사용자가 이 게시글을 신고할 수 있는지 확인합니다.
+    final isAuthenticated = ref.watch(isAuthenticatedProvider);
+    final myProfile = ref.watch(userProfileControllerProvider).valueOrNull;
+    final isAuthor = myProfile?.id == post.authorId;
+    final showMoreButton = isAuthenticated && !isAuthor;
 
     // EN: Borderless post card — no Card wrapper
     // KO: 무테두리 게시글 카드 — Card 래퍼 없음
@@ -458,13 +451,31 @@ class _CommunityPostCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                // EN: Horizontal more icon — matches board page
-                // KO: 수평 더보기 아이콘 — 게시판 페이지와 일치
-                Icon(
-                  Icons.more_horiz,
-                  size: 20,
-                  color: tertiaryColor,
-                ),
+                // EN: Report popup — visible only to authenticated non-authors.
+                // KO: 신고 팝업 — 로그인한 비작성자에게만 표시합니다.
+                if (showMoreButton)
+                  PopupMenuButton<_FeedPostCardAction>(
+                    icon: Icon(Icons.more_horiz, size: 20, color: tertiaryColor),
+                    padding: EdgeInsets.zero,
+                    tooltip: '더보기',
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: _FeedPostCardAction.report,
+                        child: Row(
+                          children: [
+                            Icon(Icons.flag_outlined, size: 18),
+                            SizedBox(width: GBTSpacing.sm),
+                            Text('신고'),
+                          ],
+                        ),
+                      ),
+                    ],
+                    onSelected: (action) {
+                      if (action == _FeedPostCardAction.report) {
+                        _showReportFlow(context, ref);
+                      }
+                    },
+                  ),
               ],
             ),
             const SizedBox(height: GBTSpacing.sm),
@@ -482,14 +493,37 @@ class _CommunityPostCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: GBTSpacing.sm),
+            // EN: Show image preview if images exist, otherwise show content text.
+            // KO: 이미지가 있으면 이미지 프리뷰, 없으면 본문 텍스트를 표시합니다.
+            if (post.imageUrls.isNotEmpty || post.thumbnailUrl != null) ...[
+              _PostImagePreview(
+                imageUrls: post.imageUrls.isNotEmpty
+                    ? post.imageUrls
+                    : [post.thumbnailUrl!],
+                isDark: isDark,
+              ),
+              const SizedBox(height: GBTSpacing.sm),
+            ] else if (post.content != null &&
+                post.content!.isNotEmpty) ...[
+              Text(
+                post.content!,
+                style: GBTTypography.bodySmall.copyWith(
+                  color: isDark
+                      ? GBTColors.darkTextTertiary
+                      : GBTColors.textTertiary,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: GBTSpacing.sm),
+            ],
             // EN: Engagement stats row
             // KO: 참여 통계 행
             Semantics(
               label: '좋아요 $likeCount개, 댓글 $commentCount개',
               child: Row(
                 children: [
-                  Icon(Icons.favorite_border,
-                      size: 16, color: tertiaryColor),
+                  Icon(GBTActionIcons.like, size: 16, color: tertiaryColor),
                   const SizedBox(width: GBTSpacing.xxs),
                   Text(
                     likeCount.toString(),
@@ -498,8 +532,7 @@ class _CommunityPostCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: GBTSpacing.md),
-                  Icon(Icons.chat_bubble_outline,
-                      size: 16, color: tertiaryColor),
+                  Icon(GBTActionIcons.comment, size: 16, color: tertiaryColor),
                   const SizedBox(width: GBTSpacing.xxs),
                   Text(
                     commentCount.toString(),
@@ -513,6 +546,234 @@ class _CommunityPostCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  /// EN: Report flow — rate-limit check, report sheet, confirmation, submit.
+  /// KO: 신고 흐름 — 레이트리밋 확인, 신고 시트, 확인 다이얼로그, 제출.
+  Future<void> _showReportFlow(BuildContext context, WidgetRef ref) async {
+    final rateLimiter = ref.read(reportRateLimiterProvider);
+    if (!rateLimiter.canReport(post.id)) {
+      final remaining = rateLimiter.remainingCooldown(post.id);
+      final minutes = remaining.inMinutes + 1;
+      _showSnackBar(context, '$minutes분 후 다시 신고할 수 있어요');
+      return;
+    }
+
+    final payload = await showModalBottomSheet<CommunityReportPayload>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const CommunityReportSheet(),
+    );
+    if (payload == null || !context.mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('신고 접수'),
+        content: Text(
+          '게시글을 "${payload.reason.label}" 사유로 신고합니다.\n접수하시겠어요?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('신고 접수'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final repository = await ref.read(communityRepositoryProvider.future);
+    final result = await repository.createReport(
+      targetType: CommunityReportTargetType.post,
+      targetId: post.id,
+      reason: payload.reason,
+      description: payload.description,
+    );
+    if (!context.mounted) return;
+    if (result is Success<void>) {
+      rateLimiter.recordReport(post.id);
+      _showSnackBar(context, '신고가 접수되었어요. 검토 후 조치할게요');
+    } else {
+      _showSnackBar(context, '신고를 접수하지 못했어요');
+    }
+  }
+
+  void _showSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+}
+
+/// EN: Post image preview widget — Weverse/Instagram-style layout.
+/// KO: 포스트 이미지 프리뷰 위젯 — Weverse/Instagram 스타일 레이아웃.
+///
+/// EN: Supports 1-image (16:9 full-width), 2-image (4:3 side-by-side),
+///     and 3+-image (first two visible + "+N" overlay badge) layouts.
+/// KO: 1장(16:9 전체 너비), 2장(4:3 좌우 분할),
+///     3장+(첫 2장 표시 + "+N" 오버레이 뱃지) 레이아웃을 지원합니다.
+class _PostImagePreview extends StatelessWidget {
+  const _PostImagePreview({
+    required this.imageUrls,
+    required this.isDark,
+  });
+
+  /// EN: List of image URLs to display.
+  /// KO: 표시할 이미지 URL 목록.
+  final List<String> imageUrls;
+
+  /// EN: Whether the current theme is dark mode.
+  /// KO: 현재 테마가 다크 모드인지 여부.
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    assert(imageUrls.isNotEmpty, '_PostImagePreview requires at least one URL');
+
+    if (imageUrls.length == 1) {
+      return _buildSingleImage(imageUrls.first);
+    } else if (imageUrls.length == 2) {
+      return _buildDualImages(imageUrls[0], imageUrls[1]);
+    } else {
+      // EN: 3 or more images — show first two with "+N" badge on second.
+      // KO: 3장 이상 — 첫 두 장 표시, 두 번째에 "+N" 뱃지 오버레이.
+      return _buildMultiImages(imageUrls[0], imageUrls[1], imageUrls.length);
+    }
+  }
+
+  /// EN: Builds a single full-width 16:9 image.
+  /// KO: 전체 너비 16:9 비율 단일 이미지를 빌드합니다.
+  Widget _buildSingleImage(String url) {
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        child: GBTImage(
+          imageUrl: url,
+          fit: BoxFit.cover,
+          semanticLabel: '포스트 이미지',
+        ),
+      ),
+    );
+  }
+
+  /// EN: Builds two side-by-side 4:3 images with a small gap.
+  /// KO: 작은 간격으로 나란히 놓인 4:3 비율 이미지 두 장을 빌드합니다.
+  Widget _buildDualImages(String leftUrl, String rightUrl) {
+    return AspectRatio(
+      aspectRatio: (4 / 3) * 2 + (GBTSpacing.xs / 100),
+      child: Row(
+        children: [
+          Expanded(
+            child: AspectRatio(
+              aspectRatio: 4 / 3,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                child: GBTImage(
+                  imageUrl: leftUrl,
+                  fit: BoxFit.cover,
+                  semanticLabel: '포스트 이미지 1',
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: GBTSpacing.xs),
+          Expanded(
+            child: AspectRatio(
+              aspectRatio: 4 / 3,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                child: GBTImage(
+                  imageUrl: rightUrl,
+                  fit: BoxFit.cover,
+                  semanticLabel: '포스트 이미지 2',
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// EN: Builds two side-by-side images with "+N" overlay badge on the right.
+  /// KO: 오른쪽에 "+N" 오버레이 뱃지가 있는 나란히 놓인 두 이미지를 빌드합니다.
+  Widget _buildMultiImages(
+    String leftUrl,
+    String rightUrl,
+    int totalCount,
+  ) {
+    // EN: Number of hidden images beyond the two displayed.
+    // KO: 표시되는 두 장 이외의 숨겨진 이미지 수.
+    final hiddenCount = totalCount - 2;
+
+    return Row(
+      children: [
+        // EN: Left image — plain 4:3
+        // KO: 왼쪽 이미지 — 일반 4:3
+        Expanded(
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+              child: GBTImage(
+                imageUrl: leftUrl,
+                fit: BoxFit.cover,
+                semanticLabel: '포스트 이미지 1',
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: GBTSpacing.xs),
+        // EN: Right image — 4:3 with "+N" overlay on top.
+        // KO: 오른쪽 이미지 — 위에 "+N" 오버레이가 있는 4:3.
+        Expanded(
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                  child: GBTImage(
+                    imageUrl: rightUrl,
+                    fit: BoxFit.cover,
+                    semanticLabel: '포스트 이미지 2',
+                  ),
+                ),
+                // EN: Semi-transparent dark overlay scrim.
+                // KO: 반투명 어두운 오버레이 스크림.
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                  child: ColoredBox(
+                    color: const Color(0x80000000),
+                    child: Center(
+                      child: Semantics(
+                        label: '사진 $hiddenCount장 더 보기',
+                        child: Text(
+                          '+$hiddenCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -535,10 +796,12 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor =
-        isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant;
-    final iconColor =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final bgColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+    final iconColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
 
     final fallback = CircleAvatar(
       radius: radius,

@@ -50,6 +50,7 @@ class GBTTheme {
       switchTheme: _switchTheme,
       checkboxTheme: _checkboxTheme,
       radioTheme: _radioTheme,
+      sliderTheme: _sliderTheme,
       segmentedButtonTheme: _segmentedButtonTheme,
       tabBarTheme: _tabBarTheme,
       scaffoldBackgroundColor: GBTColors.appBackground,
@@ -94,6 +95,7 @@ class GBTTheme {
       switchTheme: _darkSwitchTheme,
       checkboxTheme: _darkCheckboxTheme,
       radioTheme: _darkRadioTheme,
+      sliderTheme: _darkSliderTheme,
       segmentedButtonTheme: _darkSegmentedButtonTheme,
       tabBarTheme: _darkTabBarTheme,
       scaffoldBackgroundColor: GBTColors.darkAppBackground,
@@ -955,6 +957,30 @@ class GBTTheme {
       }
       return GBTColors.darkTextTertiary;
     }),
+  );
+
+  static SliderThemeData get _sliderTheme => SliderThemeData(
+    activeTrackColor: GBTColors.primary,
+    inactiveTrackColor: GBTColors.primaryMuted,
+    thumbColor: GBTColors.primary,
+    overlayColor: GBTColors.primary.withValues(alpha: 0.16),
+    trackHeight: 4,
+    valueIndicatorColor: GBTColors.primary,
+    valueIndicatorTextStyle: GBTTypography.labelSmall.copyWith(
+      color: GBTColors.textInverse,
+    ),
+  );
+
+  static SliderThemeData get _darkSliderTheme => SliderThemeData(
+    activeTrackColor: GBTColors.darkPrimary,
+    inactiveTrackColor: GBTColors.darkSurfaceElevated,
+    thumbColor: GBTColors.darkPrimary,
+    overlayColor: GBTColors.darkPrimary.withValues(alpha: 0.2),
+    trackHeight: 4,
+    valueIndicatorColor: GBTColors.darkPrimary,
+    valueIndicatorTextStyle: GBTTypography.labelSmall.copyWith(
+      color: GBTColors.darkBackground,
+    ),
   );
 
   static SegmentedButtonThemeData get _segmentedButtonTheme =>

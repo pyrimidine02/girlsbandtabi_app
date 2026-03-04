@@ -12,6 +12,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
@@ -68,7 +69,14 @@ class _InfoPageState extends ConsumerState<InfoPage>
     return Scaffold(
       appBar: AppBar(
         title: const Text('정보'),
-        actions: const [GBTProfileAction()],
+        actions: [
+          GBTAppBarIconButton(
+            icon: Icons.refresh,
+            tooltip: '새로고침',
+            onPressed: _refreshCurrentTab,
+          ),
+          const GBTProfileAction(),
+        ],
         // EN: Scrollable tab bar with modern styling
         // KO: 모던 스타일의 스크롤 가능한 탭바
         bottom: PreferredSize(
@@ -379,12 +387,12 @@ class _InfoNewsThumbnail extends StatelessWidget {
 }
 
 // ========================================
-// EN: Units tab — modern card with color accents
-// KO: 유닛 탭 — 컬러 악센트가 있는 모던 카드
+// EN: Units tab — Fandom wiki-style 2-column grid
+// KO: 유닛 탭 — Fandom 위키 스타일 2컬럼 그리드
 // ========================================
 
-/// EN: Deterministic palette for unit avatars.
-/// KO: 유닛 아바타용 결정적 팔레트.
+/// EN: Deterministic palette for unit avatar backgrounds.
+/// KO: 유닛 아바타 배경을 위한 결정적 팔레트.
 const _avatarPalette = [
   Color(0xFF6366F1), // indigo
   Color(0xFF3B82F6), // blue
@@ -460,90 +468,31 @@ class _UnitsTab extends ConsumerWidget {
           );
         }
 
-        // EN: Divider-separated unit list — consistent design
-        // KO: 구분선 분리 유닛 리스트 — 일관된 디자인
-        return ListView.separated(
+        // EN: Fandom wiki-style 2-column grid — each cell has a colored avatar
+        //     and unit info. paletteColor is derived deterministically from
+        //     the unit's display name hash to ensure consistency across rebuilds.
+        // KO: Fandom 위키 스타일 2컬럼 그리드 — 각 셀에 컬러 아바타와 유닛 정보 표시.
+        //     paletteColor는 유닛 displayName 해시로 결정적으로 선택되어
+        //     재빌드 시에도 동일한 색상이 유지됩니다.
+        return GridView.builder(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
-          itemCount: units.length,
-          separatorBuilder: (_, __) => const Divider(
-            height: 1,
-            indent: GBTSpacing.pageHorizontal + 48 + GBTSpacing.md,
-            endIndent: GBTSpacing.pageHorizontal,
+          padding: const EdgeInsets.all(GBTSpacing.md),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 1.0,
+            crossAxisSpacing: GBTSpacing.sm,
+            mainAxisSpacing: GBTSpacing.sm,
           ),
+          itemCount: units.length,
           itemBuilder: (context, index) {
             final unit = units[index];
             final paletteColor = _avatarPalette[
                 unit.displayName.hashCode.abs() % _avatarPalette.length];
 
-            return InkWell(
-              onTap: () {},
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: GBTSpacing.pageHorizontal,
-                  vertical: GBTSpacing.md,
-                ),
-                child: Row(
-                  children: [
-                    // EN: Color avatar with initial letter
-                    // KO: 이니셜 문자가 있는 컬러 아바타
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: paletteColor,
-                        borderRadius: BorderRadius.circular(
-                            GBTSpacing.radiusMd),
-                      ),
-                      child: Center(
-                        child: Text(
-                          unit.displayName.isNotEmpty
-                              ? unit.displayName[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: GBTSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            unit.displayName,
-                            style: GBTTypography.bodyMedium.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: isDark
-                                  ? GBTColors.darkTextPrimary
-                                  : GBTColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            unit.code,
-                            style: GBTTypography.labelSmall.copyWith(
-                              color: isDark
-                                  ? GBTColors.darkTextTertiary
-                                  : GBTColors.textTertiary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      size: 20,
-                      color: isDark
-                          ? GBTColors.darkTextTertiary
-                          : GBTColors.textTertiary,
-                    ),
-                  ],
-                ),
-              ),
+            return _UnitGridCell(
+              unit: unit,
+              paletteColor: paletteColor,
+              isDark: isDark,
             );
           },
         );
@@ -552,9 +501,117 @@ class _UnitsTab extends ConsumerWidget {
   }
 }
 
+/// EN: Single grid cell for the units 2-column Fandom-style grid.
+///     Displays a large circular initial avatar, the unit name, and its code.
+/// KO: 유닛 2컬럼 Fandom 스타일 그리드의 단일 셀.
+///     큰 원형 이니셜 아바타, 유닛 이름, 코드를 표시합니다.
+class _UnitGridCell extends StatelessWidget {
+  const _UnitGridCell({
+    required this.unit,
+    required this.paletteColor,
+    required this.isDark,
+  });
+
+  // EN: The unit entity to display.
+  // KO: 표시할 유닛 엔티티.
+  final dynamic unit;
+
+  // EN: Deterministic accent color derived from the unit name hash.
+  // KO: 유닛 이름 해시로 결정된 악센트 색상.
+  final Color paletteColor;
+
+  // EN: Whether the current theme is dark mode.
+  // KO: 현재 테마가 다크 모드인지 여부.
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    // EN: Alpha values for background and border differ by mode for legibility.
+    // KO: 가독성을 위해 배경과 테두리 알파값을 모드별로 다르게 설정.
+    final bgAlpha = isDark ? 0.25 : 0.15;
+    final borderAlpha = 0.30;
+
+    final textPrimary =
+        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+    final textTertiary =
+        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+
+    // EN: Initial letter for the avatar — uppercase first character of display name.
+    // KO: 아바타에 표시할 이니셜 — displayName의 첫 글자 대문자.
+    final initial = unit.displayName.isNotEmpty
+        ? unit.displayName[0].toUpperCase()
+        : '?';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: paletteColor.withValues(alpha: bgAlpha),
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        border: Border.all(
+          color: paletteColor.withValues(alpha: borderAlpha),
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        onTap: () {},
+        child: Padding(
+          padding: const EdgeInsets.all(GBTSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // EN: Large circular avatar — 56x56, solid paletteColor, white initial text.
+              // KO: 큰 원형 아바타 — 56x56, 단색 paletteColor 배경, 흰색 이니셜 텍스트.
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: paletteColor,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 24,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: GBTSpacing.sm),
+              // EN: Unit display name — semibold body text, max 2 lines.
+              // KO: 유닛 표시 이름 — 세미볼드 본문 텍스트, 최대 2줄.
+              Text(
+                unit.displayName,
+                style: GBTTypography.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: textPrimary,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              // EN: Unit code — small tertiary label below the name.
+              // KO: 유닛 코드 — 이름 아래에 작은 3차 레이블.
+              Text(
+                unit.code,
+                style: GBTTypography.labelSmall.copyWith(
+                  color: textTertiary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ========================================
-// EN: Members tab — coming soon placeholder
-// KO: 멤버 탭 — 준비 중 플레이스홀더
+// EN: Members tab — visually rich coming-soon placeholder
+// KO: 멤버 탭 — 시각적으로 풍부한 준비 중 플레이스홀더
 // ========================================
 
 class _MembersTab extends StatelessWidget {
@@ -562,20 +619,72 @@ class _MembersTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // EN: Icon and text colors based on current theme brightness.
+    // KO: 현재 테마 밝기에 따른 아이콘 및 텍스트 색상.
+    final surfaceVariantColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+    final iconColor =
+        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final textPrimary =
+        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+    final textTertiary =
+        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      children: const [
-        SizedBox(height: GBTSpacing.lg),
-        GBTEmptyState(
-            icon: Icons.person_outlined, message: '멤버 소개를 준비 중입니다'),
+      children: [
+        const SizedBox(height: GBTSpacing.xl),
+        // EN: Circular icon container — 80x80, surfaceVariant bg, people icon.
+        // KO: 원형 아이콘 컨테이너 — 80x80, surfaceVariant 배경, 사람 아이콘.
+        Center(
+          child: Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: surfaceVariantColor,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.people_alt_outlined,
+              size: 40,
+              color: iconColor,
+            ),
+          ),
+        ),
+        const SizedBox(height: GBTSpacing.md),
+        // EN: Section title — semi-bold, primary text color.
+        // KO: 섹션 타이틀 — 세미볼드, 기본 텍스트 색상.
+        Center(
+          child: Text(
+            '멤버 소개',
+            style: GBTTypography.titleMedium.copyWith(
+              fontWeight: FontWeight.w600,
+              color: textPrimary,
+            ),
+          ),
+        ),
+        const SizedBox(height: GBTSpacing.xs),
+        // EN: Subtitle — tertiary color to indicate upcoming content.
+        // KO: 부제목 — 준비 중 콘텐츠를 나타내는 3차 색상.
+        Center(
+          child: Text(
+            '곧 만나볼 수 있어요',
+            style: GBTTypography.bodySmall.copyWith(
+              color: textTertiary,
+            ),
+          ),
+        ),
       ],
     );
   }
 }
 
 // ========================================
-// EN: Songs tab — coming soon placeholder
-// KO: 악곡 탭 — 준비 중 플레이스홀더
+// EN: Songs tab — visually rich coming-soon placeholder
+// KO: 악곡 탭 — 시각적으로 풍부한 준비 중 플레이스홀더
 // ========================================
 
 class _SongsTab extends StatelessWidget {
@@ -583,13 +692,63 @@ class _SongsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // EN: Icon and text colors based on current theme brightness.
+    // KO: 현재 테마 밝기에 따른 아이콘 및 텍스트 색상.
+    final surfaceVariantColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+    final iconColor =
+        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final textPrimary =
+        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+    final textTertiary =
+        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      children: const [
-        SizedBox(height: GBTSpacing.lg),
-        GBTEmptyState(
-          icon: Icons.music_note_outlined,
-          message: '악곡 소개를 준비 중입니다',
+      children: [
+        const SizedBox(height: GBTSpacing.xl),
+        // EN: Circular icon container — 80x80, surfaceVariant bg, music queue icon.
+        // KO: 원형 아이콘 컨테이너 — 80x80, surfaceVariant 배경, 음악 큐 아이콘.
+        Center(
+          child: Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: surfaceVariantColor,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.queue_music_outlined,
+              size: 40,
+              color: iconColor,
+            ),
+          ),
+        ),
+        const SizedBox(height: GBTSpacing.md),
+        // EN: Section title — semi-bold, primary text color.
+        // KO: 섹션 타이틀 — 세미볼드, 기본 텍스트 색상.
+        Center(
+          child: Text(
+            '악곡 목록',
+            style: GBTTypography.titleMedium.copyWith(
+              fontWeight: FontWeight.w600,
+              color: textPrimary,
+            ),
+          ),
+        ),
+        const SizedBox(height: GBTSpacing.xs),
+        // EN: Subtitle — tertiary color to indicate upcoming content.
+        // KO: 부제목 — 준비 중 콘텐츠를 나타내는 3차 색상.
+        Center(
+          child: Text(
+            '준비 중이에요',
+            style: GBTTypography.bodySmall.copyWith(
+              color: textTertiary,
+            ),
+          ),
         ),
       ],
     );

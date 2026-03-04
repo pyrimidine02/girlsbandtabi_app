@@ -12,7 +12,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
-import '../../../../core/widgets/layout/gbt_page_intro_card.dart';
+import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../application/favorites_controller.dart';
 import '../../domain/entities/favorite_entities.dart';
@@ -27,7 +27,18 @@ class FavoritesPage extends ConsumerWidget {
     final state = ref.watch(favoritesControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('즐겨찾기')),
+      appBar: AppBar(
+        title: const Text('즐겨찾기'),
+        actions: [
+          GBTAppBarIconButton(
+            icon: Icons.refresh,
+            tooltip: '새로고침',
+            onPressed: () => ref
+                .read(favoritesControllerProvider.notifier)
+                .load(forceRefresh: true),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () => ref
             .read(favoritesControllerProvider.notifier)
@@ -36,10 +47,9 @@ class FavoritesPage extends ConsumerWidget {
           loading: () => ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: GBTSpacing.paddingPage,
-            children: [
-              const _FavoritesIntro(),
-              const SizedBox(height: GBTSpacing.md),
-              const GBTLoading(message: '즐겨찾기를 불러오는 중...'),
+            children: const [
+              SizedBox(height: GBTSpacing.sm),
+              GBTLoading(message: '즐겨찾기를 불러오는 중...'),
             ],
           ),
           error: (error, _) {
@@ -50,8 +60,7 @@ class FavoritesPage extends ConsumerWidget {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: GBTSpacing.paddingPage,
               children: [
-                const _FavoritesIntro(),
-                const SizedBox(height: GBTSpacing.md),
+                const SizedBox(height: GBTSpacing.sm),
                 GBTErrorState(
                   message: message,
                   onRetry: () => ref
@@ -66,10 +75,9 @@ class FavoritesPage extends ConsumerWidget {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: GBTSpacing.paddingPage,
-                children: [
-                  const _FavoritesIntro(),
-                  const SizedBox(height: GBTSpacing.md),
-                  const GBTEmptyState(
+                children: const [
+                  SizedBox(height: GBTSpacing.sm),
+                  GBTEmptyState(
                     icon: Icons.favorite_border,
                     message: '저장된 즐겨찾기가 없습니다.\n마음에 드는 장소나 이벤트를 저장해보세요.',
                   ),
@@ -81,15 +89,7 @@ class FavoritesPage extends ConsumerWidget {
               length: 4,
               child: Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      GBTSpacing.md,
-                      GBTSpacing.md,
-                      GBTSpacing.md,
-                      GBTSpacing.sm,
-                    ),
-                    child: _FavoritesIntro(totalCount: items.length),
-                  ),
+                  const SizedBox(height: GBTSpacing.sm),
                   const GBTSegmentedTabBar(
                     margin: EdgeInsets.symmetric(horizontal: GBTSpacing.md),
                     isScrollable: true,
@@ -120,50 +120,6 @@ class FavoritesPage extends ConsumerWidget {
               ),
             );
           },
-        ),
-      ),
-    );
-  }
-}
-
-class _FavoritesIntro extends StatelessWidget {
-  const _FavoritesIntro({this.totalCount});
-
-  final int? totalCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return GBTPageIntroCard(
-      icon: Icons.favorite_rounded,
-      title: '즐겨찾기 모음',
-      description: '저장한 장소, 이벤트, 뉴스를 한 번에 관리하세요.',
-      trailing: totalCount == null ? null : _CountBadge(label: '$totalCount개'),
-    );
-  }
-}
-
-class _CountBadge extends StatelessWidget {
-  const _CountBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: GBTSpacing.sm,
-        vertical: GBTSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: isDark ? GBTColors.darkSurface : GBTColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
-      ),
-      child: Text(
-        label,
-        style: GBTTypography.labelSmall.copyWith(
-          color: isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
-          fontWeight: FontWeight.w600,
         ),
       ),
     );

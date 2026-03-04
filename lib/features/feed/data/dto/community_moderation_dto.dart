@@ -63,6 +63,62 @@ class BlockCheckDto {
   }
 }
 
+class UserFollowStatusDto {
+  const UserFollowStatusDto({
+    required this.targetUserId,
+    required this.following,
+    required this.followedByTarget,
+    required this.targetFollowerCount,
+    required this.targetFollowingCount,
+    this.followedAt,
+  });
+
+  final String targetUserId;
+  final bool following;
+  final bool followedByTarget;
+  final String? followedAt;
+  final int targetFollowerCount;
+  final int targetFollowingCount;
+
+  factory UserFollowStatusDto.fromJson(Map<String, dynamic> json) {
+    return UserFollowStatusDto(
+      targetUserId: json['targetUserId'] as String? ?? '',
+      following: json['following'] as bool? ?? false,
+      followedByTarget: json['followedByTarget'] as bool? ?? false,
+      followedAt: json['followedAt'] as String?,
+      targetFollowerCount: (json['targetFollowerCount'] as num?)?.toInt() ?? 0,
+      targetFollowingCount:
+          (json['targetFollowingCount'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class UserFollowSummaryDto {
+  const UserFollowSummaryDto({
+    required this.userId,
+    required this.displayName,
+    required this.followedAt,
+    this.avatarUrl,
+    this.bio,
+  });
+
+  final String userId;
+  final String displayName;
+  final String? avatarUrl;
+  final String? bio;
+  final String followedAt;
+
+  factory UserFollowSummaryDto.fromJson(Map<String, dynamic> json) {
+    return UserFollowSummaryDto(
+      userId: json['userId'] as String? ?? '',
+      displayName: json['displayName'] as String? ?? '사용자',
+      avatarUrl: json['avatarUrl'] as String?,
+      bio: json['bio'] as String?,
+      followedAt: json['followedAt'] as String? ?? '',
+    );
+  }
+}
+
 class UserSanctionStatusDto {
   const UserSanctionStatusDto({
     required this.level,

@@ -15,14 +15,17 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/image_url_extractor.dart';
 import '../../../../core/utils/media_url.dart';
+import '../../../../core/widgets/common/gbt_action_icons.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../settings/application/settings_controller.dart';
 import '../../application/community_moderation_controller.dart';
 import '../../application/feed_controller.dart';
 import '../../application/report_rate_limiter.dart';
+import '../../application/user_follow_controller.dart';
 import '../../domain/entities/community_moderation.dart';
 import '../../domain/entities/feed_entities.dart';
+import '../widgets/community_report_sheet.dart';
 
 /// EN: Post detail page widget.
 /// KO: 게시글 상세 페이지 위젯.
@@ -107,6 +110,10 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       data: (value) => value,
       orElse: () => null,
     );
+    final authorFollowState =
+        !canManagePost && currentPost != null && isAuthenticated
+        ? ref.watch(userFollowControllerProvider(currentPost.authorId))
+        : null;
     final blockLabel = blockStatus?.blockedByMe == true ? '차단 해제' : '차단';
 
     final actions = !isAuthenticated || currentPost == null
@@ -263,6 +270,31 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
               _showAppealFlow(context, CommunityReportTargetType.post, post.id),
           onTapAuthor: (authorId) => context.goToUserProfile(authorId),
           onFocusComment: _focusCommentComposer,
+          authorBlockStatus: blockStatus,
+          authorFollowState: authorFollowState,
+          onToggleFollowAuthor:
+              !isAuthenticated || currentPost == null || canManagePost
+              ? null
+              : () async {
+                  final result = await ref
+                      .read(
+                        userFollowControllerProvider(
+                          currentPost.authorId,
+                        ).notifier,
+                      )
+                      .toggleFollow();
+                  if (!context.mounted) {
+                    return;
+                  }
+                  if (result is Success<bool>) {
+                    _showSnackBar(
+                      context,
+                      result.data ? '작성자를 팔로우했어요' : '팔로우를 취소했어요',
+                    );
+                  } else {
+                    _showSnackBar(context, '팔로우 상태를 변경하지 못했어요');
+                  }
+                },
         ),
       ),
     );
@@ -587,10 +619,10 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       return;
     }
 
-    final payload = await showModalBottomSheet<_ReportPayload>(
+    final payload = await showModalBottomSheet<CommunityReportPayload>(
       context: context,
       isScrollControlled: true,
-      builder: (sheetContext) => _ReportSheet(),
+      builder: (sheetContext) => const CommunityReportSheet(),
     );
     if (payload == null) return;
 
@@ -744,6 +776,9 @@ class _PostDetailContent extends StatelessWidget {
     required this.onAppealPost,
     required this.onTapAuthor,
     required this.onFocusComment,
+    required this.authorBlockStatus,
+    required this.authorFollowState,
+    required this.onToggleFollowAuthor,
   });
 
   final PostDetail post;
@@ -767,6 +802,9 @@ class _PostDetailContent extends StatelessWidget {
   final VoidCallback onAppealPost;
   final ValueChanged<String> onTapAuthor;
   final VoidCallback onFocusComment;
+  final BlockStatus? authorBlockStatus;
+  final AsyncValue<UserFollowStatus>? authorFollowState;
+  final Future<void> Function()? onToggleFollowAuthor;
 
   @override
   Widget build(BuildContext context) {
@@ -802,6 +840,15 @@ class _PostDetailContent extends StatelessWidget {
         ? _normalizeImageUrls(post.imageUrls)
         : _normalizeImageUrls(extractImageUrls(post.content));
     final isOwnPost = currentUserId != null && currentUserId == post.authorId;
+    final followStatus = authorFollowState?.maybeWhen(
+      data: (value) => value,
+      orElse: () => null,
+    );
+    final isFollowLoading = authorFollowState?.isLoading ?? false;
+    final isAuthorBlocked =
+        authorBlockStatus?.blockedByMe == true ||
+        authorBlockStatus?.blockedMe == true ||
+        authorBlockStatus?.blockedByAdmin == true;
 
     // EN: Use theme-aware colors for dark mode compatibility.
     // KO: 다크 모드 호환성을 위해 테마 인식 색상을 사용합니다.
@@ -871,6 +918,49 @@ class _PostDetailContent extends StatelessWidget {
                               ],
                             ],
                           ),
+                          if (!isOwnPost && isAuthenticated)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: GBTSpacing.xs,
+                              ),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    height: 30,
+                                    child: FilledButton.tonal(
+                                      onPressed:
+                                          (isFollowLoading || isAuthorBlocked)
+                                          ? null
+                                          : onToggleFollowAuthor,
+                                      style: FilledButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: GBTSpacing.sm,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        isAuthorBlocked
+                                            ? '차단됨'
+                                            : (followStatus?.following ?? false)
+                                            ? '팔로우 취소'
+                                            : '팔로우',
+                                        style: GBTTypography.labelSmall,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: GBTSpacing.xs),
+                                  TextButton(
+                                    onPressed: () => onTapAuthor(post.authorId),
+                                    style: TextButton.styleFrom(
+                                      minimumSize: const Size(0, 30),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: GBTSpacing.xs,
+                                      ),
+                                    ),
+                                    child: const Text('프로필 보기'),
+                                  ),
+                                ],
+                              ),
+                            ),
                           const SizedBox(height: 2),
                           Text(
                             post.title,
@@ -947,7 +1037,7 @@ class _PostDetailContent extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _TimelineActionButton(
-                        icon: Icons.mode_comment_outlined,
+                        icon: GBTActionIcons.comment,
                         label: commentCountLabel,
                         color: commentActionColor,
                         onTap: onFocusComment,
@@ -955,7 +1045,9 @@ class _PostDetailContent extends StatelessWidget {
                     ),
                     Expanded(
                       child: _TimelineActionButton(
-                        icon: isLiked ? Icons.favorite : Icons.favorite_border,
+                        icon: isLiked
+                            ? GBTActionIcons.likeActive
+                            : GBTActionIcons.like,
                         label: _compactCountLabel(likeCount),
                         color: isLiked ? GBTColors.favorite : tertiaryColor,
                         onTap: onToggleLike,
@@ -964,8 +1056,8 @@ class _PostDetailContent extends StatelessWidget {
                     Expanded(
                       child: _TimelineActionButton(
                         icon: isBookmarked
-                            ? Icons.bookmark
-                            : Icons.bookmark_border,
+                            ? GBTActionIcons.bookmarkActive
+                            : GBTActionIcons.bookmark,
                         label: '',
                         color: tertiaryColor,
                         onTap: onToggleBookmark,
@@ -1000,67 +1092,65 @@ class _PostDetailContent extends StatelessWidget {
         ),
         if (isAuthenticated)
           Container(
-            padding: const EdgeInsets.fromLTRB(
-              GBTSpacing.md,
-              GBTSpacing.xs,
-              GBTSpacing.md,
-              GBTSpacing.sm,
-            ),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               border: Border(top: BorderSide(color: borderColor)),
             ),
             child: SafeArea(
+              top: false,
+              left: false,
+              right: false,
+              minimum: const EdgeInsets.only(bottom: GBTSpacing.xs),
               child: ValueListenableBuilder<TextEditingValue>(
                 valueListenable: commentController,
                 builder: (context, value, _) {
                   final canSubmit =
                       value.text.trim().isNotEmpty && !isSubmitting;
 
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: commentController,
-                          focusNode: commentFocusNode,
-                          minLines: 1,
-                          maxLines: 3,
-                          textInputAction: TextInputAction.newline,
-                          decoration: InputDecoration(
-                            hintText: '댓글 작성...',
-                            filled: true,
-                            fillColor: Theme.of(
-                              context,
-                            ).colorScheme.surfaceContainerHighest,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(
-                                GBTSpacing.radiusFull,
+                  return ColoredBox(
+                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: commentController,
+                            focusNode: commentFocusNode,
+                            minLines: 1,
+                            maxLines: 3,
+                            textInputAction: TextInputAction.newline,
+                            decoration: const InputDecoration(
+                              hintText: '댓글 작성...',
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: GBTSpacing.md,
+                                vertical: GBTSpacing.sm + 2,
                               ),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: GBTSpacing.md,
-                              vertical: GBTSpacing.sm,
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: GBTSpacing.sm),
-                      IconButton.filled(
-                        onPressed: canSubmit ? onSubmitComment : null,
-                        icon: isSubmitting
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.send_rounded, size: 18),
-                        tooltip: '댓글 등록',
-                      ),
-                    ],
+                        SizedBox(
+                          width: 56,
+                          height: 52,
+                          child: IconButton(
+                            onPressed: canSubmit ? onSubmitComment : null,
+                            padding: EdgeInsets.zero,
+                            icon: isSubmitting
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.send_rounded, size: 20),
+                            tooltip: '댓글 등록',
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 },
               ),
@@ -1089,114 +1179,6 @@ class _PostDetailContent extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-class _ReportPayload {
-  const _ReportPayload({required this.reason, this.description});
-
-  final CommunityReportReason reason;
-  final String? description;
-}
-
-class _ReportSheet extends StatefulWidget {
-  @override
-  State<_ReportSheet> createState() => _ReportSheetState();
-}
-
-class _ReportSheetState extends State<_ReportSheet> {
-  late CommunityReportReason _selectedReason;
-  final TextEditingController _descriptionController = TextEditingController();
-
-  void _dismissKeyboard() {
-    FocusManager.instance.primaryFocus?.unfocus();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedReason = CommunityReportReason.spam;
-  }
-
-  @override
-  void dispose() {
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: _dismissKeyboard,
-      child: SafeArea(
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: EdgeInsets.fromLTRB(
-            GBTSpacing.md,
-            GBTSpacing.md,
-            GBTSpacing.md,
-            bottomInset + GBTSpacing.md,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('신고하기', style: GBTTypography.titleSmall),
-              const SizedBox(height: GBTSpacing.md),
-              RadioGroup<CommunityReportReason>(
-                groupValue: _selectedReason,
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() => _selectedReason = value);
-                },
-                child: Column(
-                  children: CommunityReportReason.values
-                      .map(
-                        (reason) => RadioListTile<CommunityReportReason>(
-                          value: reason,
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                          title: Text(reason.label),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
-              const SizedBox(height: GBTSpacing.md),
-              TextField(
-                controller: _descriptionController,
-                maxLines: 3,
-                textInputAction: TextInputAction.done,
-                onTapOutside: (_) => _dismissKeyboard(),
-                onSubmitted: (_) => _dismissKeyboard(),
-                decoration: const InputDecoration(
-                  labelText: '추가 설명',
-                  hintText: '필요한 설명을 남겨주세요 (선택)',
-                ),
-              ),
-              const SizedBox(height: GBTSpacing.lg),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () {
-                    final description = _descriptionController.text.trim();
-                    Navigator.of(context).pop(
-                      _ReportPayload(
-                        reason: _selectedReason,
-                        description: description.isEmpty ? null : description,
-                      ),
-                    );
-                  },
-                  child: const Text('신고 접수'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

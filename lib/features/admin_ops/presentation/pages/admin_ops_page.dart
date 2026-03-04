@@ -11,6 +11,7 @@ import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../../../features/settings/application/settings_controller.dart';
 import '../../../settings/domain/entities/user_profile.dart';
 import '../../application/admin_ops_controller.dart';
@@ -30,11 +31,16 @@ class AdminOpsPage extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('운영 센터'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: '개요'),
-              Tab(text: '신고 관리'),
-            ],
+          bottom: const PreferredSize(
+            preferredSize: Size.fromHeight(44),
+            child: GBTSegmentedTabBar(
+              height: 44,
+              margin: EdgeInsets.symmetric(horizontal: GBTSpacing.md2),
+              tabs: [
+                Tab(text: '개요'),
+                Tab(text: '신고 관리'),
+              ],
+            ),
           ),
         ),
         body: profileState.when(

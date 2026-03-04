@@ -1,5 +1,18 @@
 # TODO
 
+- Run full-device visual QA for service-fit redesign phase1 (`home`, `places`, `live`, `board`, `search`) focusing on bottom-nav reachability, segmented-tab readability, and search-field focus states (remove once validated).
+- Apply service-fit redesign phase2 to detail/editor screens (`post_detail`, `post_create`, `profile_edit`, `live_detail`, `place_detail`) using the same visual rhythm/tokens (remove once completed).
+- Capture before/after screenshots for redesigned primitives and align with product acceptance criteria from UX references (`uxdnas + mobile guideline links`) (remove once reviewed).
+- Complete community overhaul phase-4 by unifying comment-level trust/safety UX (댓글 신고/관리 액션 배치, 관리자 액션 시각 우선순위, 답글 스레드 내 일관성) with the new post-level safety model.
+- Run UI QA for requested chrome trim: full-width post-detail comment composer and intro-card removal on `places`, `live`, `board` screens (portrait/landscape, iOS/Android).
+- Add paginated/infinite loading for followers/following lists (current implementation fetches first 100 items) and expose server pagination metadata in API client if needed.
+- Run UX QA for new profile/connections flows on iOS/Android: tab retention, refresh behavior, blocked-state interactions, and route back-stack consistency.
+- Run QA for user-profile follow/block flows after API follow integration: initial follow status load, follow/unfollow toggle, blocked-state disable behavior, and snackbar copy validation (remove once validated).
+- Verify backend follow count fields (`targetFollowerCount`, `targetFollowingCount`) consistency after rapid follow/unfollow toggles from multiple devices (remove once validated).
+- Run end-to-end visual QA for the UXDNAS core-rule rollout (intro-card flattening, unified segmented tabs, unified search fields, full-width post composer) on iOS/Android and remove regressions (remove once validated).
+- Run QA for UXDNAS methodology rollout after icon/skeleton/slider updates (feed/board/live/search, light/dark, Korean text scale, low-end device perf) and remove regressions (remove once validated).
+- Configure GitHub repository secrets for Android delivery workflows (`internal` + `release`): `ANDROID_UPLOAD_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD`, `ANDROID_KEY_ALIAS`, `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` (remove once first successful Internal + tag-release draft uploads are confirmed).
+- Run first tag-release dry run (`vX.Y.Z`) and verify pubspec/tag parity gate + production draft creation in Play Console (remove once validated).
 - Verify live-event detail poster visibility on small iPhone screens and landscape mode after switching header image fit to `BoxFit.contain` (remove once QA passes).
 - Verify live-detail header controls (back/favorite/share) remain clearly visible on bright/dark posters after overlay-button update (remove once QA passes).
 - Verify live-detail poster top offset (status-bar clearance) and neutral gradient background look natural across notch/non-notch iPhones and Android devices (remove once QA passes).
@@ -15,6 +28,7 @@
 - Add widget tests for `PostCreatePage` (draft-exit confirmation, image max/duplicate handling, submit button enablement) and `ProfileEditPage` (dirty-state save enablement + unsaved-exit confirmation).
 - Add a HomePage widget test that verifies the ProjectSelector renders during loading and triggers a reload after selection (remove once CI covers the flow).
 - Run on-device QA for home hero image fallback and featured-live chip tap flow (poster present/absent cases) and capture screenshots (remove once validated).
+- Run on-device QA for home `트렌딩 라이브` carousel poster visibility (relative URL, nested banner payload, missing-poster fallback) and capture screenshots (remove once validated).
 - Run QA for post-detail comment UX updates (sort chip behavior, composer focus jump from comment icon, multiline submit disabled/enabled states) on iOS/Android (remove once validated).
 - Run QA for redesigned board/post timeline UX (feed action-row tap targets, full-width media cropping, compact comment thread indentation/readability, quick-reply composer height) on iOS/Android (remove once validated).
 - Run QA for redesigned community action colors (comment/like/bookmark/share contrast in light/dark, color-blind legibility, pressed state visibility) on iOS/Android (remove once validated).

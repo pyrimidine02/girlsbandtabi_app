@@ -42,16 +42,71 @@ class PlaceDetailPage extends ConsumerWidget {
     }
 
     return Scaffold(
+      // EN: Sticky verify CTA — enabled once data is loaded.
+      // KO: 고정 인증 CTA — 데이터 로드 완료 후 활성화.
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            GBTSpacing.md,
+            GBTSpacing.sm,
+            GBTSpacing.md,
+            GBTSpacing.sm,
+          ),
+          child: FilledButton.icon(
+            onPressed: state.hasValue
+                ? () => _showVerificationSheet(context, ref, placeId)
+                : null,
+            icon: const Icon(Icons.location_on_rounded),
+            label: const Text('이곳에 다녀왔어요'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(double.infinity, 52),
+            ),
+          ),
+        ),
+      ),
       body: RefreshIndicator(
         onRefresh: handleRefresh,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: state.when(
-            loading: () => [
-              const SliverFillRemaining(
-                child: Center(child: GBTLoading(message: '장소 정보를 불러오는 중...')),
-              ),
-            ],
+            loading: () {
+              final isDark =
+                  Theme.of(context).brightness == Brightness.dark;
+              return [
+                SliverToBoxAdapter(
+                  child: GBTShimmer(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // EN: Header image placeholder (300px — matches expandedHeight)
+                        // KO: 헤더 이미지 플레이스홀더 (300px — expandedHeight 일치)
+                        Container(
+                          height: 300,
+                          color: isDark
+                              ? GBTColors.darkSurfaceVariant
+                              : GBTColors.surfaceVariant,
+                        ),
+                        // EN: Title and metadata skeleton rows
+                        // KO: 제목 및 메타데이터 스켈레톤 행
+                        Padding(
+                          padding: const EdgeInsets.all(GBTSpacing.md),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              GBTShimmerContainer(height: 24, width: 200),
+                              const SizedBox(height: GBTSpacing.sm),
+                              GBTShimmerContainer(height: 16, width: 160),
+                              const SizedBox(height: GBTSpacing.xs),
+                              GBTShimmerContainer(height: 16, width: 120),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ];
+            },
             error: (error, _) {
               final message = error is Failure
                   ? error.userMessage
@@ -103,9 +158,6 @@ class PlaceDetailPage extends ConsumerWidget {
     final tertiaryColor = isDark
         ? GBTColors.darkTextTertiary
         : GBTColors.textTertiary;
-    final surfaceVariantColor = isDark
-        ? GBTColors.darkSurfaceVariant
-        : GBTColors.surfaceVariant;
     final selection = ref.watch(projectSelectionControllerProvider);
     final favoritesState = ref.watch(favoritesControllerProvider);
     final profileState = ref.watch(userProfileControllerProvider);
@@ -126,30 +178,43 @@ class PlaceDetailPage extends ConsumerWidget {
     final guidesState = ref.watch(placeGuidesControllerProvider(place.id));
     final commentsState = ref.watch(placeCommentsControllerProvider(place.id));
 
+    // EN: Build gallery image list — use imageUrls if available, fallback to hero.
+    // KO: 갤러리 이미지 목록 — imageUrls 우선, 없으면 hero 이미지로 대체.
+    final galleryImages = place.imageUrls.isNotEmpty
+        ? place.imageUrls
+        : (place.heroImageUrl != null ? [place.heroImageUrl!] : <String>[]);
+
     return [
       SliverAppBar(
-        expandedHeight: 250,
+        expandedHeight: 300,
         pinned: true,
         flexibleSpace: FlexibleSpaceBar(
-          background: place.heroImageUrl != null
-              ? Hero(
-                  tag: GBTHeroTags.placeImage(place.id),
-                  child: GBTImage(
-                    imageUrl: place.heroImageUrl!,
-                    fit: BoxFit.cover,
-                    semanticLabel: '${place.name} 사진',
-                  ),
+          background: galleryImages.isNotEmpty
+              ? _PhotoGallery(
+                  imageUrls: galleryImages,
+                  placeId: place.id,
+                  placeName: place.name,
                 )
               : Container(
-                  color: surfaceVariantColor,
+                  color: isDark
+                      ? GBTColors.darkSurfaceVariant
+                      : GBTColors.surfaceVariant,
                   child: Center(
-                    child: Icon(Icons.image, size: 64, color: tertiaryColor),
+                    child: Icon(
+                      Icons.image_outlined,
+                      size: 64,
+                      color: isDark
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary,
+                    ),
                   ),
                 ),
         ),
+        // EN: Overlay icon buttons — dark backdrop for readability on any photo.
+        // KO: 오버레이 아이콘 버튼 — 어떤 사진에서도 가독성을 위한 어두운 배경.
         actions: [
-          IconButton(
-            icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
+          _OverlayIconButton(
+            icon: isFavorite ? Icons.favorite : Icons.favorite_border,
             tooltip: isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가',
             onPressed: () {
               ref
@@ -161,8 +226,8 @@ class PlaceDetailPage extends ConsumerWidget {
                   );
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.share),
+          _OverlayIconButton(
+            icon: Icons.share_outlined,
             tooltip: '장소 공유',
             onPressed: () {
               // EN: TODO: Share place
@@ -172,268 +237,501 @@ class PlaceDetailPage extends ConsumerWidget {
         ],
       ),
       SliverToBoxAdapter(
-        child: Padding(
-          padding: GBTSpacing.paddingPage,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                place.name,
-                style: GBTTypography.headlineSmall,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: GBTSpacing.xs),
-              Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: GBTSpacing.paddingPage,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.location_on, size: 16, color: secondaryColor),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      place.address,
-                      style: GBTTypography.bodyMedium.copyWith(
-                        color: secondaryColor,
+                  Text(
+                    place.name,
+                    style: GBTTypography.headlineSmall,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: GBTSpacing.xs),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 14,
+                        color: tertiaryColor,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      const SizedBox(width: GBTSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          place.address,
+                          style: GBTTypography.bodySmall.copyWith(
+                            color: secondaryColor,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: GBTSpacing.md),
+                  // EN: Quick stats — visit and favorite counts.
+                  // KO: 빠른 통계 — 방문 수와 즐겨찾기 수.
+                  Row(
+                    children: [
+                      _QuickStatBadge(
+                        icon: Icons.people_outline_rounded,
+                        label: '${place.visitCount ?? 0}명 방문',
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: GBTSpacing.sm),
+                      _QuickStatBadge(
+                        icon: Icons.favorite_outline_rounded,
+                        label: '${place.favoriteCount ?? 0}명 관심',
+                        isDark: isDark,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: GBTSpacing.lg),
+                  const Divider(),
+                  const SizedBox(height: GBTSpacing.lg),
+                  // EN: Description section.
+                  // KO: 소개 섹션.
+                  Text(
+                    '소개',
+                    style: GBTTypography.titleMedium.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                  const SizedBox(height: GBTSpacing.sm),
+                  Text(
+                    place.description ?? '소개 정보가 없습니다.',
+                    style: GBTTypography.bodyMedium.copyWith(
+                      color: secondaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: GBTSpacing.lg),
+                  // EN: Place category horizontal chip scroll.
+                  // KO: 장소 분류 가로 스크롤 칩.
+                  Text(
+                    '장소 분류',
+                    style: GBTTypography.titleMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: GBTSpacing.sm),
                 ],
               ),
-              const SizedBox(height: GBTSpacing.lg),
+            ),
+            // EN: Horizontal scroll chip row — avoids Wrap line breaks.
+            // KO: 가로 스크롤 칩 행 — Wrap 줄 바꿈 방지.
+            if (place.tags.isNotEmpty || place.types.isNotEmpty)
               SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () {
-                    _showVerificationSheet(context, ref, place.id);
-                  },
-                  icon: const Icon(Icons.check_circle),
-                  label: const Text('방문 인증하기'),
+                height: 40,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GBTSpacing.md,
+                  ),
+                  children: (place.tags.isNotEmpty
+                          ? place.tags
+                          : place.types.map(_formatPlaceType))
+                      .map(
+                        (label) => Padding(
+                          padding: const EdgeInsets.only(right: GBTSpacing.xs),
+                          child: Chip(
+                            label: Text(label),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                      )
+                      .toList(),
                 ),
-              ),
-              const SizedBox(height: GBTSpacing.lg),
-              const Divider(),
-              const SizedBox(height: GBTSpacing.lg),
-              Text(
-                '소개',
-                style: GBTTypography.titleMedium.copyWith(
-                  fontWeight: FontWeight.w600,
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: GBTSpacing.md,
                 ),
-              ),
-              const SizedBox(height: GBTSpacing.sm),
-              Text(
-                place.description ?? '소개 정보가 없습니다.',
-                style: GBTTypography.bodyMedium.copyWith(color: secondaryColor),
-              ),
-              const SizedBox(height: GBTSpacing.lg),
-              Text(
-                '장소 분류',
-                style: GBTTypography.titleMedium.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: GBTSpacing.sm),
-              if (place.tags.isEmpty && place.types.isEmpty)
-                Text(
+                child: Text(
                   '장소 분류 정보가 없습니다.',
                   style: GBTTypography.bodySmall.copyWith(
                     color: secondaryColor,
                   ),
-                )
-              else
-                Wrap(
-                  spacing: GBTSpacing.sm,
-                  children:
-                      (place.tags.isNotEmpty
-                              ? place.tags
-                              : place.types.map(_formatPlaceType))
-                          .map((category) => Chip(label: Text(category)))
-                          .toList(),
-                ),
-              const SizedBox(height: GBTSpacing.lg),
-              Text(
-                '관련 밴드',
-                style: GBTTypography.titleMedium.copyWith(
-                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: GBTSpacing.sm),
-              if (unitsState == null)
-                Text(
-                  '관련 밴드 정보가 없습니다.',
-                  style: GBTTypography.bodySmall.copyWith(
-                    color: secondaryColor,
+            Padding(
+              padding: GBTSpacing.paddingPage,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: GBTSpacing.lg),
+                  // EN: Related bands section.
+                  // KO: 관련 밴드 섹션.
+                  Text(
+                    '관련 밴드',
+                    style: GBTTypography.titleMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                )
-              else
-                unitsState.when(
-                  loading: () => const GBTLoading(message: '관련 밴드 불러오는 중...'),
-                  error: (error, _) {
-                    final message = error is Failure
-                        ? error.userMessage
-                        : '관련 밴드를 불러오지 못했어요';
-                    return Text(
-                      message,
+                  const SizedBox(height: GBTSpacing.sm),
+                  if (unitsState == null)
+                    Text(
+                      '관련 밴드 정보가 없습니다.',
                       style: GBTTypography.bodySmall.copyWith(
                         color: secondaryColor,
                       ),
-                    );
-                  },
-                  data: (units) {
-                    if (units.isEmpty) {
-                      return Text(
-                        '관련 밴드 정보가 없습니다.',
-                        style: GBTTypography.bodySmall.copyWith(
-                          color: secondaryColor,
+                    )
+                  else
+                    unitsState.when(
+                      loading: () => const SizedBox(
+                        height: 32,
+                        child: GBTShimmer(
+                          child: SizedBox(width: 120, height: 28),
                         ),
-                      );
-                    }
-                    return Wrap(
-                      spacing: GBTSpacing.sm,
-                      children: units
-                          .map(
-                            (unit) => Chip(
-                              label: Text(
-                                unit.code.isNotEmpty
-                                    ? unit.code
-                                    : unit.displayName,
-                              ),
+                      ),
+                      error: (error, _) {
+                        final message = error is Failure
+                            ? error.userMessage
+                            : '관련 밴드를 불러오지 못했어요';
+                        return Text(
+                          message,
+                          style: GBTTypography.bodySmall.copyWith(
+                            color: secondaryColor,
+                          ),
+                        );
+                      },
+                      data: (units) {
+                        if (units.isEmpty) {
+                          return Text(
+                            '관련 밴드 정보가 없습니다.',
+                            style: GBTTypography.bodySmall.copyWith(
+                              color: secondaryColor,
                             ),
-                          )
-                          .toList(),
-                    );
-                  },
-                ),
-              const SizedBox(height: GBTSpacing.lg),
-              Text(
-                '장소 가이드',
-                style: GBTTypography.titleMedium.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: GBTSpacing.sm),
-              _GuideSection(
-                state: guidesState,
-                onRetry: () => ref
-                    .read(placeGuidesControllerProvider(place.id).notifier)
-                    .load(forceRefresh: true),
-              ),
-              const SizedBox(height: GBTSpacing.lg),
-              Text(
-                '방문 후기',
-                style: GBTTypography.titleMedium.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: GBTSpacing.sm),
-              _CommentSection(
-                placeId: place.id,
-                state: commentsState,
-                onRetry: () => ref
-                    .read(placeCommentsControllerProvider(place.id).notifier)
-                    .load(forceRefresh: true),
-                isAdmin: isAdmin,
-              ),
-              const SizedBox(height: GBTSpacing.lg),
-              Text(
-                '방문 현황',
-                style: GBTTypography.titleMedium.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: GBTSpacing.sm),
-              Row(
-                children: [
-                  _StatCard(
-                    icon: Icons.people,
-                    label: '총 방문',
-                    value: place.visitCount?.toString() ?? '-',
+                          );
+                        }
+                        return Wrap(
+                          spacing: GBTSpacing.xs,
+                          runSpacing: GBTSpacing.xs,
+                          children: units
+                              .map(
+                                (unit) => Chip(
+                                  label: Text(
+                                    unit.code.isNotEmpty
+                                        ? unit.code
+                                        : unit.displayName,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              )
+                              .toList(),
+                        );
+                      },
+                    ),
+                  const SizedBox(height: GBTSpacing.lg),
+                  // EN: Guide section.
+                  // KO: 가이드 섹션.
+                  Text(
+                    '장소 가이드',
+                    style: GBTTypography.titleMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  const SizedBox(width: GBTSpacing.md),
-                  _StatCard(
-                    icon: Icons.favorite,
-                    label: '좋아요',
-                    value: place.favoriteCount?.toString() ?? '-',
+                  const SizedBox(height: GBTSpacing.sm),
+                  _GuideSection(
+                    state: guidesState,
+                    isDark: isDark,
+                    onRetry: () => ref
+                        .read(placeGuidesControllerProvider(place.id).notifier)
+                        .load(forceRefresh: true),
                   ),
+                  const SizedBox(height: GBTSpacing.lg),
+                  // EN: Reviews section.
+                  // KO: 방문 후기 섹션.
+                  Text(
+                    '방문 후기',
+                    style: GBTTypography.titleMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: GBTSpacing.sm),
+                  _CommentSection(
+                    placeId: place.id,
+                    state: commentsState,
+                    onRetry: () => ref
+                        .read(
+                          placeCommentsControllerProvider(place.id).notifier,
+                        )
+                        .load(forceRefresh: true),
+                    isAdmin: isAdmin,
+                  ),
+                  const SizedBox(height: GBTSpacing.xxl),
                 ],
               ),
-              const SizedBox(height: GBTSpacing.xxl),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     ];
   }
 }
 
-/// EN: Stat card widget
-/// KO: 통계 카드 위젯
-class _StatCard extends StatelessWidget {
-  const _StatCard({
+// ========================================
+// EN: Photo gallery with PageView + dot indicator
+// KO: PageView + 점 표시기를 갖춘 사진 갤러리
+// ========================================
+
+class _PhotoGallery extends StatefulWidget {
+  const _PhotoGallery({
+    required this.imageUrls,
+    required this.placeId,
+    required this.placeName,
+  });
+
+  final List<String> imageUrls;
+  final String placeId;
+  final String placeName;
+
+  @override
+  State<_PhotoGallery> createState() => _PhotoGalleryState();
+}
+
+class _PhotoGalleryState extends State<_PhotoGallery> {
+  late final PageController _controller;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final images = widget.imageUrls;
+
+    if (images.length == 1) {
+      return Hero(
+        tag: GBTHeroTags.placeImage(widget.placeId),
+        child: GBTImage(
+          imageUrl: images.first,
+          fit: BoxFit.cover,
+          semanticLabel: '${widget.placeName} 사진',
+        ),
+      );
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // EN: PageView with Hero on first image only.
+        // KO: 첫 번째 이미지에만 Hero 적용한 PageView.
+        PageView.builder(
+          controller: _controller,
+          itemCount: images.length,
+          onPageChanged: (index) => setState(() => _currentPage = index),
+          itemBuilder: (context, index) {
+            final child = GBTImage(
+              imageUrl: images[index],
+              fit: BoxFit.cover,
+              semanticLabel: '${widget.placeName} 사진 ${index + 1}',
+            );
+            if (index == 0) {
+              return Hero(
+                tag: GBTHeroTags.placeImage(widget.placeId),
+                child: child,
+              );
+            }
+            return child;
+          },
+        ),
+        // EN: Bottom gradient for indicator readability.
+        // KO: 표시기 가독성을 위한 하단 그라데이션.
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withValues(alpha: 0.35),
+                ],
+                stops: const [0.55, 1.0],
+              ),
+            ),
+          ),
+        ),
+        // EN: Page count pill — top-right corner.
+        // KO: 페이지 수 알약 배지 — 우상단 모서리.
+        Positioned(
+          top: GBTSpacing.md,
+          right: GBTSpacing.md,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: GBTSpacing.sm,
+              vertical: GBTSpacing.xxs,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+            ),
+            child: Text(
+              '${_currentPage + 1}/${images.length}',
+              style: GBTTypography.labelSmall.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        // EN: Animated dot indicator — bottom-center.
+        // KO: 애니메이션 점 표시기 — 하단 중앙.
+        Positioned(
+          bottom: GBTSpacing.md,
+          left: 0,
+          right: 0,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              images.length.clamp(0, 10),
+              (index) => AnimatedContainer(
+                duration: GBTAnimations.fast,
+                curve: GBTAnimations.defaultCurve,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: _currentPage == index ? 16 : 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: _currentPage == index
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ========================================
+// EN: Overlay AppBar icon button (Naver Maps / Yelp style)
+// KO: 오버레이 AppBar 아이콘 버튼 (네이버 지도 / 옐프 스타일)
+// ========================================
+
+class _OverlayIconButton extends StatelessWidget {
+  const _OverlayIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: GBTSpacing.xs),
+      child: IconButton(
+        onPressed: onPressed,
+        tooltip: tooltip,
+        style: IconButton.styleFrom(
+          foregroundColor: Colors.white,
+          backgroundColor: const Color(0x5C000000),
+          minimumSize: const Size(38, 38),
+          padding: const EdgeInsets.all(8),
+        ),
+        icon: Icon(icon),
+      ),
+    );
+  }
+}
+
+// ========================================
+// EN: Quick stat badge
+// KO: 빠른 통계 배지
+// ========================================
+
+class _QuickStatBadge extends StatelessWidget {
+  const _QuickStatBadge({
     required this.icon,
     required this.label,
-    required this.value,
+    required this.isDark,
   });
 
   final IconData icon;
   final String label;
-  final String value;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Expanded(
-      child: Semantics(
-        label: '$label: $value',
-        child: Container(
-          padding: GBTSpacing.paddingMd,
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: colorScheme.primary),
-              const SizedBox(height: GBTSpacing.xs),
-              Text(
-                value,
-                style: GBTTypography.titleLarge.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Text(
-                label,
-                style: GBTTypography.labelSmall.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
+    final bgColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+    final fgColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+
+    return Semantics(
+      label: label,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: fgColor),
+            const SizedBox(width: GBTSpacing.xs),
+            Text(
+              label,
+              style: GBTTypography.labelSmall.copyWith(color: fgColor),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-String _formatPlaceType(String type) {
-  return placeTypeLabel(type);
-}
+// ========================================
+// EN: Guide section — card style items
+// KO: 가이드 섹션 — 카드 스타일 아이템
+// ========================================
 
 class _GuideSection extends StatelessWidget {
-  const _GuideSection({required this.state, required this.onRetry});
+  const _GuideSection({
+    required this.state,
+    required this.isDark,
+    required this.onRetry,
+  });
 
   final AsyncValue<List<PlaceGuideSummary>> state;
+  final bool isDark;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final secondaryColor = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
-
     return state.when(
-      loading: () => const GBTLoading(message: '가이드를 불러오는 중...'),
+      loading: () => GBTShimmer(
+        child: Column(
+          children: [
+            GBTShimmerContainer(height: 72, width: double.infinity),
+            const SizedBox(height: GBTSpacing.sm),
+            GBTShimmerContainer(height: 72, width: double.infinity),
+          ],
+        ),
+      ),
       error: (error, _) {
         if (_isForbidden(error)) {
           return _SectionMessage(message: '아직 준비중입니다.');
@@ -448,49 +746,149 @@ class _GuideSection extends StatelessWidget {
         return ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
           itemCount: guides.length,
-          separatorBuilder: (_, __) => const Divider(height: GBTSpacing.md),
+          separatorBuilder: (_, __) =>
+              const SizedBox(height: GBTSpacing.sm),
           itemBuilder: (context, index) {
             final guide = guides[index];
-            return Semantics(
-              label: '가이드: ${guide.title.isNotEmpty ? guide.title : '가이드'}',
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  guide.title.isNotEmpty ? guide.title : '가이드',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (guide.preview.isNotEmpty)
-                      Text(
-                        guide.preview,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    if (guide.updatedAtLabel.isNotEmpty)
-                      Text(
-                        guide.updatedAtLabel,
-                        style: GBTTypography.labelSmall.copyWith(
-                          color: secondaryColor,
-                        ),
-                      ),
-                  ],
-                ),
-                trailing: guide.hasImages
-                    ? const Icon(Icons.photo_outlined)
-                    : null,
-                onTap: () {},
-              ),
-            );
+            return _GuideCard(guide: guide, isDark: isDark, index: index);
           },
         );
       },
     );
   }
 }
+
+/// EN: Guide card — numbered index + title + preview + metadata.
+/// KO: 가이드 카드 — 번호 인덱스 + 제목 + 미리보기 + 메타데이터.
+class _GuideCard extends StatelessWidget {
+  const _GuideCard({
+    required this.guide,
+    required this.isDark,
+    required this.index,
+  });
+
+  final PlaceGuideSummary guide;
+  final bool isDark;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final bgColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+
+    return Semantics(
+      label: '가이드: ${guide.title.isNotEmpty ? guide.title : '가이드'}',
+      child: Container(
+        padding: const EdgeInsets.all(GBTSpacing.md),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: (isDark ? GBTColors.darkPrimary : GBTColors.primary)
+                    .withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '${index + 1}',
+                style: GBTTypography.titleSmall.copyWith(
+                  color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: GBTSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    guide.title.isNotEmpty ? guide.title : '가이드',
+                    style: GBTTypography.labelLarge.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (guide.preview.isNotEmpty) ...[
+                    const SizedBox(height: GBTSpacing.xxs),
+                    Text(
+                      guide.preview,
+                      style: GBTTypography.bodySmall.copyWith(
+                        color: secondaryColor,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  const SizedBox(height: GBTSpacing.xs),
+                  Row(
+                    children: [
+                      if (guide.updatedAtLabel.isNotEmpty)
+                        Text(
+                          guide.updatedAtLabel,
+                          style: GBTTypography.labelSmall.copyWith(
+                            color: tertiaryColor,
+                          ),
+                        ),
+                      if (guide.hasImages && guide.updatedAtLabel.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(left: GBTSpacing.sm),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.photo_outlined,
+                                size: 12,
+                                color: tertiaryColor,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                '${guide.imageCount}',
+                                style: GBTTypography.labelSmall.copyWith(
+                                  color: tertiaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: GBTSpacing.sm),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: tertiaryColor,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ========================================
+// EN: Comment section — review cards
+// KO: 댓글 섹션 — 리뷰 카드
+// ========================================
 
 class _CommentSection extends ConsumerStatefulWidget {
   const _CommentSection({
@@ -521,7 +919,15 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
         : GBTColors.textSecondary;
 
     return widget.state.when(
-      loading: () => const GBTLoading(message: '후기를 불러오는 중...'),
+      loading: () => GBTShimmer(
+        child: Column(
+          children: [
+            GBTShimmerContainer(height: 88, width: double.infinity),
+            const SizedBox(height: GBTSpacing.sm),
+            GBTShimmerContainer(height: 88, width: double.infinity),
+          ],
+        ),
+      ),
       error: (error, _) {
         if (_isForbidden(error)) {
           return _SectionMessage(message: '아직 준비중입니다.');
@@ -536,139 +942,28 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
         return ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
           itemCount: comments.length,
-          separatorBuilder: (_, __) => const Divider(height: GBTSpacing.md),
+          separatorBuilder: (_, __) =>
+              const SizedBox(height: GBTSpacing.sm),
           itemBuilder: (context, index) {
             final comment = comments[index];
-            final authorLabel = comment.authorId.isNotEmpty ? '방문자' : '익명 방문자';
             final isApproving = _approvingIds.contains(comment.id);
             final isRejected = _rejectedIds.contains(comment.id);
             final isFullyApproved =
                 comment.photoUploadIds.isNotEmpty &&
                 comment.photoUrls.length >= comment.photoUploadIds.length;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(authorLabel),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (comment.body.isNotEmpty)
-                        Text(
-                          comment.body,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      if (comment.createdAtLabel.isNotEmpty)
-                        Text(
-                          comment.createdAtLabel,
-                          style: GBTTypography.labelSmall.copyWith(
-                            color: secondaryColor,
-                          ),
-                        ),
-                    ],
-                  ),
-                  trailing: comment.replyCount > 0
-                      ? Text(
-                          '답글 ${comment.replyCount}',
-                          style: GBTTypography.labelSmall.copyWith(
-                            color: secondaryColor,
-                          ),
-                        )
-                      : null,
-                ),
-                if (comment.photoUrls.isNotEmpty)
-                  Wrap(
-                    spacing: GBTSpacing.xs,
-                    runSpacing: GBTSpacing.xs,
-                    children: comment.photoUrls
-                        .map(
-                          (url) => ClipRRect(
-                            borderRadius: BorderRadius.circular(
-                              GBTSpacing.radiusSm,
-                            ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: () => _showPhotoPreview(url),
-                                child: Semantics(
-                                  label: '방문 후기 사진. 탭하여 확대',
-                                  button: true,
-                                  child: GBTImage(
-                                    imageUrl: url,
-                                    width: 72,
-                                    height: 72,
-                                    fit: BoxFit.cover,
-                                    semanticLabel: '방문 후기 사진',
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                if (widget.isAdmin && comment.photoUploadIds.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: GBTSpacing.sm),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (isRejected)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: GBTSpacing.xs,
-                            ),
-                            child: Text(
-                              '반려됨',
-                              style: GBTTypography.labelSmall.copyWith(
-                                color: secondaryColor,
-                              ),
-                            ),
-                          )
-                        else if (isFullyApproved)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: GBTSpacing.xs,
-                            ),
-                            child: Text(
-                              '승인됨',
-                              style: GBTTypography.labelSmall.copyWith(
-                                color: secondaryColor,
-                              ),
-                            ),
-                          ),
-                        Row(
-                          children: [
-                            OutlinedButton(
-                              onPressed:
-                                  isApproving || isFullyApproved || isRejected
-                                  ? null
-                                  : () => _approvePhotos(
-                                      comment,
-                                      isApproved: true,
-                                    ),
-                              child: Text(isApproving ? '처리 중...' : '사진 승인'),
-                            ),
-                            const SizedBox(width: GBTSpacing.sm),
-                            OutlinedButton(
-                              onPressed:
-                                  isApproving || isFullyApproved || isRejected
-                                  ? null
-                                  : () => _approvePhotos(
-                                      comment,
-                                      isApproved: false,
-                                    ),
-                              child: const Text('사진 반려'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
+
+            return _ReviewCard(
+              comment: comment,
+              isDark: isDark,
+              isAdmin: widget.isAdmin,
+              isApproving: isApproving,
+              isRejected: isRejected,
+              isFullyApproved: isFullyApproved,
+              onPhotoTap: _showPhotoPreview,
+              onApprove: (approved) => _approvePhotos(comment, isApproved: approved),
+              secondaryColor: secondaryColor,
             );
           },
         );
@@ -763,6 +1058,224 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
   }
 }
 
+/// EN: Review card — avatar initials + body + photo strip + admin controls.
+/// KO: 리뷰 카드 — 이니셜 아바타 + 본문 + 사진 스트립 + 어드민 컨트롤.
+class _ReviewCard extends StatelessWidget {
+  const _ReviewCard({
+    required this.comment,
+    required this.isDark,
+    required this.isAdmin,
+    required this.isApproving,
+    required this.isRejected,
+    required this.isFullyApproved,
+    required this.onPhotoTap,
+    required this.onApprove,
+    required this.secondaryColor,
+  });
+
+  final PlaceComment comment;
+  final bool isDark;
+  final bool isAdmin;
+  final bool isApproving;
+  final bool isRejected;
+  final bool isFullyApproved;
+  final ValueChanged<String> onPhotoTap;
+  final ValueChanged<bool> onApprove;
+  final Color secondaryColor;
+
+  // EN: Deterministic avatar color from authorId hashCode.
+  // KO: authorId 해시코드로 결정적 아바타 색상.
+  static const _avatarPalette = [
+    Color(0xFF6366F1),
+    Color(0xFF3B82F6),
+    Color(0xFFEC4899),
+    Color(0xFFF59E0B),
+    Color(0xFF10B981),
+    Color(0xFF8B5CF6),
+  ];
+
+  Color get _avatarColor {
+    return _avatarPalette[comment.authorId.hashCode.abs() % _avatarPalette.length];
+  }
+
+  String get _authorInitial {
+    if (comment.authorId.isNotEmpty) {
+      return comment.authorId[0].toUpperCase();
+    }
+    return '?';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bgColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    final authorLabel = comment.authorId.isNotEmpty ? '방문자' : '익명 방문자';
+
+    return Container(
+      padding: const EdgeInsets.all(GBTSpacing.md),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // EN: Author row — avatar circle + name + date.
+          // KO: 작성자 행 — 아바타 원 + 이름 + 날짜.
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: _avatarColor,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  _authorInitial,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    height: 1,
+                  ),
+                ),
+              ),
+              const SizedBox(width: GBTSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      authorLabel,
+                      style: GBTTypography.labelMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (comment.createdAtLabel.isNotEmpty)
+                      Text(
+                        comment.createdAtLabel,
+                        style: GBTTypography.labelSmall.copyWith(
+                          color: tertiaryColor,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (comment.replyCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GBTSpacing.xs,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (isDark ? GBTColors.darkPrimary : GBTColors.primary)
+                        .withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+                  ),
+                  child: Text(
+                    '답글 ${comment.replyCount}',
+                    style: GBTTypography.labelSmall.copyWith(
+                      color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          // EN: Body text.
+          // KO: 본문 텍스트.
+          if (comment.body.isNotEmpty) ...[
+            const SizedBox(height: GBTSpacing.sm),
+            Text(
+              comment.body,
+              style: GBTTypography.bodyMedium.copyWith(
+                color: isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
+              ),
+              maxLines: 5,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          // EN: Horizontal photo strip — 80px square thumbnails.
+          // KO: 가로 사진 스트립 — 80px 정사각형 썸네일.
+          if (comment.photoUrls.isNotEmpty) ...[
+            const SizedBox(height: GBTSpacing.sm),
+            SizedBox(
+              height: 80,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: comment.photoUrls.length,
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: GBTSpacing.xs),
+                itemBuilder: (context, index) {
+                  final url = comment.photoUrls[index];
+                  return Semantics(
+                    label: '방문 후기 사진 ${index + 1}. 탭하여 확대',
+                    button: true,
+                    child: GestureDetector(
+                      onTap: () => onPhotoTap(url),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+                        child: GBTImage(
+                          imageUrl: url,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          semanticLabel: '방문 후기 사진',
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+          // EN: Admin photo approval controls.
+          // KO: 어드민 사진 승인 컨트롤.
+          if (isAdmin && comment.photoUploadIds.isNotEmpty) ...[
+            const SizedBox(height: GBTSpacing.sm),
+            if (isRejected)
+              Text(
+                '반려됨',
+                style: GBTTypography.labelSmall.copyWith(
+                  color: secondaryColor,
+                ),
+              )
+            else if (isFullyApproved)
+              Text(
+                '승인됨',
+                style: GBTTypography.labelSmall.copyWith(
+                  color: secondaryColor,
+                ),
+              ),
+            Row(
+              children: [
+                OutlinedButton(
+                  onPressed: isApproving || isFullyApproved || isRejected
+                      ? null
+                      : () => onApprove(true),
+                  child: Text(isApproving ? '처리 중...' : '사진 승인'),
+                ),
+                const SizedBox(width: GBTSpacing.sm),
+                OutlinedButton(
+                  onPressed: isApproving || isFullyApproved || isRejected
+                      ? null
+                      : () => onApprove(false),
+                  child: const Text('사진 반려'),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _SectionMessage extends StatelessWidget {
   const _SectionMessage({required this.message, this.onRetry});
 
@@ -800,6 +1313,10 @@ bool _isAdminRole(String? role) {
   if (role == null) return false;
   final normalized = role.toUpperCase();
   return normalized.contains('ADMIN') || normalized.contains('MODERATOR');
+}
+
+String _formatPlaceType(String type) {
+  return placeTypeLabel(type);
 }
 
 void _showVerificationSheet(

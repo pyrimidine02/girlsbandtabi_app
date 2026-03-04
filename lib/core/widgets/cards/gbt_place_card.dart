@@ -463,28 +463,28 @@ class GBTPlaceCardHorizontal extends StatelessWidget {
             padding: GBTSpacing.paddingMd,
             child: Row(
               children: [
-                // EN: Image with rounded corners
-                // KO: 둥근 모서리 이미지
+                // EN: Portrait image with rounded corners (80×88 — 10:11 portrait crop for better venue display)
+                // KO: 세로형 이미지 (80×88 — 장소 분위기 전달에 유리한 10:11 세로 비율)
                 Container(
-                  width: 96,
-                  height: 96,
+                  width: 80,
+                  height: 88,
                   decoration: BoxDecoration(
                     color: isDark
                         ? GBTColors.darkSurfaceElevated
                         : GBTColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+                    borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: imageUrl != null
                       ? GBTImage(
                           imageUrl: imageUrl!,
-                          width: 96,
-                          height: 96,
+                          width: 80,
+                          height: 88,
                           fit: BoxFit.cover,
                           semanticLabel: '$name 이미지',
                         )
                       : Icon(
-                          Icons.image_outlined,
+                          Icons.place_outlined,
                           color: isDark
                               ? GBTColors.darkTextTertiary
                               : GBTColors.textTertiary,

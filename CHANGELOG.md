@@ -1,10 +1,52 @@
 # Changelog
 
+## 2026-03-04 (Detail Pages Redesign — Live Event & Place)
+- **LIVE/UI**: Full rewrite of `LiveEventDetailPage` — skeleton loading (GBTShimmer) replaces spinner; LIVE overlay badge (red glow) + D-day badge on poster hero area; `_StatusChip` (color-coded: live/upcoming/completed); horizontal scrollable `_InfoCard` row (날짜/시간/대상); ticket section as `OutlinedButton.icon` with `url_launcher` instead of inline link.
+- **LIVE/UI**: Redesigned `live_events_page` top area — `ProjectSelectorCompact` moved into `AppBar` title beside "라이브" separator label; `groups_outlined` action removed; `_BandFilterBar` replaced with horizontal scrollable `_BandChipFilterRow` + animated `_BandChip` (primary tint on selection).
+- **PLACES/UI**: Full rewrite of `PlaceDetailPage` — `_PhotoGallery` (PageView + animated dot indicator + count pill badge); overlay `_OverlayIconButton` for favorite/share in `SliverAppBar`; sticky bottom CTA via `Scaffold.bottomNavigationBar` (`FilledButton.icon`); `_GuideCard` (card style with book icon); `_ReviewCard` (deterministic avatar initials + photo strip); horizontal scroll tag row; removed duplicate `_StatCard` section.
+
+## 2026-03-03 (UXDNAS + 2025 Design Trends Pass)
+- **HOME/UX**: Replaced horizontal quick-action chip row with 2×2 bento grid (`_HomeBentoGrid`) — Apple/Weverse-style tiles for 장소/라이브/게시판/정보 with accent-color backgrounds and icons.
+- **CORE/WIDGET**: Added `GBTAppBarIconButton` widget for consistent app bar icon buttons with minimum touch target and semantics.
+- **SETTINGS/UI**: Replaced raw `IconButton` leading with `GBTAppBarIconButton` for consistent back-button styling.
+- **NOTIFICATIONS/UI**: Replaced `PopupMenuButton` with 3 discrete `GBTAppBarIconButton` actions; removed `_NotificationsIntroCard` and `_UnreadChip` — filter row only.
+- **FAVORITES/UI**: Added refresh `GBTAppBarIconButton` to app bar; removed `_FavoritesIntro` and `_CountBadge` from all 4 state branches.
+- **INFO/UI**: Added refresh `GBTAppBarIconButton` before profile action in app bar.
+- **PLACES/UX**: Replaced spinner loading in `PlaceDetailPage` with `GBTShimmer` skeleton (300px header + title/metadata shimmer rows).
+- **FEED/COMMUNITY**: Converted `_CommunityPostCard` to `ConsumerWidget` with rate-limited report popup — matches `board_page` pattern. Hidden for unauthenticated users and post authors.
+- **USER-PROFILE/DESIGN**: Corrected avatar ring background to GBT neutral tokens; capped nickname weight at `w700`.
+
+## 2026-03-03
+- **UI/UX/SERVICE-FIT (PHASE1)**: Applied internet-reference-driven redesign pass for core interaction primitives (floating pill bottom-nav, refined segmented tabs, focus-visible search fields, lighter intro headers) to improve scannability and usability.
+- **HOME/UX**: Added quick-action chip row (`장소`, `라이브`, `게시판`, `정보`) below project selector for faster main-flow entry.
+- **COMMUNITY/UX**: Reduced write CTA visual dominance by changing board/feed extended FABs to compact FABs.
+- **DOCS/ADR**: Added `ADR-20260303-service-fit-design-reference-rollout-phase1.md` documenting rationale, references, and rollout scope.
+- **COMMUNITY/ARCH**: Added API-backed user connection model (`UserFollowSummary`) and repository/data-source contracts for `/users/{userId}/followers` and `/users/{userId}/following`.
+- **COMMUNITY/ROUTING**: Added dedicated connection routes: `/users/:userId/followers` and `/users/:userId/following`.
+- **COMMUNITY/UI**: Introduced new `UserConnectionsPage` with dense list UX (search, pull-to-refresh, profile jump, follow-date badges) inspired by text-first community patterns.
+- **COMMUNITY/UI**: Reworked `UserProfilePage` header/action structure (clean identity card, follower/following tiles, action placement, refreshable posts/comments lists) and removed placeholder achievement noise.
+- **COMMUNITY/UI (PHASE2)**: Updated `BoardPage` community tab information architecture with context intro card (mode/search context + visible count) to reduce cognitive load and improve feed orientation.
+- **COMMUNITY/UI (PHASE2)**: Updated `PostDetailPage` author header interaction by adding inline follow toggle + profile shortcut (with block-aware disable behavior) for faster relationship actions in-thread.
+- **COMMUNITY/SAFETY (PHASE3)**: Unified report input UX by extracting a shared `CommunityReportSheet` widget and reusing it across board/detail report flows.
+- **COMMUNITY/SAFETY (PHASE3)**: Expanded board post action menu for non-author users with direct `신고` + `차단/차단 해제` actions and report cooldown handling parity with post-detail flow.
+- **COMMUNITY/UI (PHASE4)**: Updated post-detail comment composer to span full width horizontally (removed side insets) for denser mobile input UX.
+- **UI/CONSISTENCY**: Removed boxed intro cards from `장소`, `라이브`, `게시판` top areas to match requested cleaner chrome and reduce card clutter.
+- **API/CATALOG**: Synced v3 endpoint catalog and endpoint contract tests for follow/followers/following paths.
+- **TESTING**: Expanded community repository tests for followers/following mapping.
+
 ## 2026-03-02
+- **COMMUNITY/API**: Re-verified live OpenAPI (`/v3/api-docs`) follow/block contracts and aligned client endpoint constants for user follow/followers/following paths.
+- **COMMUNITY/FOLLOW**: Replaced local-storage follow state with API-backed follow status flow (`GET/POST/DELETE /api/v1/users/{userId}/follow`) via feed community repository/data source.
+- **COMMUNITY/UI**: Updated user-profile follow CTA to use per-user API follow state provider (disabled while blocked, retains existing block integration).
+- **TESTING**: Added repository unit coverage for follow status mapping, follow delegation, and unfollow delegation.
 - **LIVE/UI**: Updated live event detail poster header to render full poster bounds (`BoxFit.contain`) with responsive expanded height so poster edges are no longer cropped.
 - **LIVE/UI**: Refined live detail header controls for poster mode by adding high-contrast overlay icon buttons (back/favorite/share) and replacing hard black letterbox with soft poster backdrop + top gradient for readability.
 - **LIVE/UI**: Adjusted poster vertical placement to sit lower under the status bar area and removed poster-reflection style backdrop under the image (switched to neutral gradient background).
 - **LIVE/BOARD/UI**: Slimmed the `예정/완료` and `커뮤니티/여행 후기` segmented tabs with compact sizing (reduced height/padding, softer indicator) to remove oversized button feel in app bars.
+- **CI/CD/ANDROID**: Added GitHub Actions pipeline for automatic internal-tester delivery: PR/main runs `flutter analyze` + `flutter test`, and pushes to `main` build/release Android AAB to Google Play Internal track.
+- **CI/CD/VERSIONING**: Internal Android workflow now injects build metadata (`--build-name` from `pubspec.yaml`, date-based auto `--build-number` from GitHub run context) to prevent Play versionCode collisions.
+- **CI/CD/RELEASE**: Added tag-based Android release workflow (`vX.Y.Z`) that validates tag/pubspec version parity and uploads a production draft bundle.
+- **DX/VERSIONING**: Added `scripts/bump_version.sh` and `docs/모바일버전배포가이드_v1.0.0.md` for consistent semver bump + internal/release deployment operation.
 - **ANDROID/NAV**: Main shell back behavior updated to double-press exit with a 3-second window (Android only) and clearer exit guidance snackbar copy.
 - **COMMUNITY/UI**: Reworked board feed cards into a timeline-first layout (left avatar, compact author/time meta, text-first body, full-width media, and balanced 4-action row) for faster scanning on mobile.
 - **COMMUNITY/UI**: Reworked post-detail header/actions to the same timeline interaction rhythm for consistent board → detail visual flow.
@@ -475,3 +517,22 @@
 - Fixed iOS interactive back-swipe blocking in the tab shell by changing `MainScaffold` `PopScope.canPop` from a fixed `false` to dynamic `GoRouter.canPop()`.
 - Kept Android-only double-back app-exit handling at root routes while allowing normal stack pop behavior on pushed pages.
 - Continued stack-first navigation semantics so detail/create/profile flows return to the immediate previous page on back.
+
+## 2026-03-03
+- Applied UXDNAS-guided core UI rule rollout across shared components and major pages:
+  - Updated `GBTPageIntroCard` from boxed card surface to low-emphasis divider intro layout.
+  - Standardized segmented tabs by adopting `GBTSegmentedTabBar` on `AdminOpsPage`, `UserConnectionsPage`, and `UserProfilePage`, and unified legacy `FeedPage` tabs to the same component.
+  - Unified search-field interaction using `GBTSearchBar` on board/search/connections flows (`BoardPage`, `SearchPage`, `UserConnectionsPage`).
+  - Refined post-detail composer to full-width edge alignment with safer bottom insets and consistent send affordance sizing.
+- Added full 59-element UXDNAS audit document with applicability/status mapping and implementation evidence:
+  - `docs/uxdnas-guide-59-audit.md`
+- Completed previously-partial UXDNAS items:
+  - Added outline-first shared action icon policy via `GBTActionIcons`.
+  - Added global slider design tokens (`sliderTheme`) for light/dark themes.
+  - Switched major list loading states to skeleton-first UX on feed/board/live/search routes.
+- Applied UXDNAS reference-style visual alignment from post/home examples:
+  - Updated global light palette toward neutral + professional social blue (`#F9F9F9` / `#0A66C2`) in `GBTColors`.
+  - Added subtle outline treatment to shared search bars and segmented tabs for clearer control boundaries on neutral backgrounds.
+- Fixed home trending-live poster rendering robustness:
+  - Normalized home summary image/poster URLs via media URL resolver.
+  - Expanded home trending-live DTO poster field compatibility (`banner/poster/image` nested path variants) so carousel cards can render actual posters when backend payload keys vary.

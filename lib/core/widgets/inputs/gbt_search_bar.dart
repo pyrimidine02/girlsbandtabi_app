@@ -81,23 +81,29 @@ class GBTSearchBar extends StatefulWidget {
 
 class _GBTSearchBarState extends State<GBTSearchBar> {
   late TextEditingController _controller;
+  late FocusNode _focusNode;
+  bool _ownsFocusNode = false;
   bool _hasText = false;
+  bool _isFocused = false;
 
   @override
   void initState() {
     super.initState();
     _controller = widget.controller ?? TextEditingController();
+    _focusNode = widget.focusNode ?? FocusNode();
+    _ownsFocusNode = widget.focusNode == null;
     _hasText = _controller.text.isNotEmpty;
+    _isFocused = _focusNode.hasFocus;
     _controller.addListener(_onTextChanged);
+    _focusNode.addListener(_onFocusChanged);
   }
 
   @override
   void dispose() {
-    if (widget.controller == null) {
-      _controller.dispose();
-    } else {
-      _controller.removeListener(_onTextChanged);
-    }
+    _controller.removeListener(_onTextChanged);
+    _focusNode.removeListener(_onFocusChanged);
+    if (widget.controller == null) _controller.dispose();
+    if (_ownsFocusNode) _focusNode.dispose();
     super.dispose();
   }
 
@@ -105,6 +111,13 @@ class _GBTSearchBarState extends State<GBTSearchBar> {
     final hasText = _controller.text.isNotEmpty;
     if (_hasText != hasText) {
       setState(() => _hasText = hasText);
+    }
+  }
+
+  void _onFocusChanged() {
+    final isFocused = _focusNode.hasFocus;
+    if (_isFocused != isFocused) {
+      setState(() => _isFocused = isFocused);
     }
   }
 
@@ -117,47 +130,63 @@ class _GBTSearchBarState extends State<GBTSearchBar> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    // EN: Muted surface background — matches Twitter/Instagram/Naver style search bars.
+    //     surfaceVariant gives clear contrast against page background without a hard border.
+    // KO: 뮤트된 표면 배경 — 트위터/인스타그램/네이버 스타일 검색바에 맞춤.
+    //     surfaceVariant는 딱딱한 테두리 없이 페이지 배경과 명확한 대비를 제공.
+    final bgColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+    final iconColor = _isFocused
+        ? primaryColor
+        : (isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary);
 
     return Semantics(
       label: '${widget.hint} 검색 필드',
       hint: '탭하면 검색어를 입력할 수 있습니다',
       textField: true,
       enabled: widget.enabled,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
         height: GBTSpacing.touchTarget,
         decoration: BoxDecoration(
-          // EN: Dark mode aware background color
-          // KO: 다크 모드 인식 배경색
-          color: isDark
-              ? GBTColors.darkSurfaceVariant
-              : GBTColors.surfaceVariant,
+          color: bgColor,
           borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+          // EN: Transparent border in rest state — animates smoothly to primary on focus.
+          //     Using transparent (not null) enables AnimatedContainer interpolation.
+          // KO: 휴지 상태는 투명 테두리 — 포커스 시 primary로 부드럽게 보간.
+          //     null 대신 transparent를 사용해 AnimatedContainer 보간 가능.
+          border: Border.all(
+            color: _isFocused ? primaryColor : Colors.transparent,
+            width: 1.5,
+          ),
+          boxShadow: _isFocused
+              ? [
+                  BoxShadow(
+                    color: primaryColor.withValues(alpha: 0.14),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           children: [
-            // EN: Leading icon or widget
-            // KO: 선행 아이콘 또는 위젯
             Padding(
               padding: const EdgeInsets.only(left: GBTSpacing.md),
-              child:
-                  widget.leading ??
+              child: widget.leading ??
                   Icon(
-                    Icons.search,
-                    // EN: Dark mode aware icon color
-                    // KO: 다크 모드 인식 아이콘 색상
-                    color: isDark
-                        ? GBTColors.darkTextTertiary
-                        : GBTColors.textTertiary,
+                    Icons.search_rounded,
+                    color: iconColor,
                     size: GBTSpacing.iconSm,
                   ),
             ),
-
-            // EN: Search input with dark mode text style
-            // KO: 다크 모드 텍스트 스타일이 적용된 검색 입력
             Expanded(
               child: TextField(
                 controller: _controller,
-                focusNode: widget.focusNode,
+                focusNode: _focusNode,
                 autofocus: widget.autofocus,
                 enabled: widget.enabled,
                 readOnly: widget.readOnly,
@@ -175,27 +204,29 @@ class _GBTSearchBarState extends State<GBTSearchBar> {
                   hintStyle: GBTTypography.bodyMedium.copyWith(
                     color: isDark
                         ? GBTColors.darkTextTertiary
-                        : GBTColors.textTertiary,
+                        : GBTColors.textSecondary,
                   ),
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: GBTSpacing.sm,
                   ),
                 ),
               ),
             ),
-
-            // EN: Clear button with tooltip, or trailing widget
-            // KO: 툴팁이 있는 지우기 버튼 또는 후행 위젯
             if (_hasText)
               Tooltip(
                 message: '검색어 지우기',
                 child: IconButton(
                   icon: Icon(
-                    Icons.clear,
+                    Icons.close_rounded,
                     color: isDark
-                        ? GBTColors.darkTextTertiary
-                        : GBTColors.textTertiary,
+                        ? GBTColors.darkTextSecondary
+                        : GBTColors.textSecondary,
                     size: GBTSpacing.iconSm,
                   ),
                   onPressed: _onClear,
@@ -231,6 +262,7 @@ class GBTSearchBarButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? GBTColors.darkSurfaceVariant : GBTColors.surface;
 
     return Semantics(
       button: true,
@@ -242,17 +274,25 @@ class GBTSearchBarButton extends StatelessWidget {
           height: GBTSpacing.touchTarget,
           padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
           decoration: BoxDecoration(
-            // EN: Dark mode aware background color
-            // KO: 다크 모드 인식 배경색
-            color: isDark
-                ? GBTColors.darkSurfaceVariant
-                : GBTColors.surfaceVariant,
+            color: bgColor,
             borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+            border: Border.all(
+              color: isDark
+                  ? GBTColors.darkBorder
+                  : GBTColors.border.withValues(alpha: 0.9),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                blurRadius: isDark ? 10 : 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Row(
             children: [
               Icon(
-                Icons.search,
+                Icons.search_rounded,
                 color: isDark
                     ? GBTColors.darkTextTertiary
                     : GBTColors.textTertiary,
