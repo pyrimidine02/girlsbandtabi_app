@@ -92,6 +92,10 @@ class ApiEndpoints {
       '${projectUnits(projectId)}/$bandCode';
   static String projectUnitsSearch(String projectId) =>
       '${projectUnits(projectId)}/search';
+  static String unitMembers(String projectId, String unitId) =>
+      '${projectUnits(projectId)}/$unitId/members';
+  static String unitMember(String projectId, String unitId, String memberId) =>
+      '${unitMembers(projectId, unitId)}/$memberId';
 
   // ============================================================
   // EN: Place endpoints (8.6)

@@ -1,5 +1,5 @@
-/// EN: Settings page with iOS-style grouped sections and modern profile card.
-/// KO: iOS 스타일 그룹화된 섹션과 모던 프로필 카드를 포함한 설정 페이지.
+/// EN: Settings page with gradient profile hero, quick actions grid, and grouped sections.
+/// KO: 그래디언트 프로필 히어로, 퀵 액션 그리드, 그룹 섹션이 있는 설정 페이지.
 library;
 
 import 'package:flutter/material.dart';
@@ -18,8 +18,8 @@ import '../../../auth/application/auth_controller.dart';
 import '../../application/settings_controller.dart';
 import '../../domain/entities/user_profile.dart';
 
-/// EN: Settings page widget with iOS-style grouped layout.
-/// KO: iOS 스타일 그룹화된 레이아웃의 설정 페이지 위젯.
+/// EN: Settings page widget with grouped layout and profile hero.
+/// KO: 그룹 레이아웃과 프로필 히어로가 있는 설정 페이지 위젯.
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
@@ -72,8 +72,8 @@ class SettingsPage extends ConsumerWidget {
             vertical: GBTSpacing.sm,
           ),
           children: [
-            // EN: Profile card — prominent header section
-            // KO: 프로필 카드 — 눈에 띄는 헤더 섹션
+            // EN: Profile hero card
+            // KO: 프로필 히어로 카드
             _ProfileCard(
               isAuthenticated: isAuthenticated,
               profileState: profileState,
@@ -85,34 +85,13 @@ class SettingsPage extends ConsumerWidget {
             ),
             const SizedBox(height: GBTSpacing.lg),
 
-            // EN: My activity section
-            // KO: 나의 활동 섹션
-            _SettingsGroup(
-              title: '나의 활동',
-              children: [
-                _SettingsRow(
-                  icon: Icons.favorite_rounded,
-                  iconBgColor: const Color(0xFFEF4444),
-                  title: '즐겨찾기',
-                  subtitle: '저장한 장소와 이벤트',
-                  onTap: () => context.push('/favorites'),
-                ),
-                _SettingsRow(
-                  icon: Icons.check_circle_rounded,
-                  iconBgColor: const Color(0xFF10B981),
-                  title: '방문 기록',
-                  subtitle: '인증한 장소 확인',
-                  onTap: () => context.push('/settings/visits'),
-                ),
-                _SettingsRow(
-                  icon: Icons.bar_chart_rounded,
-                  iconBgColor: const Color(0xFF3B82F6),
-                  title: '통계',
-                  subtitle: '나의 성지순례 통계',
-                  onTap: () => context.push('/settings/stats'),
-                  isLast: true,
-                ),
-              ],
+            // EN: Quick actions grid — activity shortcuts
+            // KO: 퀵 액션 그리드 — 활동 바로가기
+            _QuickActionsGrid(
+              onFavoritesTap: () => context.push('/favorites'),
+              onVisitsTap: () => context.push('/visits'),
+              onStatsTap: () => context.push('/visit-stats'),
+              isDark: isDark,
             ),
 
             // EN: Account section — only shown when authenticated
@@ -290,8 +269,8 @@ class SettingsPage extends ConsumerWidget {
 }
 
 // ========================================
-// EN: Profile Card — modern, prominent header
-// KO: 프로필 카드 — 모던, 눈에 띄는 헤더
+// EN: Profile Card — gradient hero header
+// KO: 프로필 카드 — 그래디언트 히어로 헤더
 // ========================================
 
 class _ProfileCard extends StatelessWidget {
@@ -312,17 +291,18 @@ class _ProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor =
+        isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface;
+    final borderColor =
+        isDark ? GBTColors.darkBorderSubtle : GBTColors.border;
 
     if (!isAuthenticated) {
       return Container(
         padding: const EdgeInsets.all(GBTSpacing.lg),
         decoration: BoxDecoration(
-          color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface,
+          color: surfaceColor,
           borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
-          border: Border.all(
-            color: isDark ? GBTColors.darkBorderSubtle : GBTColors.border,
-            width: 0.5,
-          ),
+          border: Border.all(color: borderColor, width: 0.5),
         ),
         child: Column(
           children: [
@@ -380,24 +360,18 @@ class _ProfileCard extends StatelessWidget {
           loading: () => Container(
             padding: const EdgeInsets.all(GBTSpacing.lg),
             decoration: BoxDecoration(
-              color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface,
+              color: surfaceColor,
               borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
-              border: Border.all(
-                color: isDark ? GBTColors.darkBorderSubtle : GBTColors.border,
-                width: 0.5,
-              ),
+              border: Border.all(color: borderColor, width: 0.5),
             ),
             child: const GBTLoading(message: '프로필을 불러오는 중...'),
           ),
           error: (error, _) => Container(
             padding: const EdgeInsets.all(GBTSpacing.lg),
             decoration: BoxDecoration(
-              color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface,
+              color: surfaceColor,
               borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
-              border: Border.all(
-                color: isDark ? GBTColors.darkBorderSubtle : GBTColors.border,
-                width: 0.5,
-              ),
+              border: Border.all(color: borderColor, width: 0.5),
             ),
             child: Row(
               children: [
@@ -450,74 +424,126 @@ class _ProfileCard extends StatelessWidget {
           ),
           data: (profile) {
             if (profile == null) return const SizedBox.shrink();
+
+            final primaryColor =
+                isDark ? GBTColors.darkPrimary : GBTColors.primary;
+            final textPrimary =
+                isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+            final textSecondary =
+                isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+            final textTertiary =
+                isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+            final dividerColor =
+                isDark ? GBTColors.darkBorderSubtle : GBTColors.divider;
+
             return Container(
-              padding: const EdgeInsets.all(GBTSpacing.lg),
               decoration: BoxDecoration(
-                color: isDark
-                    ? GBTColors.darkSurfaceElevated
-                    : GBTColors.surface,
+                color: surfaceColor,
                 borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
-                border: Border.all(
-                  color: isDark ? GBTColors.darkBorderSubtle : GBTColors.border,
-                  width: 0.5,
-                ),
+                border: Border.all(color: borderColor, width: 0.5),
               ),
-              child: InkWell(
-                onTap: onEditTap,
-                borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
-                child: Row(
-                  children: [
-                    _ProfileAvatar(avatarUrl: profile.avatarUrl),
-                    const SizedBox(width: GBTSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            profile.displayName,
-                            style: GBTTypography.titleMedium.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: isDark
-                                  ? GBTColors.darkTextPrimary
-                                  : GBTColors.textPrimary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // EN: Avatar + name row
+                  // KO: 아바타 + 이름 행
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      GBTSpacing.md,
+                      GBTSpacing.md,
+                      GBTSpacing.md,
+                      GBTSpacing.sm,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _ProfileAvatar(avatarUrl: profile.avatarUrl),
+                        const SizedBox(width: GBTSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                profile.displayName,
+                                style: GBTTypography.titleMedium.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: textPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (profile.summaryLabel.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  profile.summaryLabel,
+                                  style: GBTTypography.bodySmall.copyWith(
+                                    color: textSecondary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                              const SizedBox(height: 2),
+                              Text(
+                                profile.email,
+                                style: GBTTypography.labelSmall.copyWith(
+                                  color: textTertiary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            profile.summaryLabel,
-                            style: GBTTypography.bodySmall.copyWith(
-                              color: isDark
-                                  ? GBTColors.darkTextSecondary
-                                  : GBTColors.textSecondary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  // EN: Edit shortcut button — subtle tinted footer, no harsh divider
+                  // KO: 수정 바로가기 버튼 — 딱딱한 구분선 대신 미묘한 하단 틴트
+                  ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(GBTSpacing.radiusMd),
+                      bottomRight: Radius.circular(GBTSpacing.radiusMd),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: dividerColor, width: 0.5),
+                        ),
+                        color: isDark
+                            ? GBTColors.darkSurfaceVariant.withValues(alpha: 0.4)
+                            : GBTColors.surfaceVariant.withValues(alpha: 0.6),
+                      ),
+                      child: InkWell(
+                        onTap: onEditTap,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: GBTSpacing.sm + 2,
+                            horizontal: GBTSpacing.md,
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            profile.email,
-                            style: GBTTypography.labelSmall.copyWith(
-                              color: isDark
-                                  ? GBTColors.darkTextTertiary
-                                  : GBTColors.textTertiary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.edit_rounded,
+                                size: 14,
+                                color: primaryColor,
+                              ),
+                              const SizedBox(width: GBTSpacing.xs),
+                              Text(
+                                '프로필 수정',
+                                style: GBTTypography.labelMedium.copyWith(
+                                  color: primaryColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                    Icon(
-                      Icons.chevron_right,
-                      size: 20,
-                      color: isDark
-                          ? GBTColors.darkTextTertiary
-                          : GBTColors.textTertiary,
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           },
@@ -537,13 +563,13 @@ class _ProfileAvatar extends StatelessWidget {
 
     if (avatarUrl == null || avatarUrl!.isEmpty) {
       return CircleAvatar(
-        radius: 28,
+        radius: 30,
         backgroundColor: isDark
             ? GBTColors.darkSurfaceVariant
             : GBTColors.surfaceVariant,
         child: Icon(
           Icons.person,
-          size: 28,
+          size: 30,
           color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
           semanticLabel: '기본 프로필 이미지',
         ),
@@ -553,10 +579,128 @@ class _ProfileAvatar extends StatelessWidget {
     return ClipOval(
       child: GBTImage(
         imageUrl: avatarUrl!,
-        width: 56,
-        height: 56,
+        width: 60,
+        height: 60,
         fit: BoxFit.cover,
         semanticLabel: '프로필 이미지',
+      ),
+    );
+  }
+}
+
+// ========================================
+// EN: Quick Actions Grid — activity shortcuts (3-tile)
+// KO: 퀵 액션 그리드 — 활동 바로가기 (3타일)
+// ========================================
+
+class _QuickActionsGrid extends StatelessWidget {
+  const _QuickActionsGrid({
+    required this.onFavoritesTap,
+    required this.onVisitsTap,
+    required this.onStatsTap,
+    required this.isDark,
+  });
+
+  final VoidCallback onFavoritesTap;
+  final VoidCallback onVisitsTap;
+  final VoidCallback onStatsTap;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _QuickTile(
+          icon: Icons.favorite_rounded,
+          color: const Color(0xFFEF4444),
+          label: '즐겨찾기',
+          onTap: onFavoritesTap,
+          isDark: isDark,
+        ),
+        const SizedBox(width: GBTSpacing.sm),
+        _QuickTile(
+          icon: Icons.check_circle_rounded,
+          color: const Color(0xFF10B981),
+          label: '방문 기록',
+          onTap: onVisitsTap,
+          isDark: isDark,
+        ),
+        const SizedBox(width: GBTSpacing.sm),
+        _QuickTile(
+          icon: Icons.bar_chart_rounded,
+          color: const Color(0xFF3B82F6),
+          label: '통계',
+          onTap: onStatsTap,
+          isDark: isDark,
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickTile extends StatelessWidget {
+  const _QuickTile({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.onTap,
+    required this.isDark,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String label;
+  final VoidCallback onTap;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaceColor =
+        isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface;
+    final borderColor = isDark ? GBTColors.darkBorderSubtle : GBTColors.border;
+    final textPrimary =
+        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+
+    return Expanded(
+      child: Material(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              vertical: GBTSpacing.md,
+              horizontal: GBTSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+              border: Border.all(color: borderColor, width: 0.5),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 22),
+                ),
+                const SizedBox(height: GBTSpacing.xs),
+                Text(
+                  label,
+                  style: GBTTypography.labelSmall.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: textPrimary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -580,8 +724,8 @@ class _SettingsGroup extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // EN: Section title — uppercase-style label
-        // KO: 섹션 제목 — 대문자 스타일 라벨
+        // EN: Section title label
+        // KO: 섹션 제목 라벨
         Padding(
           padding: const EdgeInsets.only(
             left: GBTSpacing.sm,
@@ -661,16 +805,16 @@ class _SettingsRow extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  // EN: Icon with colored background
-                  // KO: 색상 배경이 있는 아이콘
+                  // EN: Icon with colored background (36px)
+                  // KO: 색상 배경이 있는 아이콘 (36px)
                   Container(
-                    width: 32,
-                    height: 32,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       color: resolvedIconColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
                     ),
-                    child: Icon(icon, color: resolvedIconColor, size: 18),
+                    child: Icon(icon, color: resolvedIconColor, size: 20),
                   ),
                   const SizedBox(width: GBTSpacing.md),
                   // EN: Title and optional subtitle
@@ -723,7 +867,7 @@ class _SettingsRow extends StatelessWidget {
         if (!isLast)
           Divider(
             height: 1,
-            indent: GBTSpacing.md + 32 + GBTSpacing.md,
+            indent: GBTSpacing.md + 36 + GBTSpacing.md,
             endIndent: GBTSpacing.md,
             color: isDark ? GBTColors.darkBorderSubtle : GBTColors.divider,
           ),

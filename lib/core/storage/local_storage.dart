@@ -29,6 +29,11 @@ class LocalStorageKeys {
   // KO: 캐시 키
   static const String lastSyncTime = 'last_sync_time';
   static const String cachedHomeData = 'cached_home_data';
+
+  // EN: Verification failure log (local only)
+  // KO: 인증 실패 로그 (로컬 전용)
+  static const String failedVerificationAttempts =
+      'failed_verification_attempts';
 }
 
 /// EN: Wrapper for SharedPreferences with typed methods

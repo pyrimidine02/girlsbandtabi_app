@@ -12,4 +12,12 @@ abstract class ProjectsRepository {
     required String projectId,
     bool forceRefresh = false,
   });
+
+  /// EN: Returns members for a given unit, including voice actor info.
+  /// KO: 주어진 유닛의 멤버 목록(성우 정보 포함)을 반환합니다.
+  Future<Result<List<UnitMember>>> getUnitMembers({
+    required String projectId,
+    required String unitId,
+    bool forceRefresh = false,
+  });
 }
