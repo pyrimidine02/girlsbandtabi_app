@@ -18,6 +18,13 @@ class GBTSegmentedTabBar extends StatelessWidget {
     this.margin,
     this.padding = const EdgeInsets.all(3),
     this.isScrollable = false,
+    this.height,
+    this.borderRadius = GBTSpacing.radiusMd,
+    this.indicatorBorderRadius = GBTSpacing.radiusSm + 1,
+    this.indicatorShadow = true,
+    this.labelStyle,
+    this.unselectedLabelStyle,
+    this.labelPadding,
   });
 
   final List<Widget> tabs;
@@ -25,44 +32,76 @@ class GBTSegmentedTabBar extends StatelessWidget {
   final EdgeInsetsGeometry? margin;
   final EdgeInsetsGeometry padding;
   final bool isScrollable;
+  final double? height;
+  final double borderRadius;
+  final double indicatorBorderRadius;
+  final bool indicatorShadow;
+  final TextStyle? labelStyle;
+  final TextStyle? unselectedLabelStyle;
+  final EdgeInsetsGeometry? labelPadding;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final resolvedLabelStyle = (labelStyle ?? GBTTypography.labelLarge)
+        .copyWith(fontWeight: FontWeight.w600);
+    final resolvedUnselectedLabelStyle =
+        unselectedLabelStyle ?? labelStyle ?? GBTTypography.labelLarge;
 
-    return Container(
-      margin: margin ?? const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
-      padding: padding,
-      decoration: BoxDecoration(
-        color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-      ),
-      child: TabBar(
-        controller: controller,
-        isScrollable: isScrollable,
-        indicator: BoxDecoration(
-          color: isDark ? GBTColors.darkSurface : GBTColors.surface,
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusSm + 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
+    final segmented = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: GBTSpacing.minTouchTarget),
+      child: Container(
+        margin: margin ?? const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
+        padding: padding,
+        decoration: BoxDecoration(
+          color: isDark
+              ? GBTColors.darkSurfaceVariant
+              : GBTColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(borderRadius),
+          border: Border.all(
+            color: isDark
+                ? GBTColors.darkBorder
+                : GBTColors.border.withValues(alpha: 0.8),
+          ),
+        ),
+        child: TabBar(
+          controller: controller,
+          isScrollable: isScrollable,
+          indicator: BoxDecoration(
+            color: activeColor.withValues(alpha: isDark ? 0.22 : 0.14),
+            borderRadius: BorderRadius.circular(indicatorBorderRadius),
+            border: Border.all(
+              color: activeColor.withValues(alpha: isDark ? 0.5 : 0.32),
+              width: 1,
             ),
-          ],
+            boxShadow: indicatorShadow
+                ? [
+                    BoxShadow(
+                      color: activeColor.withValues(alpha: 0.18),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          indicatorSize: TabBarIndicatorSize.tab,
+          dividerColor: Colors.transparent,
+          labelColor: activeColor,
+          unselectedLabelColor: isDark
+              ? GBTColors.darkTextTertiary
+              : GBTColors.textTertiary,
+          labelStyle: resolvedLabelStyle,
+          unselectedLabelStyle: resolvedUnselectedLabelStyle,
+          labelPadding: labelPadding,
+          tabs: tabs,
         ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        dividerColor: Colors.transparent,
-        labelColor: isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
-        unselectedLabelColor: isDark
-            ? GBTColors.darkTextTertiary
-            : GBTColors.textTertiary,
-        labelStyle: GBTTypography.labelLarge.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
-        unselectedLabelStyle: GBTTypography.labelLarge,
-        tabs: tabs,
       ),
     );
+
+    if (height == null) {
+      return segmented;
+    }
+    return SizedBox(height: height, child: segmented);
   }
 }

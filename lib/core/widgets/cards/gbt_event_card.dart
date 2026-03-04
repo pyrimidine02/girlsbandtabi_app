@@ -152,13 +152,13 @@ class GBTEventCard extends StatelessWidget {
                             vertical: GBTSpacing.xxs,
                           ),
                           decoration: BoxDecoration(
-                            color: GBTColors.secondary,
+                            color: GBTColors.live,
                             borderRadius: BorderRadius.circular(
                               GBTSpacing.radiusXs,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: GBTColors.secondary.withValues(
+                                color: GBTColors.live.withValues(
                                   alpha: 0.4,
                                 ),
                                 blurRadius: 8,
@@ -387,14 +387,26 @@ class _DateBadge extends StatelessWidget {
     final Color dDayBackground;
 
     if (isUpcoming) {
-      dayColor = isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-      monthColor = isDark
-          ? GBTColors.darkTextSecondary
-          : GBTColors.textSecondary;
-      dDayColor = GBTColors.secondary;
-      dDayBackground = GBTColors.secondary.withValues(
-        alpha: isDark ? 0.22 : 0.14,
-      );
+      // EN: Today events get strong secondary accent on date for visual emphasis
+      // KO: 오늘 이벤트는 날짜 시각적 강조를 위해 보조 색상 적용
+      final isToday = dDayLabel == 'D-day';
+      if (isToday) {
+        dayColor = isDark ? GBTColors.darkSecondary : GBTColors.secondary;
+        monthColor = isDark ? GBTColors.darkSecondary : GBTColors.secondary;
+        dDayColor = isDark ? GBTColors.darkSecondary : GBTColors.secondary;
+        dDayBackground = GBTColors.secondary.withValues(
+          alpha: isDark ? 0.28 : 0.18,
+        );
+      } else {
+        dayColor = isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+        monthColor = isDark
+            ? GBTColors.darkTextSecondary
+            : GBTColors.textSecondary;
+        dDayColor = GBTColors.secondary;
+        dDayBackground = GBTColors.secondary.withValues(
+          alpha: isDark ? 0.22 : 0.14,
+        );
+      }
     } else {
       dayColor = isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
       monthColor = isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
@@ -534,13 +546,13 @@ class GBTFeaturedEventCard extends StatelessWidget {
                           vertical: GBTSpacing.xxs,
                         ),
                         decoration: BoxDecoration(
-                          color: GBTColors.secondary,
+                          color: GBTColors.live,
                           borderRadius: BorderRadius.circular(
                             GBTSpacing.radiusXs,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: GBTColors.secondary.withValues(alpha: 0.4),
+                              color: GBTColors.live.withValues(alpha: 0.4),
                               blurRadius: 8,
                               spreadRadius: 0,
                             ),
@@ -728,18 +740,23 @@ class _PulsingDot extends StatefulWidget {
 class _PulsingDotState extends State<_PulsingDot>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _animation;
+  late final Animation<double> _opacity;
+  late final Animation<double> _scale;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1000),
       vsync: this,
     )..repeat(reverse: true);
 
-    _animation = Tween<double>(
-      begin: 0.4,
+    _opacity = Tween<double>(
+      begin: 0.5,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _scale = Tween<double>(
+      begin: 0.85,
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
@@ -752,14 +769,17 @@ class _PulsingDotState extends State<_PulsingDot>
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _animation,
-      child: Container(
-        width: 6,
-        height: 6,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
+    return ScaleTransition(
+      scale: _scale,
+      child: FadeTransition(
+        opacity: _opacity,
+        child: Container(
+          width: 6,
+          height: 6,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
         ),
       ),
     );

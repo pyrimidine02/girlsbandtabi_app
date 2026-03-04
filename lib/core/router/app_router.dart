@@ -26,6 +26,7 @@ import '../../features/feed/presentation/pages/post_detail_page.dart';
 import '../../features/feed/presentation/pages/post_edit_page.dart';
 import '../../features/feed/presentation/pages/travel_review_create_page.dart';
 import '../../features/feed/presentation/pages/travel_review_detail_page.dart';
+import '../../features/feed/presentation/pages/user_connections_page.dart';
 import '../../features/feed/presentation/pages/user_profile_page.dart';
 import '../../features/feed/domain/entities/feed_entities.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
@@ -99,6 +100,8 @@ class AppRoutes {
   static const String travelReviewDetail = 'travelReviewDetail';
   static const String postEdit = 'post-edit';
   static const String userProfile = 'user-profile';
+  static const String userFollowers = 'user-followers';
+  static const String userFollowing = 'user-following';
 
   // EN: Settings routes (overlay, outside shell)
   // KO: 설정 라우트 (오버레이, 쉘 외부)
@@ -416,6 +419,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final userId = state.pathParameters['userId']!;
           return UserProfilePage(userId: userId);
         },
+        routes: [
+          GoRoute(
+            path: 'followers',
+            name: AppRoutes.userFollowers,
+            builder: (context, state) {
+              final userId = state.pathParameters['userId']!;
+              return UserConnectionsPage(
+                userId: userId,
+                initialTab: UserConnectionsTab.followers,
+              );
+            },
+          ),
+          GoRoute(
+            path: 'following',
+            name: AppRoutes.userFollowing,
+            builder: (context, state) {
+              final userId = state.pathParameters['userId']!;
+              return UserConnectionsPage(
+                userId: userId,
+                initialTab: UserConnectionsTab.following,
+              );
+            },
+          ),
+        ],
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
@@ -493,6 +520,18 @@ extension AppRouterExtension on BuildContext {
   /// KO: 사용자 프로필로 이동
   void goToUserProfile(String userId) {
     pushNamed(AppRoutes.userProfile, pathParameters: {'userId': userId});
+  }
+
+  /// EN: Navigate to followers list.
+  /// KO: 팔로워 목록으로 이동
+  void goToUserFollowers(String userId) {
+    pushNamed(AppRoutes.userFollowers, pathParameters: {'userId': userId});
+  }
+
+  /// EN: Navigate to following list.
+  /// KO: 팔로잉 목록으로 이동
+  void goToUserFollowing(String userId) {
+    pushNamed(AppRoutes.userFollowing, pathParameters: {'userId': userId});
   }
 
   /// EN: Navigate to visit detail

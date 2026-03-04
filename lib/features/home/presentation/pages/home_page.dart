@@ -1,5 +1,5 @@
-/// EN: Home page — Spotify-style layout with greeting header, carousels, and compact news
-/// KO: 홈 페이지 — 인사말 헤더, 캐러셀, 컴팩트 뉴스를 갖춘 Spotify 스타일 레이아웃
+/// EN: Home page — greeting header + carousels + compact news
+/// KO: 홈 페이지 — 인사말 헤더 + 캐러셀 + 컴팩트 뉴스
 library;
 
 import 'package:flutter/material.dart';
@@ -20,9 +20,10 @@ import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/layout/gbt_carousel_section.dart';
 import '../../../../core/widgets/layout/gbt_greeting_header.dart';
+import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
-import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../../projects/application/projects_controller.dart';
+import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../application/home_controller.dart';
 import '../../domain/entities/home_summary.dart';
 
@@ -55,13 +56,13 @@ class _HomePageState extends ConsumerState<HomePage> {
         scrolledUnderElevation: 0,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
+          GBTAppBarIconButton(
+            icon: Icons.search,
             onPressed: () => context.push('/search'),
             tooltip: '검색',
           ),
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
+          GBTAppBarIconButton(
+            icon: Icons.notifications_outlined,
             onPressed: () => context.push('/notifications'),
             tooltip: '알림',
           ),
@@ -216,11 +217,30 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ),
 
-        // 2. ProjectSelector — edge-to-edge avatar row (Blip style)
+        // 2. ProjectSelector — edge-to-edge pill row
         const SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.only(top: GBTSpacing.lg),
             child: ProjectSelector(),
+          ),
+        ),
+
+        // 3. Service hub — compact 3-column quick access row (Naver-style)
+        // EN: Surface all three core services at a glance.
+        // KO: 세 핵심 서비스를 한눈에 — 커뮤니티/장소/정보 빠른 진입.
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              GBTSpacing.pageHorizontal,
+              GBTSpacing.lg,
+              GBTSpacing.pageHorizontal,
+              0,
+            ),
+            child: _ServiceHub(
+              onCommunityTap: () => context.go('/board'),
+              onPlacesTap: () => context.go('/places'),
+              onInfoTap: () => context.go('/info'),
+            ),
           ),
         ),
 
@@ -234,7 +254,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
           ),
 
-        // 3. Recommended places carousel
+        // 4. Recommended places carousel
         if (summary.recommendedPlaces.isNotEmpty) ...[
           SliverToBoxAdapter(
             child: SizedBox(
@@ -261,7 +281,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ],
 
-        // 4. Trending live events carousel
+        // 5. Trending live events carousel
         if (summary.trendingLiveEvents.isNotEmpty) ...[
           SliverToBoxAdapter(
             child: SizedBox(
@@ -288,7 +308,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ],
 
-        // 5. Latest news — compact borderless list
+        // 6. Latest news — compact borderless list
         if (summary.latestNews.isNotEmpty) ...[
           SliverToBoxAdapter(
             child: SizedBox(
@@ -318,7 +338,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ],
 
-        // 6. Bottom spacing
+        // 7. Bottom spacing
         SliverToBoxAdapter(
           child: SizedBox(
             height: GBTSpacing.xxl + MediaQuery.of(context).padding.bottom,
@@ -356,6 +376,146 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   bool _hasText(String? value) => value != null && value.trim().isNotEmpty;
+}
+
+/// EN: Service hub — 3-column quick access row for community / places / info.
+///     Surfaces the app's three core pillars on the home screen (Naver-style).
+/// KO: 서비스 허브 — 커뮤니티/장소/정보로 이동하는 3열 빠른 진입 행.
+///     홈 화면에서 앱의 세 핵심 서비스를 바로 보여줍니다 (네이버 스타일).
+class _ServiceHub extends StatelessWidget {
+  const _ServiceHub({
+    required this.onCommunityTap,
+    required this.onPlacesTap,
+    required this.onInfoTap,
+  });
+
+  final VoidCallback onCommunityTap;
+  final VoidCallback onPlacesTap;
+  final VoidCallback onInfoTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? GBTColors.darkSurface : GBTColors.surface;
+    final border = isDark
+        ? GBTColors.darkSurfaceVariant
+        : const Color(0xFFEEEEEE);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        border: Border.all(color: border),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            _ServiceHubItem(
+              icon: Icons.forum_outlined,
+              label: '커뮤니티',
+              color: GBTColors.primary,
+              onTap: onCommunityTap,
+              showRightDivider: true,
+              isDark: isDark,
+            ),
+            _ServiceHubItem(
+              icon: Icons.place_outlined,
+              label: '장소',
+              color: GBTColors.accentTeal,
+              onTap: onPlacesTap,
+              showRightDivider: true,
+              isDark: isDark,
+            ),
+            _ServiceHubItem(
+              icon: Icons.auto_stories_outlined,
+              label: '정보·위키',
+              color: GBTColors.accent,
+              onTap: onInfoTap,
+              showRightDivider: false,
+              isDark: isDark,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// EN: Individual item in the service hub row.
+/// KO: 서비스 허브 행의 개별 아이템.
+class _ServiceHubItem extends StatelessWidget {
+  const _ServiceHubItem({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+    required this.showRightDivider,
+    required this.isDark,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  final bool showRightDivider;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final dividerColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : const Color(0xFFEEEEEE);
+
+    return Expanded(
+      child: Semantics(
+        button: true,
+        label: '$label 바로가기',
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: GBTSpacing.md),
+            decoration: showRightDivider
+                ? BoxDecoration(
+                    border: Border(
+                      right: BorderSide(color: dividerColor),
+                    ),
+                  )
+                : null,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // EN: Icon in a tinted circle — Naver service icon style.
+                // KO: 틴트 원 안의 아이콘 — 네이버 서비스 아이콘 스타일.
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, size: 22, color: color),
+                ),
+                const SizedBox(height: GBTSpacing.xs),
+                Text(
+                  label,
+                  style: GBTTypography.labelSmall.copyWith(
+                    color: isDark
+                        ? GBTColors.darkTextPrimary
+                        : GBTColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// EN: Section header widget — headlineLarge style

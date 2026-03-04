@@ -13,8 +13,10 @@ import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/image_url_extractor.dart';
 import '../../../../core/utils/media_url.dart';
 import '../../../../core/utils/result.dart';
+import '../../../../core/widgets/common/gbt_action_icons.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/inputs/gbt_search_bar.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
@@ -22,8 +24,10 @@ import '../../../settings/application/settings_controller.dart';
 import '../../application/community_ban_view_helper.dart';
 import '../../application/community_moderation_controller.dart';
 import '../../application/feed_controller.dart';
+import '../../application/report_rate_limiter.dart';
 import '../../domain/entities/community_moderation.dart';
 import '../../domain/entities/feed_entities.dart';
+import '../widgets/community_report_sheet.dart';
 
 /// EN: Board page widget displaying tabs with refined design.
 /// KO: 세련된 디자인의 탭을 표시하는 게시판 페이지 위젯.
@@ -104,12 +108,21 @@ class _BoardPageState extends ConsumerState<BoardPage>
           const GBTProfileAction(),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
+          preferredSize: const Size.fromHeight(44),
           child: GBTSegmentedTabBar(
             controller: _tabController,
+            height: 44,
+            margin: const EdgeInsets.symmetric(horizontal: GBTSpacing.md2),
+            padding: const EdgeInsets.all(2),
+            borderRadius: GBTSpacing.radiusSm,
+            indicatorBorderRadius: GBTSpacing.radiusSm,
+            indicatorShadow: false,
+            labelStyle: GBTTypography.tabLabel,
+            unselectedLabelStyle: GBTTypography.labelMedium,
+            labelPadding: const EdgeInsets.symmetric(horizontal: GBTSpacing.sm),
             tabs: const [
               Tab(text: '커뮤니티'),
-              Tab(text: '여행후기'),
+              Tab(text: '여행 후기'),
             ],
           ),
         ),
@@ -118,7 +131,7 @@ class _BoardPageState extends ConsumerState<BoardPage>
         controller: _tabController,
         children: const [_CommunityTab(), _TravelReviewTab()],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () {
           if (_tabController.index == 0) {
             context.goToPostCreate();
@@ -126,8 +139,8 @@ class _BoardPageState extends ConsumerState<BoardPage>
             context.pushNamed(AppRoutes.travelReviewCreate);
           }
         },
-        icon: const Icon(Icons.edit_outlined),
-        label: Text(_tabController.index == 0 ? '글쓰기' : '후기 작성'),
+        tooltip: _tabController.index == 0 ? '게시글 작성' : '여행 후기 작성',
+        child: const Icon(Icons.edit_outlined),
       ),
     );
   }
@@ -176,7 +189,6 @@ class _CommunityTabState extends ConsumerState<_CommunityTab> {
   Widget build(BuildContext context) {
     final feedState = ref.watch(communityFeedControllerProvider);
     final notifier = ref.read(communityFeedControllerProvider.notifier);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       children: [
@@ -200,59 +212,15 @@ class _CommunityTabState extends ConsumerState<_CommunityTab> {
             GBTSpacing.md,
             GBTSpacing.sm,
           ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isDark
-                  ? GBTColors.darkSurfaceVariant
-                  : GBTColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
-            ),
-            child: TextField(
-              controller: _searchController,
-              textInputAction: TextInputAction.search,
-              onSubmitted: (value) {
-                notifier.applySearch(value);
-              },
-              decoration: InputDecoration(
-                hintText: '게시글 검색',
-                hintStyle: GBTTypography.bodyMedium.copyWith(
-                  color: isDark
-                      ? GBTColors.darkTextTertiary
-                      : GBTColors.textTertiary,
-                ),
-                prefixIcon: Icon(
-                  Icons.search,
-                  color: isDark
-                      ? GBTColors.darkTextTertiary
-                      : GBTColors.textTertiary,
-                  size: 20,
-                ),
-                suffixIcon: feedState.searchQuery.isNotEmpty
-                    ? IconButton(
-                        onPressed: () {
-                          _searchController.clear();
-                          notifier.clearSearch();
-                        },
-                        icon: Icon(
-                          Icons.close,
-                          size: 18,
-                          color: isDark
-                              ? GBTColors.darkTextTertiary
-                              : GBTColors.textTertiary,
-                        ),
-                      )
-                    : null,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: GBTSpacing.md,
-                  vertical: GBTSpacing.sm + 2,
-                ),
-                isDense: true,
-              ),
-              style: GBTTypography.bodyMedium,
-            ),
+          child: GBTSearchBar(
+            controller: _searchController,
+            hint: '게시글 검색',
+            onSubmitted: notifier.applySearch,
+            onChanged: (value) {
+              if (value.isEmpty) {
+                notifier.clearSearch();
+              }
+            },
           ),
         ),
         // EN: Filter chips — horizontal scroll, modern pill style
@@ -799,10 +767,14 @@ class _CommunityList extends StatelessWidget {
             return ListView(
               controller: scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: GBTSpacing.paddingPage,
-              children: const [
-                SizedBox(height: GBTSpacing.lg),
-                GBTLoading(message: '커뮤니티 글을 불러오는 중...'),
+              padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
+              children: [
+                GBTListSkeleton(
+                  itemCount: 5,
+                  padding: EdgeInsets.zero,
+                  spacing: GBTSpacing.none,
+                  itemBuilder: (_) => const GBTCommunityPostSkeleton(),
+                ),
               ],
             );
           }
@@ -887,7 +859,7 @@ class _CommunityList extends StatelessWidget {
 // KO: 커뮤니티 게시글 카드 — SNS 스타일, 구분선 분리
 // ========================================
 
-enum _PostCardAction { edit, delete, ban }
+enum _PostCardAction { edit, delete, report, blockToggle, ban }
 
 class _CommunityPostCard extends ConsumerWidget {
   const _CommunityPostCard({required this.post});
@@ -911,6 +883,10 @@ class _CommunityPostCard extends ConsumerWidget {
     final tertiaryColor = isDark
         ? GBTColors.darkTextTertiary
         : GBTColors.textTertiary;
+    final commentActionColor = isDark
+        ? GBTColors.darkPrimary
+        : GBTColors.accentBlue;
+    final likeActionColor = likeCount > 0 ? GBTColors.secondary : tertiaryColor;
 
     // EN: Resolve first image URL for thumbnail.
     // KO: 썸네일용 첫 번째 이미지 URL을 해석합니다.
@@ -941,48 +917,99 @@ class _CommunityPostCard extends ConsumerWidget {
       orElse: () => false,
     );
     final isAuthor = currentUserId != null && currentUserId == post.authorId;
-    final showMoreButton = isAuthenticated && (isAuthor || isAdmin);
+    final blockStatusState = isAuthenticated && !isAuthor
+        ? ref.watch(blockStatusControllerProvider(post.authorId))
+        : null;
+    final blockStatus = blockStatusState?.maybeWhen(
+      data: (value) => value,
+      orElse: () => null,
+    );
+    final blockLabel = blockStatus?.blockedByMe == true ? '차단 해제' : '차단';
+    final showMoreButton = isAuthenticated;
 
     return InkWell(
       onTap: () => context.goToPostDetail(post.id),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: GBTSpacing.md,
-          vertical: GBTSpacing.md,
+          vertical: GBTSpacing.sm + 2,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // EN: Author row
-            // KO: 작성자 행
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _Avatar(
                   url: avatarUrl,
-                  radius: 18,
+                  radius: 17,
                   semanticLabel: '$authorLabel 프로필 사진',
                   onTap: () => context.goToUserProfile(post.authorId),
                 ),
                 const SizedBox(width: GBTSpacing.sm),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        authorLabel,
-                        style: GBTTypography.labelLarge.copyWith(
-                          fontWeight: FontWeight.w600,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                authorLabel,
+                                style: GBTTypography.labelLarge.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: GBTSpacing.xs),
+                            Text(
+                              '· ${post.timeAgoLabel}',
+                              style: GBTTypography.caption.copyWith(
+                                color: tertiaryColor,
+                              ),
+                            ),
+                          ],
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        post.timeAgoLabel,
-                        style: GBTTypography.caption.copyWith(
-                          color: tertiaryColor,
+                        const SizedBox(height: 1),
+                        Text(
+                          post.title,
+                          style: GBTTypography.bodyLarge.copyWith(
+                            fontWeight: FontWeight.w600,
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
+                        if (post.content != null && post.content!.isNotEmpty)
+                          Builder(
+                            builder: (context) {
+                              final raw = stripImageMarkdown(post.content!);
+                              if (raw.isEmpty) return const SizedBox.shrink();
+                              final snippet = raw.length > 130
+                                  ? '${raw.substring(0, 130)}…'
+                                  : raw;
+                              return Padding(
+                                padding: const EdgeInsets.only(
+                                  top: GBTSpacing.xs,
+                                ),
+                                child: Text(
+                                  snippet,
+                                  style: GBTTypography.bodySmall.copyWith(
+                                    color: secondaryTextColor,
+                                    height: 1.42,
+                                  ),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
                   ),
                 ),
                 if (showMoreButton)
@@ -995,18 +1022,29 @@ class _CommunityPostCard extends ConsumerWidget {
                     tooltip: '더 보기',
                     padding: EdgeInsets.zero,
                     onSelected: (action) {
-                      switch (action) {
-                        case _PostCardAction.edit:
-                          context.goToPostDetail(post.id);
-                        case _PostCardAction.delete:
-                          _confirmDeletePost(
-                            context,
-                            ref,
-                            isAuthor: isAuthor,
-                            isAdmin: isAdmin,
-                          );
-                        case _PostCardAction.ban:
-                          _confirmBanUser(context, ref);
+                      if (action == _PostCardAction.edit) {
+                        context.goToPostDetail(post.id);
+                        return;
+                      }
+                      if (action == _PostCardAction.delete) {
+                        _confirmDeletePost(
+                          context,
+                          ref,
+                          isAuthor: isAuthor,
+                          isAdmin: isAdmin,
+                        );
+                        return;
+                      }
+                      if (action == _PostCardAction.report) {
+                        _showReportFlow(context, ref);
+                        return;
+                      }
+                      if (action == _PostCardAction.blockToggle) {
+                        _toggleBlockUser(context, ref);
+                        return;
+                      }
+                      if (action == _PostCardAction.ban) {
+                        _confirmBanUser(context, ref);
                       }
                     },
                     itemBuilder: (menuContext) {
@@ -1024,23 +1062,46 @@ class _CommunityPostCard extends ConsumerWidget {
                             ),
                           ),
                         if (isAuthor) const PopupMenuDivider(),
-                        PopupMenuItem(
-                          value: _PostCardAction.delete,
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.delete_outline,
-                                size: 18,
-                                color: cs.error,
-                              ),
-                              SizedBox(width: GBTSpacing.sm),
-                              Text(
-                                isAuthor ? '삭제' : '관리 삭제',
-                                style: TextStyle(color: cs.error),
-                              ),
-                            ],
+                        if (isAuthor || isAdmin)
+                          PopupMenuItem(
+                            value: _PostCardAction.delete,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.delete_outline,
+                                  size: 18,
+                                  color: cs.error,
+                                ),
+                                SizedBox(width: GBTSpacing.sm),
+                                Text(
+                                  isAuthor ? '삭제' : '관리 삭제',
+                                  style: TextStyle(color: cs.error),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        if (!isAuthor && isAuthenticated)
+                          const PopupMenuItem(
+                            value: _PostCardAction.report,
+                            child: Row(
+                              children: [
+                                Icon(Icons.flag_outlined, size: 18),
+                                SizedBox(width: GBTSpacing.sm),
+                                Text('신고'),
+                              ],
+                            ),
+                          ),
+                        if (!isAuthor && isAuthenticated)
+                          PopupMenuItem(
+                            value: _PostCardAction.blockToggle,
+                            child: Row(
+                              children: [
+                                const Icon(Icons.person_off_outlined, size: 18),
+                                const SizedBox(width: GBTSpacing.sm),
+                                Text(blockLabel),
+                              ],
+                            ),
+                          ),
                         if (isAdmin && !isAuthor)
                           PopupMenuItem(
                             value: _PostCardAction.ban,
@@ -1048,7 +1109,10 @@ class _CommunityPostCard extends ConsumerWidget {
                               children: [
                                 Icon(Icons.block, size: 18, color: cs.error),
                                 SizedBox(width: GBTSpacing.sm),
-                                Text('차단', style: TextStyle(color: cs.error)),
+                                Text(
+                                  '커뮤니티 제재',
+                                  style: TextStyle(color: cs.error),
+                                ),
                               ],
                             ),
                           ),
@@ -1057,85 +1121,48 @@ class _CommunityPostCard extends ConsumerWidget {
                   ),
               ],
             ),
-            const SizedBox(height: GBTSpacing.sm + 2),
-            // EN: Title — semi-bold
-            // KO: 제목 — 세미볼드
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        post.title,
-                        style: GBTTypography.titleSmall.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      // EN: Content snippet
-                      // KO: 내용 스니펫
-                      Builder(
-                        builder: (context) {
-                          if (post.content == null || post.content!.isEmpty) {
-                            return const SizedBox.shrink();
-                          }
-                          final raw = stripImageMarkdown(post.content!);
-                          if (raw.isEmpty) return const SizedBox.shrink();
-                          final snippet = raw.length > 100
-                              ? '${raw.substring(0, 100)}…'
-                              : raw;
-                          return Padding(
-                            padding: const EdgeInsets.only(top: GBTSpacing.xs),
-                            child: Text(
-                              snippet,
-                              style: GBTTypography.bodySmall.copyWith(
-                                color: secondaryTextColor,
-                                height: 1.4,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+            if (firstImageUrl != null) ...[
+              const SizedBox(height: GBTSpacing.sm + 2),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                child: AspectRatio(
+                  aspectRatio: 16 / 10,
+                  child: GBTImage(
+                    imageUrl: firstImageUrl,
+                    fit: BoxFit.cover,
+                    semanticLabel: '${post.title} 첨부 이미지',
                   ),
                 ),
-                if (firstImageUrl != null) ...[
-                  const SizedBox(width: GBTSpacing.md),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-                    child: GBTImage(
-                      imageUrl: firstImageUrl,
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.cover,
-                      semanticLabel: '${post.title} 첨부 이미지',
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: GBTSpacing.sm + 2),
-            // EN: Engagement stats row
-            // KO: 인게이지먼트 통계 행
+              ),
+            ],
+            const SizedBox(height: GBTSpacing.xs),
             Semantics(
               label: '좋아요 $likeCount개, 댓글 $commentCount개',
               child: Row(
                 children: [
-                  _EngagementStat(
-                    icon: Icons.favorite_border,
-                    count: likeCount,
-                    color: tertiaryColor,
+                  Expanded(
+                    child: _FeedActionButton(
+                      icon: GBTActionIcons.comment,
+                      label: _formatCount(commentCount),
+                      color: commentActionColor,
+                      onTap: () => context.goToPostDetail(post.id),
+                    ),
                   ),
-                  const SizedBox(width: GBTSpacing.lg),
-                  _EngagementStat(
-                    icon: Icons.chat_bubble_outline,
-                    count: commentCount,
-                    color: tertiaryColor,
+                  Expanded(
+                    child: _FeedActionButton(
+                      icon: GBTActionIcons.like,
+                      label: _formatCount(likeCount),
+                      color: likeActionColor,
+                      onTap: () => context.goToPostDetail(post.id),
+                    ),
+                  ),
+                  Expanded(
+                    child: _FeedActionButton(
+                      icon: GBTActionIcons.share,
+                      label: '',
+                      color: tertiaryColor,
+                      onTap: () => context.goToPostDetail(post.id),
+                    ),
                   ),
                 ],
               ),
@@ -1206,6 +1233,83 @@ class _CommunityPostCard extends ConsumerWidget {
     }
   }
 
+  Future<void> _showReportFlow(BuildContext context, WidgetRef ref) async {
+    final rateLimiter = ref.read(reportRateLimiterProvider);
+    if (!rateLimiter.canReport(post.id)) {
+      final remaining = rateLimiter.remainingCooldown(post.id);
+      final minutes = remaining.inMinutes + 1;
+      _showSnackBar(context, '$minutes분 후 다시 신고할 수 있어요');
+      return;
+    }
+
+    final payload = await showModalBottomSheet<CommunityReportPayload>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => const CommunityReportSheet(),
+    );
+    if (payload == null || !context.mounted) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('신고 접수'),
+        content: Text('게시글을 "${payload.reason.label}" 사유로 신고합니다.\n접수하시겠어요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('신고 접수'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    final repository = await ref.read(communityRepositoryProvider.future);
+    final result = await repository.createReport(
+      targetType: CommunityReportTargetType.post,
+      targetId: post.id,
+      reason: payload.reason,
+      description: payload.description,
+    );
+    if (!context.mounted) {
+      return;
+    }
+    if (result is Success<void>) {
+      rateLimiter.recordReport(post.id);
+      _showSnackBar(context, '신고가 접수되었어요. 검토 후 조치할게요');
+    } else if (result is Err<void>) {
+      _showSnackBar(context, '신고를 접수하지 못했어요');
+    }
+  }
+
+  Future<void> _toggleBlockUser(BuildContext context, WidgetRef ref) async {
+    final controller = ref.read(
+      blockStatusControllerProvider(post.authorId).notifier,
+    );
+    final result = await controller.toggleBlock();
+    if (result is Err<void> && context.mounted) {
+      _showSnackBar(context, '차단 상태를 변경하지 못했어요');
+      return;
+    }
+    if (!context.mounted) {
+      return;
+    }
+    final state = ref.read(blockStatusControllerProvider(post.authorId));
+    final blockedByMe = state.maybeWhen(
+      data: (value) => value.blockedByMe,
+      orElse: () => false,
+    );
+    _showSnackBar(context, blockedByMe ? '사용자를 차단했어요' : '차단을 해제했어요');
+  }
+
   Future<void> _confirmBanUser(BuildContext context, WidgetRef ref) async {
     final authorLabel = post.authorName?.isNotEmpty == true
         ? post.authorName!
@@ -1266,39 +1370,53 @@ class _CommunityPostCard extends ConsumerWidget {
   }
 }
 
-/// EN: Engagement stat — icon + count pair.
-/// KO: 인게이지먼트 통계 — 아이콘 + 카운트 쌍.
-class _EngagementStat extends StatelessWidget {
-  const _EngagementStat({
+/// EN: Compact feed action button used in timeline-style cards.
+/// KO: 타임라인형 카드에서 사용하는 컴팩트 액션 버튼.
+class _FeedActionButton extends StatelessWidget {
+  const _FeedActionButton({
     required this.icon,
-    required this.count,
+    required this.label,
     required this.color,
+    required this.onTap,
   });
 
   final IconData icon;
-  final int count;
+  final String label;
   final Color color;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: GBTSpacing.xs),
-        Text(
-          _formatCount(count),
-          style: GBTTypography.labelSmall.copyWith(color: color),
+    return InkWell(
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 44),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: GBTSpacing.xs),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 17, color: color),
+              if (label.isNotEmpty) ...[
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: GBTTypography.labelSmall.copyWith(color: color),
+                ),
+              ],
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
+}
 
-  String _formatCount(int count) {
-    if (count >= 10000) return '${(count / 10000).toStringAsFixed(1)}만';
-    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}천';
-    return count.toString();
-  }
+String _formatCount(int count) {
+  if (count >= 10000) return '${(count / 10000).toStringAsFixed(1)}만';
+  if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}천';
+  return count.toString();
 }
 
 /// EN: Returns true when a role has admin/moderator privileges.

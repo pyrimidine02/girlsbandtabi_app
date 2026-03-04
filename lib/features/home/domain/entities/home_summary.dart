@@ -4,6 +4,7 @@ library;
 
 import 'package:intl/intl.dart';
 
+import '../../../../core/utils/media_url.dart';
 import '../../data/dto/home_summary_dto.dart';
 
 class HomeSummary {
@@ -57,7 +58,7 @@ class HomePlaceItem {
       id: dto.id,
       name: dto.name,
       visitCount: dto.count,
-      imageUrl: dto.imageUrl,
+      imageUrl: dto.imageUrl == null ? null : resolveMediaUrl(dto.imageUrl!),
       location: dto.location,
     );
   }
@@ -85,7 +86,7 @@ class HomeEventItem {
       id: dto.id,
       title: dto.title,
       dateLabel: _formatDate(dto.showStartTime),
-      posterUrl: dto.bannerUrl,
+      posterUrl: dto.bannerUrl == null ? null : resolveMediaUrl(dto.bannerUrl!),
       ticketUrl: dto.ticketUrl,
       isLive: false,
     );
@@ -112,7 +113,7 @@ class HomeNewsItem {
       id: dto.id,
       title: dto.title,
       summary: dto.summary,
-      imageUrl: dto.imageUrl,
+      imageUrl: dto.imageUrl == null ? null : resolveMediaUrl(dto.imageUrl!),
       publishedAt: dto.publishedAt,
     );
   }

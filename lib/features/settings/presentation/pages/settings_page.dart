@@ -12,6 +12,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../admin_ops/domain/entities/admin_ops_entities.dart';
 import '../../../auth/application/auth_controller.dart';
 import '../../application/settings_controller.dart';
@@ -37,8 +38,8 @@ class SettingsPage extends ConsumerWidget {
       appBar: AppBar(
         // EN: Explicit back button for settings overlay route
         // KO: 설정 오버레이 라우트를 위한 명시적 뒤로가기 버튼
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+        leading: GBTAppBarIconButton(
+          icon: Icons.arrow_back,
           tooltip: '뒤로 가기',
           onPressed: () {
             if (context.canPop()) {

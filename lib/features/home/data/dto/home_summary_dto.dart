@@ -177,9 +177,15 @@ class HomeTrendingLiveEventDto {
       json['thumbnailUrl'],
       json['thumbnail_url'],
       _nestedString(json['banner'], 'url'),
+      _nestedString(json['banner'], 'publicUrl'),
+      _nestedString(json['banner'], 'fileUrl'),
       _nestedString(json['poster'], 'url'),
       _nestedString(json['thumbnail'], 'url'),
       _nestedString(json['image'], 'url'),
+      _nestedPathString(json, ['banner', 'file', 'url']),
+      _nestedPathString(json, ['banner', 'file', 'publicUrl']),
+      _nestedPathString(json, ['poster', 'file', 'url']),
+      _nestedPathString(json, ['poster', 'file', 'publicUrl']),
     ]);
 
     return HomeTrendingLiveEventDto(
@@ -330,4 +336,15 @@ String? _nestedString(dynamic raw, String key) {
     return null;
   }
   return _string(raw[key]);
+}
+
+String? _nestedPathString(Map<String, dynamic> raw, List<String> path) {
+  dynamic current = raw;
+  for (final key in path) {
+    if (current is! Map<String, dynamic>) {
+      return null;
+    }
+    current = current[key];
+  }
+  return _string(current);
 }

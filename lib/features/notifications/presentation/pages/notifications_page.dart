@@ -11,7 +11,7 @@ import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
-import '../../../../core/widgets/layout/gbt_page_intro_card.dart';
+import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../application/notifications_controller.dart';
 import '../../domain/entities/notification_entities.dart';
 
@@ -35,30 +35,24 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       appBar: AppBar(
         title: const Text('알림'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.done_all),
+          GBTAppBarIconButton(
+            icon: Icons.done_all,
+            tooltip: '전체 읽음 처리',
             onPressed: () => ref
                 .read(notificationsControllerProvider.notifier)
                 .markAllAsRead(),
-            tooltip: '전체 읽음 처리',
           ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            tooltip: '더보기 메뉴',
-            onSelected: (value) {
-              if (value == 'settings') {
-                context.push('/settings/notifications');
-              }
-              if (value == 'refresh') {
-                ref
-                    .read(notificationsControllerProvider.notifier)
-                    .load(forceRefresh: true);
-              }
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'settings', child: Text('알림 설정')),
-              PopupMenuItem(value: 'refresh', child: Text('새로고침')),
-            ],
+          GBTAppBarIconButton(
+            icon: Icons.refresh,
+            tooltip: '새로고침',
+            onPressed: () => ref
+                .read(notificationsControllerProvider.notifier)
+                .load(forceRefresh: true),
+          ),
+          GBTAppBarIconButton(
+            icon: Icons.settings_outlined,
+            tooltip: '알림 설정',
+            onPressed: () => context.push('/settings/notifications'),
           ),
         ],
       ),
@@ -71,9 +65,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: GBTSpacing.paddingPage,
             children: [
-              _NotificationsIntroCard(
+              _FilterRow(
                 showUnreadOnly: _showUnreadOnly,
-                unreadCount: 0,
                 onFilterChanged: (next) {
                   setState(() => _showUnreadOnly = next);
                 },
@@ -90,9 +83,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: GBTSpacing.paddingPage,
               children: [
-                _NotificationsIntroCard(
+                _FilterRow(
                   showUnreadOnly: _showUnreadOnly,
-                  unreadCount: 0,
                   onFilterChanged: (next) {
                     setState(() => _showUnreadOnly = next);
                   },
@@ -108,7 +100,6 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
             );
           },
           data: (items) {
-            final unreadCount = items.where((item) => !item.isRead).length;
             final visibleItems = _showUnreadOnly
                 ? items.where((item) => !item.isRead).toList()
                 : items;
@@ -118,9 +109,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: GBTSpacing.paddingPage,
                 children: [
-                  _NotificationsIntroCard(
+                  _FilterRow(
                     showUnreadOnly: _showUnreadOnly,
-                    unreadCount: unreadCount,
                     onFilterChanged: (next) {
                       setState(() => _showUnreadOnly = next);
                     },
@@ -142,9 +132,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: GBTSpacing.paddingPage,
               children: [
-                _NotificationsIntroCard(
+                _FilterRow(
                   showUnreadOnly: _showUnreadOnly,
-                  unreadCount: unreadCount,
                   onFilterChanged: (next) {
                     setState(() => _showUnreadOnly = next);
                   },
@@ -171,72 +160,31 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   }
 }
 
-class _NotificationsIntroCard extends StatelessWidget {
-  const _NotificationsIntroCard({
+/// EN: Compact unread filter row — replaces intro card.
+/// KO: 읽지 않음 필터 행 — 인트로 카드 대체.
+class _FilterRow extends StatelessWidget {
+  const _FilterRow({
     required this.showUnreadOnly,
-    required this.unreadCount,
     required this.onFilterChanged,
   });
 
   final bool showUnreadOnly;
-  final int unreadCount;
   final ValueChanged<bool> onFilterChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        GBTPageIntroCard(
-          icon: Icons.notifications_active_rounded,
-          title: '알림 센터',
-          description: '활동 소식과 공지 업데이트를 빠르게 확인하세요.',
-          trailing: _UnreadChip(count: unreadCount),
-        ),
-        const SizedBox(height: GBTSpacing.sm),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: SegmentedButton<bool>(
-            showSelectedIcon: false,
-            segments: const [
-              ButtonSegment<bool>(value: false, label: Text('전체')),
-              ButtonSegment<bool>(value: true, label: Text('읽지 않음')),
-            ],
-            selected: <bool>{showUnreadOnly},
-            onSelectionChanged: (selection) {
-              onFilterChanged(selection.first);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _UnreadChip extends StatelessWidget {
-  const _UnreadChip({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? GBTColors.darkSurface : GBTColors.surfaceVariant;
-    final fg = isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: GBTSpacing.sm,
-        vertical: GBTSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
-      ),
-      child: Text(
-        '읽지 않음 $count',
-        style: GBTTypography.labelSmall.copyWith(
-          color: fg,
-          fontWeight: FontWeight.w600,
-        ),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: SegmentedButton<bool>(
+        showSelectedIcon: false,
+        segments: const [
+          ButtonSegment<bool>(value: false, label: Text('전체')),
+          ButtonSegment<bool>(value: true, label: Text('읽지 않음')),
+        ],
+        selected: <bool>{showUnreadOnly},
+        onSelectionChanged: (selection) {
+          onFilterChanged(selection.first);
+        },
       ),
     );
   }

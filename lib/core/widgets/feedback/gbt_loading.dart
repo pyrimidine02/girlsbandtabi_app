@@ -509,14 +509,14 @@ class GBTPlaceCardSkeleton extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // EN: Image placeholder
-            // KO: 이미지 플레이스홀더
+            // EN: Image placeholder — portrait ratio matches GBTPlaceCardHorizontal (80×88)
+            // KO: 이미지 플레이스홀더 — GBTPlaceCardHorizontal 비율과 동일 (80×88)
             Container(
               width: 80,
-              height: 80,
+              height: 88,
               decoration: BoxDecoration(
                 color: bgColor,
-                borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
               ),
             ),
             const SizedBox(width: GBTSpacing.md),
@@ -700,6 +700,73 @@ class GBTNewsCardSkeleton extends StatelessWidget {
                   Container(
                     height: 10,
                     width: 60,
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// EN: Skeleton for a community timeline card row.
+/// KO: 커뮤니티 타임라인 카드 행 스켈레톤.
+class GBTCommunityPostSkeleton extends StatelessWidget {
+  const GBTCommunityPostSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+
+    return GBTShimmer(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: GBTSpacing.pageHorizontal,
+          vertical: GBTSpacing.md,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: GBTSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 12,
+                    width: 120,
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
+                    ),
+                  ),
+                  const SizedBox(height: GBTSpacing.xs),
+                  Container(
+                    height: 16,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
+                    ),
+                  ),
+                  const SizedBox(height: GBTSpacing.xs),
+                  Container(
+                    height: 16,
+                    width: 220,
                     decoration: BoxDecoration(
                       color: bgColor,
                       borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),

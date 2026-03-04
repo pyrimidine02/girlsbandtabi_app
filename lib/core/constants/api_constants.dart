@@ -36,6 +36,11 @@ class ApiEndpoints {
   static String userVisitDetail(String visitId) => '$userVisits/$visitId';
   static const String usersSearch = '$apiVersion/users/search';
   static String userProfile(String userId) => '$apiVersion/users/$userId';
+  static String userFollow(String userId) => '${userProfile(userId)}/follow';
+  static String userFollowers(String userId) =>
+      '${userProfile(userId)}/followers';
+  static String userFollowing(String userId) =>
+      '${userProfile(userId)}/following';
   static String userBlocked(String userId) => '${userProfile(userId)}/blocked';
   static const String userBlocks = '$apiVersion/users/me/blocks';
   static String userBlock(String targetUserId) => '$userBlocks/$targetUserId';

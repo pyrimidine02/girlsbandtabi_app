@@ -28,25 +28,34 @@ class GBTPageIntroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final iconColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
-    final iconBg = iconColor.withValues(alpha: isDark ? 0.24 : 0.16);
+    final iconBg = iconColor.withValues(alpha: isDark ? 0.20 : 0.12);
     final descColor = isDark
         ? GBTColors.darkTextSecondary
         : GBTColors.textSecondary;
+    final dividerColor = isDark ? GBTColors.darkBorder : GBTColors.divider;
 
-    return Card(
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: dividerColor, width: 0.8)),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(GBTSpacing.md),
+        padding: const EdgeInsets.fromLTRB(
+          GBTSpacing.none,
+          GBTSpacing.xs,
+          GBTSpacing.none,
+          GBTSpacing.sm2,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: GBTSpacing.xl,
-              height: GBTSpacing.xl,
+              width: GBTSpacing.lg,
+              height: GBTSpacing.lg,
               decoration: BoxDecoration(
                 color: iconBg,
-                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
               ),
-              child: Icon(icon, color: iconColor, size: GBTSpacing.iconMd),
+              child: Icon(icon, color: iconColor, size: GBTSpacing.iconSm),
             ),
             const SizedBox(width: GBTSpacing.sm),
             Expanded(
@@ -56,10 +65,10 @@ class GBTPageIntroCard extends StatelessWidget {
                   Text(
                     title,
                     style: GBTTypography.titleSmall.copyWith(
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: GBTSpacing.xs),
+                  const SizedBox(height: GBTSpacing.xxs),
                   Text(
                     description,
                     style: GBTTypography.bodySmall.copyWith(color: descColor),

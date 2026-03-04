@@ -1,20 +1,44 @@
 # TODO
 
+- Run full-device visual QA for service-fit redesign phase1 (`home`, `places`, `live`, `board`, `search`) focusing on bottom-nav reachability, segmented-tab readability, and search-field focus states (remove once validated).
+- Apply service-fit redesign phase2 to detail/editor screens (`post_detail`, `post_create`, `profile_edit`, `live_detail`, `place_detail`) using the same visual rhythm/tokens (remove once completed).
+- Capture before/after screenshots for redesigned primitives and align with product acceptance criteria from UX references (`uxdnas + mobile guideline links`) (remove once reviewed).
+- Complete community overhaul phase-4 by unifying comment-level trust/safety UX (댓글 신고/관리 액션 배치, 관리자 액션 시각 우선순위, 답글 스레드 내 일관성) with the new post-level safety model.
+- Run UI QA for requested chrome trim: full-width post-detail comment composer and intro-card removal on `places`, `live`, `board` screens (portrait/landscape, iOS/Android).
+- Add paginated/infinite loading for followers/following lists (current implementation fetches first 100 items) and expose server pagination metadata in API client if needed.
+- Run UX QA for new profile/connections flows on iOS/Android: tab retention, refresh behavior, blocked-state interactions, and route back-stack consistency.
+- Run QA for user-profile follow/block flows after API follow integration: initial follow status load, follow/unfollow toggle, blocked-state disable behavior, and snackbar copy validation (remove once validated).
+- Verify backend follow count fields (`targetFollowerCount`, `targetFollowingCount`) consistency after rapid follow/unfollow toggles from multiple devices (remove once validated).
+- Run end-to-end visual QA for the UXDNAS core-rule rollout (intro-card flattening, unified segmented tabs, unified search fields, full-width post composer) on iOS/Android and remove regressions (remove once validated).
+- Run QA for UXDNAS methodology rollout after icon/skeleton/slider updates (feed/board/live/search, light/dark, Korean text scale, low-end device perf) and remove regressions (remove once validated).
+- Configure GitHub repository secrets for Android delivery workflows (`internal` + `release`): `ANDROID_UPLOAD_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD`, `ANDROID_KEY_ALIAS`, `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` (remove once first successful Internal + tag-release draft uploads are confirmed).
+- Run first tag-release dry run (`vX.Y.Z`) and verify pubspec/tag parity gate + production draft creation in Play Console (remove once validated).
+- Verify live-event detail poster visibility on small iPhone screens and landscape mode after switching header image fit to `BoxFit.contain` (remove once QA passes).
+- Verify live-detail header controls (back/favorite/share) remain clearly visible on bright/dark posters after overlay-button update (remove once QA passes).
+- Verify live-detail poster top offset (status-bar clearance) and neutral gradient background look natural across notch/non-notch iPhones and Android devices (remove once QA passes).
+- Verify compact segmented-tab sizing (`라이브: 예정/완료`, `게시판: 커뮤니티/여행 후기`) looks balanced with Korean text scaling on iOS/Android (remove once QA passes).
 - Run visual QA pass on all primary routes after the new global theme/chrome layer (`home`, `places`, `live-events`, `community`, `search`, `settings`) and capture before/after screenshots (remove once reviewed).
 - Roll out `GBTPageIntroCard` + `GBTSegmentedTabBar` to remaining content routes (`home`, `info`, `feed`, `travel_review_detail`, `visit_detail`) for full-page parity (remove once completed).
 - Run color-contrast QA for the new blue primary palette on CTA-heavy screens (`auth`, `post_create`, `profile_edit`) in both light/dark mode (remove once validated).
 - Run iOS device QA for interactive swipe-back on detail/overlay routes (`place_detail`, `live_detail`, `news_detail`, `settings`) after stack-first navigation change (remove once validated).
+- Run Android QA for shell-root double-back exit (3-second grace window, snackbar visibility, and no impact on in-stack back behavior) on physical devices (remove once validated).
 - Run iOS device QA for shell-nested community/profile flows (`board/posts/:id`, `users/:id`, `settings/profile`) after dynamic `PopScope` back handling update (remove once validated).
 - Verify no keyboard-dismiss side effects in rich editor flows (`post_create`, `post_edit`, `profile_edit`) after global tap-to-dismiss was enabled (remove once QA passes).
 - Add widget golden tests for global theme consistency (card radius, input radius, popup/tooltip colors, list tile density) to prevent drift (remove once coverage lands).
 - Add widget tests for `PostCreatePage` (draft-exit confirmation, image max/duplicate handling, submit button enablement) and `ProfileEditPage` (dirty-state save enablement + unsaved-exit confirmation).
 - Add a HomePage widget test that verifies the ProjectSelector renders during loading and triggers a reload after selection (remove once CI covers the flow).
 - Run on-device QA for home hero image fallback and featured-live chip tap flow (poster present/absent cases) and capture screenshots (remove once validated).
+- Run on-device QA for home `트렌딩 라이브` carousel poster visibility (relative URL, nested banner payload, missing-poster fallback) and capture screenshots (remove once validated).
 - Run QA for post-detail comment UX updates (sort chip behavior, composer focus jump from comment icon, multiline submit disabled/enabled states) on iOS/Android (remove once validated).
+- Run QA for redesigned board/post timeline UX (feed action-row tap targets, full-width media cropping, compact comment thread indentation/readability, quick-reply composer height) on iOS/Android (remove once validated).
+- Run QA for redesigned community action colors (comment/like/bookmark/share contrast in light/dark, color-blind legibility, pressed state visibility) on iOS/Android (remove once validated).
+- Run QA after repost-action removal (3-action row balance and accidental-tap rate on board/detail) on iOS/Android (remove once validated).
+- Verify like toggle failure copy in both directions (like and unlike) and confirm localization tone with product owner (remove once validated).
 - Run QA for places region filter UX updates (reactive loading without stuck spinner, compact chip entry, multi-select search/apply/clear, selected-count badge, single-region camera move) on iOS/Android (remove once validated).
 - Run QA for `계정 도구` flows on iOS/Android: blocks list load/unblock, role request submit/cancel, verification appeal submit/list (remove once validated).
 - Request backend fix: `GET /api/v1/home/summary` currently returns 500 (confirmed on both slug and UUID `projectId` as of 2026-03-01).
 - Request backend fix: `GET /api/v1/users/me` returns 500 in authenticated app bootstrap flow (as of 2026-03-01).
+- Request backend fix: `DELETE /api/v1/projects/{projectId}/posts/{postId}/like` intermittently returns 500 after token refresh on valid authenticated flow (observed 2026-03-02, projectId `girls-band-cry`).
 - Add a CI step (or pre-commit hook) to run `build_runner` so generated files stay in sync.
 - Add CI check to compare `ApiEndpoints` against `/v3/api-docs` and fail on missing/removed paths.
 - Verify community-ban management sheet filter/sort controls (query/sort chips) remain usable without overflow on small-width devices (remove once mobile QA passes).
@@ -90,6 +114,8 @@
 - Verify logout cache clear behavior for stale list/detail screens after re-login (remove once QA confirms).
 - Verify cache-first background revalidation cadence (10m) against backend rate limits and tune interval if needed.
 - Verify report sheet keyboard dismiss behavior (tap outside/drag/done) on iOS and Android keyboards.
+- QA post-detail comment thread readability after PHASE4 redesign (small-width devices, long-text wrapping, and deep reply indentation at depth >= 2).
+- QA PHASE5 comment fixes on iOS/Android: root/reply indentation alignment, avatar tap-to-profile navigation, and bottom-sheet edit flow keyboard/submit behavior.
 - Confirm user profile `bio` and `coverImageUrl` are returned on public profile endpoints (read + update).
 - Confirm whether `username` should be an email for registration and align login labels accordingly.
 - Confirm unit name/description semantics (`code` vs `displayName`) with backend and update mapping if the contract changes.
