@@ -409,141 +409,255 @@ class _CommunityPostCard extends ConsumerWidget {
 
     // EN: Borderless post card — no Card wrapper
     // KO: 무테두리 게시글 카드 — Card 래퍼 없음
-    return InkWell(
-      onTap: () => context.goToPostDetail(post.id),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: GBTSpacing.pageHorizontal,
-          vertical: GBTSpacing.md,
+    final hasImage =
+        post.imageUrls.isNotEmpty || post.thumbnailUrl != null;
+    final firstImageUrl = post.imageUrls.isNotEmpty
+        ? post.imageUrls.first
+        : post.thumbnailUrl;
+
+    // EN: Card container — rounded border, surface background.
+    // KO: 카드 컨테이너 — 둥근 테두리, 표면 배경.
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.md,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: isDark ? GBTColors.darkSurface : GBTColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark
+              ? GBTColors.darkBorder.withValues(alpha: 0.55)
+              : GBTColors.border.withValues(alpha: 0.55),
+          width: 0.5,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // EN: Author row
-            // KO: 작성자 행
-            Row(
-              children: [
-                _Avatar(
-                  url: avatarUrl,
-                  radius: 18,
-                  semanticLabel: '$authorLabel 프로필 사진',
-                  onTap: () => context.goToUserProfile(post.authorId),
-                ),
-                const SizedBox(width: GBTSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        authorLabel,
-                        style: GBTTypography.labelMedium.copyWith(
-                          fontWeight: FontWeight.w600,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => context.goToPostDetail(post.id),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 6, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // EN: Author row — avatar + name + time + report menu
+                    // KO: 작성자 행 — 아바타 + 이름 + 시간 + 신고 메뉴
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        _Avatar(
+                          url: avatarUrl,
+                          radius: 16,
+                          semanticLabel: '$authorLabel 프로필 사진',
+                          onTap: () =>
+                              context.goToUserProfile(post.authorId),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        post.timeAgoLabel,
-                        style: GBTTypography.labelSmall.copyWith(
-                          color: tertiaryColor,
+                        const SizedBox(width: GBTSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                authorLabel,
+                                style: GBTTypography.labelMedium.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                post.timeAgoLabel,
+                                style: GBTTypography.labelSmall.copyWith(
+                                  color: tertiaryColor,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                // EN: Report popup — visible only to authenticated non-authors.
-                // KO: 신고 팝업 — 로그인한 비작성자에게만 표시합니다.
-                if (showMoreButton)
-                  PopupMenuButton<_FeedPostCardAction>(
-                    icon: Icon(Icons.more_horiz, size: 20, color: tertiaryColor),
-                    padding: EdgeInsets.zero,
-                    tooltip: '더보기',
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
-                        value: _FeedPostCardAction.report,
-                        child: Row(
-                          children: [
-                            Icon(Icons.flag_outlined, size: 18),
-                            SizedBox(width: GBTSpacing.sm),
-                            Text('신고'),
+                        if (showMoreButton)
+                          PopupMenuButton<_FeedPostCardAction>(
+                            icon: Icon(
+                              Icons.more_horiz,
+                              size: 20,
+                              color: tertiaryColor,
+                            ),
+                            padding: EdgeInsets.zero,
+                            tooltip: '더보기',
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(
+                                value: _FeedPostCardAction.report,
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.flag_outlined, size: 18),
+                                    SizedBox(width: GBTSpacing.sm),
+                                    Text('신고'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            onSelected: (action) {
+                              if (action == _FeedPostCardAction.report) {
+                                _showReportFlow(context, ref);
+                              }
+                            },
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    // EN: Content area — right thumbnail when image, full-width when text-only.
+                    // KO: 콘텐츠 영역 — 이미지가 있으면 오른쪽 썸네일, 없으면 전체 너비.
+                    if (hasImage && firstImageUrl != null)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              post.title,
+                              style: GBTTypography.labelLarge.copyWith(
+                                fontWeight: FontWeight.w700,
+                                height: 1.35,
+                              ),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Stack(
+                              children: [
+                                SizedBox(
+                                  width: 78,
+                                  height: 78,
+                                  child: GBTImage(
+                                    imageUrl: firstImageUrl,
+                                    fit: BoxFit.cover,
+                                    semanticLabel:
+                                        '${post.title} 첨부 이미지',
+                                  ),
+                                ),
+                                if (post.imageUrls.length > 1)
+                                  Positioned(
+                                    right: 4,
+                                    bottom: 4,
+                                    child: Container(
+                                      padding:
+                                          const EdgeInsets.symmetric(
+                                        horizontal: 5,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black
+                                            .withValues(alpha: 0.65),
+                                        borderRadius:
+                                            BorderRadius.circular(
+                                          GBTSpacing.radiusFull,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.photo_library_outlined,
+                                            size: 10,
+                                            color: Colors.white,
+                                          ),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            '${post.imageUrls.length}',
+                                            style: GBTTypography
+                                                .labelSmall
+                                                .copyWith(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            post.title,
+                            style: GBTTypography.labelLarge.copyWith(
+                              fontWeight: FontWeight.w700,
+                              height: 1.35,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (post.content != null &&
+                              post.content!.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              post.content!,
+                              style: GBTTypography.bodySmall.copyWith(
+                                color: isDark
+                                    ? GBTColors.darkTextTertiary
+                                    : GBTColors.textTertiary,
+                                height: 1.45,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ],
-                        ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+              // EN: Stats bar with subtle top border.
+              // KO: 미묘한 상단 테두리가 있는 통계 바.
+              Semantics(
+                label: '좋아요 $likeCount개, 댓글 $commentCount개',
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: isDark
+                            ? GBTColors.darkBorder.withValues(alpha: 0.45)
+                            : GBTColors.border.withValues(alpha: 0.45),
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
+                  child: Row(
+                    children: [
+                      _StatChip(
+                        icon: GBTActionIcons.like,
+                        count: likeCount,
+                        color: tertiaryColor,
+                      ),
+                      const SizedBox(width: GBTSpacing.md),
+                      _StatChip(
+                        icon: GBTActionIcons.comment,
+                        count: commentCount,
+                        color: tertiaryColor,
                       ),
                     ],
-                    onSelected: (action) {
-                      if (action == _FeedPostCardAction.report) {
-                        _showReportFlow(context, ref);
-                      }
-                    },
                   ),
-              ],
-            ),
-            const SizedBox(height: GBTSpacing.sm),
-            // EN: Title with semi-bold weight
-            // KO: 세미볼드 가중치의 제목
-            Text(
-              post.title,
-              style: GBTTypography.bodyMedium.copyWith(
-                fontWeight: FontWeight.w500,
-                color: isDark
-                    ? GBTColors.darkTextPrimary
-                    : GBTColors.textPrimary,
-              ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: GBTSpacing.sm),
-            // EN: Show image preview if images exist, otherwise show content text.
-            // KO: 이미지가 있으면 이미지 프리뷰, 없으면 본문 텍스트를 표시합니다.
-            if (post.imageUrls.isNotEmpty || post.thumbnailUrl != null) ...[
-              _PostImagePreview(
-                imageUrls: post.imageUrls.isNotEmpty
-                    ? post.imageUrls
-                    : [post.thumbnailUrl!],
-                isDark: isDark,
-              ),
-              const SizedBox(height: GBTSpacing.sm),
-            ] else if (post.content != null &&
-                post.content!.isNotEmpty) ...[
-              Text(
-                post.content!,
-                style: GBTTypography.bodySmall.copyWith(
-                  color: isDark
-                      ? GBTColors.darkTextTertiary
-                      : GBTColors.textTertiary,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: GBTSpacing.sm),
             ],
-            // EN: Engagement stats row
-            // KO: 참여 통계 행
-            Semantics(
-              label: '좋아요 $likeCount개, 댓글 $commentCount개',
-              child: Row(
-                children: [
-                  Icon(GBTActionIcons.like, size: 16, color: tertiaryColor),
-                  const SizedBox(width: GBTSpacing.xxs),
-                  Text(
-                    likeCount.toString(),
-                    style: GBTTypography.labelSmall.copyWith(
-                      color: tertiaryColor,
-                    ),
-                  ),
-                  const SizedBox(width: GBTSpacing.md),
-                  Icon(GBTActionIcons.comment, size: 16, color: tertiaryColor),
-                  const SizedBox(width: GBTSpacing.xxs),
-                  Text(
-                    commentCount.toString(),
-                    style: GBTTypography.labelSmall.copyWith(
-                      color: tertiaryColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -774,6 +888,38 @@ class _PostImagePreview extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// EN: Compact stat chip — icon + count, used in feed card stats bar.
+// KO: 아이콘 + 숫자 컴팩트 통계 칩, 피드 카드 통계 바에서 사용.
+class _StatChip extends StatelessWidget {
+  const _StatChip({
+    required this.icon,
+    required this.count,
+    required this.color,
+  });
+
+  final IconData icon;
+  final int count;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 40,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: GBTSpacing.xxs),
+          Text(
+            count.toString(),
+            style: GBTTypography.labelSmall.copyWith(color: color),
+          ),
+        ],
+      ),
     );
   }
 }

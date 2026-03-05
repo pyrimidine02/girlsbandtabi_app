@@ -25,6 +25,7 @@ import '../../domain/entities/place_comment_entities.dart';
 import '../../domain/entities/place_entities.dart';
 import '../../domain/entities/place_guide_entities.dart';
 import '../../domain/utils/place_type_search.dart';
+import '../utils/place_directions_launcher.dart';
 import '../widgets/place_review_sheet.dart';
 
 /// EN: Place detail page widget
@@ -55,11 +56,11 @@ class PlaceDetailPage extends ConsumerWidget {
           child: FilledButton.icon(
             onPressed: state.hasValue
                 ? () => _showVerificationSheet(
-                      context,
-                      ref,
-                      placeId,
-                      placeName: state.valueOrNull?.name,
-                    )
+                    context,
+                    ref,
+                    placeId,
+                    placeName: state.valueOrNull?.name,
+                  )
                 : null,
             icon: const Icon(Icons.location_on_rounded),
             label: const Text('이곳에 다녀왔어요'),
@@ -75,8 +76,7 @@ class PlaceDetailPage extends ConsumerWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: state.when(
             loading: () {
-              final isDark =
-                  Theme.of(context).brightness == Brightness.dark;
+              final isDark = Theme.of(context).brightness == Brightness.dark;
               return [
                 SliverToBoxAdapter(
                   child: GBTShimmer(
@@ -277,6 +277,21 @@ class PlaceDetailPage extends ConsumerWidget {
                       ),
                     ],
                   ),
+                  if (place.directions?.hasProviders ?? false) ...[
+                    const SizedBox(height: GBTSpacing.sm),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FilledButton.tonalIcon(
+                        onPressed: () => showPlaceDirectionsSheet(
+                          context,
+                          placeName: place.name,
+                          directions: place.directions!,
+                        ),
+                        icon: const Icon(Icons.near_me_rounded, size: 18),
+                        label: const Text('길안내'),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: GBTSpacing.md),
                   // EN: Quick stats — visit and favorite counts.
                   // KO: 빠른 통계 — 방문 수와 즐겨찾기 수.
@@ -336,26 +351,27 @@ class PlaceDetailPage extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(
                     horizontal: GBTSpacing.md,
                   ),
-                  children: (place.tags.isNotEmpty
-                          ? place.tags
-                          : place.types.map(_formatPlaceType))
-                      .map(
-                        (label) => Padding(
-                          padding: const EdgeInsets.only(right: GBTSpacing.xs),
-                          child: Chip(
-                            label: Text(label),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ),
-                      )
-                      .toList(),
+                  children:
+                      (place.tags.isNotEmpty
+                              ? place.tags
+                              : place.types.map(_formatPlaceType))
+                          .map(
+                            (label) => Padding(
+                              padding: const EdgeInsets.only(
+                                right: GBTSpacing.xs,
+                              ),
+                              child: Chip(
+                                label: Text(label),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                          )
+                          .toList(),
                 ),
               )
             else
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: GBTSpacing.md,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
                 child: Text(
                   '장소 분류 정보가 없습니다.',
                   style: GBTTypography.bodySmall.copyWith(
@@ -753,8 +769,7 @@ class _GuideSection extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           padding: EdgeInsets.zero,
           itemCount: guides.length,
-          separatorBuilder: (_, __) =>
-              const SizedBox(height: GBTSpacing.sm),
+          separatorBuilder: (_, __) => const SizedBox(height: GBTSpacing.sm),
           itemBuilder: (context, index) {
             final guide = guides[index];
             return _GuideCard(guide: guide, isDark: isDark, index: index);
@@ -878,11 +893,7 @@ class _GuideCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: GBTSpacing.sm),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: tertiaryColor,
-              size: 20,
-            ),
+            Icon(Icons.chevron_right_rounded, color: tertiaryColor, size: 20),
           ],
         ),
       ),
@@ -949,8 +960,7 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
           physics: const NeverScrollableScrollPhysics(),
           padding: EdgeInsets.zero,
           itemCount: comments.length,
-          separatorBuilder: (_, __) =>
-              const SizedBox(height: GBTSpacing.sm),
+          separatorBuilder: (_, __) => const SizedBox(height: GBTSpacing.sm),
           itemBuilder: (context, index) {
             final comment = comments[index];
             final isApproving = _approvingIds.contains(comment.id);
@@ -967,7 +977,8 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
               isRejected: isRejected,
               isFullyApproved: isFullyApproved,
               onPhotoTap: _showPhotoPreview,
-              onApprove: (approved) => _approvePhotos(comment, isApproved: approved),
+              onApprove: (approved) =>
+                  _approvePhotos(comment, isApproved: approved),
               secondaryColor: secondaryColor,
             );
           },
@@ -1100,7 +1111,8 @@ class _ReviewCard extends StatelessWidget {
   ];
 
   Color get _avatarColor {
-    return _avatarPalette[comment.authorId.hashCode.abs() % _avatarPalette.length];
+    return _avatarPalette[comment.authorId.hashCode.abs() %
+        _avatarPalette.length];
   }
 
   String get _authorInitial {
@@ -1199,7 +1211,9 @@ class _ReviewCard extends StatelessWidget {
             Text(
               comment.body,
               style: GBTTypography.bodyMedium.copyWith(
-                color: isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
+                color: isDark
+                    ? GBTColors.darkTextPrimary
+                    : GBTColors.textPrimary,
               ),
               maxLines: 5,
               overflow: TextOverflow.ellipsis,
@@ -1224,7 +1238,9 @@ class _ReviewCard extends StatelessWidget {
                     child: GestureDetector(
                       onTap: () => onPhotoTap(url),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+                        borderRadius: BorderRadius.circular(
+                          GBTSpacing.radiusSm,
+                        ),
                         child: GBTImage(
                           imageUrl: url,
                           width: 80,
@@ -1246,16 +1262,12 @@ class _ReviewCard extends StatelessWidget {
             if (isRejected)
               Text(
                 '반려됨',
-                style: GBTTypography.labelSmall.copyWith(
-                  color: secondaryColor,
-                ),
+                style: GBTTypography.labelSmall.copyWith(color: secondaryColor),
               )
             else if (isFullyApproved)
               Text(
                 '승인됨',
-                style: GBTTypography.labelSmall.copyWith(
-                  color: secondaryColor,
-                ),
+                style: GBTTypography.labelSmall.copyWith(color: secondaryColor),
               ),
             Row(
               children: [

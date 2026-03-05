@@ -60,15 +60,42 @@ class PostLikeController extends StateNotifier<AsyncValue<PostLikeStatus>> {
 
     final current = state.maybeWhen(data: (value) => value, orElse: () => null);
     final repository = await _ref.read(feedRepositoryProvider.future);
-
-    final result = current?.isLiked == true
+    final isUnlikeFlow = current?.isLiked == true;
+    Result<PostLikeStatus> result = isUnlikeFlow
         ? await repository.unlikePost(projectCode: projectKey, postId: postId)
         : await repository.likePost(projectCode: projectKey, postId: postId);
+
+    if (isUnlikeFlow && result is Err<PostLikeStatus>) {
+      final selectedProjectId = _ref.read(selectedProjectIdProvider);
+      final shouldRetryWithProjectId =
+          selectedProjectId != null &&
+          selectedProjectId.isNotEmpty &&
+          selectedProjectId != projectKey &&
+          result.failure is ServerFailure &&
+          result.failure.code == '500';
+
+      // EN: Backend workaround — retry unlike once with UUID projectId when
+      // slug-based unlike returns 500 but like endpoint works.
+      // KO: 백엔드 우회 — slug 기반 unlike에서 500이 발생하면 UUID projectId로
+      // 한 번 재시도합니다.
+      if (shouldRetryWithProjectId) {
+        result = await repository.unlikePost(
+          projectCode: selectedProjectId,
+          postId: postId,
+        );
+      }
+    }
 
     if (result is Success<PostLikeStatus>) {
       state = AsyncData(result.data);
     } else if (result is Err<PostLikeStatus>) {
-      state = AsyncError(result.failure, StackTrace.current);
+      // EN: Preserve current data on toggle failure to avoid breaking action UI.
+      // KO: 토글 실패 시 액션 UI가 깨지지 않도록 현재 데이터를 유지합니다.
+      if (current != null) {
+        state = AsyncData(current);
+      } else {
+        state = AsyncError(result.failure, StackTrace.current);
+      }
     }
 
     return result;

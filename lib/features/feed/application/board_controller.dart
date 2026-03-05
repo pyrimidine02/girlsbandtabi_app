@@ -1,5 +1,5 @@
-/// EN: Community board list controllers (latest/trending/following).
-/// KO: 커뮤니티 게시판 목록 컨트롤러(최신/트렌딩/구독).
+/// EN: Community board list controllers (recommend/following/latest/trending).
+/// KO: 커뮤니티 게시판 목록 컨트롤러(추천/팔로우/최신/인기).
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -43,28 +43,51 @@ class PostListController extends StateNotifier<AsyncValue<List<PostSummary>>> {
   }
 }
 
-enum CommunityFeedMode { latest, trending, following }
+enum CommunityFeedMode { recommended, following, latest, trending }
 
 const Object _communityFeedNoChange = Object();
 
 extension CommunityFeedModeX on CommunityFeedMode {
   String get label {
     switch (this) {
+      case CommunityFeedMode.recommended:
+        return '추천';
+      case CommunityFeedMode.following:
+        return '팔로우';
       case CommunityFeedMode.latest:
         return '최신';
       case CommunityFeedMode.trending:
-        return '트렌딩';
-      case CommunityFeedMode.following:
-        return '구독 피드';
+        return '인기';
+    }
+  }
+}
+
+enum CommunitySearchScope { all, title, author, content, media }
+
+extension CommunitySearchScopeX on CommunitySearchScope {
+  String get label {
+    switch (this) {
+      case CommunitySearchScope.all:
+        return '전체';
+      case CommunitySearchScope.title:
+        return '제목';
+      case CommunitySearchScope.author:
+        return '작성자';
+      case CommunitySearchScope.content:
+        return '내용';
+      case CommunitySearchScope.media:
+        return '미디어';
     }
   }
 }
 
 class CommunityFeedViewState {
   const CommunityFeedViewState({
-    this.mode = CommunityFeedMode.latest,
+    this.mode = CommunityFeedMode.recommended,
     this.searchQuery = '',
+    this.searchScope = CommunitySearchScope.all,
     this.posts = const [],
+    this.searchSourcePosts = const [],
     this.subscriptions = const [],
     this.isInitialLoading = true,
     this.isLoadingMore = false,
@@ -77,7 +100,9 @@ class CommunityFeedViewState {
 
   final CommunityFeedMode mode;
   final String searchQuery;
+  final CommunitySearchScope searchScope;
   final List<PostSummary> posts;
+  final List<PostSummary> searchSourcePosts;
   final List<ProjectSubscriptionSummary> subscriptions;
   final bool isInitialLoading;
   final bool isLoadingMore;
@@ -92,7 +117,9 @@ class CommunityFeedViewState {
   CommunityFeedViewState copyWith({
     CommunityFeedMode? mode,
     String? searchQuery,
+    CommunitySearchScope? searchScope,
     List<PostSummary>? posts,
+    List<PostSummary>? searchSourcePosts,
     List<ProjectSubscriptionSummary>? subscriptions,
     bool? isInitialLoading,
     bool? isLoadingMore,
@@ -106,7 +133,9 @@ class CommunityFeedViewState {
     return CommunityFeedViewState(
       mode: mode ?? this.mode,
       searchQuery: searchQuery ?? this.searchQuery,
+      searchScope: searchScope ?? this.searchScope,
       posts: posts ?? this.posts,
+      searchSourcePosts: searchSourcePosts ?? this.searchSourcePosts,
       subscriptions: subscriptions ?? this.subscriptions,
       isInitialLoading: isInitialLoading ?? this.isInitialLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
@@ -132,6 +161,8 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
 
   final Ref _ref;
   static const int _pageSize = 20;
+  bool _isBackgroundSyncing = false;
+  DateTime? _lastBackgroundSyncAt;
 
   Future<void> initialize() async {
     await _loadSubscriptions();
@@ -144,17 +175,157 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
     await reload(forceRefresh: true);
   }
 
+  void setSearchScope(CommunitySearchScope scope) {
+    if (scope == state.searchScope) return;
+
+    if (!state.isSearching) {
+      state = state.copyWith(searchScope: scope, clearFailure: true);
+      return;
+    }
+
+    final filtered = _filterSearchResults(
+      sourcePosts: state.searchSourcePosts,
+      query: state.searchQuery,
+      scope: scope,
+    );
+    state = state.copyWith(
+      searchScope: scope,
+      posts: filtered,
+      clearFailure: true,
+    );
+  }
+
   Future<void> applySearch(String query) async {
     final trimmed = query.trim();
     if (trimmed == state.searchQuery.trim()) return;
-    state = state.copyWith(searchQuery: trimmed, clearFailure: true);
+    state = state.copyWith(
+      searchQuery: trimmed,
+      searchSourcePosts: const [],
+      clearFailure: true,
+    );
     await reload(forceRefresh: true);
   }
 
   Future<void> clearSearch() async {
     if (state.searchQuery.isEmpty) return;
-    state = state.copyWith(searchQuery: '', clearFailure: true);
+    state = state.copyWith(
+      searchQuery: '',
+      searchSourcePosts: const [],
+      clearFailure: true,
+    );
     await reload(forceRefresh: true);
+  }
+
+  Future<void> refreshInBackground({
+    Duration minInterval = const Duration(seconds: 35),
+  }) async {
+    if (_isBackgroundSyncing || state.isInitialLoading || state.isLoadingMore) {
+      return;
+    }
+
+    final now = DateTime.now();
+    if (_lastBackgroundSyncAt != null &&
+        now.difference(_lastBackgroundSyncAt!) < minInterval) {
+      return;
+    }
+
+    final projectKey = _ref.read(selectedProjectKeyProvider);
+    if (projectKey == null || projectKey.isEmpty) {
+      return;
+    }
+
+    _isBackgroundSyncing = true;
+    try {
+      final repository = await _ref.read(feedRepositoryProvider.future);
+      if (state.isSearching) {
+        final searchResult = await repository.searchPosts(
+          projectCode: projectKey,
+          query: state.searchQuery,
+          page: 0,
+          size: _pageSize,
+        );
+        if (searchResult is Success<List<PostSummary>>) {
+          final filtered = _filterSearchResults(
+            sourcePosts: searchResult.data,
+            query: state.searchQuery,
+            scope: state.searchScope,
+          );
+          state = state.copyWith(
+            posts: filtered,
+            searchSourcePosts: searchResult.data,
+            hasMore: false,
+            nextCursor: null,
+            clearFailure: true,
+          );
+        } else if (searchResult is Err<List<PostSummary>> &&
+            state.posts.isEmpty) {
+          state = state.copyWith(failure: searchResult.failure);
+        }
+        return;
+      }
+
+      switch (state.mode) {
+        case CommunityFeedMode.recommended:
+        case CommunityFeedMode.latest:
+          final latestResult = await repository.getPostsByCursor(
+            projectCode: projectKey,
+            cursor: null,
+            size: _pageSize,
+          );
+          if (latestResult is Success<PostCursorPage>) {
+            state = state.copyWith(
+              posts: latestResult.data.items,
+              searchSourcePosts: const [],
+              hasMore: latestResult.data.hasNext,
+              nextCursor: latestResult.data.nextCursor ?? '',
+              clearFailure: true,
+            );
+          } else if (latestResult is Err<PostCursorPage> &&
+              state.posts.isEmpty) {
+            state = state.copyWith(failure: latestResult.failure);
+          }
+        case CommunityFeedMode.trending:
+          final trendingResult = await repository.getTrendingPosts(
+            projectCode: projectKey,
+            page: 0,
+            size: _pageSize,
+            forceRefresh: true,
+          );
+          if (trendingResult is Success<List<PostSummary>>) {
+            state = state.copyWith(
+              posts: trendingResult.data,
+              searchSourcePosts: const [],
+              page: 0,
+              hasMore: trendingResult.data.length >= _pageSize,
+              nextCursor: null,
+              clearFailure: true,
+            );
+          } else if (trendingResult is Err<List<PostSummary>> &&
+              state.posts.isEmpty) {
+            state = state.copyWith(failure: trendingResult.failure);
+          }
+        case CommunityFeedMode.following:
+          final followingResult = await repository.getCommunityFeedByCursor(
+            cursor: null,
+            size: _pageSize,
+          );
+          if (followingResult is Success<PostCursorPage>) {
+            state = state.copyWith(
+              posts: followingResult.data.items,
+              searchSourcePosts: const [],
+              hasMore: followingResult.data.hasNext,
+              nextCursor: followingResult.data.nextCursor ?? '',
+              clearFailure: true,
+            );
+          } else if (followingResult is Err<PostCursorPage> &&
+              state.posts.isEmpty) {
+            state = state.copyWith(failure: followingResult.failure);
+          }
+      }
+    } finally {
+      _lastBackgroundSyncAt = DateTime.now();
+      _isBackgroundSyncing = false;
+    }
   }
 
   Future<void> reload({bool forceRefresh = false}) async {
@@ -162,6 +333,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
     if (projectKey == null || projectKey.isEmpty) {
       state = state.copyWith(
         posts: const [],
+        searchSourcePosts: const [],
         isInitialLoading: false,
         hasMore: false,
         nextCursor: null,
@@ -178,6 +350,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
       isInitialLoading: true,
       isLoadingMore: false,
       posts: const [],
+      searchSourcePosts: const [],
       hasMore: false,
       nextCursor: null,
       page: 0,
@@ -192,11 +365,35 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
         page: 0,
         size: _pageSize,
       );
-      _applyInitialListResult(result, hasMore: false, nextCursor: null);
+      if (result is Success<List<PostSummary>>) {
+        final filtered = _filterSearchResults(
+          sourcePosts: result.data,
+          query: state.searchQuery,
+          scope: state.searchScope,
+        );
+        state = state.copyWith(
+          posts: filtered,
+          searchSourcePosts: result.data,
+          hasMore: false,
+          nextCursor: null,
+          isInitialLoading: false,
+          clearFailure: true,
+        );
+      } else if (result is Err<List<PostSummary>>) {
+        state = state.copyWith(
+          posts: const [],
+          searchSourcePosts: const [],
+          hasMore: false,
+          nextCursor: null,
+          isInitialLoading: false,
+          failure: result.failure,
+        );
+      }
       return;
     }
 
     switch (state.mode) {
+      case CommunityFeedMode.recommended:
       case CommunityFeedMode.latest:
         final result = await repository.getPostsByCursor(
           projectCode: projectKey,
@@ -206,6 +403,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
         if (result is Success<PostCursorPage>) {
           state = state.copyWith(
             posts: result.data.items,
+            searchSourcePosts: const [],
             hasMore: result.data.hasNext,
             nextCursor: result.data.nextCursor ?? '',
             isInitialLoading: false,
@@ -214,6 +412,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
         } else if (result is Err<PostCursorPage>) {
           state = state.copyWith(
             posts: const [],
+            searchSourcePosts: const [],
             hasMore: false,
             nextCursor: null,
             isInitialLoading: false,
@@ -231,6 +430,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
           final items = result.data;
           state = state.copyWith(
             posts: items,
+            searchSourcePosts: const [],
             page: 0,
             hasMore: items.length >= _pageSize,
             nextCursor: null,
@@ -240,6 +440,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
         } else if (result is Err<List<PostSummary>>) {
           state = state.copyWith(
             posts: const [],
+            searchSourcePosts: const [],
             hasMore: false,
             page: 0,
             isInitialLoading: false,
@@ -254,6 +455,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
         if (result is Success<PostCursorPage>) {
           state = state.copyWith(
             posts: result.data.items,
+            searchSourcePosts: const [],
             hasMore: result.data.hasNext,
             nextCursor: result.data.nextCursor ?? '',
             isInitialLoading: false,
@@ -262,6 +464,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
         } else if (result is Err<PostCursorPage>) {
           state = state.copyWith(
             posts: const [],
+            searchSourcePosts: const [],
             hasMore: false,
             nextCursor: null,
             isInitialLoading: false,
@@ -282,6 +485,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
     final repository = await _ref.read(feedRepositoryProvider.future);
 
     switch (state.mode) {
+      case CommunityFeedMode.recommended:
       case CommunityFeedMode.latest:
         final cursor = state.nextCursor;
         if (cursor == null || cursor.isEmpty) {
@@ -345,35 +549,12 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
     }
   }
 
-  void _applyInitialListResult(
-    Result<List<PostSummary>> result, {
-    required bool hasMore,
-    required String? nextCursor,
-  }) {
-    if (result is Success<List<PostSummary>>) {
-      state = state.copyWith(
-        posts: result.data,
-        hasMore: hasMore,
-        nextCursor: nextCursor,
-        isInitialLoading: false,
-        clearFailure: true,
-      );
-    } else if (result is Err<List<PostSummary>>) {
-      state = state.copyWith(
-        posts: const [],
-        hasMore: false,
-        nextCursor: null,
-        isInitialLoading: false,
-        failure: result.failure,
-      );
-    }
-  }
-
   void _appendCursorResult(Result<PostCursorPage> result) {
     if (result is Success<PostCursorPage>) {
       final merged = [...state.posts, ...result.data.items];
       state = state.copyWith(
         posts: merged,
+        searchSourcePosts: const [],
         hasMore: result.data.hasNext,
         nextCursor: result.data.nextCursor ?? '',
         isLoadingMore: false,
@@ -381,6 +562,57 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
       );
     } else if (result is Err<PostCursorPage>) {
       state = state.copyWith(isLoadingMore: false, failure: result.failure);
+    }
+  }
+
+  List<PostSummary> _filterSearchResults({
+    required List<PostSummary> sourcePosts,
+    required String query,
+    required CommunitySearchScope scope,
+  }) {
+    final normalizedQuery = query.trim().toLowerCase();
+    if (normalizedQuery.isEmpty) {
+      return sourcePosts;
+    }
+
+    return sourcePosts
+        .where(
+          (post) => _matchesSearchScope(
+            post: post,
+            query: normalizedQuery,
+            scope: scope,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  bool _matchesSearchScope({
+    required PostSummary post,
+    required String query,
+    required CommunitySearchScope scope,
+  }) {
+    bool contains(String? value) =>
+        value?.toLowerCase().contains(query) ?? false;
+
+    final titleMatch = contains(post.title);
+    final authorMatch = contains(post.authorName);
+    final contentMatch = contains(post.content);
+    final hasMedia =
+        post.imageUrls.isNotEmpty ||
+        (post.thumbnailUrl?.isNotEmpty ?? false) ||
+        (post.content?.contains('![') ?? false);
+
+    switch (scope) {
+      case CommunitySearchScope.all:
+        return titleMatch || authorMatch || contentMatch;
+      case CommunitySearchScope.title:
+        return titleMatch;
+      case CommunitySearchScope.author:
+        return authorMatch;
+      case CommunitySearchScope.content:
+        return contentMatch;
+      case CommunitySearchScope.media:
+        return hasMedia && (titleMatch || authorMatch || contentMatch);
     }
   }
 }

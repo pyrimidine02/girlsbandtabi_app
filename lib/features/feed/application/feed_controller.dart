@@ -5,5 +5,7 @@ library;
 export 'board_controller.dart';
 export 'feed_repository_provider.dart';
 export 'news_controller.dart';
+export 'post_compose_autosave_controller.dart';
+export 'post_compose_draft_store.dart';
 export 'post_controller.dart';
 export 'reaction_controller.dart';

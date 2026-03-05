@@ -2,6 +2,8 @@
 /// KO: 그룹화된 알림을 포함한 알림 페이지.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,8 +26,44 @@ class NotificationsPage extends ConsumerStatefulWidget {
   ConsumerState<NotificationsPage> createState() => _NotificationsPageState();
 }
 
-class _NotificationsPageState extends ConsumerState<NotificationsPage> {
+class _NotificationsPageState extends ConsumerState<NotificationsPage>
+    with WidgetsBindingObserver {
   bool _showUnreadOnly = false;
+  Timer? _foregroundRefreshTimer;
+  bool _isAppResumed = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _foregroundRefreshTimer = Timer.periodic(
+      const Duration(seconds: 40),
+      (_) => _refreshNotificationsIfVisible(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _foregroundRefreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _isAppResumed = state == AppLifecycleState.resumed;
+    if (_isAppResumed) {
+      _refreshNotificationsIfVisible();
+    }
+  }
+
+  void _refreshNotificationsIfVisible() {
+    if (!mounted || !_isAppResumed) return;
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return;
+
+    ref.read(notificationsControllerProvider.notifier).refreshInBackground();
+  }
 
   @override
   Widget build(BuildContext context) {

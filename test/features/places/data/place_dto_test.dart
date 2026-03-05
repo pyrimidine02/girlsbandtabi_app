@@ -13,6 +13,16 @@ void main() {
       'longitude': 139.7004,
       'introText': 'Famous crossing',
       'thumbnailUrl': 'https://example.com/thumb.jpg',
+      'directions': {
+        'countryCode': 'JPN',
+        'providers': [
+          {
+            'provider': 'google_maps',
+            'label': 'Google Maps',
+            'url': 'https://maps.example.com/dir/1',
+          },
+        ],
+      },
     };
 
     final dto = PlaceSummaryDto.fromJson(json);
@@ -24,6 +34,9 @@ void main() {
     expect(dto.longitude, 139.7004);
     expect(dto.introText, 'Famous crossing');
     expect(dto.thumbnailUrl, 'https://example.com/thumb.jpg');
+    expect(dto.directions?.countryCode, 'JPN');
+    expect(dto.directions?.providers.length, 1);
+    expect(dto.directions?.providers.first.provider, 'google_maps');
   });
 
   test('PlaceDetailDto parses tags and images', () {
@@ -36,6 +49,21 @@ void main() {
       'address': 'Osaka',
       'description': 'Great place',
       'tags': ['Band A', 'Band B'],
+      'directions': {
+        'countryCode': 'JPN',
+        'providers': [
+          {
+            'provider': 'apple_maps',
+            'label': 'Apple Maps',
+            'url': 'https://maps.example.com/dir/2',
+          },
+          {
+            'provider': 'yahoo_maps',
+            'label': 'Yahoo! Maps',
+            'url': 'https://maps.example.com/dir/3',
+          },
+        ],
+      },
       'images': [
         {
           'imageId': 'img-1',
@@ -64,5 +92,8 @@ void main() {
     expect(dto.images.length, 2);
     expect(dto.tags.length, 2);
     expect(dto.images.first.url, 'a.jpg');
+    expect(dto.directions?.countryCode, 'JPN');
+    expect(dto.directions?.providers.length, 2);
+    expect(dto.directions?.providers.first.provider, 'apple_maps');
   });
 }

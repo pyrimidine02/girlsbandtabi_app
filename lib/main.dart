@@ -40,14 +40,21 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // EN: Set system UI overlay style
-  // KO: 시스템 UI 오버레이 스타일 설정
+  // EN: Enable edge-to-edge mode — app renders behind system bars on Android.
+  //     iOS handles this natively via SafeArea / home indicator insets.
+  // KO: 엣지 투 엣지 모드 활성화 — Android에서 앱이 시스템 바 뒤까지 렌더링됩니다.
+  //     iOS는 SafeArea / 홈 인디케이터 인셋으로 자동 처리됩니다.
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+  // EN: Initial overlay style — transparent bars, icon brightness set at runtime
+  //     via AnnotatedRegion in app.dart based on the active theme.
+  // KO: 초기 오버레이 스타일 — 투명 바, 아이콘 밝기는 app.dart의 AnnotatedRegion에서
+  //     활성 테마에 따라 런타임에 설정됩니다.
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-      systemNavigationBarColor: Colors.white,
-      systemNavigationBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
     ),
   );
 

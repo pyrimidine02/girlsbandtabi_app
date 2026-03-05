@@ -1,0 +1,197 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:girlsbandtabi_app/core/providers/core_providers.dart';
+import 'package:girlsbandtabi_app/core/storage/local_storage.dart';
+import 'package:girlsbandtabi_app/core/utils/result.dart';
+import 'package:girlsbandtabi_app/features/feed/application/post_compose_autosave_controller.dart';
+import 'package:girlsbandtabi_app/features/feed/application/post_compose_draft_store.dart';
+import 'package:girlsbandtabi_app/features/feed/domain/entities/feed_entities.dart';
+import 'package:girlsbandtabi_app/features/feed/presentation/pages/post_create_page.dart';
+import 'package:girlsbandtabi_app/features/feed/presentation/pages/post_edit_page.dart';
+import 'package:girlsbandtabi_app/features/projects/application/projects_controller.dart';
+import 'package:girlsbandtabi_app/features/projects/domain/entities/project_entities.dart';
+import 'package:girlsbandtabi_app/features/projects/domain/repositories/projects_repository.dart';
+
+void main() {
+  group('Post compose autosave integration', () {
+    testWidgets('create page reflects autosave status message from provider', (
+      tester,
+    ) async {
+      final harness = await _createHarness();
+      addTearDown(harness.container.dispose);
+
+      await tester.pumpWidget(harness.wrap(const PostCreatePage()));
+      await tester.pumpAndSettle();
+
+      final notifier = harness.container.read(
+        postComposeAutosaveControllerProvider(
+          const PostComposeAutosaveConfig(
+            storageKey: 'feed_post_create_draft_v1',
+          ),
+        ).notifier,
+      );
+      await notifier.saveSnapshot(
+        title: '상태 테스트',
+        content: '작성 내용',
+        imagePaths: const [],
+        hasData: true,
+      );
+
+      await tester.pump();
+      expect(find.textContaining('임시 저장됨 ·'), findsOneWidget);
+    });
+
+    testWidgets('create page restores recoverable draft via banner action', (
+      tester,
+    ) async {
+      final harness = await _createHarness();
+      addTearDown(harness.container.dispose);
+      await harness.store.write(
+        'feed_post_create_draft_v1',
+        PostComposeDraft(
+          title: '복구된 제목',
+          content: '복구된 내용',
+          imagePaths: const [],
+          savedAt: DateTime.parse('2026-03-05T12:00:00.000Z'),
+          projectCode: 'girls-band-cry',
+        ),
+      );
+
+      await tester.pumpWidget(harness.wrap(const PostCreatePage()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('임시 저장된 글이 있어요'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(FilledButton, '복구'));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 1300));
+
+      expect(find.text('임시 저장된 글이 있어요'), findsNothing);
+      expect(find.text('복구된 제목'), findsOneWidget);
+      expect(find.text('복구된 내용'), findsOneWidget);
+      expect(find.textContaining('임시 저장 글을 복구했어요'), findsWidgets);
+    });
+
+    testWidgets('edit page delete action clears recoverable draft and banner', (
+      tester,
+    ) async {
+      final harness = await _createHarness();
+      addTearDown(harness.container.dispose);
+
+      const postId = 'post-001';
+      final draftKey = 'feed_post_edit_draft_v1_$postId';
+      await harness.store.write(
+        draftKey,
+        PostComposeDraft(
+          title: '수정 임시 제목',
+          content: '수정 임시 내용',
+          imagePaths: const [],
+          savedAt: DateTime.parse('2026-03-05T12:10:00.000Z'),
+          projectCode: 'girls-band-cry',
+        ),
+      );
+
+      await tester.pumpWidget(
+        harness.wrap(
+          PostEditPage(
+            post: PostDetail(
+              id: postId,
+              projectId: '550e8400-e29b-41d4-a716-446655440001',
+              authorId: '243701ba-86d8-4356-9c17-630944e2ed8f',
+              title: '원본 제목',
+              content: '원본 내용',
+              createdAt: DateTime.parse('2026-03-05T11:50:00.000Z'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('임시 저장된 글이 있어요'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(TextButton, '삭제'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('임시 저장된 글이 있어요'), findsNothing);
+      expect(await harness.store.read(draftKey), isNull);
+    });
+  });
+}
+
+class _Harness {
+  _Harness({required this.container, required this.store});
+
+  final ProviderContainer container;
+  final PostComposeDraftStore store;
+
+  Widget wrap(Widget child) {
+    return UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(home: child),
+    );
+  }
+}
+
+Future<_Harness> _createHarness() async {
+  SharedPreferences.setMockInitialValues(<String, Object>{});
+  final prefs = await SharedPreferences.getInstance();
+  final localStorage = LocalStorage(prefs);
+  final store = PostComposeDraftStore(localStorage);
+  final projectsRepository = _FakeProjectsRepository(const [
+    Project(
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      code: 'girls-band-cry',
+      name: '걸즈 밴드 크라이',
+      status: 'ACTIVE',
+      defaultTimezone: 'Asia/Seoul',
+    ),
+  ]);
+
+  final container = ProviderContainer(
+    overrides: [
+      isAuthenticatedProvider.overrideWith((ref) => true),
+      selectedProjectKeyProvider.overrideWith((ref) => 'girls-band-cry'),
+      selectedProjectIdProvider.overrideWith(
+        (ref) => '550e8400-e29b-41d4-a716-446655440001',
+      ),
+      localStorageProvider.overrideWith((ref) async => localStorage),
+      postComposeDraftStoreProvider.overrideWith((ref) async => store),
+      projectsRepositoryProvider.overrideWith(
+        (ref) async => projectsRepository,
+      ),
+    ],
+  );
+
+  return _Harness(container: container, store: store);
+}
+
+class _FakeProjectsRepository implements ProjectsRepository {
+  const _FakeProjectsRepository(this._projects);
+
+  final List<Project> _projects;
+
+  @override
+  Future<Result<List<Project>>> getProjects({bool forceRefresh = false}) async {
+    return Success(_projects);
+  }
+
+  @override
+  Future<Result<List<Unit>>> getUnits({
+    required String projectId,
+    bool forceRefresh = false,
+  }) async {
+    return const Success(<Unit>[]);
+  }
+
+  @override
+  Future<Result<List<UnitMember>>> getUnitMembers({
+    required String projectId,
+    required String unitId,
+    bool forceRefresh = false,
+  }) async {
+    return const Success(<UnitMember>[]);
+  }
+}

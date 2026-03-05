@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -57,22 +58,38 @@ class GBTApp extends ConsumerWidget {
         final backgroundGradient = isDark
             ? GBTColors.darkAppBackgroundGradient
             : GBTColors.appBackgroundGradient;
+        // EN: Icon brightness flips with theme so status bar & nav bar icons
+        //     remain readable in both light and dark mode (edge-to-edge).
+        // KO: 테마에 따라 아이콘 밝기를 반전시켜 라이트/다크 모드 모두에서
+        //     상태 바·네비게이션 바 아이콘이 잘 보이도록 합니다 (엣지 투 엣지).
+        final iconBrightness =
+            isDark ? Brightness.light : Brightness.dark;
 
-        return MediaQuery(
-          // EN: Prevent text scaling beyond 1.3x for accessibility
-          // KO: 접근성을 위해 텍스트 스케일링을 1.3배 이하로 제한
-          data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(
-              MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.3),
-            ),
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: iconBrightness,
+            statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+            systemNavigationBarColor: Colors.transparent,
+            systemNavigationBarIconBrightness: iconBrightness,
+            systemNavigationBarContrastEnforced: false,
           ),
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-            child: DecoratedBox(
-              decoration: BoxDecoration(gradient: backgroundGradient),
-              child: _ConnectivityWrapper(
-                child: child ?? const SizedBox.shrink(),
+          child: MediaQuery(
+            // EN: Prevent text scaling beyond 1.3x for accessibility
+            // KO: 접근성을 위해 텍스트 스케일링을 1.3배 이하로 제한
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(
+                MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.3),
+              ),
+            ),
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+              child: DecoratedBox(
+                decoration: BoxDecoration(gradient: backgroundGradient),
+                child: _ConnectivityWrapper(
+                  child: child ?? const SizedBox.shrink(),
+                ),
               ),
             ),
           ),

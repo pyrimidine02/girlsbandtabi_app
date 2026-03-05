@@ -4,6 +4,63 @@ library;
 
 import '../../../../core/models/image_meta_dto.dart';
 
+class PlaceDirectionProviderDto {
+  const PlaceDirectionProviderDto({
+    required this.provider,
+    required this.label,
+    required this.url,
+  });
+
+  final String provider;
+  final String label;
+  final String url;
+
+  factory PlaceDirectionProviderDto.fromJson(Map<String, dynamic> json) {
+    return PlaceDirectionProviderDto(
+      provider: json['provider'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+      url: json['url'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'provider': provider, 'label': label, 'url': url};
+  }
+}
+
+class PlaceDirectionsDto {
+  const PlaceDirectionsDto({
+    required this.countryCode,
+    required this.providers,
+  });
+
+  final String countryCode;
+  final List<PlaceDirectionProviderDto> providers;
+
+  factory PlaceDirectionsDto.fromJson(Map<String, dynamic> json) {
+    final providersRaw = json['providers'];
+    final providers = <PlaceDirectionProviderDto>[];
+    if (providersRaw is List) {
+      providers.addAll(
+        providersRaw.whereType<Map<String, dynamic>>().map(
+          PlaceDirectionProviderDto.fromJson,
+        ),
+      );
+    }
+    return PlaceDirectionsDto(
+      countryCode: json['countryCode'] as String? ?? '',
+      providers: providers,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'countryCode': countryCode,
+      'providers': providers.map((provider) => provider.toJson()).toList(),
+    };
+  }
+}
+
 class RegionHierarchyNodeDto {
   const RegionHierarchyNodeDto({
     required this.code,
@@ -111,6 +168,7 @@ class PlaceSummaryDto {
     this.thumbnailFilename,
     this.thumbnailSize,
     this.regionSummary,
+    this.directions,
   });
 
   final String id;
@@ -124,6 +182,7 @@ class PlaceSummaryDto {
   final String? thumbnailFilename;
   final int? thumbnailSize;
   final PlaceRegionSummaryDto? regionSummary;
+  final PlaceDirectionsDto? directions;
 
   factory PlaceSummaryDto.fromJson(Map<String, dynamic> json) {
     return PlaceSummaryDto(
@@ -142,6 +201,11 @@ class PlaceSummaryDto {
               json['regionSummary'] as Map<String, dynamic>,
             )
           : null,
+      directions: json['directions'] is Map<String, dynamic>
+          ? PlaceDirectionsDto.fromJson(
+              json['directions'] as Map<String, dynamic>,
+            )
+          : null,
     );
   }
 
@@ -158,6 +222,7 @@ class PlaceSummaryDto {
       'thumbnailFilename': thumbnailFilename,
       'thumbnailSize': thumbnailSize,
       'regionSummary': regionSummary?.toJson(),
+      'directions': directions?.toJson(),
     };
   }
 }
@@ -176,6 +241,7 @@ class PlaceDetailDto {
     this.address,
     this.primaryImage,
     this.regionSummary,
+    this.directions,
   });
 
   final String id;
@@ -190,6 +256,7 @@ class PlaceDetailDto {
   final ImageMetaDto? primaryImage;
   final List<ImageMetaDto> images;
   final PlaceRegionSummaryDto? regionSummary;
+  final PlaceDirectionsDto? directions;
 
   factory PlaceDetailDto.fromJson(Map<String, dynamic> json) {
     final imagesRaw = json['images'];
@@ -219,6 +286,11 @@ class PlaceDetailDto {
               json['regionSummary'] as Map<String, dynamic>,
             )
           : null,
+      directions: json['directions'] is Map<String, dynamic>
+          ? PlaceDirectionsDto.fromJson(
+              json['directions'] as Map<String, dynamic>,
+            )
+          : null,
     );
   }
 
@@ -236,6 +308,7 @@ class PlaceDetailDto {
       'primaryImage': primaryImage?.toJson(),
       'images': images.map((image) => image.toJson()).toList(),
       'regionSummary': regionSummary?.toJson(),
+      'directions': directions?.toJson(),
     };
   }
 }

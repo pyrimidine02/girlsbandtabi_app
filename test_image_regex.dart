@@ -9,21 +9,21 @@ void main() {
 ''';
 
   final urls = extractImageUrls(content);
-  print('Extracted: \$urls');
+  print('Extracted: $urls');
 }
 
 List<String> extractImageUrls(String? content) {
   if (content == null || content.isEmpty) return const [];
   final urls = <String>{};
-  
-  final _markdownImagePattern = RegExp(r'!\[[^\]]*\]\((https?://[^)\s]+)[^)]*\)');
-  final mdMatches = _markdownImagePattern.allMatches(content);
+
+  final markdownImagePattern = RegExp(r'!\[[^\]]*\]\((https?://[^)\s]+)[^)]*\)');
+  final mdMatches = markdownImagePattern.allMatches(content);
   for (final match in mdMatches) {
     final url = match.group(1);
     if (url != null && url.isNotEmpty) {
       urls.add(url);
     }
   }
-  
+
   return urls.toList();
 }

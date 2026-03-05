@@ -22,6 +22,7 @@ class PlaceSummary {
     this.regionCode,
     this.regionName,
     this.regionPath,
+    this.directions,
   });
 
   final String id;
@@ -39,6 +40,7 @@ class PlaceSummary {
   final String? regionCode;
   final String? regionName;
   final String? regionPath;
+  final PlaceDirections? directions;
 
   factory PlaceSummary.fromDto(PlaceSummaryDto dto) {
     return PlaceSummary(
@@ -57,6 +59,9 @@ class PlaceSummary {
       regionCode: dto.regionSummary?.code,
       regionName: dto.regionSummary?.primaryName,
       regionPath: dto.regionSummary?.path,
+      directions: dto.directions != null
+          ? PlaceDirections.fromDto(dto.directions!)
+          : null,
     );
   }
 }
@@ -76,6 +81,7 @@ class PlaceDetail {
     this.visitCount,
     this.favoriteCount,
     this.tags = const [],
+    this.directions,
   });
 
   final String id;
@@ -91,6 +97,7 @@ class PlaceDetail {
   final int? visitCount;
   final int? favoriteCount;
   final List<String> tags;
+  final PlaceDirections? directions;
 
   factory PlaceDetail.fromDto(PlaceDetailDto dto, {PlaceStatsDto? stats}) {
     final imageUrls = dto.images.map((image) => image.url).toList();
@@ -112,6 +119,48 @@ class PlaceDetail {
       visitCount: stats?.visitCount,
       favoriteCount: stats?.favoriteCount,
       tags: dto.tags,
+      directions: dto.directions != null
+          ? PlaceDirections.fromDto(dto.directions!)
+          : null,
     );
   }
+}
+
+class PlaceDirectionProvider {
+  const PlaceDirectionProvider({
+    required this.provider,
+    required this.label,
+    required this.url,
+  });
+
+  final String provider;
+  final String label;
+  final String url;
+
+  factory PlaceDirectionProvider.fromDto(PlaceDirectionProviderDto dto) {
+    return PlaceDirectionProvider(
+      provider: dto.provider,
+      label: dto.label,
+      url: dto.url,
+    );
+  }
+}
+
+class PlaceDirections {
+  const PlaceDirections({required this.countryCode, required this.providers});
+
+  final String countryCode;
+  final List<PlaceDirectionProvider> providers;
+
+  factory PlaceDirections.fromDto(PlaceDirectionsDto dto) {
+    return PlaceDirections(
+      countryCode: dto.countryCode,
+      providers: dto.providers
+          .map(PlaceDirectionProvider.fromDto)
+          .where((provider) => provider.url.isNotEmpty)
+          .toList(),
+    );
+  }
+
+  bool get hasProviders => providers.isNotEmpty;
 }

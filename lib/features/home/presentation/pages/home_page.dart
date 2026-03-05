@@ -416,14 +416,6 @@ class _ServiceHub extends StatelessWidget {
         child: Row(
           children: [
             _ServiceHubItem(
-              icon: Icons.forum_outlined,
-              label: '커뮤니티',
-              color: GBTColors.primary,
-              onTap: onCommunityTap,
-              showRightDivider: true,
-              isDark: isDark,
-            ),
-            _ServiceHubItem(
               icon: Icons.place_outlined,
               label: '장소',
               color: GBTColors.accentTeal,
@@ -432,8 +424,16 @@ class _ServiceHub extends StatelessWidget {
               isDark: isDark,
             ),
             _ServiceHubItem(
+              icon: Icons.forum_outlined,
+              label: '게시판',
+              color: GBTColors.primary,
+              onTap: onCommunityTap,
+              showRightDivider: true,
+              isDark: isDark,
+            ),
+            _ServiceHubItem(
               icon: Icons.auto_stories_outlined,
-              label: '정보·위키',
+              label: '정보',
               color: GBTColors.accent,
               onTap: onInfoTap,
               showRightDivider: false,

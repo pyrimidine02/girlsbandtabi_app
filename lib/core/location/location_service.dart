@@ -116,7 +116,7 @@ class LocationService {
       longitude: position.longitude,
       accuracy: position.accuracy,
       isMocked: finalIsMocked,
-      timestamp: position.timestamp ?? DateTime.now(),
+      timestamp: position.timestamp,
     );
   }
 }

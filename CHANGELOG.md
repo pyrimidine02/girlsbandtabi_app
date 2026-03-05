@@ -1,6 +1,85 @@
 # Changelog
 
 ## 2026-03-05
+- **ROUTING/NAV-OPTION-B**: Promoted board sections to global bottom tabs (`피드/발견/여행후기/정보`) and removed dependence on board-internal section switching:
+  - Restored primary shell tabs to 기존 5탭 (`홈/장소/라이브/게시판/정보`).
+  - Added board-specific sub bottom navigation when `게시판` 탭 is active: `← + 피드/발견/여행후기`.
+  - Board sub bottom nav now uses the same liquid-glass visual language as the main bottom nav for full visual consistency.
+  - Back arrow in board sub bottom nav returns to the screen URI right before entering board (fallback: `/home`) and restores the original main bottom-tab context.
+  - Board section tabs now switch via route (`/board`, `/board/discover`, `/board/travel-reviews-tab`) while `BoardPage(showInternalSectionNav: false)` keeps top area compact.
+  - Added compatibility redirects for previously introduced paths (`/feed`, `/discover`, `/travel-reviews-tab`, `/posts/...`, `/travel-reviews/...`) into `/board/...` paths.
+- **BOARD/NAV-REDESIGN (TOSS-STYLE)**: Replaced board top tab selector with a dedicated board navigation bar and restructured feed surface:
+  - Removed AppBar bottom segmented selector (`커뮤니티/여행 후기`).
+  - Added board-specific nav bar with back arrow + 3 sections: `피드`, `발견`, `여행후기`.
+  - Switched board page from `TabBarView` to section-based body rendering (`feed`, `discover`, `travelReview`) and kept role-aware FAB actions aligned per section.
+  - Added discover section behavior by forcing community mode to `trending` when entering `발견` and restoring `추천` on `피드` 복귀.
+  - Updated community top area with Toss-style hero summary card and compact search trigger row (`오늘의 피드` / `지금 발견되는 글`).
+  - Updated feed list from divider timeline to panel-card composition for denser, cleaner “securities-feed-like” scanning.
+  - Updated post meta copy to the requested project-context sentence: `프로젝트명에 남긴 글`.
+  - Added section transition motion (`fade-through` style `AnimatedSwitcher`) + section tap haptic feedback to align with motion spec.
+  - Added accessibility semantics on board section tabs (`selected/button/label/hint`) for clearer screen-reader state.
+- **BOARD/TOP-CHROME-COMPACT**: Reduced top visual footprint for board tab selection and switched community search entry to icon trigger:
+  - Shrunk AppBar segmented tabs (`커뮤니티/여행 후기`) from 44px to 36px with tighter paddings/radius.
+  - Removed always-visible community search bar and replaced it with a compact `돋보기` icon action row.
+  - Added search input bottom sheet opened by search icon, with `검색/초기화` actions and existing feed search state wiring.
+  - Added quick `검색 초기화` close icon when search is active.
+  - Fixed search-sheet controller lifecycle by moving `TextEditingController` ownership into a dedicated `StatefulWidget`, preventing `used after dispose` crashes during sheet transition rebuilds.
+  - Added `SafeArea + AnimatedPadding + SingleChildScrollView` to prevent keyboard-driven bottom overflow in the search sheet.
+- **PLACES/JP-DIRECTIONS**: Implemented backend-driven Japan navigation deeplink integration from place summary/detail contract:
+  - Added `directions` DTO/domain mapping (`countryCode`, `providers[].provider/label/url`) for `PlaceSummaryDto` and `PlaceDetailDto`.
+  - Added shared directions launcher utility (`place_directions_launcher.dart`) with provider action sheet and server-URL-first execution (no client URL templating).
+  - Added platform-priority ordering only (`iOS: apple_maps`, `Android: google_maps`) while still using backend-provided URLs unchanged.
+  - Added `길안내` CTA visibility rules:
+    - `PlaceDetailPage`: shows button only when `directions.providers` exists.
+    - `PlacesMapPage` bottom-sheet list cards: shows compact directions icon only when providers exist.
+  - Added parsing regression tests in `test/features/places/data/place_dto_test.dart` for summary/detail `directions`.
+- **COMMUNITY/COMPOSE (PHASE7)**: Extracted compose draft autosave logic into dedicated application controller/view state:
+  - Added `PostComposeAutosaveController` + `PostComposeAutosaveState` + `PostComposeAutosaveConfig` (`post_compose_autosave_controller.dart`) with debounce save, recoverable-draft load, draft clear, and autosave message handling.
+  - Refactored `PostCreatePage` and `PostEditPage` to consume shared autosave provider instead of page-local timer/store state.
+  - Kept page responsibilities focused on form interaction + submit flow, while moving draft persistence orchestration to application layer.
+  - Added controller unit coverage (`post_compose_autosave_controller_test.dart`) for load/save/delete/debounce/recovery state transitions.
+- **COMMUNITY/COMPOSE (PHASE7-TEST)**: Added create/edit widget integration tests for provider-linked autosave UX:
+  - Added `/test/features/feed/presentation/pages/post_compose_autosave_integration_test.dart` covering autosave status rendering, recoverable draft restore action, and edit-page draft delete action.
+  - Fixed compose-page dispose safety by caching autosave notifier references in `initState` (prevents `Cannot use ref after the widget was disposed` on widget teardown).
+- **COMMUNITY/COMPOSE (PHASE6)**: Modularized post compose UI components to reduce page-size duplication:
+  - Added shared compose component module `/lib/features/feed/presentation/widgets/post_compose_components.dart`.
+  - Moved shared UI blocks (status card, project badge, image section/tile, draft recovery banner, login-required empty state) out of both create/edit pages.
+  - Unified markdown image append helper as `appendImageMarkdownContent(...)` and removed duplicated local implementations.
+  - Reduced maintenance risk by making create/edit screens consume the same visual primitives.
+- **COMMUNITY/COMPOSE (PHASE5)**: Added local auto-save draft flow for post create/edit:
+  - Introduced `PostComposeDraftStore` (`SharedPreferences` JSON via `LocalStorage`) with `title/content/imagePaths/savedAt/projectCode` snapshot model.
+  - `PostCreatePage` now auto-saves draft after 1.2s debounce on text/image changes, shows recover/delete banner on re-entry, and clears draft on successful submit.
+  - `PostEditPage` now auto-saves dirty-only draft snapshots, shows recover/delete banner, and clears draft on successful update.
+  - `PostEditPage` dirty-state logic was tightened (`_initialTitle/_initialContent`) so submit/leave guards reflect real changes.
+  - Added autosave status hint near submit CTA for compose confidence.
+- **COMMUNITY/REALTIME (PHASE4)**: Added foreground-safe background sync fallback for dynamic community surfaces:
+  - Added `CommunityFeedController.refreshInBackground()` with throttle (`35s`), duplicate-run guards, and stale-safe error behavior (keep current list on transient failures).
+  - Added periodic visible-route refresh in board community tab (`Timer + WidgetsBindingObserver`) so feed updates continue while reading.
+  - Added `NotificationsController.refreshInBackground()` with throttle (`40s`) and equivalent stale-safe fallback behavior.
+  - Added periodic visible-route refresh in notifications page and immediate sync trigger on app `resumed`.
+  - Kept pull-to-refresh behavior intact as manual override.
+- **COMMUNITY/FEED (PHASE3)**: Expanded search/filter UX in board community feed:
+  - Added search-scope tabs (`전체/제목/작성자/내용/미디어`) shown when a query is active.
+  - Added `CommunitySearchScope` state to board controller and applied scope filtering on top of server search results.
+  - Added search-result context row (`query + scope + count`) and scope-aware empty-state copy.
+  - Hid recommendation/following helper rows while searching to reduce visual noise and keep search intent focused.
+- **COMMUNITY/FEED (PHASE2)**: Enabled in-card community reactions on board timeline cards:
+  - Wired like button to `postLikeControllerProvider` with immediate toggle from feed card (no forced detail-page transition).
+  - Wired bookmark button to `postBookmarkControllerProvider` and replaced third feed action from share to bookmark state toggle.
+  - Added active-state icons (`favorite`/`bookmark` filled), disabled visual state while viewer-state is still loading, and auth guard snackbars for unauthenticated taps.
+  - Expanded action-bar semantics label to include bookmark state for better assistive-read context.
+- **COMMUNITY/FEED (PHASE1)**: Re-structured board feed mode IA to `추천/팔로우/최신/인기`:
+  - Added `recommended` mode to `CommunityFeedMode` and changed default community feed entry mode to `추천`.
+  - Changed mode chip rendering from “active-first sorting” to fixed-order chips for predictable navigation.
+  - Added recommendation hint row (`_RecommendationModeHint`) and exposed 인기 캐러셀 in both `추천` and `최신` modes.
+  - Updated empty-state copy to match new feed taxonomy.
+- **POST-DETAIL/COMMENTS**: Reduced nickname→content vertical gap in comment/reply cards by tightening header-to-body spacing and reducing menu-button constraint size.
+- **REACTIONS/RESILIENCE**: Added unlike fallback retry using UUID projectId when slug-based unlike returns `500`, and preserved previous like-state UI on toggle failure.
+- **ROUTER/STABILITY**: Added rapid-tap dedupe guard for post-detail navigation to prevent duplicate page-key assertions (`!keyReservation.contains(key)`) when the same post route is pushed repeatedly in a short window.
+- **POST-DETAIL/COMMENTS**: Reworked comment/reply header layout so overflow menus are consistently trailing-aligned using a dedicated right action slot, and upgraded menu touch-target constraints to `44x44` for tap reliability.
+- **POST-DETAIL/COMMENTS**: Kept only one visible comment count header in detail page and removed the secondary in-list count label.
+- **POST-DETAIL/COMMENTS**: Removed duplicate in-list comment count header (kept top count only) and shifted comment/reply overflow menu (`...`) closer to right edge for cleaner alignment.
+- **RELEASE/ANDROID**: Bumped app version code to `2026030501` (`pubspec.yaml` `version: 0.0.2+2026030501`) and rebuilt release AAB for internal distribution.
 - **BOARD/MODERATION**: Re-aligned `내 신고 내역` and `커뮤니티 제재 관리` sheets to the same compact list-based visual style for stronger in-app consistency.
 - **BOARD/MODERATION**: Extended community-ban lookup input to support `사용자 ID/닉네임/이메일` query flow:
   - UUID query → direct `GET /moderation/bans/{userId}`
@@ -610,3 +689,34 @@
 - Fixed home trending-live poster rendering robustness:
   - Normalized home summary image/poster URLs via media URL resolver.
   - Expanded home trending-live DTO poster field compatibility (`banner/poster/image` nested path variants) so carousel cards can render actual posters when backend payload keys vary.
+
+## 2026-03-05
+- Applied community board/detail design refresh based on `spec.md` / `design.md`:
+  - Replaced feed-mode chips with a segmented mode selector (`추천/최신/구독/인기`) and stronger selected-state visuals.
+  - Added mode context microcopy panel under feed controls with per-mode guidance text.
+  - Enhanced post cards with high-engagement badges (`인기`, `토론중`) and expanded action row including share-copy action.
+  - Added semantics metadata on feed reaction buttons for selected/toggled state readability.
+- Refined comment readability/action alignment on post detail:
+  - Reworked root/reply author rows so the overflow menu stays right-aligned.
+  - Reduced nickname→content vertical gap and tightened line-height for denser comment cards.
+  - Increased timeline reaction button minimum touch height to 44 for consistency/accessibility.
+- Validation:
+  - `flutter analyze lib/features/feed/presentation/pages/board_page.dart lib/features/feed/presentation/pages/post_detail_page.dart`
+  - `flutter test test/features/feed`
+- Applied feed IA phase update from `deep-research-report (2).md`:
+  - Replaced the feed top chrome with a compact command bar (`피드/발견`, search trigger, result count, quick clear).
+  - Restructured feed controls into 2-layer filters: primary (`추천/팔로잉/프로젝트`) + contextual secondary chips (`전체/최신/급상승`).
+  - Added discover info banner and unified following-subscription pills for tighter, consistent top area density.
+  - Expanded spotlight rail visibility to both feed/discover contexts with route-aware section headers.
+- Validation:
+  - `flutter analyze lib/features/feed/presentation/pages/board_page.dart`
+  - `flutter test test/features/feed --reporter compact`
+
+## 2026-03-06
+- Bumped app version to `0.0.3+2026030601` in `pubspec.yaml`.
+- Ran manual Android release builds:
+  - `flutter build appbundle --release`
+  - `flutter build apk --release --build-name=0.0.3 --build-number=2026030601`
+- Verified release APK metadata with Android build-tools `aapt`:
+  - `versionName=0.0.3`
+  - `versionCode=2026030601`
