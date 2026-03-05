@@ -87,6 +87,7 @@
 - Verify quarantine banner visibility rules (`quarantined` only) and author-only appeal button behavior.
 - Verify sanction precheck blocks post creation for `muted`/`banned` and allows `warning`/`none`.
 - QA the new board feed 2-layer IA (`추천/팔로잉/프로젝트` + secondary chips) for route restore and mode persistence across `/board`, `/board/discover`, and `/board/travel-reviews-tab` (remove once confirmed on iOS/Android).
+- Upload `0.0.3+2026030601` AAB to Play Console internal track and verify tester install/update path (remove once internal QA install confirmed).
 - Verify whether the iOS `FrameTiming` assertion reproduces after non-blocking bootstrap; if it does, test Flutter 3.40.x and decide on version pinning (remove once the regression is confirmed resolved).
 - Verify whether the iOS `semantics.parentDataDirty` assertion reproduces after gating map builds by active tab; if it does, isolate additional offstage platform views (remove once stable).
 - Verify whether the iOS `semantics.parentDataDirty` assertion reproduces after deferring connectivity overlay updates (remove once stable).

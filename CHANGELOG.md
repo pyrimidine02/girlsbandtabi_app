@@ -711,3 +711,12 @@
 - Validation:
   - `flutter analyze lib/features/feed/presentation/pages/board_page.dart`
   - `flutter test test/features/feed --reporter compact`
+
+## 2026-03-06
+- Bumped app version to `0.0.3+2026030601` in `pubspec.yaml`.
+- Ran manual Android release builds:
+  - `flutter build appbundle --release`
+  - `flutter build apk --release --build-name=0.0.3 --build-number=2026030601`
+- Verified release APK metadata with Android build-tools `aapt`:
+  - `versionName=0.0.3`
+  - `versionCode=2026030601`
