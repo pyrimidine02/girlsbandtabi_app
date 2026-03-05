@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import '../../../../core/error/failure.dart';
 import '../../../../core/providers/core_providers.dart';
@@ -32,6 +33,7 @@ import '../../domain/entities/place_entities.dart';
 import '../../domain/entities/place_region_entities.dart';
 import '../../domain/utils/place_marker_style.dart';
 import '../../domain/utils/place_type_search.dart';
+import '../utils/place_directions_launcher.dart';
 
 /// EN: Places map page widget
 /// KO: 장소 지도 페이지 위젯
@@ -114,7 +116,10 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
     final selectedBandIds = ref.watch(selectedPlaceBandIdsProvider);
     final listMode = ref.watch(placeListModeProvider);
     final currentNavIndex = ref.watch(currentNavIndexProvider);
-    final isTabActive = currentNavIndex == NavIndex.places;
+    final currentPath = GoRouterState.of(context).uri.path;
+    final isPlacesRoute =
+        currentPath == '/places' || currentPath.startsWith('/places/');
+    final isTabActive = currentNavIndex == NavIndex.places || isPlacesRoute;
     final projectKey = ref.watch(selectedProjectKeyProvider);
     final projectId = ref.watch(selectedProjectIdProvider);
     final resolvedProjectKey = projectKey?.isNotEmpty == true
@@ -424,6 +429,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                             .read(placesListControllerProvider.notifier)
                             .load(forceRefresh: true),
                         onPlaceTap: _navigateToPlaceDetail,
+                        onDirectionsTap: _showDirectionsForPlace,
                         hasActiveFilters: hasActiveFilters,
                         onResetFilters: _resetFilters,
                       ),
@@ -495,6 +501,16 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
   void _navigateToPlaceDetail(PlaceSummary place) {
     _pendingCenterTarget = _MapTarget(place.latitude, place.longitude);
     context.goToPlaceDetail(place.id);
+  }
+
+  Future<void> _showDirectionsForPlace(PlaceSummary place) async {
+    final directions = place.directions;
+    if (directions == null || !directions.hasProviders) return;
+    await showPlaceDirectionsSheet(
+      context,
+      placeName: place.name,
+      directions: directions,
+    );
   }
 
   Future<void> _centerOnCurrentLocation() async {
@@ -858,6 +874,7 @@ class _PlacesSliverList extends StatelessWidget {
     required this.state,
     required this.onRetry,
     required this.onPlaceTap,
+    required this.onDirectionsTap,
     this.hasActiveFilters = false,
     this.onResetFilters,
   });
@@ -865,6 +882,7 @@ class _PlacesSliverList extends StatelessWidget {
   final AsyncValue<List<PlaceSummary>> state;
   final VoidCallback onRetry;
   final ValueChanged<PlaceSummary> onPlaceTap;
+  final ValueChanged<PlaceSummary> onDirectionsTap;
   final bool hasActiveFilters;
   final VoidCallback? onResetFilters;
 
@@ -974,6 +992,9 @@ class _PlacesSliverList extends StatelessWidget {
                     isVerified: place.isVerified,
                     isFavorite: place.isFavorite,
                     onTap: () => onPlaceTap(place),
+                    onDirectionsTap: place.directions?.hasProviders == true
+                        ? () => onDirectionsTap(place)
+                        : null,
                   ),
                 ),
               );
@@ -1756,6 +1777,7 @@ List<PlaceSummary> _sortPlacesByDistance(
           regionCode: item.place.regionCode,
           regionName: item.place.regionName,
           regionPath: item.place.regionPath,
+          directions: item.place.directions,
         ),
       )
       .toList();

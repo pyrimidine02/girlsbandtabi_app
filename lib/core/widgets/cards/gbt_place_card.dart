@@ -419,6 +419,7 @@ class GBTPlaceCardHorizontal extends StatelessWidget {
     this.isFavorite = false,
     this.onTap,
     this.onFavoriteToggle,
+    this.onDirectionsTap,
   });
 
   final String name;
@@ -431,6 +432,7 @@ class GBTPlaceCardHorizontal extends StatelessWidget {
   final bool isFavorite;
   final VoidCallback? onTap;
   final VoidCallback? onFavoriteToggle;
+  final VoidCallback? onDirectionsTap;
 
   @override
   Widget build(BuildContext context) {
@@ -621,39 +623,68 @@ class GBTPlaceCardHorizontal extends StatelessWidget {
 
                 // EN: Favorite button with 48dp touch target
                 // KO: 48dp 터치 타겟의 즐겨찾기 버튼
-                if (onFavoriteToggle != null)
-                  Tooltip(
-                    message: isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가',
-                    child: SizedBox(
-                      width: GBTSpacing.touchTarget,
-                      height: GBTSpacing.touchTarget,
-                      child: IconButton(
-                        icon: AnimatedSwitcher(
-                          duration: GBTAnimations.fast,
-                          child: Icon(
-                            isFavorite
-                                ? Icons.favorite_rounded
-                                : Icons.favorite_border_rounded,
-                            key: ValueKey(isFavorite),
-                            color: isFavorite
-                                ? GBTColors.favorite
-                                : (isDark
-                                      ? GBTColors.darkTextTertiary
-                                      : GBTColors.textTertiary),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (onDirectionsTap != null)
+                      Tooltip(
+                        message: '길안내',
+                        child: SizedBox(
+                          width: GBTSpacing.touchTarget,
+                          height: GBTSpacing.touchTarget,
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.near_me_rounded,
+                              color: isDark
+                                  ? GBTColors.darkTextTertiary
+                                  : GBTColors.textTertiary,
+                            ),
+                            onPressed: onDirectionsTap,
+                            padding: const EdgeInsets.all(0),
+                            constraints: const BoxConstraints(
+                              minWidth: GBTSpacing.touchTarget,
+                              minHeight: GBTSpacing.touchTarget,
+                            ),
                           ),
                         ),
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          onFavoriteToggle!();
-                        },
-                        padding: const EdgeInsets.all(0),
-                        constraints: const BoxConstraints(
-                          minWidth: GBTSpacing.touchTarget,
-                          minHeight: GBTSpacing.touchTarget,
+                      ),
+                    if (onDirectionsTap != null && onFavoriteToggle != null)
+                      const SizedBox(height: GBTSpacing.xxs),
+                    if (onFavoriteToggle != null)
+                      Tooltip(
+                        message: isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가',
+                        child: SizedBox(
+                          width: GBTSpacing.touchTarget,
+                          height: GBTSpacing.touchTarget,
+                          child: IconButton(
+                            icon: AnimatedSwitcher(
+                              duration: GBTAnimations.fast,
+                              child: Icon(
+                                isFavorite
+                                    ? Icons.favorite_rounded
+                                    : Icons.favorite_border_rounded,
+                                key: ValueKey(isFavorite),
+                                color: isFavorite
+                                    ? GBTColors.favorite
+                                    : (isDark
+                                          ? GBTColors.darkTextTertiary
+                                          : GBTColors.textTertiary),
+                              ),
+                            ),
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              onFavoriteToggle!();
+                            },
+                            padding: const EdgeInsets.all(0),
+                            constraints: const BoxConstraints(
+                              minWidth: GBTSpacing.touchTarget,
+                              minHeight: GBTSpacing.touchTarget,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                  ],
+                ),
               ],
             ),
           ),

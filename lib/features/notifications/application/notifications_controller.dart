@@ -19,6 +19,8 @@ class NotificationsController
   }
 
   final Ref _ref;
+  bool _isBackgroundSyncing = false;
+  DateTime? _lastBackgroundSyncAt;
 
   Future<void> load({bool forceRefresh = false}) async {
     final isAuthenticated = _ref.read(isAuthenticatedProvider);
@@ -37,6 +39,38 @@ class NotificationsController
       state = AsyncData(result.data);
     } else if (result is Err<List<NotificationItem>>) {
       state = AsyncError(result.failure, StackTrace.current);
+    }
+  }
+
+  Future<void> refreshInBackground({
+    Duration minInterval = const Duration(seconds: 40),
+  }) async {
+    final isAuthenticated = _ref.read(isAuthenticatedProvider);
+    if (!isAuthenticated || _isBackgroundSyncing) {
+      return;
+    }
+
+    final now = DateTime.now();
+    if (_lastBackgroundSyncAt != null &&
+        now.difference(_lastBackgroundSyncAt!) < minInterval) {
+      return;
+    }
+
+    _isBackgroundSyncing = true;
+    try {
+      final repository = await _ref.read(
+        notificationsRepositoryProvider.future,
+      );
+      final result = await repository.getNotifications(forceRefresh: true);
+      if (result is Success<List<NotificationItem>>) {
+        state = AsyncData(result.data);
+      } else if (result is Err<List<NotificationItem>> &&
+          state.valueOrNull == null) {
+        state = AsyncError(result.failure, StackTrace.current);
+      }
+    } finally {
+      _lastBackgroundSyncAt = DateTime.now();
+      _isBackgroundSyncing = false;
     }
   }
 

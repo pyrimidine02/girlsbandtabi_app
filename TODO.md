@@ -1,7 +1,35 @@
 # TODO
 
 - Run full-device visual QA for service-fit redesign phase1 (`home`, `places`, `live`, `board`, `search`) focusing on bottom-nav reachability, segmented-tab readability, and search-field focus states (remove once validated).
+- Run board Toss-style nav redesign QA:
+  - 게시판 탭 진입 시 하단바가 `← + 피드/발견/여행후기`로 전환되고, 화살표 탭 시 기존 메인 5탭(`홈/장소/라이브/게시판/정보`)으로 복귀하는지 확인.
+  - 레거시/호환 경로 리다이렉트(` /feed`, `/discover`, `/travel-reviews-tab`, `/posts/...`, `/travel-reviews/...`)가 `/board/...`로 정상 동작하는지 확인.
+  - board 전용 내비게이션 바 (`뒤로가기 + 피드/발견/여행후기`) 탭 전환 정확도와 back fallback (`canPop` 없을 때 홈 이동) 확인.
+  - 섹션 전환 `fade-through` 모션과 탭 햅틱 피드백 체감 품질(iOS/Android) 확인.
+  - `피드` ↔ `발견` 전환 시 모드 동기화(발견=trending 강제, 피드 복귀 시 추천 모드 복귀) 확인.
+  - 패널형 피드 카드 스크롤 밀도, 탭 전환 후 FAB 액션 가시성/권한 노출 규칙 확인.
+  - 카드 메타 문구 `프로젝트명에 남긴 글` 프로젝트명 매핑 정확성(`id/code` 혼합 응답 포함) 확인.
+- Run board search-sheet QA:
+  - community feed/discover 탭에서 search icon -> bottom-sheet input -> result/apply/clear flow 확인.
+  - search sheet 키보드 인셋/회전/다크모드에서 overflow 없이 표시되는지 확인.
+- Run QA for JP place directions deeplink rollout:
+  - `directions` CTA visibility rule (`JP only show`, `KR/others hidden`) on place detail and places list cards.
+  - provider action-sheet ordering (`iOS: Apple first`, `Android: Google first`) and external-app open + browser fallback behavior.
+- Run QA for 2026-03-05 board redesign: feed mode segmented control readability (`추천/최신/구독/인기`), mode-context hint tone, and action-row tap accuracy on iOS/Android (remove once validated).
+- Run QA for 2026-03-05 post-detail comment density update: nickname→content spacing, overflow-menu right alignment, and reply row consistency on small-width devices (remove once validated).
 - Run role-based UX QA for new bottom action entry points (`board` expandable FAB, `live` calendar FAB): verify non-auth/non-admin users do not see restricted actions.
+- Replace temporary `recommended -> latest cursor` mapping with a dedicated recommendation feed contract once backend endpoint/reason-context fields are finalized.
+- Optimize community feed reaction loading by introducing a batch viewer-state endpoint (`/posts/reactions:batch`) to replace current per-card reaction-status calls.
+- Add server-side typed search support (`title/author/content/media`) or separate search endpoints so current client-side post-filtering can be replaced with backend-ranked results.
+- Run compose/edit draft QA after local auto-save rollout:
+  - create/edit page debounce save, restore/delete banner behavior, successful-submit cleanup, and image-path restore fallback when local files are missing.
+- Expand compose autosave widget coverage with edge cases:
+  - restored draft containing missing local image paths (graceful skip behavior)
+  - successful submit path clears footer autosave text + persisted draft together.
+- Replace community/notifications foreground polling fallback with server event contract once available:
+  - device registration endpoints (`/notifications/devices`)
+  - realtime event stream (WebSocket/SSE) or incremental change-feed endpoint.
+- Follow up server draft API proposal (`/posts/drafts`) and remove local-only limitation once backend contract is available.
 - Run Account Tools UX QA after selector unification: tab switching state retention, selection bottom-sheet open/close behavior, and selected value persistence (`프로젝트/권한/대상 유형/사유`).
 - Continue architecture roadmap Phase 3 by migrating direct imports from `feed_controller.dart` to dedicated modules (`board_controller.dart`, `news_controller.dart`, `post_controller.dart`, `reaction_controller.dart`) and remove transitional barrel when migration is complete.
 - Expand controller tests from guard-level coverage to success/error/mutation scenarios for roadmap priority modules (`verification`, `settings`, `places`, `visits`).
@@ -58,6 +86,7 @@
 - Verify report cooldown UX for both post/comment reporting (first submit success, second submit blocked within 5 minutes).
 - Verify quarantine banner visibility rules (`quarantined` only) and author-only appeal button behavior.
 - Verify sanction precheck blocks post creation for `muted`/`banned` and allows `warning`/`none`.
+- QA the new board feed 2-layer IA (`추천/팔로잉/프로젝트` + secondary chips) for route restore and mode persistence across `/board`, `/board/discover`, and `/board/travel-reviews-tab` (remove once confirmed on iOS/Android).
 - Verify whether the iOS `FrameTiming` assertion reproduces after non-blocking bootstrap; if it does, test Flutter 3.40.x and decide on version pinning (remove once the regression is confirmed resolved).
 - Verify whether the iOS `semantics.parentDataDirty` assertion reproduces after gating map builds by active tab; if it does, isolate additional offstage platform views (remove once stable).
 - Verify whether the iOS `semantics.parentDataDirty` assertion reproduces after deferring connectivity overlay updates (remove once stable).

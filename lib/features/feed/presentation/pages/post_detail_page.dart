@@ -53,6 +53,18 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   final FocusNode _commentFocusNode = FocusNode();
   final ScrollController _contentScrollController = ScrollController();
   bool _isSubmitting = false;
+  // EN: Currently targeted comment when composing a reply.
+  // KO: 답글 작성 중인 대상 댓글.
+  PostComment? _replyTarget;
+
+  void _setReplyTarget(PostComment comment) {
+    setState(() => _replyTarget = comment);
+    _commentFocusNode.requestFocus();
+  }
+
+  void _clearReplyTarget() {
+    setState(() => _replyTarget = null);
+  }
 
   @override
   void dispose() {
@@ -229,16 +241,26 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
             final content = _commentController.text.trim();
             if (content.isEmpty || _isSubmitting) return;
             setState(() => _isSubmitting = true);
+            // EN: Use the reply target's own ID so reply-of-reply depth is preserved.
+            // KO: 답글 대상의 ID를 직접 사용하여 대댓글 깊이를 유지합니다.
+            final parentId = _replyTarget?.id;
+            _clearReplyTarget();
             final result = await ref
                 .read(postCommentsControllerProvider(post.id).notifier)
-                .addComment(content);
+                .addComment(content, parentCommentId: parentId);
             if (result is Err<PostComment> && context.mounted) {
-              _showSnackBar(context, '댓글을 등록하지 못했어요');
+              _showSnackBar(
+                context,
+                parentId != null ? '답글을 등록하지 못했어요' : '댓글을 등록하지 못했어요',
+              );
             }
             if (result is Success<PostComment>) {
               _commentController.clear();
               if (context.mounted) {
-                _showSnackBar(context, '댓글이 등록되었어요');
+                _showSnackBar(
+                  context,
+                  parentId != null ? '답글이 등록되었어요' : '댓글이 등록되었어요',
+                );
               }
             }
             if (mounted) {
@@ -270,6 +292,9 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
               _showAppealFlow(context, CommunityReportTargetType.post, post.id),
           onTapAuthor: (authorId) => context.goToUserProfile(authorId),
           onFocusComment: _focusCommentComposer,
+          replyTarget: _replyTarget,
+          onReplyToComment: _setReplyTarget,
+          onCancelReply: _clearReplyTarget,
           authorBlockStatus: blockStatus,
           authorFollowState: authorFollowState,
           onToggleFollowAuthor:
@@ -779,6 +804,9 @@ class _PostDetailContent extends StatelessWidget {
     required this.authorBlockStatus,
     required this.authorFollowState,
     required this.onToggleFollowAuthor,
+    required this.replyTarget,
+    required this.onReplyToComment,
+    required this.onCancelReply,
   });
 
   final PostDetail post;
@@ -805,6 +833,9 @@ class _PostDetailContent extends StatelessWidget {
   final BlockStatus? authorBlockStatus;
   final AsyncValue<UserFollowStatus>? authorFollowState;
   final Future<void> Function()? onToggleFollowAuthor;
+  final PostComment? replyTarget;
+  final ValueChanged<PostComment> onReplyToComment;
+  final VoidCallback onCancelReply;
 
   @override
   Widget build(BuildContext context) {
@@ -869,274 +900,319 @@ class _PostDetailContent extends StatelessWidget {
         Expanded(
           child: ListView(
             controller: scrollController,
-            padding: GBTSpacing.paddingPage,
+            padding: const EdgeInsets.only(
+              top: GBTSpacing.pageTop,
+              bottom: GBTSpacing.pageBottom,
+            ),
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _Avatar(
-                    url: authorAvatarUrl,
-                    radius: 22,
-                    semanticLabel: '$authorLabel 프로필 사진',
-                    onTap: () => onTapAuthor(post.authorId),
-                  ),
-                  const SizedBox(width: GBTSpacing.sm),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  authorLabel,
-                                  style: GBTTypography.labelLarge.copyWith(
-                                    fontWeight: FontWeight.w700,
+              // EN: Post content with horizontal page padding.
+              // KO: 게시글 본문 영역 — 수평 페이지 패딩 적용.
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: GBTSpacing.pageHorizontal,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _Avatar(
+                          url: authorAvatarUrl,
+                          radius: 22,
+                          semanticLabel: '$authorLabel 프로필 사진',
+                          onTap: () => onTapAuthor(post.authorId),
+                        ),
+                        const SizedBox(width: GBTSpacing.sm),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        authorLabel,
+                                        style: GBTTypography.labelLarge
+                                            .copyWith(
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: GBTSpacing.xs),
+                                    Text(
+                                      '· ${post.timeAgoLabel}',
+                                      style: GBTTypography.labelSmall.copyWith(
+                                        color: tertiaryColor,
+                                      ),
+                                    ),
+                                    if (post.updatedAt != null &&
+                                        post.updatedAt!.isAfter(
+                                          post.createdAt,
+                                        )) ...[
+                                      const SizedBox(width: GBTSpacing.xs),
+                                      Text(
+                                        '수정됨',
+                                        style: GBTTypography.labelSmall
+                                            .copyWith(color: tertiaryColor),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                if (!isOwnPost && isAuthenticated)
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      top: GBTSpacing.xs,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        SizedBox(
+                                          height: 30,
+                                          child: FilledButton.tonal(
+                                            onPressed:
+                                                (isFollowLoading ||
+                                                    isAuthorBlocked)
+                                                ? null
+                                                : onToggleFollowAuthor,
+                                            style: FilledButton.styleFrom(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: GBTSpacing.sm,
+                                                  ),
+                                            ),
+                                            child: Text(
+                                              isAuthorBlocked
+                                                  ? '차단됨'
+                                                  : (followStatus?.following ??
+                                                        false)
+                                                  ? '팔로우 취소'
+                                                  : '팔로우',
+                                              style: GBTTypography.labelSmall,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: GBTSpacing.xs),
+                                        TextButton(
+                                          onPressed: () =>
+                                              onTapAuthor(post.authorId),
+                                          style: TextButton.styleFrom(
+                                            minimumSize: const Size(0, 30),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: GBTSpacing.xs,
+                                            ),
+                                          ),
+                                          child: const Text('프로필 보기'),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: GBTSpacing.xs),
-                              Text(
-                                '· ${post.timeAgoLabel}',
-                                style: GBTTypography.labelSmall.copyWith(
-                                  color: tertiaryColor,
-                                ),
-                              ),
-                              if (post.updatedAt != null &&
-                                  post.updatedAt!.isAfter(post.createdAt)) ...[
-                                const SizedBox(width: GBTSpacing.xs),
+                                const SizedBox(height: 2),
                                 Text(
-                                  '수정됨',
-                                  style: GBTTypography.labelSmall.copyWith(
-                                    color: tertiaryColor,
+                                  post.title,
+                                  style: GBTTypography.titleMedium.copyWith(
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ],
-                            ],
-                          ),
-                          if (!isOwnPost && isAuthenticated)
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                top: GBTSpacing.xs,
-                              ),
-                              child: Row(
-                                children: [
-                                  SizedBox(
-                                    height: 30,
-                                    child: FilledButton.tonal(
-                                      onPressed:
-                                          (isFollowLoading || isAuthorBlocked)
-                                          ? null
-                                          : onToggleFollowAuthor,
-                                      style: FilledButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: GBTSpacing.sm,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        isAuthorBlocked
-                                            ? '차단됨'
-                                            : (followStatus?.following ?? false)
-                                            ? '팔로우 취소'
-                                            : '팔로우',
-                                        style: GBTTypography.labelSmall,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: GBTSpacing.xs),
-                                  TextButton(
-                                    onPressed: () => onTapAuthor(post.authorId),
-                                    style: TextButton.styleFrom(
-                                      minimumSize: const Size(0, 30),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: GBTSpacing.xs,
-                                      ),
-                                    ),
-                                    child: const Text('프로필 보기'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          const SizedBox(height: 2),
-                          Text(
-                            post.title,
-                            style: GBTTypography.titleMedium.copyWith(
-                              fontWeight: FontWeight.w700,
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: GBTSpacing.sm + 2),
-              if (post.moderationStatus == ContentModerationStatus.quarantined)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(GBTSpacing.md),
-                  decoration: BoxDecoration(
-                    color: GBTColors.warningLight,
-                    borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.info_outline,
-                        color: GBTColors.warningDark,
-                        size: GBTSpacing.iconSm,
-                      ),
-                      const SizedBox(width: GBTSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          '이 콘텐츠는 현재 검토 중입니다.',
-                          style: GBTTypography.bodySmall.copyWith(
-                            color: GBTColors.warningDark,
+                    const SizedBox(height: GBTSpacing.sm + 2),
+                    if (post.moderationStatus ==
+                        ContentModerationStatus.quarantined)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(GBTSpacing.md),
+                        decoration: BoxDecoration(
+                          color: GBTColors.warningLight,
+                          borderRadius: BorderRadius.circular(
+                            GBTSpacing.radiusMd,
                           ),
                         ),
-                      ),
-                      if (isOwnPost)
-                        TextButton(
-                          onPressed: onAppealPost,
-                          child: const Text('이의제기'),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.info_outline,
+                              color: GBTColors.warningDark,
+                              size: GBTSpacing.iconSm,
+                            ),
+                            const SizedBox(width: GBTSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                '이 콘텐츠는 현재 검토 중입니다.',
+                                style: GBTTypography.bodySmall.copyWith(
+                                  color: GBTColors.warningDark,
+                                ),
+                              ),
+                            ),
+                            if (isOwnPost)
+                              TextButton(
+                                onPressed: onAppealPost,
+                                child: const Text('이의제기'),
+                              ),
+                          ],
                         ),
-                    ],
-                  ),
-                ),
-              if (post.moderationStatus == ContentModerationStatus.quarantined)
-                const SizedBox(height: GBTSpacing.md),
-              if (contentText.isNotEmpty)
-                SelectableText(
-                  contentText,
-                  style: GBTTypography.bodyMedium.copyWith(
-                    height: 1.6,
-                    color: secondaryColor,
-                  ),
-                ),
-              if (mergedImageUrls.isNotEmpty) ...[
-                const SizedBox(height: GBTSpacing.md),
-                // EN: Horizontal swipeable image carousel (Twitter-style).
-                // KO: 가로로 넘기는 이미지 캐러셀 (트위터 스타일).
-                _ImageCarousel(
-                  imageUrls: mergedImageUrls,
-                  onTapImage: (index) =>
-                      _showFullScreenImage(context, mergedImageUrls, index),
-                ),
-              ],
-              const SizedBox(height: GBTSpacing.md),
-              // EN: Stats bar — social proof context (like count) before actions
-              // KO: 액션 버튼 전에 소셜 증거(좋아요 수)를 보여주는 통계 바
-              if (likeCount > 0)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.favorite_rounded,
-                        size: 13,
-                        color: GBTColors.favorite.withValues(alpha: 0.85),
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '좋아요 $likeCount명이 공감했어요',
-                        style: GBTTypography.labelSmall.copyWith(
+                    if (post.moderationStatus ==
+                        ContentModerationStatus.quarantined)
+                      const SizedBox(height: GBTSpacing.md),
+                    if (contentText.isNotEmpty)
+                      SelectableText(
+                        contentText,
+                        style: GBTTypography.bodyMedium.copyWith(
+                          height: 1.6,
                           color: secondaryColor,
-                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    if (mergedImageUrls.isNotEmpty) ...[
+                      const SizedBox(height: GBTSpacing.md),
+                      // EN: Horizontal swipeable image carousel (Twitter-style).
+                      // KO: 가로로 넘기는 이미지 캐러셀 (트위터 스타일).
+                      _ImageCarousel(
+                        imageUrls: mergedImageUrls,
+                        onTapImage: (index) => _showFullScreenImage(
+                          context,
+                          mergedImageUrls,
+                          index,
                         ),
                       ),
                     ],
-                  ),
-                ),
-              // EN: Card-style action bar with vertical dividers between buttons
-              // KO: 버튼 사이 세로 구분선이 있는 카드 스타일 액션 바
-              Container(
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? GBTColors.darkSurfaceVariant.withValues(alpha: 0.4)
-                      : GBTColors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-                ),
-                child: Semantics(
-                  label:
-                      '좋아요 $likeCount개, '
-                      '${isLiked ? "좋아요 누른 상태" : "좋아요 안 누른 상태"}, '
-                      '댓글 $commentCountLabel개',
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _TimelineActionButton(
-                          icon: GBTActionIcons.comment,
-                          label: commentCountLabel,
-                          color: commentActionColor,
-                          onTap: onFocusComment,
+                    const SizedBox(height: GBTSpacing.md),
+                    // EN: Stats bar — social proof context (like count) before actions
+                    // KO: 액션 버튼 전에 소셜 증거(좋아요 수)를 보여주는 통계 바
+                    if (likeCount > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.favorite_rounded,
+                              size: 13,
+                              color: GBTColors.favorite.withValues(alpha: 0.85),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '좋아요 $likeCount명이 공감했어요',
+                              style: GBTTypography.labelSmall.copyWith(
+                                color: secondaryColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Container(
-                        width: 1,
-                        height: 20,
-                        color: isDark ? GBTColors.darkBorder : GBTColors.border,
-                      ),
-                      Expanded(
-                        child: _TimelineActionButton(
-                          icon: isLiked
-                              ? GBTActionIcons.likeActive
-                              : GBTActionIcons.like,
-                          label: _compactCountLabel(likeCount),
-                          color: isLiked ? GBTColors.favorite : tertiaryColor,
-                          onTap: onToggleLike,
+                    // EN: Card-style action bar with vertical dividers between buttons
+                    // KO: 버튼 사이 세로 구분선이 있는 카드 스타일 액션 바
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? GBTColors.darkSurfaceVariant.withValues(
+                                alpha: 0.4,
+                              )
+                            : GBTColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(
+                          GBTSpacing.radiusMd,
                         ),
                       ),
-                      Container(
-                        width: 1,
-                        height: 20,
-                        color: isDark ? GBTColors.darkBorder : GBTColors.border,
-                      ),
-                      Expanded(
-                        child: _TimelineActionButton(
-                          icon: isBookmarked
-                              ? GBTActionIcons.bookmarkActive
-                              : GBTActionIcons.bookmark,
-                          label: '',
-                          color: isBookmarked
-                              ? (isDark
-                                    ? GBTColors.darkPrimary
-                                    : GBTColors.primary)
-                              : tertiaryColor,
-                          onTap: onToggleBookmark,
+                      child: Semantics(
+                        label:
+                            '좋아요 $likeCount개, '
+                            '${isLiked ? "좋아요 누른 상태" : "좋아요 안 누른 상태"}, '
+                            '댓글 $commentCountLabel개',
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _TimelineActionButton(
+                                icon: GBTActionIcons.comment,
+                                label: commentCountLabel,
+                                color: commentActionColor,
+                                onTap: onFocusComment,
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 20,
+                              color: isDark
+                                  ? GBTColors.darkBorder
+                                  : GBTColors.border,
+                            ),
+                            Expanded(
+                              child: _TimelineActionButton(
+                                icon: isLiked
+                                    ? GBTActionIcons.likeActive
+                                    : GBTActionIcons.like,
+                                label: _compactCountLabel(likeCount),
+                                color: isLiked
+                                    ? GBTColors.favorite
+                                    : tertiaryColor,
+                                onTap: onToggleLike,
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 20,
+                              color: isDark
+                                  ? GBTColors.darkBorder
+                                  : GBTColors.border,
+                            ),
+                            Expanded(
+                              child: _TimelineActionButton(
+                                icon: isBookmarked
+                                    ? GBTActionIcons.bookmarkActive
+                                    : GBTActionIcons.bookmark,
+                                label: '',
+                                color: isBookmarked
+                                    ? (isDark
+                                          ? GBTColors.darkPrimary
+                                          : GBTColors.primary)
+                                    : tertiaryColor,
+                                onTap: onToggleBookmark,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: GBTSpacing.md),
-              const Divider(),
-              const SizedBox(height: GBTSpacing.md),
-              // EN: Comment section header with icon for visual clarity.
-              // KO: 시각적 명확성을 위한 아이콘이 있는 댓글 섹션 헤더.
-              Row(
-                children: [
-                  Icon(
-                    Icons.chat_bubble_outline_rounded,
-                    size: 18,
-                    color: isDark
-                        ? GBTColors.darkTextSecondary
-                        : GBTColors.textSecondary,
-                  ),
-                  const SizedBox(width: GBTSpacing.xs),
-                  Text(
-                    '댓글 $commentCountLabel개',
-                    style: GBTTypography.titleSmall.copyWith(
-                      fontWeight: FontWeight.w600,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: GBTSpacing.md),
+                    const Divider(),
+                    const SizedBox(height: GBTSpacing.md),
+                  ], // Column children
+                ), // Column
+              ), // Padding (post content)
+              // EN: Comment section header — aligned to page horizontal margin.
+              // KO: 댓글 헤더 — 페이지 수평 마진에 맞춤.
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: GBTSpacing.pageHorizontal,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      size: 18,
+                      color: isDark
+                          ? GBTColors.darkTextSecondary
+                          : GBTColors.textSecondary,
+                    ),
+                    const SizedBox(width: GBTSpacing.xs),
+                    Text(
+                      '댓글 $commentCountLabel개',
+                      style: GBTTypography.titleSmall.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: GBTSpacing.md),
+              const SizedBox(height: GBTSpacing.sm),
+              // EN: Comment list — full width, no horizontal padding.
+              // KO: 댓글 목록 — 좌우 패딩 없이 전체 너비.
               _PostCommentsSection(
                 state: commentsState,
                 postAuthorId: post.authorId,
@@ -1148,97 +1224,30 @@ class _PostDetailContent extends StatelessWidget {
                 onDeleteComment: onDeleteComment,
                 onReportComment: onReportComment,
                 onOpenCommentThread: onOpenCommentThread,
+                onReplyToComment: onReplyToComment,
               ),
             ],
           ),
         ),
+        // EN: Comment composer bar with optional reply context banner.
+        // KO: 답글 컨텍스트 배너가 포함된 댓글 작성 바.
         if (isAuthenticated)
-          Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              border: Border(top: BorderSide(color: borderColor)),
-            ),
-            child: SafeArea(
-              top: false,
-              left: false,
-              right: false,
-              minimum: const EdgeInsets.only(bottom: GBTSpacing.xs),
-              child: ValueListenableBuilder<TextEditingValue>(
-                valueListenable: commentController,
-                builder: (context, value, _) {
-                  final canSubmit =
-                      value.text.trim().isNotEmpty && !isSubmitting;
-
-                  return ColoredBox(
-                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // EN: User avatar in composer for social context.
-                        // KO: 소셜 맥락을 위한 입력창 내 사용자 아바타.
-                        Padding(
-                          padding: const EdgeInsets.only(left: GBTSpacing.sm),
-                          child: CircleAvatar(
-                            radius: 14,
-                            backgroundColor: isDark
-                                ? GBTColors.darkSurfaceVariant
-                                : GBTColors.surfaceVariant,
-                            child: Icon(
-                              Icons.person_outline_rounded,
-                              size: 16,
-                              color: isDark
-                                  ? GBTColors.darkTextTertiary
-                                  : GBTColors.textTertiary,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: TextField(
-                            controller: commentController,
-                            focusNode: commentFocusNode,
-                            minLines: 1,
-                            maxLines: 3,
-                            textInputAction: TextInputAction.newline,
-                            decoration: const InputDecoration(
-                              hintText: '댓글 작성...',
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: GBTSpacing.md,
-                                vertical: GBTSpacing.sm + 2,
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          width: 56,
-                          height: 52,
-                          child: IconButton(
-                            onPressed: canSubmit ? onSubmitComment : null,
-                            padding: EdgeInsets.zero,
-                            icon: isSubmitting
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.send_rounded, size: 20),
-                            tooltip: '댓글 등록',
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
+          _CommentComposerBar(
+            commentController: commentController,
+            commentFocusNode: commentFocusNode,
+            isSubmitting: isSubmitting,
+            replyTarget: replyTarget,
+            onCancelReply: onCancelReply,
+            onSubmit: onSubmitComment,
+            isDark: isDark,
+            borderColor: borderColor,
           )
         else
           Container(
-            padding: const EdgeInsets.all(GBTSpacing.md),
+            padding: const EdgeInsets.symmetric(
+              horizontal: GBTSpacing.md,
+              vertical: GBTSpacing.sm2,
+            ),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               border: Border(top: BorderSide(color: borderColor)),
@@ -1275,6 +1284,7 @@ class _PostCommentsSection extends StatefulWidget {
     required this.onDeleteComment,
     required this.onReportComment,
     required this.onOpenCommentThread,
+    required this.onReplyToComment,
   });
 
   final AsyncValue<List<PostComment>> state;
@@ -1287,6 +1297,7 @@ class _PostCommentsSection extends StatefulWidget {
   final ValueChanged<PostComment> onDeleteComment;
   final ValueChanged<PostComment> onReportComment;
   final ValueChanged<PostComment> onOpenCommentThread;
+  final ValueChanged<PostComment> onReplyToComment;
 
   @override
   State<_PostCommentsSection> createState() => _PostCommentsSectionState();
@@ -1295,15 +1306,51 @@ class _PostCommentsSection extends StatefulWidget {
 class _PostCommentsSectionState extends State<_PostCommentsSection> {
   _CommentSort _sort = _CommentSort.latest;
 
-  List<PostComment> _sortedComments(List<PostComment> comments) {
-    final items = List<PostComment>.from(comments);
-    items.sort((a, b) {
+  List<PostComment> _sortedRoots(List<PostComment> comments) {
+    // EN: Show only root (non-reply) comments in the main list.
+    // KO: 메인 목록에는 최상위 댓글(대댓글 아닌)만 표시합니다.
+    final roots = comments.where((c) => c.parentCommentId == null).toList();
+    roots.sort((a, b) {
       if (_sort == _CommentSort.latest) {
         return b.createdAt.compareTo(a.createdAt);
       }
       return a.createdAt.compareTo(b.createdAt);
     });
-    return items;
+    return roots;
+  }
+
+  Map<String, List<PostComment>> _buildRepliesMap(List<PostComment> comments) {
+    // EN: Build id→comment lookup for ancestor traversal.
+    // KO: 조상 탐색을 위한 id→댓글 조회 맵 구성.
+    final lookup = <String, PostComment>{for (final c in comments) c.id: c};
+
+    // EN: Walk up to find the root ancestor (depth=0) of a comment.
+    // KO: 댓글의 최상위 조상(depth=0)을 찾아 올라갑니다.
+    String findRootId(PostComment c) {
+      var cur = c;
+      while (cur.parentCommentId != null) {
+        final parent = lookup[cur.parentCommentId];
+        if (parent == null) break;
+        cur = parent;
+      }
+      return cur.id;
+    }
+
+    // EN: Group all non-root comments under their root ancestor (flat display).
+    // KO: 모든 대댓글을 최상위 댓글 아래에 그룹화합니다 (플랫 표시).
+    final map = <String, List<PostComment>>{};
+    for (final c in comments) {
+      if (c.parentCommentId != null) {
+        final rid = findRootId(c);
+        map.putIfAbsent(rid, () => []).add(c);
+      }
+    }
+    // EN: Sort each reply list by oldest-first for natural conversation flow.
+    // KO: 자연스러운 대화 흐름을 위해 각 답글 목록을 오래된 순으로 정렬합니다.
+    for (final key in map.keys) {
+      map[key]!.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    }
+    return map;
   }
 
   @override
@@ -1322,7 +1369,8 @@ class _PostCommentsSectionState extends State<_PostCommentsSection> {
         return GBTErrorState(message: message);
       },
       data: (comments) {
-        if (comments.isEmpty) {
+        final roots = _sortedRoots(comments);
+        if (roots.isEmpty && comments.isEmpty) {
           // EN: Motivational empty state CTA to encourage first comment.
           // KO: 첫 댓글을 유도하는 동기부여 빈 상태 CTA.
           return Padding(
@@ -1372,66 +1420,70 @@ class _PostCommentsSectionState extends State<_PostCommentsSection> {
             ),
           );
         }
-        final sortedComments = _sortedComments(comments);
 
+        final repliesMap = _buildRepliesMap(comments);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Text(
-                  '${comments.length}개 댓글',
-                  style: GBTTypography.labelLarge.copyWith(
-                    fontWeight: FontWeight.w700,
+            // EN: Header row — sort pill buttons, right-aligned.
+            // KO: 헤더 행 — 정렬 필 버튼, 오른쪽 정렬.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                GBTSpacing.pageHorizontal,
+                0,
+                GBTSpacing.pageHorizontal,
+                GBTSpacing.sm,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _CommentSortTextButton(
+                    label: '최신순',
+                    selected: _sort == _CommentSort.latest,
+                    selectedColor: selectedColor,
+                    textColor: tertiaryColor,
+                    onTap: () => setState(() => _sort = _CommentSort.latest),
                   ),
-                ),
-                const Spacer(),
-                _CommentSortTextButton(
-                  label: '최신순',
-                  selected: _sort == _CommentSort.latest,
-                  selectedColor: selectedColor,
-                  textColor: tertiaryColor,
-                  onTap: () => setState(() => _sort = _CommentSort.latest),
-                ),
-                const SizedBox(width: GBTSpacing.xs),
-                _CommentSortTextButton(
-                  label: '등록순',
-                  selected: _sort == _CommentSort.oldest,
-                  selectedColor: selectedColor,
-                  textColor: tertiaryColor,
-                  onTap: () => setState(() => _sort = _CommentSort.oldest),
-                ),
-              ],
+                  const SizedBox(width: GBTSpacing.xs),
+                  _CommentSortTextButton(
+                    label: '등록순',
+                    selected: _sort == _CommentSort.oldest,
+                    selectedColor: selectedColor,
+                    textColor: tertiaryColor,
+                    onTap: () => setState(() => _sort = _CommentSort.oldest),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: GBTSpacing.sm),
-            Container(
-              width: double.infinity,
+            // EN: Comment list separated by dividers.
+            // KO: 구분선으로 구분된 댓글 목록.
+            DecoratedBox(
               decoration: BoxDecoration(
-                border: Border.symmetric(
-                  horizontal: BorderSide(color: borderColor),
-                ),
+                border: Border(top: BorderSide(color: borderColor)),
               ),
               child: Column(
                 children: [
-                  for (var index = 0; index < sortedComments.length; index++)
+                  for (var i = 0; i < roots.length; i++) ...[
                     _CommentItem(
-                      comment: sortedComments[index],
+                      comment: roots[i],
+                      replies: repliesMap[roots[i].id] ?? [],
                       postAuthorId: widget.postAuthorId,
-                      showDivider: index < sortedComments.length - 1,
                       onTapAuthor: widget.onTapAuthor,
-                      canEdit:
-                          widget.currentUserId ==
-                          sortedComments[index].authorId,
+                      canEdit: widget.currentUserId == roots[i].authorId,
                       canDelete:
-                          widget.currentUserId ==
-                              sortedComments[index].authorId ||
+                          widget.currentUserId == roots[i].authorId ||
                           (widget.isAdmin && widget.currentUserId != null),
                       canReport: widget.isAuthenticated,
+                      currentUserId: widget.currentUserId,
+                      isAdmin: widget.isAdmin,
                       onEdit: widget.onEditComment,
                       onDelete: widget.onDeleteComment,
                       onReport: widget.onReportComment,
-                      onOpenThread: widget.onOpenCommentThread,
+                      onReply: widget.onReplyToComment,
                     ),
+                    if (i < roots.length - 1)
+                      Divider(height: 1, thickness: 1, color: borderColor),
+                  ],
                 ],
               ),
             ),
@@ -1442,43 +1494,50 @@ class _PostCommentsSectionState extends State<_PostCommentsSection> {
   }
 }
 
-/// EN: Comment item widget.
-/// KO: 댓글 아이템 위젯.
-class _CommentItem extends StatelessWidget {
+// ================================================
+// EN: Comment item with inline expandable replies.
+// KO: 인라인 확장 대댓글을 지원하는 댓글 아이템.
+// ================================================
+class _CommentItem extends StatefulWidget {
   const _CommentItem({
     required this.comment,
+    required this.replies,
     required this.postAuthorId,
-    required this.showDivider,
     required this.onTapAuthor,
     required this.canEdit,
     required this.canDelete,
     required this.canReport,
+    required this.currentUserId,
+    required this.isAdmin,
     required this.onEdit,
     required this.onDelete,
     required this.onReport,
-    required this.onOpenThread,
+    required this.onReply,
   });
 
   final PostComment comment;
+  final List<PostComment> replies;
   final String postAuthorId;
-  final bool showDivider;
   final ValueChanged<String> onTapAuthor;
   final bool canEdit;
   final bool canDelete;
   final bool canReport;
+  final String? currentUserId;
+  final bool isAdmin;
   final ValueChanged<PostComment> onEdit;
   final ValueChanged<PostComment> onDelete;
   final ValueChanged<PostComment> onReport;
-  final ValueChanged<PostComment> onOpenThread;
+  final ValueChanged<PostComment> onReply;
+
+  @override
+  State<_CommentItem> createState() => _CommentItemState();
+}
+
+class _CommentItemState extends State<_CommentItem> {
+  bool _repliesExpanded = false;
 
   @override
   Widget build(BuildContext context) {
-    final authorLabel = comment.authorName?.isNotEmpty == true
-        ? comment.authorName!
-        : '익명';
-    final avatarUrl = comment.authorAvatarUrl?.isNotEmpty == true
-        ? comment.authorAvatarUrl
-        : null;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
     final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
@@ -1491,254 +1550,543 @@ class _CommentItem extends StatelessWidget {
     final secondaryColor = isDark
         ? GBTColors.darkTextSecondary
         : GBTColors.textSecondary;
-    final nestedSurfaceColor = isDark
-        ? GBTColors.darkSurfaceVariant.withValues(alpha: 0.18)
-        : GBTColors.surfaceVariant.withValues(alpha: 0.48);
-    final replyActionColor = isDark
-        ? GBTColors.darkPrimary
-        : GBTColors.accentBlue;
+    final replyBgColor = isDark
+        ? GBTColors.darkSurfaceVariant.withValues(alpha: 0.5)
+        : GBTColors.surfaceVariant.withValues(alpha: 0.6);
+
+    final comment = widget.comment;
+    final authorLabel = comment.authorName?.isNotEmpty == true
+        ? comment.authorName!
+        : '익명';
+    final avatarUrl = comment.authorAvatarUrl?.isNotEmpty == true
+        ? comment.authorAvatarUrl
+        : null;
     final isEdited =
         comment.updatedAt != null &&
         comment.updatedAt!.isAfter(comment.createdAt);
-    final replyCount = comment.replyCount ?? 0;
-    final rawDepth = comment.depth ?? 0;
-    final normalizedDepth = comment.parentCommentId == null
-        ? 0
-        : (rawDepth > 1 ? rawDepth - 1 : 1);
-    final indent = normalizedDepth > 0
-        ? (normalizedDepth * 10.0).clamp(10.0, 30.0)
-        : 0.0;
-    final isPostAuthor = comment.authorId == postAuthorId;
+    final isPostAuthor = comment.authorId == widget.postAuthorId;
+    // EN: Prefer live replies from the flat list; fall back to replyCount from API.
+    // KO: 플랫 목록의 실제 답글을 우선 사용하고, 없으면 API의 replyCount를 사용합니다.
+    final liveReplyCount = widget.replies.length;
+    final apiReplyCount = comment.replyCount ?? 0;
+    final replyCount = liveReplyCount > 0 ? liveReplyCount : apiReplyCount;
 
-    return Container(
-      width: double.infinity,
-      margin: EdgeInsets.only(left: indent),
-      decoration: BoxDecoration(
-        color: normalizedDepth > 0 ? nestedSurfaceColor : null,
-        border: showDivider
-            ? Border(bottom: BorderSide(color: borderColor))
-            : null,
-      ),
-      padding: const EdgeInsets.fromLTRB(
-        GBTSpacing.sm,
-        GBTSpacing.sm,
-        GBTSpacing.sm,
-        GBTSpacing.sm2,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (normalizedDepth > 0)
-            Container(
-              width: 2,
-              height: 50,
-              margin: const EdgeInsets.only(
-                top: GBTSpacing.xxs,
-                right: GBTSpacing.sm,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // EN: Root comment body.
+        // KO: 최상위 댓글 본문.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            GBTSpacing.md,
+            GBTSpacing.sm2,
+            GBTSpacing.xs,
+            GBTSpacing.sm2,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Avatar(
+                url: avatarUrl,
+                radius: 15,
+                semanticLabel: '$authorLabel 프로필 사진',
+                onTap: () => widget.onTapAuthor(comment.authorId),
               ),
-              decoration: BoxDecoration(
-                color: borderColor,
-                borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+              const SizedBox(width: GBTSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // EN: Author row with name, badges, time, menu — always right-aligned.
+                    // KO: 이름, 뱃지, 시간, 메뉴 행 — 메뉴 버튼 항상 오른쪽 끝.
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Wrap(
+                            spacing: GBTSpacing.xs,
+                            runSpacing: 0,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              GestureDetector(
+                                onTap: () =>
+                                    widget.onTapAuthor(comment.authorId),
+                                child: Text(
+                                  authorLabel,
+                                  style: GBTTypography.labelMedium.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: contentColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (isPostAuthor)
+                                _AuthorBadge(color: primaryColor),
+                              Text(
+                                comment.timeAgoLabel,
+                                style: GBTTypography.labelSmall.copyWith(
+                                  color: tertiaryColor,
+                                ),
+                              ),
+                              if (isEdited)
+                                Text(
+                                  '(수정)',
+                                  style: GBTTypography.labelSmall.copyWith(
+                                    color: tertiaryColor,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        _CommentMenuButton(
+                          canEdit: widget.canEdit,
+                          canDelete: widget.canDelete,
+                          canReport: widget.canReport,
+                          tertiaryColor: tertiaryColor,
+                          onEdit: () => widget.onEdit(comment),
+                          onDelete: () => widget.onDelete(comment),
+                          onReport: () => widget.onReport(comment),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: GBTSpacing.xxs),
+                    // EN: Comment content.
+                    // KO: 댓글 내용.
+                    Text(
+                      comment.content,
+                      style: GBTTypography.bodyMedium.copyWith(
+                        color: contentColor,
+                        height: 1.46,
+                      ),
+                    ),
+                    const SizedBox(height: GBTSpacing.sm),
+                    // EN: Action row — reply button + expand-replies toggle.
+                    // KO: 액션 행 — 답글 버튼 + 답글 펼치기 토글.
+                    Row(
+                      children: [
+                        _ReplyActionButton(
+                          label: '답글',
+                          color: secondaryColor,
+                          onTap: () => widget.onReply(comment),
+                        ),
+                        if (replyCount > 0) ...[
+                          const SizedBox(width: GBTSpacing.sm),
+                          _ReplyActionButton(
+                            label: _repliesExpanded
+                                ? '답글 숨기기'
+                                : '답글 $replyCount개 보기',
+                            color: primaryColor,
+                            icon: _repliesExpanded
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            onTap: () => setState(
+                              () => _repliesExpanded = !_repliesExpanded,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
+            ],
+          ),
+        ),
+        // EN: Inline replies, shown when expanded.
+        // KO: 펼쳐졌을 때 표시되는 인라인 대댓글.
+        if (_repliesExpanded && widget.replies.isNotEmpty)
+          Container(
+            color: replyBgColor,
+            child: Column(
+              children: [
+                for (var i = 0; i < widget.replies.length; i++) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      indent: GBTSpacing.xl + GBTSpacing.sm,
+                      color: borderColor.withValues(alpha: 0.6),
+                    ),
+                  _ReplyItem(
+                    reply: widget.replies[i],
+                    postAuthorId: widget.postAuthorId,
+                    rootCommentId: widget.comment.id,
+                    parentLookup: {
+                      for (final r in widget.replies) r.id: r,
+                    },
+                    onTapAuthor: widget.onTapAuthor,
+                    canEdit: widget.currentUserId == widget.replies[i].authorId,
+                    canDelete:
+                        widget.currentUserId == widget.replies[i].authorId ||
+                        (widget.isAdmin && widget.currentUserId != null),
+                    canReport: widget.canReport,
+                    onEdit: widget.onEdit,
+                    onDelete: widget.onDelete,
+                    onReport: widget.onReport,
+                    onReply: widget.onReply,
+                  ),
+                ],
+              ],
             ),
-          _Avatar(
-            url: avatarUrl,
-            radius: 14,
-            semanticLabel: '$authorLabel 프로필 사진',
-            onTap: () => onTapAuthor(comment.authorId),
+          ),
+      ],
+    );
+  }
+}
+
+// ================================================
+// EN: Reply item (대댓글) — indented, left accent bar.
+// KO: 대댓글 아이템 — 들여쓰기, 왼쪽 강조 바.
+// ================================================
+class _ReplyItem extends StatelessWidget {
+  const _ReplyItem({
+    required this.reply,
+    required this.postAuthorId,
+    required this.rootCommentId,
+    required this.parentLookup,
+    required this.onTapAuthor,
+    required this.canEdit,
+    required this.canDelete,
+    required this.canReport,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onReport,
+    required this.onReply,
+  });
+
+  final PostComment reply;
+  final String postAuthorId;
+  // EN: ID of the root comment that this reply thread belongs to.
+  // KO: 이 답글 스레드가 속한 최상위 댓글의 ID.
+  final String rootCommentId;
+  // EN: Lookup map of id→PostComment for replies in this thread.
+  // KO: 이 스레드 내 답글의 id→PostComment 조회 맵.
+  final Map<String, PostComment> parentLookup;
+  final ValueChanged<String> onTapAuthor;
+  final bool canEdit;
+  final bool canDelete;
+  final bool canReport;
+  final ValueChanged<PostComment> onEdit;
+  final ValueChanged<PostComment> onDelete;
+  final ValueChanged<PostComment> onReport;
+  final ValueChanged<PostComment> onReply;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final contentColor = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final accentBarColor = isDark
+        ? GBTColors.darkPrimary.withValues(alpha: 0.5)
+        : GBTColors.primary.withValues(alpha: 0.35);
+
+    final authorLabel = reply.authorName?.isNotEmpty == true
+        ? reply.authorName!
+        : '익명';
+    final avatarUrl = reply.authorAvatarUrl?.isNotEmpty == true
+        ? reply.authorAvatarUrl
+        : null;
+    final isEdited =
+        reply.updatedAt != null && reply.updatedAt!.isAfter(reply.createdAt);
+    final isPostAuthor = reply.authorId == postAuthorId;
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // EN: Left indent spacer aligned with parent avatar.
+          // KO: 부모 아바타에 맞춘 왼쪽 들여쓰기 스페이서.
+          const SizedBox(width: GBTSpacing.md),
+          // EN: Vertical accent bar indicating reply hierarchy.
+          // KO: 답글 계층을 나타내는 수직 강조 바.
+          Container(
+            width: 2,
+            margin: const EdgeInsets.symmetric(vertical: GBTSpacing.sm2),
+            decoration: BoxDecoration(
+              color: accentBarColor,
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+            ),
           ),
           const SizedBox(width: GBTSpacing.sm),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (normalizedDepth > 0) ...[
-                      Icon(
-                        Icons.subdirectory_arrow_right_rounded,
-                        size: 14,
-                        color: tertiaryColor,
-                      ),
-                      const SizedBox(width: GBTSpacing.xs),
-                    ],
-                    Flexible(
-                      child: InkWell(
-                        onTap: () => onTapAuthor(comment.authorId),
-                        borderRadius: BorderRadius.circular(
-                          GBTSpacing.radiusXs,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 2,
-                            vertical: 1,
-                          ),
-                          child: Text(
-                            authorLabel,
-                            style: GBTTypography.labelMedium.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: contentColor,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (isPostAuthor) ...[
-                      const SizedBox(width: GBTSpacing.xs),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: GBTSpacing.xs,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: primaryColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(
-                            GBTSpacing.radiusFull,
-                          ),
-                        ),
-                        child: Text(
-                          '글쓴이',
-                          style: GBTTypography.labelSmall.copyWith(
-                            color: primaryColor,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                    const Spacer(),
-                    Text(
-                      comment.timeAgoLabel,
-                      style: GBTTypography.labelSmall.copyWith(
-                        color: tertiaryColor,
-                      ),
-                    ),
-                    if (isEdited) ...[
-                      const SizedBox(width: GBTSpacing.xs),
-                      Text(
-                        '수정',
-                        style: GBTTypography.labelSmall.copyWith(
-                          color: tertiaryColor,
-                        ),
-                      ),
-                    ],
-                    if (canEdit || canDelete)
-                      PopupMenuButton<_CommentAction>(
-                        tooltip: '댓글 관리',
-                        icon: Icon(
-                          Icons.more_horiz,
-                          size: 18,
-                          color: tertiaryColor,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
-                        ),
-                        onSelected: (action) {
-                          if (action == _CommentAction.edit) {
-                            onEdit(comment);
-                          } else {
-                            onDelete(comment);
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          if (canEdit)
-                            const PopupMenuItem(
-                              value: _CommentAction.edit,
-                              child: Text('수정'),
-                            ),
-                          if (canDelete)
-                            PopupMenuItem(
-                              value: _CommentAction.delete,
-                              child: Text(canEdit ? '삭제' : '관리 삭제'),
-                            ),
-                        ],
-                      )
-                    else if (canReport)
-                      PopupMenuButton<_CommentOtherAction>(
-                        tooltip: '댓글 옵션',
-                        icon: Icon(
-                          Icons.more_horiz,
-                          size: 18,
-                          color: tertiaryColor,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
-                        ),
-                        onSelected: (_) => onReport(comment),
-                        itemBuilder: (context) => const [
-                          PopupMenuItem(
-                            value: _CommentOtherAction.report,
-                            child: Text('신고'),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-                const SizedBox(height: GBTSpacing.xxs),
-                Text(
-                  comment.content,
-                  style: GBTTypography.bodyMedium.copyWith(
-                    color: contentColor,
-                    fontWeight: FontWeight.w500,
-                    height: 1.52,
+            child: Padding(
+              padding: const EdgeInsets.only(
+                right: GBTSpacing.xs,
+                top: GBTSpacing.sm2,
+                bottom: GBTSpacing.sm2,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _Avatar(
+                    url: avatarUrl,
+                    radius: 12,
+                    semanticLabel: '$authorLabel 프로필 사진',
+                    onTap: () => onTapAuthor(reply.authorId),
                   ),
-                ),
-                const SizedBox(height: GBTSpacing.xs),
-                Wrap(
-                  spacing: GBTSpacing.sm,
-                  runSpacing: GBTSpacing.xxs,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    InkWell(
-                      onTap: () => onOpenThread(comment),
-                      borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 2,
-                          vertical: 1,
-                        ),
-                        child: Text(
-                          '답글',
-                          style: GBTTypography.labelSmall.copyWith(
-                            color: secondaryColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (replyCount > 0)
-                      InkWell(
-                        onTap: () => onOpenThread(comment),
-                        borderRadius: BorderRadius.circular(
-                          GBTSpacing.radiusXs,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 2,
-                            vertical: 1,
-                          ),
-                          child: Text(
-                            '답글 $replyCount개 보기',
-                            style: GBTTypography.labelSmall.copyWith(
-                              color: replyActionColor,
-                              fontWeight: FontWeight.w700,
+                  const SizedBox(width: GBTSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Wrap(
+                                spacing: GBTSpacing.xs,
+                                runSpacing: 0,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  GestureDetector(
+                                    onTap: () => onTapAuthor(reply.authorId),
+                                    child: Text(
+                                      authorLabel,
+                                      style: GBTTypography.labelSmall.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: contentColor,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (isPostAuthor)
+                                    _AuthorBadge(
+                                      color: primaryColor,
+                                      small: true,
+                                    ),
+                                  Text(
+                                    reply.timeAgoLabel,
+                                    style: GBTTypography.labelSmall.copyWith(
+                                      color: tertiaryColor,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  if (isEdited)
+                                    Text(
+                                      '(수정)',
+                                      style: GBTTypography.labelSmall.copyWith(
+                                        color: tertiaryColor,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
-                          ),
+                            _CommentMenuButton(
+                              canEdit: canEdit,
+                              canDelete: canDelete,
+                              canReport: canReport,
+                              tertiaryColor: tertiaryColor,
+                              iconSize: 16,
+                              onEdit: () => onEdit(reply),
+                              onDelete: () => onDelete(reply),
+                              onReport: () => onReport(reply),
+                            ),
+                          ],
                         ),
-                      ),
-                  ],
-                ),
-              ],
+                        const SizedBox(height: GBTSpacing.xxs),
+                        // EN: Show @mention when this is a reply-of-reply (parent is not the root).
+                        // KO: 대댓글인 경우(부모가 루트 아님) @멘션을 표시합니다.
+                        Builder(builder: (context) {
+                          final directParentId = reply.parentCommentId;
+                          final isReplyOfReply = directParentId != null &&
+                              directParentId != rootCommentId;
+                          final parentAuthor = isReplyOfReply
+                              ? (parentLookup[directParentId]?.authorName
+                                  ?.isNotEmpty == true
+                                  ? parentLookup[directParentId]!.authorName!
+                                  : null)
+                              : null;
+                          if (parentAuthor != null) {
+                            return Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: '@$parentAuthor ',
+                                    style: GBTTypography.bodySmall.copyWith(
+                                      color: primaryColor,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.45,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: reply.content,
+                                    style: GBTTypography.bodySmall.copyWith(
+                                      color: contentColor,
+                                      height: 1.45,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          return Text(
+                            reply.content,
+                            style: GBTTypography.bodySmall.copyWith(
+                              color: contentColor,
+                              height: 1.45,
+                            ),
+                          );
+                        }),
+                        const SizedBox(height: GBTSpacing.xs),
+                        _ReplyActionButton(
+                          label: '답글',
+                          color: secondaryColor,
+                          onTap: () => onReply(reply),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+// ================================================
+// EN: Shared helper widgets for comment UI.
+// KO: 댓글 UI 공통 헬퍼 위젯.
+// ================================================
+
+class _AuthorBadge extends StatelessWidget {
+  const _AuthorBadge({required this.color, this.small = false});
+  final Color color;
+  final bool small;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: small ? 4 : GBTSpacing.xs,
+        vertical: 1,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+      ),
+      child: Text(
+        '글쓴이',
+        style: GBTTypography.labelSmall.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontSize: small ? 10 : null,
+        ),
+      ),
+    );
+  }
+}
+
+class _ReplyActionButton extends StatelessWidget {
+  const _ReplyActionButton({
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.icon,
+  });
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: GBTTypography.labelSmall.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (icon != null) ...[
+            const SizedBox(width: 2),
+            Icon(icon, size: 14, color: color),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CommentMenuButton extends StatelessWidget {
+  const _CommentMenuButton({
+    required this.canEdit,
+    required this.canDelete,
+    required this.canReport,
+    required this.tertiaryColor,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onReport,
+    this.iconSize = 18,
+  });
+  final bool canEdit;
+  final bool canDelete;
+  final bool canReport;
+  final Color tertiaryColor;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback onReport;
+  final double iconSize;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!canEdit && !canDelete && !canReport) return const SizedBox.shrink();
+
+    if (canEdit || canDelete) {
+      return PopupMenuButton<_CommentAction>(
+        tooltip: '댓글 관리',
+        icon: Icon(Icons.more_horiz, size: iconSize, color: tertiaryColor),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        splashRadius: 20,
+        onSelected: (action) {
+          if (action == _CommentAction.edit) {
+            onEdit();
+          } else {
+            onDelete();
+          }
+        },
+        itemBuilder: (context) => [
+          if (canEdit)
+            const PopupMenuItem(value: _CommentAction.edit, child: Text('수정')),
+          if (canDelete)
+            PopupMenuItem(
+              value: _CommentAction.delete,
+              child: Text(canEdit ? '삭제' : '관리 삭제'),
+            ),
+        ],
+      );
+    }
+
+    return PopupMenuButton<_CommentOtherAction>(
+      tooltip: '댓글 옵션',
+      icon: Icon(Icons.more_horiz, size: iconSize, color: tertiaryColor),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+      splashRadius: 20,
+      onSelected: (_) => onReport(),
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: _CommentOtherAction.report, child: Text('신고')),
+      ],
     );
   }
 }
@@ -1760,21 +2108,250 @@ class _CommentSortTextButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? selectedColor : textColor;
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-      child: Padding(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 130),
+        curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(
-          horizontal: GBTSpacing.xs,
-          vertical: GBTSpacing.xs,
+          horizontal: GBTSpacing.sm,
+          vertical: 4,
+        ),
+        decoration: BoxDecoration(
+          color: selected
+              ? selectedColor.withValues(alpha: 0.1)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+          border: Border.all(
+            color: selected
+                ? selectedColor.withValues(alpha: 0.3)
+                : Colors.transparent,
+          ),
         ),
         child: Text(
           label,
           style: GBTTypography.labelSmall.copyWith(
-            color: color,
+            color: selected ? selectedColor : textColor,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ================================================
+// EN: Comment composer bar with reply context banner.
+// KO: 답글 컨텍스트 배너가 포함된 댓글 작성 바.
+// ================================================
+class _CommentComposerBar extends StatelessWidget {
+  const _CommentComposerBar({
+    required this.commentController,
+    required this.commentFocusNode,
+    required this.isSubmitting,
+    required this.replyTarget,
+    required this.onCancelReply,
+    required this.onSubmit,
+    required this.isDark,
+    required this.borderColor,
+  });
+
+  final TextEditingController commentController;
+  final FocusNode commentFocusNode;
+  final bool isSubmitting;
+  final PostComment? replyTarget;
+  final VoidCallback onCancelReply;
+  final VoidCallback onSubmit;
+  final bool isDark;
+  final Color borderColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaceColor = isDark ? GBTColors.darkSurface : GBTColors.surface;
+    final variantColor = isDark
+        ? GBTColors.darkSurfaceVariant.withValues(alpha: 0.6)
+        : GBTColors.surfaceVariant;
+    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        border: Border(top: BorderSide(color: borderColor)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // EN: Reply context banner — slides in when replying.
+            // KO: 답글 작성 시 슬라이드인되는 답글 컨텍스트 배너.
+            AnimatedSize(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              child: replyTarget != null
+                  ? Container(
+                      color: variantColor,
+                      padding: const EdgeInsets.fromLTRB(
+                        GBTSpacing.md,
+                        GBTSpacing.sm,
+                        GBTSpacing.sm,
+                        GBTSpacing.sm,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 3,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: primaryColor,
+                              borderRadius: BorderRadius.circular(
+                                GBTSpacing.radiusFull,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: GBTSpacing.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '${replyTarget!.authorName ?? '익명'}에게 답글',
+                                  style: GBTTypography.labelSmall.copyWith(
+                                    color: primaryColor,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  replyTarget!.content,
+                                  style: GBTTypography.labelSmall.copyWith(
+                                    color: secondaryColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: onCancelReply,
+                            icon: Icon(
+                              Icons.close_rounded,
+                              size: 18,
+                              color: tertiaryColor,
+                            ),
+                            tooltip: '답글 취소',
+                            padding: const EdgeInsets.all(GBTSpacing.xs),
+                            constraints: const BoxConstraints(
+                              minWidth: 36,
+                              minHeight: 36,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            // EN: Text input row.
+            // KO: 텍스트 입력 행.
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: commentController,
+              builder: (context, value, _) {
+                final canSubmit = value.text.trim().isNotEmpty && !isSubmitting;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GBTSpacing.sm,
+                    vertical: GBTSpacing.xs,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: variantColor,
+                            borderRadius: BorderRadius.circular(
+                              GBTSpacing.radiusLg,
+                            ),
+                          ),
+                          child: TextField(
+                            controller: commentController,
+                            focusNode: commentFocusNode,
+                            minLines: 1,
+                            maxLines: 4,
+                            textInputAction: TextInputAction.newline,
+                            style: GBTTypography.bodyMedium,
+                            decoration: InputDecoration(
+                              hintText: replyTarget != null
+                                  ? '답글 작성...'
+                                  : '댓글 작성...',
+                              hintStyle: GBTTypography.bodyMedium.copyWith(
+                                color: tertiaryColor,
+                              ),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: GBTSpacing.md,
+                                vertical: GBTSpacing.sm2,
+                              ),
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: GBTSpacing.xs),
+                      // EN: Send button — active when text is non-empty.
+                      // KO: 텍스트 입력 시 활성화되는 전송 버튼.
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 130),
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: canSubmit
+                              ? primaryColor
+                              : (isDark
+                                    ? GBTColors.darkSurfaceVariant
+                                    : GBTColors.surfaceVariant),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          onPressed: canSubmit ? onSubmit : null,
+                          padding: EdgeInsets.zero,
+                          icon: isSubmitting
+                              ? SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: canSubmit
+                                        ? Colors.white
+                                        : tertiaryColor,
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.send_rounded,
+                                  size: 18,
+                                  color: canSubmit
+                                      ? Colors.white
+                                      : tertiaryColor,
+                                ),
+                          tooltip: replyTarget != null ? '답글 등록' : '댓글 등록',
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -1800,7 +2377,7 @@ class _TimelineActionButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 36),
+        constraints: const BoxConstraints(minHeight: 44),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: GBTSpacing.xs),
           child: Row(
@@ -1836,31 +2413,100 @@ class _CommentThreadNodeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final comment = node.comment;
     final author = comment.authorName?.isNotEmpty == true
         ? comment.authorName!
         : '익명';
-    final leftPadding = (depth * GBTSpacing.lg).toDouble();
+    final avatarUrl = comment.authorAvatarUrl?.isNotEmpty == true
+        ? comment.authorAvatarUrl
+        : null;
+    final contentColor = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    final accentColor = isDark
+        ? GBTColors.darkPrimary.withValues(alpha: 0.4)
+        : GBTColors.primary.withValues(alpha: 0.3);
 
-    return Padding(
-      padding: EdgeInsets.only(left: leftPadding, bottom: GBTSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            '$author · ${comment.timeAgoLabel}',
-            style: GBTTypography.labelSmall.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withAlpha(160),
+          if (depth > 0) ...[
+            SizedBox(width: (depth * 16.0).clamp(0, 32)),
+            Container(
+              width: 2,
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              decoration: BoxDecoration(
+                color: accentColor,
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+              ),
+            ),
+            const SizedBox(width: GBTSpacing.sm),
+          ],
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _Avatar(
+                    url: avatarUrl,
+                    radius: depth > 0 ? 11 : 13,
+                    semanticLabel: '$author 프로필 사진',
+                    onTap: null,
+                  ),
+                  const SizedBox(width: GBTSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              author,
+                              style: GBTTypography.labelSmall.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: contentColor,
+                              ),
+                            ),
+                            const SizedBox(width: GBTSpacing.xs),
+                            Text(
+                              comment.timeAgoLabel,
+                              style: GBTTypography.labelSmall.copyWith(
+                                color: tertiaryColor,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          comment.content,
+                          style: GBTTypography.bodySmall.copyWith(
+                            color: contentColor,
+                            height: 1.5,
+                          ),
+                        ),
+                        if (node.replies.isNotEmpty) ...[
+                          const SizedBox(height: GBTSpacing.sm),
+                          ...node.replies.map(
+                            (reply) => _CommentThreadNodeView(
+                              node: reply,
+                              depth: depth + 1,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: GBTSpacing.xs),
-          Text(comment.content, style: GBTTypography.bodySmall),
-          if (node.replies.isNotEmpty) ...[
-            const SizedBox(height: GBTSpacing.xs),
-            ...node.replies.map(
-              (reply) => _CommentThreadNodeView(node: reply, depth: depth + 1),
-            ),
-          ],
         ],
       ),
     );
@@ -1937,11 +2583,17 @@ class _PostDetailSkeleton extends StatelessWidget {
         // KO: 액션 바 스켈레톤
         Row(
           children: [
-            Expanded(child: GBTShimmerContainer(width: double.infinity, height: 36)),
+            Expanded(
+              child: GBTShimmerContainer(width: double.infinity, height: 36),
+            ),
             const SizedBox(width: GBTSpacing.sm),
-            Expanded(child: GBTShimmerContainer(width: double.infinity, height: 36)),
+            Expanded(
+              child: GBTShimmerContainer(width: double.infinity, height: 36),
+            ),
             const SizedBox(width: GBTSpacing.sm),
-            Expanded(child: GBTShimmerContainer(width: double.infinity, height: 36)),
+            Expanded(
+              child: GBTShimmerContainer(width: double.infinity, height: 36),
+            ),
           ],
         ),
       ],

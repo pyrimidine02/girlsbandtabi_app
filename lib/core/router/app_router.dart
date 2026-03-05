@@ -45,6 +45,9 @@ import '../../features/favorites/presentation/pages/favorites_page.dart';
 import '../../features/search/presentation/pages/search_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 
+DateTime? _lastPostDetailNavigationAt;
+String? _lastPostDetailNavigationPath;
+
 Page<void> _buildAdaptiveDetailPage({
   required LocalKey key,
   required Widget child,
@@ -91,6 +94,9 @@ class AppRoutes {
   // EN: Main tab routes
   // KO: 메인 탭 라우트
   static const String home = 'home';
+  static const String feed = 'feed';
+  static const String discover = 'discover';
+  static const String travelReviewTab = 'travel-review-tab';
   static const String places = 'places';
   static const String placeDetail = 'place-detail';
   static const String live = 'live';
@@ -279,8 +285,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/board',
                 name: AppRoutes.board,
-                builder: (context, state) => const BoardPage(),
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: const BoardPage(initialTabIndex: 0),
+                ),
                 routes: [
+                  GoRoute(
+                    path: 'discover',
+                    name: AppRoutes.discover,
+                    pageBuilder: (context, state) => NoTransitionPage(
+                      key: state.pageKey,
+                      child: const BoardPage(initialTabIndex: 1),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'travel-reviews-tab',
+                    name: AppRoutes.travelReviewTab,
+                    pageBuilder: (context, state) => NoTransitionPage(
+                      key: state.pageKey,
+                      child: const BoardPage(initialTabIndex: 2),
+                    ),
+                  ),
                   GoRoute(
                     path: 'posts/new',
                     name: AppRoutes.postCreate,
@@ -402,6 +427,47 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+
+      // EN: Legacy route redirects
+      // KO: 레거시 라우트 리다이렉트
+      GoRoute(path: '/feed', redirect: (context, state) => '/board'),
+      GoRoute(
+        path: '/discover',
+        redirect: (context, state) => '/board/discover',
+      ),
+      GoRoute(
+        path: '/travel-reviews-tab',
+        redirect: (context, state) => '/board/travel-reviews-tab',
+      ),
+      GoRoute(
+        path: '/posts/new',
+        redirect: (context, state) => '/board/posts/new',
+      ),
+      GoRoute(
+        path: '/travel-reviews/create',
+        redirect: (context, state) => '/board/travel-review-create',
+      ),
+      GoRoute(
+        path: '/travel-reviews/:reviewId',
+        redirect: (context, state) {
+          final reviewId = state.pathParameters['reviewId']!;
+          return '/board/travel-reviews/$reviewId';
+        },
+      ),
+      GoRoute(
+        path: '/posts/:postId',
+        redirect: (context, state) {
+          final postId = state.pathParameters['postId']!;
+          return '/board/posts/$postId';
+        },
+      ),
+      GoRoute(
+        path: '/posts/:postId/edit',
+        redirect: (context, state) {
+          final postId = state.pathParameters['postId']!;
+          return '/board/posts/$postId/edit';
+        },
       ),
 
       // EN: Settings routes (overlay, outside shell)
@@ -622,6 +688,28 @@ extension AppRouterExtension on BuildContext {
   /// EN: Navigate to post detail
   /// KO: 게시글 상세로 이동
   void goToPostDetail(String postId) {
+    final router = GoRouter.of(this);
+    final targetPath = router.namedLocation(
+      AppRoutes.postDetail,
+      pathParameters: {'postId': postId},
+    );
+    final currentPath = router.routeInformationProvider.value.uri.path;
+    final now = DateTime.now();
+    final lastAt = _lastPostDetailNavigationAt;
+
+    // EN: Prevent duplicate pushes caused by rapid multi-tap on the same item.
+    // KO: 동일 아이템 연속 탭으로 인한 중복 push를 방지합니다.
+    if (currentPath == targetPath) {
+      return;
+    }
+    if (lastAt != null &&
+        _lastPostDetailNavigationPath == targetPath &&
+        now.difference(lastAt).inMilliseconds < 700) {
+      return;
+    }
+
+    _lastPostDetailNavigationAt = now;
+    _lastPostDetailNavigationPath = targetPath;
     pushNamed(AppRoutes.postDetail, pathParameters: {'postId': postId});
   }
 

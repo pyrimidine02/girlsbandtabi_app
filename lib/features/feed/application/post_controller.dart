@@ -69,7 +69,12 @@ class PostCommentsController
     }
   }
 
-  Future<Result<PostComment>> addComment(String content) async {
+  /// EN: Add a comment or reply. Pass [parentCommentId] to create a reply.
+  /// KO: 댓글 또는 대댓글을 등록합니다. [parentCommentId]로 답글 대상 지정.
+  Future<Result<PostComment>> addComment(
+    String content, {
+    String? parentCommentId,
+  }) async {
     final projectKey = _ref.read(selectedProjectKeyProvider);
     if (projectKey == null || projectKey.isEmpty) {
       const failure = AuthFailure(
@@ -85,6 +90,7 @@ class PostCommentsController
       projectCode: projectKey,
       postId: postId,
       content: content,
+      parentCommentId: parentCommentId,
     );
 
     if (result is Success<PostComment>) {

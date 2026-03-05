@@ -1,7 +1,8 @@
-/// EN: Community post creation page.
-/// KO: 커뮤니티 게시글 작성 페이지.
+/// EN: Community post edit page.
+/// KO: 커뮤니티 게시글 수정 페이지.
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -22,6 +23,7 @@ import '../../domain/entities/feed_entities.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../../uploads/application/uploads_controller.dart';
 import '../../../uploads/utils/webp_image_converter.dart';
+import '../widgets/post_compose_components.dart';
 
 /// EN: Community post edit page widget.
 /// KO: 커뮤니티 게시글 수정 페이지 위젯.
@@ -43,22 +45,35 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
   final _contentController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   final List<XFile> _images = [];
+  late final PostComposeAutosaveConfig _autosaveConfig;
+  late final PostComposeAutosaveController _autosaveController;
+  late final String _initialTitle;
+  late final String _initialContent;
   bool _isSubmitting = false;
   String? _errorMessage;
 
-  bool get _hasDraft {
-    return _titleController.text.trim().isNotEmpty ||
-        _contentController.text.trim().isNotEmpty ||
+  String get _draftStorageKey => 'feed_post_edit_draft_v1_${widget.post.id}';
+
+  bool get _hasDraft => _isDirty;
+
+  bool get _isDirty {
+    return _titleController.text.trim() != _initialTitle ||
+        _contentController.text.trim() != _initialContent ||
         _images.isNotEmpty;
   }
 
   bool get _canSubmit {
     return _titleController.text.trim().isNotEmpty &&
         _contentController.text.trim().isNotEmpty &&
+        _isDirty &&
         !_isSubmitting;
   }
 
   int get _remainingImageSlots => _maxImageCount - _images.length;
+
+  PostComposeAutosaveState get _autosaveState {
+    return ref.read(postComposeAutosaveControllerProvider(_autosaveConfig));
+  }
 
   double get _completionRatio {
     var steps = 0;
@@ -78,6 +93,9 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     if (_canSubmit) {
       return '게시글 수정';
     }
+    if (!_isDirty) {
+      return '변경사항이 없습니다';
+    }
     if (_titleController.text.trim().isEmpty) {
       return '제목을 입력해주세요';
     }
@@ -90,14 +108,34 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
   @override
   void initState() {
     super.initState();
-    _titleController.text = widget.post.title;
-    _contentController.text = widget.post.content ?? '';
+    _autosaveConfig = PostComposeAutosaveConfig(storageKey: _draftStorageKey);
+    _autosaveController = ref.read(
+      postComposeAutosaveControllerProvider(_autosaveConfig).notifier,
+    );
+    _initialTitle = widget.post.title.trim();
+    _initialContent = (widget.post.content ?? '').trim();
+    _titleController.text = _initialTitle;
+    _contentController.text = _initialContent;
     _titleController.addListener(_onFormChanged);
     _contentController.addListener(_onFormChanged);
+    unawaited(_autosaveController.loadRecoverableDraft());
   }
 
   @override
   void dispose() {
+    if (!_isSubmitting) {
+      unawaited(
+        _autosaveController.saveSnapshot(
+          title: _titleController.text,
+          content: _contentController.text,
+          imagePaths: _images
+              .map((image) => image.path)
+              .toList(growable: false),
+          hasData: _isDirty,
+          silent: true,
+        ),
+      );
+    }
     _titleController.removeListener(_onFormChanged);
     _contentController.removeListener(_onFormChanged);
     _titleController.dispose();
@@ -109,7 +147,49 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     if (!mounted) {
       return;
     }
+    _scheduleDraftSave();
     setState(() {});
+  }
+
+  void _scheduleDraftSave() {
+    if (_isSubmitting) {
+      return;
+    }
+    _autosaveController.scheduleSave(
+      title: _titleController.text,
+      content: _contentController.text,
+      imagePaths: _images.map((image) => image.path).toList(growable: false),
+      hasData: _isDirty,
+    );
+  }
+
+  void _restoreDraft() {
+    final draft = _autosaveState.recoverableDraft;
+    if (draft == null) {
+      return;
+    }
+
+    final existingImagePaths = draft.imagePaths
+        .where((path) => File(path).existsSync())
+        .take(_maxImageCount)
+        .toList(growable: false);
+
+    setState(() {
+      _titleController.text = draft.title;
+      _contentController.text = draft.content;
+      _images
+        ..clear()
+        ..addAll(existingImagePaths.map((path) => XFile(path)));
+    });
+    _autosaveController.consumeRecoverableDraft(message: '임시 저장 글을 복구했어요');
+
+    _scheduleDraftSave();
+    _showMessage('임시 저장 글을 복구했어요.');
+  }
+
+  Future<void> _discardRecoverableDraft() async {
+    await _autosaveController.clearSavedDraft(silent: true);
+    _showMessage('임시 저장 글을 삭제했어요.');
   }
 
   Future<bool> _handleWillPop() async {
@@ -124,7 +204,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('작성 중인 내용을 나갈까요?'),
-        content: const Text('저장하지 않은 내용이 사라집니다.'),
+        content: const Text('현재 입력 내용은 임시 저장되어 다음에 복구할 수 있어요.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -170,7 +250,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
         appBar: AppBar(title: const Text('글 수정')),
         body: isAuthenticated
             ? _buildForm(context)
-            : const _LoginRequiredMessage(),
+            : const PostComposeLoginRequiredMessage(),
       ),
     );
   }
@@ -180,6 +260,9 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     // KO: 다크 모드 가독성을 위해 테마 기반 색상을 사용합니다.
     final colorScheme = Theme.of(context).colorScheme;
     final projectCode = ref.watch(selectedProjectKeyProvider);
+    final autosaveState = ref.watch(
+      postComposeAutosaveControllerProvider(_autosaveConfig),
+    );
 
     return Stack(
       children: [
@@ -193,7 +276,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: GBTSpacing.paddingPage,
                   children: [
-                    _ComposeStatusCard(
+                    PostComposeStatusCard(
                       completionRatio: _completionRatio,
                       hasTitle: _titleController.text.trim().isNotEmpty,
                       hasContent: _contentController.text.trim().length >= 30,
@@ -202,7 +285,17 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
                     const SizedBox(height: GBTSpacing.md),
                     const ProjectSelectorCompact(),
                     const SizedBox(height: GBTSpacing.md),
-                    _ProjectBadge(projectCode: projectCode),
+                    PostComposeProjectBadge(projectCode: projectCode),
+                    if (autosaveState.recoverableDraft != null) ...[
+                      const SizedBox(height: GBTSpacing.md),
+                      PostComposeDraftRecoveryBanner(
+                        savedAt: autosaveState.recoverableDraft!.savedAt,
+                        projectCode:
+                            autosaveState.recoverableDraft!.projectCode,
+                        onRestore: _restoreDraft,
+                        onDiscard: _discardRecoverableDraft,
+                      ),
+                    ],
                     const SizedBox(height: GBTSpacing.lg),
                     TextField(
                       controller: _titleController,
@@ -251,7 +344,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
                       ),
                     ),
                     const SizedBox(height: GBTSpacing.md),
-                    _ImageSection(
+                    PostComposeImageSection(
                       imageCount: _images.length,
                       maxImageCount: _maxImageCount,
                       isSubmitting: _isSubmitting,
@@ -260,6 +353,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
                           ? null
                           : () {
                               setState(_images.clear);
+                              _scheduleDraftSave();
                             },
                       imageGrid: _images.isEmpty
                           ? null
@@ -276,7 +370,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
                                   ),
                               itemBuilder: (context, index) {
                                 final image = _images[index];
-                                return _PickedImageTile(
+                                return PostComposePickedImageTile(
                                   imagePath: image.path,
                                   filename: p.basename(image.path),
                                   onPreview: () => _previewImage(image),
@@ -286,6 +380,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
                                           setState(() {
                                             _images.remove(image);
                                           });
+                                          _scheduleDraftSave();
                                         },
                                 );
                               },
@@ -328,10 +423,25 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
                   ),
                   child: SizedBox(
                     width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _canSubmit ? () => _submit(context) : null,
-                      icon: const Icon(Icons.send),
-                      label: Text(_submitButtonLabel),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (autosaveState.autosaveMessage != null) ...[
+                          Text(
+                            autosaveState.autosaveMessage!,
+                            style: GBTTypography.labelSmall.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: GBTSpacing.xs),
+                        ],
+                        FilledButton.icon(
+                          onPressed: _canSubmit ? () => _submit(context) : null,
+                          icon: const Icon(Icons.send),
+                          label: Text(_submitButtonLabel),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -432,7 +542,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
         return;
       }
     }
-    final contentWithImages = _appendImageMarkdown(content, imageUrls);
+    final contentWithImages = appendImageMarkdownContent(content, imageUrls);
 
     final repository = await ref.read(feedRepositoryProvider.future);
     final result = await repository.updatePost(
@@ -453,6 +563,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
       await ref
           .read(postListControllerProvider.notifier)
           .load(forceRefresh: true);
+      await _autosaveController.clearSavedDraft(silent: true);
       if (!mounted) {
         return;
       }
@@ -503,6 +614,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     setState(() {
       _images.addAll(addable);
     });
+    _scheduleDraftSave();
 
     if (droppedCount > 0) {
       _showMessage('$_maxImageCount장까지만 첨부할 수 있어요.');
@@ -544,409 +656,5 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     }
 
     return uploadUrls;
-  }
-}
-
-String _appendImageMarkdown(String content, List<String> urls) {
-  if (urls.isEmpty) {
-    return content;
-  }
-
-  final buffer = StringBuffer(content);
-  buffer.writeln('\n');
-  for (final url in urls) {
-    buffer.writeln('![]($url)');
-  }
-  return buffer.toString().trim();
-}
-
-class _ComposeStatusCard extends StatelessWidget {
-  const _ComposeStatusCard({
-    required this.completionRatio,
-    required this.hasTitle,
-    required this.hasContent,
-    required this.hasImage,
-  });
-
-  final double completionRatio;
-  final bool hasTitle;
-  final bool hasContent;
-  final bool hasImage;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(GBTSpacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.primaryContainer.withValues(alpha: 0.32),
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.auto_awesome, color: colorScheme.primary, size: 18),
-              const SizedBox(width: GBTSpacing.xs),
-              Text(
-                '작성 가이드',
-                style: GBTTypography.titleSmall.copyWith(
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '${(completionRatio * 100).round()}%',
-                style: GBTTypography.labelMedium.copyWith(
-                  color: colorScheme.primary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: GBTSpacing.sm),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
-            child: LinearProgressIndicator(
-              value: completionRatio,
-              minHeight: 6,
-              backgroundColor: colorScheme.surface,
-              valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
-            ),
-          ),
-          const SizedBox(height: GBTSpacing.sm),
-          Wrap(
-            spacing: GBTSpacing.sm,
-            runSpacing: GBTSpacing.sm,
-            children: [
-              _GuideChip(label: '제목', isDone: hasTitle),
-              _GuideChip(label: '내용 30자+', isDone: hasContent),
-              _GuideChip(label: '이미지(선택)', isDone: hasImage),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GuideChip extends StatelessWidget {
-  const _GuideChip({required this.label, required this.isDone});
-
-  final String label;
-  final bool isDone;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: GBTSpacing.sm,
-        vertical: GBTSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: isDone
-            ? colorScheme.primary.withValues(alpha: 0.14)
-            : colorScheme.surface,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
-        border: Border.all(
-          color: isDone
-              ? colorScheme.primary.withValues(alpha: 0.3)
-              : colorScheme.outlineVariant,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isDone ? Icons.check_circle : Icons.radio_button_unchecked,
-            size: 14,
-            color: isDone ? colorScheme.primary : colorScheme.outline,
-          ),
-          const SizedBox(width: GBTSpacing.xs),
-          Text(
-            label,
-            style: GBTTypography.labelSmall.copyWith(
-              color: isDone ? colorScheme.primary : colorScheme.onSurface,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProjectBadge extends StatelessWidget {
-  const _ProjectBadge({required this.projectCode});
-
-  final String? projectCode;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: GBTSpacing.md,
-        vertical: GBTSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.folder_outlined,
-            color: colorScheme.onSurfaceVariant,
-            size: 18,
-          ),
-          const SizedBox(width: GBTSpacing.xs),
-          Expanded(
-            child: Text(
-              projectCode == null || projectCode!.isEmpty
-                  ? '프로젝트를 선택해주세요'
-                  : '현재 프로젝트: $projectCode',
-              style: GBTTypography.bodySmall.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ImageSection extends StatelessWidget {
-  const _ImageSection({
-    required this.imageCount,
-    required this.maxImageCount,
-    required this.isSubmitting,
-    required this.onPickImages,
-    required this.onClearAll,
-    required this.imageGrid,
-  });
-
-  final int imageCount;
-  final int maxImageCount;
-  final bool isSubmitting;
-  final VoidCallback onPickImages;
-  final VoidCallback? onClearAll;
-  final Widget? imageGrid;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(GBTSpacing.md),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                '사진',
-                style: GBTTypography.labelLarge.copyWith(
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(width: GBTSpacing.xs),
-              Text(
-                '$imageCount/$maxImageCount',
-                style: GBTTypography.labelSmall.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const Spacer(),
-              TextButton.icon(
-                onPressed: isSubmitting || imageCount >= maxImageCount
-                    ? null
-                    : onPickImages,
-                icon: const Icon(Icons.photo_library_outlined),
-                label: const Text('추가'),
-              ),
-              if (onClearAll != null)
-                TextButton(
-                  onPressed: isSubmitting ? null : onClearAll,
-                  child: const Text('전체 삭제'),
-                ),
-            ],
-          ),
-          const SizedBox(height: GBTSpacing.xs),
-          Text(
-            '장소 사진을 추가하면 게시글 전달력이 좋아져요.',
-            style: GBTTypography.bodySmall.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          if (imageGrid != null) ...[
-            const SizedBox(height: GBTSpacing.md),
-            imageGrid!,
-          ] else ...[
-            const SizedBox(height: GBTSpacing.md),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: GBTSpacing.lg),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.35,
-                ),
-                borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.photo_size_select_actual_outlined,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(height: GBTSpacing.xs),
-                  Text(
-                    '최대 $maxImageCount장 첨부 가능',
-                    style: GBTTypography.bodySmall.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _PickedImageTile extends StatelessWidget {
-  const _PickedImageTile({
-    required this.imagePath,
-    required this.filename,
-    required this.onPreview,
-    this.onRemove,
-  });
-
-  final String imagePath;
-  final String filename;
-  final VoidCallback onPreview;
-  final VoidCallback? onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Semantics(
-      button: true,
-      label: '$filename 미리보기',
-      child: Material(
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onPreview,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: Image.file(
-                  File(imagePath),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: colorScheme.surfaceContainerHighest,
-                    alignment: Alignment.center,
-                    child: Icon(
-                      Icons.broken_image_outlined,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: GBTSpacing.xs,
-                    vertical: GBTSpacing.xxs,
-                  ),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0x00000000), Color(0xB3000000)],
-                    ),
-                  ),
-                  child: Text(
-                    filename,
-                    style: GBTTypography.caption.copyWith(color: Colors.white),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              Positioned(
-                top: GBTSpacing.xs,
-                right: GBTSpacing.xs,
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: IconButton.filled(
-                    padding: EdgeInsets.zero,
-                    onPressed: onRemove,
-                    iconSize: 14,
-                    icon: const Icon(Icons.close),
-                    tooltip: '사진 제거',
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// EN: Login required message widget with icon and descriptive text.
-/// KO: 아이콘과 설명 텍스트를 포함한 로그인 필요 메시지 위젯.
-class _LoginRequiredMessage extends StatelessWidget {
-  const _LoginRequiredMessage();
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.lock_outline,
-              size: 48,
-              color: isDark
-                  ? GBTColors.darkTextTertiary
-                  : GBTColors.textTertiary,
-            ),
-            const SizedBox(height: GBTSpacing.md),
-            Text(
-              '로그인 후 게시글을 작성할 수 있어요.',
-              style: GBTTypography.bodyMedium.copyWith(
-                color: isDark
-                    ? GBTColors.darkTextSecondary
-                    : GBTColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
