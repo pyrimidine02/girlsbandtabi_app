@@ -262,7 +262,7 @@ final uploadsRepositoryProvider = FutureProvider<UploadsRepository>((
   ref,
 ) async {
   final apiClient = ref.watch(apiClientProvider);
-  final cacheManager = await ref.watch(cacheManagerProvider.future);
+  final cacheManager = await ref.read(cacheManagerProvider.future);
   return UploadsRepositoryImpl(
     remoteDataSource: UploadsRemoteDataSource(apiClient),
     cacheManager: cacheManager,

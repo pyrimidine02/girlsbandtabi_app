@@ -10,30 +10,16 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/utils/palette_utils.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
+import '../../../settings/application/settings_controller.dart';
 import '../../application/feed_controller.dart';
 import '../../domain/entities/feed_entities.dart';
-
-// EN: Deterministic palette for unit/member avatar backgrounds.
-// KO: 유닛/멤버 아바타 배경용 결정적 팔레트.
-const _kAvatarPalette = [
-  Color(0xFF6366F1), // indigo
-  Color(0xFF3B82F6), // blue
-  Color(0xFFEC4899), // pink
-  Color(0xFFF59E0B), // amber
-  Color(0xFF10B981), // emerald
-  Color(0xFF8B5CF6), // violet
-  Color(0xFFEF4444), // red
-  Color(0xFF14B8A6), // teal
-];
-
-Color _paletteColor(String seed) =>
-    _kAvatarPalette[seed.hashCode.abs() % _kAvatarPalette.length];
 
 // ===========================================================================
 // EN: Info page root
@@ -97,6 +83,10 @@ class _InfoPageState extends ConsumerState<InfoPage>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
+    final avatarUrl = ref
+        .watch(userProfileControllerProvider)
+        .valueOrNull
+        ?.avatarUrl;
 
     return Scaffold(
       appBar: AppBar(
@@ -108,9 +98,9 @@ class _InfoPageState extends ConsumerState<InfoPage>
             const SizedBox(width: GBTSpacing.md),
             Text(
               '정보',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.sm),
@@ -123,7 +113,7 @@ class _InfoPageState extends ConsumerState<InfoPage>
             const Expanded(child: ProjectSelectorCompact()),
           ],
         ),
-        actions: const [GBTProfileAction()],
+        actions: [GBTProfileAction(avatarUrl: avatarUrl)],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Container(
@@ -134,9 +124,7 @@ class _InfoPageState extends ConsumerState<InfoPage>
               controller: _tabController,
               isScrollable: true,
               tabAlignment: TabAlignment.start,
-              padding: const EdgeInsets.symmetric(
-                horizontal: GBTSpacing.sm,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.sm),
               labelStyle: GBTTypography.labelMedium.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -164,11 +152,7 @@ class _InfoPageState extends ConsumerState<InfoPage>
         onRefresh: _refreshCurrentTab,
         child: TabBarView(
           controller: _tabController,
-          children: const [
-            _NewsTab(),
-            _UnitsTab(),
-            _SongsTab(),
-          ],
+          children: const [_NewsTab(), _UnitsTab(), _SongsTab()],
         ),
       ),
     );
@@ -190,8 +174,7 @@ class _NewsTab extends ConsumerWidget {
     return newsState.when(
       loading: () => const _NewsTabSkeleton(),
       error: (error, _) {
-        final message =
-            error is Failure ? error.userMessage : '뉴스를 불러오지 못했어요';
+        final message = error is Failure ? error.userMessage : '뉴스를 불러오지 못했어요';
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: GBTSpacing.paddingPage,
@@ -199,10 +182,9 @@ class _NewsTab extends ConsumerWidget {
             const SizedBox(height: GBTSpacing.lg),
             GBTErrorState(
               message: message,
-              onRetry: () =>
-                  ref.read(newsListControllerProvider.notifier).load(
-                    forceRefresh: true,
-                  ),
+              onRetry: () => ref
+                  .read(newsListControllerProvider.notifier)
+                  .load(forceRefresh: true),
             ),
           ],
         );
@@ -316,10 +298,7 @@ class _NewsHeroCard extends StatelessWidget {
                               gradient: LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  Color(0xCC000000),
-                                ],
+                                colors: [Colors.transparent, Color(0xCC000000)],
                                 stops: [0.5, 1.0],
                               ),
                             ),
@@ -415,8 +394,9 @@ class _NewsRowItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final thumbnail = news.thumbnailUrl;
-    final tertiaryColor =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
     // EN: Flag as NEW if published within the last 24 hours.
     // KO: 24시간 이내 게시된 경우 NEW로 표시합니다.
     final isNew = DateTime.now().difference(news.publishedAt).inHours < 24;
@@ -644,8 +624,7 @@ class _UnitsTab extends ConsumerWidget {
     return unitsState.when(
       loading: () => const _UnitsTabSkeleton(),
       error: (error, _) {
-        final message =
-            error is Failure ? error.userMessage : '유닛을 불러오지 못했어요';
+        final message = error is Failure ? error.userMessage : '유닛을 불러오지 못했어요';
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: GBTSpacing.paddingPage,
@@ -653,12 +632,9 @@ class _UnitsTab extends ConsumerWidget {
             const SizedBox(height: GBTSpacing.lg),
             GBTErrorState(
               message: message,
-              onRetry: () =>
-                  ref
-                      .read(
-                        projectUnitsControllerProvider(projectKey).notifier,
-                      )
-                      .load(forceRefresh: true),
+              onRetry: () => ref
+                  .read(projectUnitsControllerProvider(projectKey).notifier)
+                  .load(forceRefresh: true),
             ),
           ],
         );
@@ -698,7 +674,7 @@ class _UnitsTab extends ConsumerWidget {
               (unit) => _UnitAccordionCard(
                 unit: unit,
                 projectId: projectKey,
-                paletteColor: _paletteColor(unit.displayName),
+                paletteColor: paletteColorFromSeed(unit.displayName),
               ),
             ),
           ],
@@ -764,10 +740,12 @@ class _UnitAccordionCardState extends ConsumerState<_UnitAccordionCard>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgAlpha = isDark ? 0.18 : 0.10;
     final borderAlpha = 0.25;
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textTertiary =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textTertiary = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
     final surfaceColor = isDark ? GBTColors.darkSurface : GBTColors.surface;
     final initial = widget.unit.displayName.isNotEmpty
         ? widget.unit.displayName[0].toUpperCase()
@@ -845,23 +823,22 @@ class _UnitAccordionCardState extends ConsumerState<_UnitAccordionCard>
                               Consumer(
                                 builder: (context, ref, _) {
                                   final membersState = ref.watch(
-                                    unitMembersControllerProvider(
-                                      (widget.projectId, widget.unit.id),
-                                    ),
+                                    unitMembersControllerProvider((
+                                      widget.projectId,
+                                      widget.unit.id,
+                                    )),
                                   );
                                   return membersState.maybeWhen(
                                     data: (members) => members.isEmpty
                                         ? const SizedBox.shrink()
                                         : Container(
-                                            padding:
-                                                const EdgeInsets.symmetric(
-                                                  horizontal: 6,
-                                                  vertical: 2,
-                                                ),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
                                             decoration: BoxDecoration(
-                                              color:
-                                                  widget.paletteColor
-                                                      .withValues(alpha: 0.15),
+                                              color: widget.paletteColor
+                                                  .withValues(alpha: 0.15),
                                               borderRadius:
                                                   BorderRadius.circular(
                                                     GBTSpacing.radiusFull,
@@ -869,15 +846,12 @@ class _UnitAccordionCardState extends ConsumerState<_UnitAccordionCard>
                                             ),
                                             child: Text(
                                               '${members.length}명',
-                                              style:
-                                                  GBTTypography.labelSmall
-                                                      .copyWith(
-                                                        color:
-                                                            widget.paletteColor,
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                        fontSize: 10,
-                                                      ),
+                                              style: GBTTypography.labelSmall
+                                                  .copyWith(
+                                                    color: widget.paletteColor,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 10,
+                                                  ),
                                             ),
                                           ),
                                     orElse: () => const SizedBox.shrink(),
@@ -1019,12 +993,13 @@ class _UnitMembersList extends ConsumerWidget {
 
         // EN: Sort by order field if available, then alphabetically.
         // KO: order 필드 기준으로 정렬하고, 없으면 이름 순.
-        final sorted = [...members]..sort((a, b) {
-          if (a.order != null && b.order != null) {
-            return a.order!.compareTo(b.order!);
-          }
-          return a.name.compareTo(b.name);
-        });
+        final sorted = [...members]
+          ..sort((a, b) {
+            if (a.order != null && b.order != null) {
+              return a.order!.compareTo(b.order!);
+            }
+            return a.name.compareTo(b.name);
+          });
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1073,10 +1048,12 @@ class _MemberInlineRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textTertiary =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textTertiary = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
     final initial = member.name.isNotEmpty ? member.name[0] : '?';
 
     return InkWell(
@@ -1162,10 +1139,7 @@ class _MemberInlineRow extends StatelessWidget {
                           ],
                           if (member.role != null &&
                               member.role != member.instrument)
-                            _MiniTag(
-                              label: member.role!,
-                              color: paletteColor,
-                            ),
+                            _MiniTag(label: member.role!, color: paletteColor),
                         ],
                       ),
                     ),
@@ -1235,6 +1209,7 @@ class _UnitsTabSkeleton extends StatelessWidget {
     );
   }
 }
+
 /// EN: Member avatar widget — shows network image or palette initial fallback.
 /// KO: 멤버 아바타 위젯 — 네트워크 이미지 또는 팔레트 이니셜 폴백.
 class _MemberAvatar extends StatelessWidget {
@@ -1268,10 +1243,7 @@ class _MemberAvatar extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: paletteColor,
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: paletteColor, shape: BoxShape.circle),
       child: Center(
         child: Text(
           initial,
@@ -1297,10 +1269,12 @@ class _SongsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textTertiary =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textTertiary = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -1321,11 +1295,7 @@ class _SongsTab extends StatelessWidget {
                   : GBTColors.surfaceVariant,
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.album_outlined,
-              size: 40,
-              color: textTertiary,
-            ),
+            child: Icon(Icons.album_outlined, size: 40, color: textTertiary),
           ),
         ),
         const SizedBox(height: GBTSpacing.md),
@@ -1359,7 +1329,7 @@ class _SongsTab extends StatelessWidget {
           ),
           itemCount: 6,
           itemBuilder: (context, index) {
-            final color = _kAvatarPalette[index % _kAvatarPalette.length];
+            final color = kAvatarPalette[index % kAvatarPalette.length];
             return Container(
               decoration: BoxDecoration(
                 color: color.withValues(alpha: isDark ? 0.25 : 0.15),
@@ -1391,8 +1361,9 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textSecondary =
-        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
 
     return Row(
       children: [

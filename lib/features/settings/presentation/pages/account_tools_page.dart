@@ -12,6 +12,7 @@ import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
 import '../../../settings/application/settings_controller.dart';
@@ -28,8 +29,10 @@ class AccountToolsPage extends ConsumerStatefulWidget {
   ConsumerState<AccountToolsPage> createState() => _AccountToolsPageState();
 }
 
-class _AccountToolsPageState extends ConsumerState<AccountToolsPage> {
+class _AccountToolsPageState extends ConsumerState<AccountToolsPage>
+    with SingleTickerProviderStateMixin {
   _AccountToolsTab _tab = _AccountToolsTab.blocks;
+  late final TabController _tabController;
   final _justificationController = TextEditingController();
   final _appealDescriptionController = TextEditingController();
   String? _selectedAppealTargetId;
@@ -41,7 +44,22 @@ class _AccountToolsPageState extends ConsumerState<AccountToolsPage> {
   String? _selectedProjectId;
 
   @override
+  void initState() {
+    super.initState();
+    _tabController =
+        TabController(length: _AccountToolsTab.values.length, vsync: this)
+          ..addListener(() {
+            if (!mounted) return;
+            final next = _AccountToolsTab.values[_tabController.index];
+            if (next != _tab) {
+              setState(() => _tab = next);
+            }
+          });
+  }
+
+  @override
   void dispose() {
+    _tabController.dispose();
     _justificationController.dispose();
     _appealDescriptionController.dispose();
     super.dispose();
@@ -94,29 +112,14 @@ class _AccountToolsPageState extends ConsumerState<AccountToolsPage> {
               GBTSpacing.md,
               GBTSpacing.sm,
             ),
-            child: SegmentedButton<_AccountToolsTab>(
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(
-                  value: _AccountToolsTab.blocks,
-                  icon: Icon(Icons.block_outlined, size: 16),
-                  label: Text('차단'),
-                ),
-                ButtonSegment(
-                  value: _AccountToolsTab.roleRequests,
-                  icon: Icon(Icons.verified_user_outlined, size: 16),
-                  label: Text('권한 요청'),
-                ),
-                ButtonSegment(
-                  value: _AccountToolsTab.appeals,
-                  icon: Icon(Icons.gavel_outlined, size: 16),
-                  label: Text('이의제기'),
-                ),
+            child: GBTSegmentedTabBar(
+              controller: _tabController,
+              height: 42,
+              tabs: const [
+                Tab(text: '차단'),
+                Tab(text: '권한 요청'),
+                Tab(text: '이의제기'),
               ],
-              selected: {_tab},
-              onSelectionChanged: (selection) {
-                setState(() => _tab = selection.first);
-              },
             ),
           ),
           Expanded(
@@ -349,13 +352,16 @@ class _BlockItemRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final surfaceColor =
-        isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface;
+    final surfaceColor = isDark
+        ? GBTColors.darkSurfaceElevated
+        : GBTColors.surface;
     final borderColor = isDark ? GBTColors.darkBorderSubtle : GBTColors.border;
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textTertiary =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textTertiary = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
 
     return Container(
       padding: const EdgeInsets.all(GBTSpacing.md),
@@ -478,13 +484,37 @@ class _RoleRequestsTab extends StatelessWidget {
     );
     final initialProjectId =
         selectedProjectId ?? (projects.isNotEmpty ? projects.first.id : null);
-    final surfaceColor =
-        isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface;
+    final surfaceColor = isDark
+        ? GBTColors.darkSurfaceElevated
+        : GBTColors.surface;
     final borderColor = isDark ? GBTColors.darkBorderSubtle : GBTColors.border;
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textSecondary =
-        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final projectOptions = projects
+        .map(
+          (project) => _SelectionOption(
+            value: project.id,
+            label: project.name,
+            caption: project.code,
+          ),
+        )
+        .toList(growable: false);
+    Project? selectedProject;
+    for (final project in projects) {
+      if (project.id == initialProjectId) {
+        selectedProject = project;
+        break;
+      }
+    }
+    const roleOptions = <_SelectionOption>[
+      _SelectionOption(value: 'VIEWER', label: '뷰어', caption: '읽기 전용'),
+      _SelectionOption(value: 'EDITOR', label: '에디터', caption: '편집 가능'),
+      _SelectionOption(value: 'MODERATOR', label: '모더레이터', caption: '관리 가능'),
+    ];
 
     return RefreshIndicator(
       onRefresh: onRefresh,
@@ -516,8 +546,9 @@ class _RoleRequestsTab extends StatelessWidget {
                       height: 32,
                       decoration: BoxDecoration(
                         color: const Color(0xFF6366F1).withValues(alpha: 0.12),
-                        borderRadius:
-                            BorderRadius.circular(GBTSpacing.radiusSm),
+                        borderRadius: BorderRadius.circular(
+                          GBTSpacing.radiusSm,
+                        ),
                       ),
                       child: const Icon(
                         Icons.verified_user_rounded,
@@ -536,38 +567,40 @@ class _RoleRequestsTab extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: GBTSpacing.md),
-                DropdownButtonFormField<String>(
-                  initialValue: initialProjectId,
-                  decoration: const InputDecoration(labelText: '프로젝트'),
-                  items: projects
-                      .map<DropdownMenuItem<String>>(
-                        (project) => DropdownMenuItem<String>(
-                          value: project.id,
-                          child: Text(project.name),
-                        ),
-                      )
-                      .toList(growable: false),
-                  onChanged: (value) {
-                    if (value != null && value.isNotEmpty) {
-                      onProjectChanged(value);
-                    }
-                  },
+                _SelectionField(
+                  label: '프로젝트',
+                  isDark: isDark,
+                  valueText: selectedProject?.name,
+                  placeholder: projects.isEmpty ? '프로젝트가 없습니다' : '프로젝트 선택',
+                  onTap: projects.isEmpty
+                      ? null
+                      : () async {
+                          final selected = await _showSelectionPicker(
+                            context,
+                            title: '프로젝트 선택',
+                            options: projectOptions,
+                            selectedValue: initialProjectId,
+                          );
+                          if (selected != null && selected.isNotEmpty) {
+                            onProjectChanged(selected);
+                          }
+                        },
                 ),
                 const SizedBox(height: GBTSpacing.sm),
-                DropdownButtonFormField<String>(
-                  initialValue: requestedRole,
-                  decoration: const InputDecoration(labelText: '요청 권한'),
-                  items: const [
-                    DropdownMenuItem(value: 'VIEWER', child: Text('뷰어 (읽기 전용)')),
-                    DropdownMenuItem(value: 'EDITOR', child: Text('에디터 (편집 가능)')),
-                    DropdownMenuItem(
-                      value: 'MODERATOR',
-                      child: Text('모더레이터 (관리 가능)'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null && value.isNotEmpty) {
-                      onRoleChanged(value);
+                _SelectionField(
+                  label: '요청 권한',
+                  isDark: isDark,
+                  valueText: _translateRole(requestedRole),
+                  placeholder: '권한 선택',
+                  onTap: () async {
+                    final selected = await _showSelectionPicker(
+                      context,
+                      title: '요청 권한 선택',
+                      options: roleOptions,
+                      selectedValue: requestedRole,
+                    );
+                    if (selected != null && selected.isNotEmpty) {
+                      onRoleChanged(selected);
                     }
                   },
                 ),
@@ -630,7 +663,11 @@ class _RoleRequestsTab extends StatelessWidget {
                     .map(
                       (item) => Padding(
                         padding: const EdgeInsets.only(bottom: GBTSpacing.xs),
-                        child: _RoleRequestItemRow(item: item, isDark: isDark, onCancel: onCancel),
+                        child: _RoleRequestItemRow(
+                          item: item,
+                          isDark: isDark,
+                          onCancel: onCancel,
+                        ),
                       ),
                     )
                     .toList(growable: false),
@@ -657,13 +694,16 @@ class _RoleRequestItemRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final surfaceColor =
-        isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface;
+    final surfaceColor = isDark
+        ? GBTColors.darkSurfaceElevated
+        : GBTColors.surface;
     final borderColor = isDark ? GBTColors.darkBorderSubtle : GBTColors.border;
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textTertiary =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textTertiary = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
 
     return Container(
       padding: const EdgeInsets.all(GBTSpacing.md),
@@ -783,13 +823,28 @@ class _AppealsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final surfaceColor =
-        isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface;
+    final surfaceColor = isDark
+        ? GBTColors.darkSurfaceElevated
+        : GBTColors.surface;
     final borderColor = isDark ? GBTColors.darkBorderSubtle : GBTColors.border;
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textSecondary =
-        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    const targetTypeOptions = <_SelectionOption>[
+      _SelectionOption(value: 'PLACE_VISIT', label: '장소 방문 인증'),
+      _SelectionOption(value: 'LIVE_EVENT', label: '라이브 출석 인증'),
+    ];
+    const reasonOptions = <_SelectionOption>[
+      _SelectionOption(value: 'FALSE_REJECTION', label: '오탐 거절'),
+      _SelectionOption(value: 'GPS_INACCURACY', label: 'GPS 오차'),
+      _SelectionOption(value: 'NETWORK_ISSUE', label: '네트워크 문제'),
+      _SelectionOption(value: 'DEVICE_ISSUE', label: '기기 문제'),
+      _SelectionOption(value: 'LOCATION_ERROR', label: '위치 오류'),
+      _SelectionOption(value: 'OTHER', label: '기타'),
+    ];
 
     return RefreshIndicator(
       onRefresh: onRefresh,
@@ -821,8 +876,9 @@ class _AppealsTab extends StatelessWidget {
                       height: 32,
                       decoration: BoxDecoration(
                         color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
-                        borderRadius:
-                            BorderRadius.circular(GBTSpacing.radiusSm),
+                        borderRadius: BorderRadius.circular(
+                          GBTSpacing.radiusSm,
+                        ),
                       ),
                       child: const Icon(
                         Icons.gavel_rounded,
@@ -841,22 +897,20 @@ class _AppealsTab extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: GBTSpacing.md),
-                DropdownButtonFormField<String>(
-                  initialValue: targetType,
-                  decoration: const InputDecoration(labelText: '대상 유형'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'PLACE_VISIT',
-                      child: Text('장소 방문 인증'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'LIVE_EVENT',
-                      child: Text('라이브 출석 인증'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null && value.isNotEmpty) {
-                      onTargetTypeChanged(value);
+                _SelectionField(
+                  label: '대상 유형',
+                  isDark: isDark,
+                  valueText: _appealTargetTypeLabel(targetType),
+                  placeholder: '대상 유형 선택',
+                  onTap: () async {
+                    final selected = await _showSelectionPicker(
+                      context,
+                      title: '대상 유형 선택',
+                      options: targetTypeOptions,
+                      selectedValue: targetType,
+                    );
+                    if (selected != null && selected.isNotEmpty) {
+                      onTargetTypeChanged(selected);
                     }
                   },
                 ),
@@ -866,47 +920,34 @@ class _AppealsTab extends StatelessWidget {
                   selectedLabel: selectedTargetLabel,
                   isDark: isDark,
                   onTap: () async {
-                    final result = await showModalBottomSheet<(String, String)?>(
-                      context: context,
-                      isScrollControlled: true,
-                      useSafeArea: true,
-                      builder: (_) => _TargetPickerSheet(targetType: targetType),
-                    );
+                    final result =
+                        await showModalBottomSheet<(String, String)?>(
+                          context: context,
+                          isScrollControlled: true,
+                          useSafeArea: true,
+                          builder: (_) =>
+                              _TargetPickerSheet(targetType: targetType),
+                        );
                     if (result != null) {
                       onTargetSelected(result.$1, result.$2);
                     }
                   },
                 ),
                 const SizedBox(height: GBTSpacing.sm),
-                DropdownButtonFormField<String>(
-                  initialValue: reason,
-                  decoration: const InputDecoration(labelText: '사유'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'FALSE_REJECTION',
-                      child: Text('오탐 거절'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'GPS_INACCURACY',
-                      child: Text('GPS 오차'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'NETWORK_ISSUE',
-                      child: Text('네트워크 문제'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'DEVICE_ISSUE',
-                      child: Text('기기 문제'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'LOCATION_ERROR',
-                      child: Text('위치 오류'),
-                    ),
-                    DropdownMenuItem(value: 'OTHER', child: Text('기타')),
-                  ],
-                  onChanged: (value) {
-                    if (value != null && value.isNotEmpty) {
-                      onReasonChanged(value);
+                _SelectionField(
+                  label: '사유',
+                  isDark: isDark,
+                  valueText: _appealReasonLabel(reason),
+                  placeholder: '사유 선택',
+                  onTap: () async {
+                    final selected = await _showSelectionPicker(
+                      context,
+                      title: '사유 선택',
+                      options: reasonOptions,
+                      selectedValue: reason,
+                    );
+                    if (selected != null && selected.isNotEmpty) {
+                      onReasonChanged(selected);
                     }
                   },
                 ),
@@ -989,28 +1030,19 @@ class _AppealItemRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final surfaceColor =
-        isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface;
+    final surfaceColor = isDark
+        ? GBTColors.darkSurfaceElevated
+        : GBTColors.surface;
     final borderColor = isDark ? GBTColors.darkBorderSubtle : GBTColors.border;
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textTertiary =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textTertiary = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
 
-    final targetTypeLabel = switch (item.targetType) {
-      'PLACE_VISIT' => '장소 방문 인증',
-      'LIVE_EVENT' => '라이브 출석 인증',
-      _ => item.targetType,
-    };
-
-    final reasonLabel = switch (item.reason) {
-      'FALSE_REJECTION' => '오탐 거절',
-      'GPS_INACCURACY' => 'GPS 오차',
-      'NETWORK_ISSUE' => '네트워크 문제',
-      'DEVICE_ISSUE' => '기기 문제',
-      'LOCATION_ERROR' => '위치 오류',
-      _ => '기타',
-    };
+    final targetTypeLabel = _appealTargetTypeLabel(item.targetType);
+    final reasonLabel = _appealReasonLabel(item.reason);
 
     return Container(
       padding: const EdgeInsets.all(GBTSpacing.md),
@@ -1108,42 +1140,43 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
-/// EN: Translates server-side role strings to Korean display labels.
-/// KO: 서버 역할 문자열을 한글 표시 레이블로 변환합니다.
-String _translateRole(String role) => switch (role.toUpperCase()) {
-      'VIEWER' => '뷰어',
-      'EDITOR' => '에디터',
-      'MODERATOR' => '모더레이터',
-      _ => role,
-    };
-
-// ========================================
-// EN: Target selector row — tappable field showing selected verification record
-// KO: 선택된 인증 기록을 보여주는 탭 가능한 선택 필드
-// ========================================
-
-class _TargetSelectorRow extends StatelessWidget {
-  const _TargetSelectorRow({
-    required this.targetType,
-    required this.selectedLabel,
-    required this.isDark,
-    required this.onTap,
+class _SelectionOption {
+  const _SelectionOption({
+    required this.value,
+    required this.label,
+    this.caption,
   });
 
-  final String targetType;
-  final String? selectedLabel;
+  final String value;
+  final String label;
+  final String? caption;
+}
+
+class _SelectionField extends StatelessWidget {
+  const _SelectionField({
+    required this.label,
+    required this.isDark,
+    required this.placeholder,
+    this.valueText,
+    this.onTap,
+  });
+
+  final String label;
   final bool isDark;
-  final VoidCallback onTap;
+  final String placeholder;
+  final String? valueText;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final enabled = onTap != null;
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textSecondary =
-        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
-    final label =
-        targetType == 'PLACE_VISIT' ? '실패한 방문 인증 기록' : '실패한 이벤트 출석 기록';
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
 
     return Material(
       color: Colors.transparent,
@@ -1173,10 +1206,11 @@ class _TargetSelectorRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      selectedLabel ?? '탭하여 선택',
+                      valueText ?? placeholder,
                       style: GBTTypography.bodyMedium.copyWith(
-                        color:
-                            selectedLabel != null ? textPrimary : textSecondary,
+                        color: valueText != null && enabled
+                            ? textPrimary
+                            : textSecondary,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1185,11 +1219,179 @@ class _TargetSelectorRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: GBTSpacing.xs),
-              Icon(Icons.arrow_drop_down_rounded, color: textSecondary),
+              Icon(
+                Icons.arrow_drop_down_rounded,
+                color: enabled
+                    ? textSecondary
+                    : textSecondary.withValues(alpha: 0.55),
+              ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+Future<String?> _showSelectionPicker(
+  BuildContext context, {
+  required String title,
+  required List<_SelectionOption> options,
+  String? selectedValue,
+}) {
+  return showModalBottomSheet<String>(
+    context: context,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (sheetContext) => _SelectionPickerSheet(
+      title: title,
+      options: options,
+      selectedValue: selectedValue,
+    ),
+  );
+}
+
+class _SelectionPickerSheet extends StatelessWidget {
+  const _SelectionPickerSheet({
+    required this.title,
+    required this.options,
+    this.selectedValue,
+  });
+
+  final String title;
+  final List<_SelectionOption> options;
+  final String? selectedValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dividerColor = isDark ? GBTColors.darkBorder : GBTColors.divider;
+    final selectedColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.56,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                GBTSpacing.md,
+                GBTSpacing.sm,
+                GBTSpacing.md,
+                GBTSpacing.sm,
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(title, style: GBTTypography.titleMedium),
+              ),
+            ),
+            Divider(height: 1, color: dividerColor),
+            Expanded(
+              child: ListView.separated(
+                itemCount: options.length,
+                separatorBuilder: (_, __) =>
+                    Divider(height: 1, color: dividerColor),
+                itemBuilder: (context, index) {
+                  final option = options[index];
+                  final isSelected = option.value == selectedValue;
+                  return ListTile(
+                    dense: true,
+                    title: Text(
+                      option.label,
+                      style: GBTTypography.bodyMedium.copyWith(
+                        color: textPrimary,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: option.caption == null
+                        ? null
+                        : Text(
+                            option.caption!,
+                            style: GBTTypography.labelSmall.copyWith(
+                              color: textSecondary,
+                            ),
+                          ),
+                    trailing: isSelected
+                        ? Icon(
+                            Icons.check_rounded,
+                            size: 18,
+                            color: selectedColor,
+                          )
+                        : null,
+                    onTap: () => Navigator.of(context).pop(option.value),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// EN: Translates server-side role strings to Korean display labels.
+/// KO: 서버 역할 문자열을 한글 표시 레이블로 변환합니다.
+String _translateRole(String role) => switch (role.toUpperCase()) {
+  'VIEWER' => '뷰어',
+  'EDITOR' => '에디터',
+  'MODERATOR' => '모더레이터',
+  _ => role,
+};
+
+String _appealTargetTypeLabel(String value) => switch (value.toUpperCase()) {
+  'PLACE_VISIT' => '장소 방문 인증',
+  'LIVE_EVENT' => '라이브 출석 인증',
+  _ => value,
+};
+
+String _appealReasonLabel(String value) => switch (value.toUpperCase()) {
+  'FALSE_REJECTION' => '오탐 거절',
+  'GPS_INACCURACY' => 'GPS 오차',
+  'NETWORK_ISSUE' => '네트워크 문제',
+  'DEVICE_ISSUE' => '기기 문제',
+  'LOCATION_ERROR' => '위치 오류',
+  _ => '기타',
+};
+
+// ========================================
+// EN: Target selector row — tappable field showing selected verification record
+// KO: 선택된 인증 기록을 보여주는 탭 가능한 선택 필드
+// ========================================
+
+class _TargetSelectorRow extends StatelessWidget {
+  const _TargetSelectorRow({
+    required this.targetType,
+    required this.selectedLabel,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  final String targetType;
+  final String? selectedLabel;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = targetType == 'PLACE_VISIT'
+        ? '실패한 방문 인증 기록'
+        : '실패한 이벤트 출석 기록';
+
+    return _SelectionField(
+      label: label,
+      valueText: selectedLabel,
+      placeholder: '탭하여 선택',
+      isDark: isDark,
+      onTap: onTap,
     );
   }
 }
@@ -1284,9 +1486,7 @@ class _TargetPickerSheetState extends ConsumerState<_TargetPickerSheet> {
 
           // EN: Failed attempt list
           // KO: 실패 기록 목록
-          Expanded(
-            child: _buildAttemptList(attemptsAsync, isDark),
-          ),
+          Expanded(child: _buildAttemptList(attemptsAsync, isDark)),
 
           SizedBox(height: MediaQuery.of(context).padding.bottom),
         ],
@@ -1298,18 +1498,16 @@ class _TargetPickerSheetState extends ConsumerState<_TargetPickerSheet> {
     AsyncValue<List<FailedVerificationAttempt>> attemptsAsync,
     bool isDark,
   ) {
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textTertiary =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textTertiary = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
 
     return attemptsAsync.when(
-      loading: () => const Center(
-        child: GBTLoading(message: '기록을 불러오는 중...'),
-      ),
-      error: (_, __) => Center(
-        child: GBTErrorState(message: '기록을 불러오지 못했어요'),
-      ),
+      loading: () => const Center(child: GBTLoading(message: '기록을 불러오는 중...')),
+      error: (_, __) => Center(child: GBTErrorState(message: '기록을 불러오지 못했어요')),
       data: (all) {
         // EN: Filter by targetType then apply search query.
         // KO: targetType으로 필터 후 검색어 적용.
@@ -1320,12 +1518,12 @@ class _TargetPickerSheetState extends ConsumerState<_TargetPickerSheet> {
         final filtered = _query.isEmpty
             ? forType
             : forType
-                .where(
-                  (a) =>
-                      (a.targetName?.toLowerCase() ?? '').contains(_query) ||
-                      a.targetId.toLowerCase().contains(_query),
-                )
-                .toList(growable: false);
+                  .where(
+                    (a) =>
+                        (a.targetName?.toLowerCase() ?? '').contains(_query) ||
+                        a.targetId.toLowerCase().contains(_query),
+                  )
+                  .toList(growable: false);
 
         if (forType.isEmpty) {
           return Center(
@@ -1334,11 +1532,7 @@ class _TargetPickerSheetState extends ConsumerState<_TargetPickerSheet> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.verified_outlined,
-                    size: 48,
-                    color: textTertiary,
-                  ),
+                  Icon(Icons.verified_outlined, size: 48, color: textTertiary),
                   const SizedBox(height: GBTSpacing.md),
                   Text(
                     '최근 30일 내 실패한 인증 기록이 없습니다',
@@ -1398,8 +1592,7 @@ class _TargetPickerSheetState extends ConsumerState<_TargetPickerSheet> {
                 size: 18,
                 color: textTertiary,
               ),
-              onTap: () =>
-                  Navigator.of(context).pop((attempt.targetId, label)),
+              onTap: () => Navigator.of(context).pop((attempt.targetId, label)),
             );
           },
         );

@@ -26,6 +26,7 @@ import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
 import '../../../projects/presentation/widgets/band_filter_sheet.dart';
+import '../../../settings/application/settings_controller.dart';
 import '../../application/places_controller.dart';
 import '../../domain/entities/place_entities.dart';
 import '../../domain/entities/place_region_entities.dart';
@@ -127,6 +128,10 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
       selectedRegionCodes,
     );
     final selectedBandLabel = _resolveBandLabel(unitsState, selectedBandIds);
+    final avatarUrl = ref
+        .watch(userProfileControllerProvider)
+        .valueOrNull
+        ?.avatarUrl;
     final hasActiveFilters =
         selectedRegionCodes.isNotEmpty ||
         selectedBandIds.isNotEmpty ||
@@ -225,10 +230,10 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                                         '장소, 지역 검색',
                                         style: GBTTypography.bodyMedium
                                             .copyWith(
-                                          color: isDarkMode
-                                              ? GBTColors.darkTextTertiary
-                                              : GBTColors.textTertiary,
-                                        ),
+                                              color: isDarkMode
+                                                  ? GBTColors.darkTextTertiary
+                                                  : GBTColors.textTertiary,
+                                            ),
                                       ),
                                     ),
                                     IconButton(
@@ -255,7 +260,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                         ),
                       ),
                       const SizedBox(width: GBTSpacing.sm),
-                      const GBTProfileAction(),
+                      GBTProfileAction(avatarUrl: avatarUrl),
                     ],
                   ),
                   const SizedBox(height: GBTSpacing.xs),
@@ -287,11 +292,14 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                           isDark: isDarkMode,
                           onTap: () => _showBandFilter(selectedBandIds),
                           onClear: selectedBandIds.isNotEmpty
-                              ? () => ref
-                                    .read(
-                                      selectedPlaceBandIdsProvider.notifier,
-                                    )
-                                    .state = []
+                              ? () =>
+                                    ref
+                                            .read(
+                                              selectedPlaceBandIdsProvider
+                                                  .notifier,
+                                            )
+                                            .state =
+                                        []
                               : null,
                         ),
                         const SizedBox(width: GBTSpacing.xs),
@@ -403,8 +411,9 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                           hasActiveFilters: hasActiveFilters,
                           isDark: isDarkMode,
                           onCollapse: _collapsePlaceSheet,
-                          onResetFilters:
-                              hasActiveFilters ? _resetFilters : null,
+                          onResetFilters: hasActiveFilters
+                              ? _resetFilters
+                              : null,
                         ),
                       ),
 
@@ -1206,8 +1215,7 @@ class _RegionFilterSheet extends ConsumerStatefulWidget {
   final ValueChanged<List<String>> onApply;
 
   @override
-  ConsumerState<_RegionFilterSheet> createState() =>
-      _RegionFilterSheetState();
+  ConsumerState<_RegionFilterSheet> createState() => _RegionFilterSheetState();
 }
 
 class _RegionFilterSheetState extends ConsumerState<_RegionFilterSheet> {
@@ -1303,12 +1311,12 @@ class _RegionFilterSheetState extends ConsumerState<_RegionFilterSheet> {
             final filtered = query.isEmpty
                 ? allOptions
                 : allOptions
-                    .where(
-                      (o) =>
-                          normalizedContains(o.name, query) ||
-                          normalizedContains(o.code, query),
-                    )
-                    .toList(growable: false);
+                      .where(
+                        (o) =>
+                            normalizedContains(o.name, query) ||
+                            normalizedContains(o.code, query),
+                      )
+                      .toList(growable: false);
 
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -1780,13 +1788,13 @@ class _PlaceFilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
     final bgColor = isActive
-        ? primaryColor.withValues(alpha: 0.10)
+        ? primaryColor
         : (isDark ? GBTColors.darkSurface : GBTColors.surface);
     final borderColor = isActive
         ? primaryColor
         : (isDark ? GBTColors.darkBorder : GBTColors.border);
     final textColor = isActive
-        ? primaryColor
+        ? (isDark ? GBTColors.darkBackground : Colors.white)
         : (isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary);
 
     return GestureDetector(
@@ -2089,8 +2097,7 @@ class _ProjectFilterChip extends ConsumerWidget {
         if (projects.isEmpty) return '프로젝트';
         final selected = projects.cast<Project?>().firstWhere(
           (p) =>
-              p?.code == selection.projectKey ||
-              p?.id == selection.projectKey,
+              p?.code == selection.projectKey || p?.id == selection.projectKey,
           orElse: () => projects.first,
         );
         return selected?.name ?? '프로젝트';
@@ -2183,9 +2190,9 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
     ref
         .read(projectSelectionControllerProvider.notifier)
         .selectProject(key, projectId: project.id);
-    ref.read(projectUnitsControllerProvider(key).notifier).load(
-          forceRefresh: true,
-        );
+    ref
+        .read(projectUnitsControllerProvider(key).notifier)
+        .load(forceRefresh: true);
     Navigator.of(context).pop();
   }
 
@@ -2264,8 +2271,9 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
                           ? project.code
                           : project.id;
                       final isSelected = _draftKey == key;
-                      final primaryColor =
-                          Theme.of(context).colorScheme.primary;
+                      final primaryColor = Theme.of(
+                        context,
+                      ).colorScheme.primary;
                       return ListTile(
                         leading: Icon(
                           isSelected

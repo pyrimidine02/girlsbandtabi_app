@@ -384,6 +384,7 @@ class ProjectCommunityBan {
     required this.moderatorUserId,
     required this.createdAt,
     this.bannedUserDisplayName,
+    this.bannedUserEmail,
     this.bannedUserAvatarUrl,
     this.reason,
     this.expiresAt,
@@ -395,6 +396,7 @@ class ProjectCommunityBan {
   final String moderatorUserId;
   final DateTime createdAt;
   final String? bannedUserDisplayName;
+  final String? bannedUserEmail;
   final String? bannedUserAvatarUrl;
   final String? reason;
   final DateTime? expiresAt;

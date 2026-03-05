@@ -96,11 +96,10 @@ class UserFollowController extends StateNotifier<AsyncValue<UserFollowStatus>> {
 
 /// EN: User follow state provider.
 /// KO: 사용자 팔로우 상태 프로바이더.
-final userFollowControllerProvider =
-    StateNotifierProvider.family<
-      UserFollowController,
-      AsyncValue<UserFollowStatus>,
-      String
-    >((ref, userId) {
+final userFollowControllerProvider = StateNotifierProvider.autoDispose
+    .family<UserFollowController, AsyncValue<UserFollowStatus>, String>((
+      ref,
+      userId,
+    ) {
       return UserFollowController(ref, userId);
     });

@@ -40,9 +40,7 @@ class FailedAttemptService {
         .map(FailedVerificationAttempt.fromJson)
         .where((a) => a.attemptedAt.isAfter(cutoff))
         .toList(growable: true)
-      ..sort(
-        (a, b) => b.attemptedAt.compareTo(a.attemptedAt),
-      );
+      ..sort((a, b) => b.attemptedAt.compareTo(a.attemptedAt));
   }
 
   /// EN: Delete all stored attempts (e.g. on logout).
@@ -73,7 +71,7 @@ class FailedAttemptService {
 final failedAttemptServiceProvider = FutureProvider<FailedAttemptService>((
   ref,
 ) async {
-  final storage = await ref.watch(localStorageProvider.future);
+  final storage = await ref.read(localStorageProvider.future);
   return FailedAttemptService(storage);
 });
 
@@ -81,6 +79,6 @@ final failedAttemptServiceProvider = FutureProvider<FailedAttemptService>((
 /// KO: 30일 이내 실패 기록 목록을 노출하는 FutureProvider.
 final failedVerificationAttemptsProvider =
     FutureProvider<List<FailedVerificationAttempt>>((ref) async {
-      final service = await ref.watch(failedAttemptServiceProvider.future);
+      final service = await ref.read(failedAttemptServiceProvider.future);
       return service.getAll();
     });

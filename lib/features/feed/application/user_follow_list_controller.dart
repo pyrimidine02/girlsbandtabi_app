@@ -9,15 +9,15 @@ import '../../../core/utils/result.dart';
 import '../domain/entities/community_moderation.dart';
 import 'community_moderation_controller.dart';
 
-final userFollowersProvider =
-    FutureProvider.family<List<UserFollowSummary>, String>((ref, userId) async {
+final userFollowersProvider = FutureProvider.autoDispose
+    .family<List<UserFollowSummary>, String>((ref, userId) async {
       if (userId.isEmpty) {
         throw const ValidationFailure(
           'Target user ID is empty',
           code: 'follow_target_empty',
         );
       }
-      final repository = await ref.watch(communityRepositoryProvider.future);
+      final repository = await ref.read(communityRepositoryProvider.future);
       final result = await repository.getFollowers(userId: userId, size: 100);
       if (result is Success<List<UserFollowSummary>>) {
         return result.data;
@@ -31,15 +31,15 @@ final userFollowersProvider =
       );
     });
 
-final userFollowingProvider =
-    FutureProvider.family<List<UserFollowSummary>, String>((ref, userId) async {
+final userFollowingProvider = FutureProvider.autoDispose
+    .family<List<UserFollowSummary>, String>((ref, userId) async {
       if (userId.isEmpty) {
         throw const ValidationFailure(
           'Target user ID is empty',
           code: 'follow_target_empty',
         );
       }
-      final repository = await ref.watch(communityRepositoryProvider.future);
+      final repository = await ref.read(communityRepositoryProvider.future);
       final result = await repository.getFollowing(userId: userId, size: 100);
       if (result is Success<List<UserFollowSummary>>) {
         return result.data;

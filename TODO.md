@@ -1,6 +1,12 @@
 # TODO
 
 - Run full-device visual QA for service-fit redesign phase1 (`home`, `places`, `live`, `board`, `search`) focusing on bottom-nav reachability, segmented-tab readability, and search-field focus states (remove once validated).
+- Run role-based UX QA for new bottom action entry points (`board` expandable FAB, `live` calendar FAB): verify non-auth/non-admin users do not see restricted actions.
+- Run Account Tools UX QA after selector unification: tab switching state retention, selection bottom-sheet open/close behavior, and selected value persistence (`프로젝트/권한/대상 유형/사유`).
+- Continue architecture roadmap Phase 3 by migrating direct imports from `feed_controller.dart` to dedicated modules (`board_controller.dart`, `news_controller.dart`, `post_controller.dart`, `reaction_controller.dart`) and remove transitional barrel when migration is complete.
+- Expand controller tests from guard-level coverage to success/error/mutation scenarios for roadmap priority modules (`verification`, `settings`, `places`, `visits`).
+- Decide/record policy for Domain↔Data DTO dependency exception (`fromDto` in entities) and align with `AGENTS.md`/ADR guidance.
+- Plan staged migration path from `StateNotifier<AsyncValue<T>>` to `AsyncNotifier` for 신규 컨트롤러 and low-risk existing modules.
 - Apply service-fit redesign phase2 to detail/editor screens (`post_detail`, `post_create`, `profile_edit`, `live_detail`, `place_detail`) using the same visual rhythm/tokens (remove once completed).
 - Capture before/after screenshots for redesigned primitives and align with product acceptance criteria from UX references (`uxdnas + mobile guideline links`) (remove once reviewed).
 - Complete community overhaul phase-4 by unifying comment-level trust/safety UX (댓글 신고/관리 액션 배치, 관리자 액션 시각 우선순위, 답글 스레드 내 일관성) with the new post-level safety model.
@@ -42,6 +48,7 @@
 - Add a CI step (or pre-commit hook) to run `build_runner` so generated files stay in sync.
 - Add CI check to compare `ApiEndpoints` against `/v3/api-docs` and fail on missing/removed paths.
 - Verify community-ban management sheet filter/sort controls (query/sort chips) remain usable without overflow on small-width devices (remove once mobile QA passes).
+- Follow up backend feature request for moderation-ban search endpoint (`/api/v1/projects/{projectCode}/moderation/bans:search`) and `bannedUser.email` response guarantee; remove client-side fallback once API is available.
 - Re-run `flutter analyze --no-pub` and `flutter test --no-pub` for updated community-ban UX/tests after local Xcode license acceptance and dependency cache recovery (remove once green run is recorded).
 - Verify `tags` field availability on all place summary endpoints; if absent on 일부 응답, decide fallback strategy (detail prefetch vs summary contract update).
 - Verify the new places-sheet collapse/expand floating toggle does not overlap map FABs on small iPhone/Android screen sizes.

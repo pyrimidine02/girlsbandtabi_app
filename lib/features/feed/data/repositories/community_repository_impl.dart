@@ -630,6 +630,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
       moderatorUserId: dto.moderatorUserId,
       createdAt: dto.createdAt,
       bannedUserDisplayName: dto.bannedUserDisplayName,
+      bannedUserEmail: dto.bannedUserEmail,
       bannedUserAvatarUrl: dto.bannedUserAvatarUrl,
       reason: dto.reason,
       expiresAt: dto.expiresAt,

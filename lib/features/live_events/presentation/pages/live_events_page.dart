@@ -9,7 +9,6 @@ import 'package:intl/intl.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
-import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -23,6 +22,7 @@ import '../../domain/entities/live_event_entities.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
+import '../../../settings/application/settings_controller.dart';
 
 /// EN: Live events page widget
 /// KO: 라이브 이벤트 페이지 위젯
@@ -62,6 +62,10 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
     final unitsState = resolvedProjectKey.isNotEmpty
         ? ref.watch(projectUnitsControllerProvider(resolvedProjectKey))
         : const AsyncValue<List<Unit>>.data([]);
+    final avatarUrl = ref
+        .watch(userProfileControllerProvider)
+        .valueOrNull
+        ?.avatarUrl;
 
     return Scaffold(
       appBar: AppBar(
@@ -73,9 +77,9 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
             const SizedBox(width: GBTSpacing.md),
             Text(
               '라이브',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.sm),
@@ -109,16 +113,7 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
             ],
           ),
         ),
-        actions: [
-          GBTAppBarIconButton(
-            icon: Icons.calendar_month_outlined,
-            onPressed: () {
-              _showCalendar(eventsState);
-            },
-            tooltip: '캘린더로 라이브 이벤트 보기',
-          ),
-          const GBTProfileAction(),
-        ],
+        actions: [GBTProfileAction(avatarUrl: avatarUrl)],
       ),
       body: Column(
         children: [
@@ -133,8 +128,9 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
             onToggleBand: (id) {
               final current = ref.read(selectedLiveBandIdsProvider);
               if (current.contains(id)) {
-                ref.read(selectedLiveBandIdsProvider.notifier).state =
-                    current.where((e) => e != id).toList();
+                ref.read(selectedLiveBandIdsProvider.notifier).state = current
+                    .where((e) => e != id)
+                    .toList();
               } else {
                 ref.read(selectedLiveBandIdsProvider.notifier).state = [
                   ...current,
@@ -171,6 +167,12 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'live-calendar-fab',
+        onPressed: () => _showCalendar(eventsState),
+        tooltip: '캘린더로 라이브 이벤트 보기',
+        child: const Icon(Icons.calendar_month_outlined),
       ),
     );
   }
@@ -418,9 +420,9 @@ class _EventList extends StatelessWidget {
               final event = filtered[index];
               final isLive = event.statusLabel.toLowerCase() == 'live';
               final isTodayEvent = event.dDayLabel == 'D-day';
-              final timeStr = DateFormat('HH:mm').format(
-                event.showStartTime.toLocal(),
-              );
+              final timeStr = DateFormat(
+                'HH:mm',
+              ).format(event.showStartTime.toLocal());
 
               // EN: Featured card for live or today events (upcoming tab only)
               // KO: 업커밍 탭에서 LIVE·오늘 이벤트는 피처드 카드로 강조
@@ -507,8 +509,9 @@ class _BandChipFilterRow extends StatelessWidget {
                 onTap: onSelectAll,
               ),
               ...units.map((unit) {
-                final label =
-                    unit.code.isNotEmpty ? unit.code : unit.displayName;
+                final label = unit.code.isNotEmpty
+                    ? unit.code
+                    : unit.displayName;
                 return Padding(
                   padding: const EdgeInsets.only(left: GBTSpacing.xs2),
                   child: _BandChip(

@@ -88,7 +88,7 @@ class SearchHistoryController extends StateNotifier<List<String>> {
 /// KO: 검색 리포지토리 프로바이더.
 final searchRepositoryProvider = FutureProvider<SearchRepository>((ref) async {
   final apiClient = ref.watch(apiClientProvider);
-  final cacheManager = await ref.watch(cacheManagerProvider.future);
+  final cacheManager = await ref.read(cacheManagerProvider.future);
   return SearchRepositoryImpl(
     remoteDataSource: SearchRemoteDataSource(apiClient),
     cacheManager: cacheManager,

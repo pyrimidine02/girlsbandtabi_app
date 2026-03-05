@@ -17,7 +17,7 @@ final adminOpsRepositoryProvider = FutureProvider<AdminOpsRepository>((
   ref,
 ) async {
   final apiClient = ref.watch(apiClientProvider);
-  final cacheManager = await ref.watch(cacheManagerProvider.future);
+  final cacheManager = await ref.read(cacheManagerProvider.future);
   return AdminOpsRepositoryImpl(
     remoteDataSource: AdminOpsRemoteDataSource(apiClient),
     cacheManager: cacheManager,
@@ -185,8 +185,8 @@ final adminReportsControllerProvider =
 
 /// EN: Report detail provider.
 /// KO: 신고 상세 프로바이더.
-final adminReportDetailProvider =
-    FutureProvider.family<AdminCommunityReport?, String>((ref, reportId) async {
+final adminReportDetailProvider = FutureProvider.autoDispose
+    .family<AdminCommunityReport?, String>((ref, reportId) async {
       if (reportId.isEmpty) {
         return null;
       }

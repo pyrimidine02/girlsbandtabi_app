@@ -9,44 +9,11 @@ import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/utils/date_utils.dart';
+import '../../../../core/utils/palette_utils.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
-
-// EN: Deterministic palette — same as info_page for consistency.
-// KO: 일관성을 위해 info_page와 동일한 결정적 팔레트.
-const _kPalette = [
-  Color(0xFF6366F1),
-  Color(0xFF3B82F6),
-  Color(0xFFEC4899),
-  Color(0xFFF59E0B),
-  Color(0xFF10B981),
-  Color(0xFF8B5CF6),
-  Color(0xFFEF4444),
-  Color(0xFF14B8A6),
-];
-
-Color _pc(String seed) => _kPalette[seed.hashCode.abs() % _kPalette.length];
-
-// EN: Parse birthdate string → days until next birthday. Null if unparseable.
-// KO: 생일 문자열 → 다음 생일까지 남은 일수. 파싱 불가 시 null.
-int? _daysUntilBirthday(String? birthdate) {
-  if (birthdate == null || birthdate.isEmpty) return null;
-  try {
-    final parts = birthdate.replaceAll('/', '-').split('-');
-    if (parts.length < 2) return null;
-    final now = DateTime.now();
-    final month = int.parse(parts.length >= 3 ? parts[1] : parts[0]);
-    final day = int.parse(parts.length >= 3 ? parts[2] : parts[1]);
-    var next = DateTime(now.year, month, day);
-    if (next.isBefore(DateTime(now.year, now.month, now.day))) {
-      next = DateTime(now.year + 1, month, day);
-    }
-    return next.difference(DateTime(now.year, now.month, now.day)).inDays;
-  } catch (_) {
-    return null;
-  }
-}
 
 /// EN: Unit detail page — wiki-style unit profile with member roster.
 /// KO: 유닛 상세 페이지 — 위키 스타일 유닛 프로필 + 멤버 로스터.
@@ -63,11 +30,19 @@ class UnitDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final paletteColor = _pc(unit.displayName);
-    final textPrimary = isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textSecondary = isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
-    final textTertiary = isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
-    final surfaceVariant = isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant;
+    final paletteColor = paletteColorFromSeed(unit.displayName);
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final textTertiary = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    final surfaceVariant = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
 
     final membersState = ref.watch(
       unitMembersControllerProvider((projectId, unit.id)),
@@ -162,7 +137,9 @@ class UnitDetailPage extends ConsumerWidget {
                     ),
                     decoration: BoxDecoration(
                       color: paletteColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+                      borderRadius: BorderRadius.circular(
+                        GBTSpacing.radiusFull,
+                      ),
                       border: Border.all(
                         color: paletteColor.withValues(alpha: 0.3),
                       ),
@@ -192,11 +169,7 @@ class UnitDetailPage extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.groups_outlined,
-                    size: 16,
-                    color: textSecondary,
-                  ),
+                  Icon(Icons.groups_outlined, size: 16, color: textSecondary),
                   const SizedBox(width: GBTSpacing.xs),
                   Text(
                     '멤버 · 성우',
@@ -258,38 +231,34 @@ class UnitDetailPage extends ConsumerWidget {
                 );
               }
 
-              final sorted = [...members]..sort((a, b) {
-                if (a.order != null && b.order != null) {
-                  return a.order!.compareTo(b.order!);
-                }
-                return a.name.compareTo(b.name);
-              });
+              final sorted = [...members]
+                ..sort((a, b) {
+                  if (a.order != null && b.order != null) {
+                    return a.order!.compareTo(b.order!);
+                  }
+                  return a.name.compareTo(b.name);
+                });
 
               return SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final member = sorted[index];
-                    return _MemberCard(
-                      member: member,
-                      unit: unit,
-                      projectId: projectId,
-                      paletteColor: paletteColor,
-                      textPrimary: textPrimary,
-                      textSecondary: textSecondary,
-                      textTertiary: textTertiary,
-                      surfaceVariant: surfaceVariant,
-                      isDark: isDark,
-                    );
-                  },
-                  childCount: sorted.length,
-                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final member = sorted[index];
+                  return _MemberCard(
+                    member: member,
+                    unit: unit,
+                    projectId: projectId,
+                    paletteColor: paletteColor,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                    textTertiary: textTertiary,
+                    surfaceVariant: surfaceVariant,
+                    isDark: isDark,
+                  );
+                }, childCount: sorted.length),
               );
             },
           ),
 
-          const SliverToBoxAdapter(
-            child: SizedBox(height: GBTSpacing.xl),
-          ),
+          const SliverToBoxAdapter(child: SizedBox(height: GBTSpacing.xl)),
         ],
       ),
     );
@@ -408,10 +377,7 @@ class _MemberCard extends StatelessWidget {
                       runSpacing: GBTSpacing.xs,
                       children: [
                         if (member.instrument != null)
-                          _Tag(
-                            label: member.instrument!,
-                            color: paletteColor,
-                          ),
+                          _Tag(label: member.instrument!, color: paletteColor),
                         if (member.role != null &&
                             member.role != member.instrument)
                           _Tag(label: member.role!, color: paletteColor),
@@ -421,7 +387,7 @@ class _MemberCard extends StatelessWidget {
                     // KO: 7일 이내 생일 카운트다운.
                     Builder(
                       builder: (_) {
-                        final days = _daysUntilBirthday(member.birthdate);
+                        final days = daysUntilBirthday(member.birthdate);
                         if (days == null || days > 7) {
                           return const SizedBox.shrink();
                         }
@@ -442,11 +408,7 @@ class _MemberCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: textTertiary,
-                size: 20,
-              ),
+              Icon(Icons.chevron_right_rounded, color: textTertiary, size: 20),
             ],
           ),
         ),
@@ -475,10 +437,7 @@ class _AvatarCircle extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: paletteColor,
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: paletteColor, shape: BoxShape.circle),
       clipBehavior: Clip.antiAlias,
       child: Center(
         child: Text(

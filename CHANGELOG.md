@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-03-05
+- **BOARD/MODERATION**: Re-aligned `내 신고 내역` and `커뮤니티 제재 관리` sheets to the same compact list-based visual style for stronger in-app consistency.
+- **BOARD/MODERATION**: Extended community-ban lookup input to support `사용자 ID/닉네임/이메일` query flow:
+  - UUID query → direct `GET /moderation/bans/{userId}`
+  - non-UUID query → local ban list search by displayName/email/userId with multi-hit list filtering.
+- **COMMUNITY/DATA**: Added optional `bannedUserEmail` mapping in moderation ban DTO/domain/repository and included email in list filter helper matching.
+- **DOCS/API-REQUEST**: Added `docs/community-ban-user-search-api-request.md` proposing a server-side ban-search endpoint and `bannedUser.email` response guarantee.
+- **ARCH/P1**: Hardened router security and stability by adding protected-route redirect logic, safe `state.extra` type guards, and debug-only router diagnostics.
+- **ARCH/P1**: Restricted `AppLogger` info/warn/error/network output to debug builds to avoid production log leakage.
+- **ARCH/P2**: Applied `autoDispose.family` to all family providers and replaced async provider-body `await ref.watch(...future)` with `await ref.read(...future)` across controller/provider modules.
+- **ARCH/P2**: Removed `core -> features/settings` reverse dependency by refactoring `GBTProfileAction` to receive optional `avatarUrl`/`onTap` inputs.
+- **ARCH/P2**: Extracted shared visual/date helpers into `lib/core/utils/palette_utils.dart` and `lib/core/utils/date_utils.dart`; replaced duplicate palette/birthday utilities in Info/Unit/Member detail pages.
+- **ARCH/P2**: Removed unused dependencies from `pubspec.yaml` (`graphql_flutter`, `equatable`, `table_calendar`, `flutter_sfsymbols`, `crypto`(direct), `patrol`, `faker`, `json_serializable`, `freezed`, `freezed_annotation`(direct)).
+- **ARCH/P3**: Split monolithic feed application layer into focused modules:
+  - `board_controller.dart` (게시판 목록/모드/검색/커서 페이징)
+  - `news_controller.dart` (뉴스 목록/상세)
+  - `post_controller.dart` (게시글 상세/댓글 CRUD)
+  - `reaction_controller.dart` (좋아요/북마크)
+  - `feed_repository_provider.dart` (repository wiring)
+- **ARCH/P3**: Converted `feed_controller.dart` to a backward-compatible barrel export so existing imports continue to work during incremental migration.
+- **TESTING/P3**: Added controller tests:
+  - `test/features/verification/application/verification_controller_test.dart`
+  - `test/features/settings/application/settings_controller_test.dart`
+  - `test/features/places/application/places_controller_test.dart`
+  - `test/features/visits/application/visits_controller_test.dart`
+- **LIVE/UI**: Moved the Live page calendar trigger from AppBar to bottom-right FAB while preserving the same calendar bottom sheet behavior.
+- **BOARD/UI**: Replaced Board page single write FAB with an upward-expanding action menu (`작성 메뉴`) for one-handed reachability.
+- **BOARD/ROLE**: Moved `내 신고 내역` and `커뮤니티 제재 관리` from AppBar into the expandable FAB menu and preserved role-based visibility (`인증 사용자` / `관리자` only).
+- **SETTINGS/UI**: Unified Account Tools selectors with existing app patterns by replacing mixed segmented/dropdown controls with `GBTSegmentedTabBar` and a shared selection field + bottom-sheet picker style (프로젝트/권한/이의제기 대상유형/사유).
+
 ## 2026-03-04 (Info Page — Wiki Polish Pass: Shimmer, Badges, Birthday)
 - **INFO/SHIMMER**: All tab skeleton loaders replaced with `GBTShimmer` + `GBTShimmerContainer` (animated sweep effect).
 - **INFO/NEWS**: `_NewsRowItem` list items show a `NEW` badge (red pill) when `publishedAt` is within the last 24 hours.

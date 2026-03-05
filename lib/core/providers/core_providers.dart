@@ -32,7 +32,7 @@ final localStorageProvider = FutureProvider<LocalStorage>((ref) async {
 /// EN: Cache manager provider (async initialization required).
 /// KO: 캐시 매니저 프로바이더 (비동기 초기화 필요).
 final cacheManagerProvider = FutureProvider<CacheManager>((ref) async {
-  final localStorage = await ref.watch(localStorageProvider.future);
+  final localStorage = await ref.read(localStorageProvider.future);
   return CacheManager(localStorage);
 });
 

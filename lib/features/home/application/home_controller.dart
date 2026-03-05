@@ -137,7 +137,7 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
 /// KO: 홈 리포지토리 프로바이더.
 final homeRepositoryProvider = FutureProvider<HomeRepository>((ref) async {
   final apiClient = ref.watch(apiClientProvider);
-  final cacheManager = await ref.watch(cacheManagerProvider.future);
+  final cacheManager = await ref.read(cacheManagerProvider.future);
   return HomeRepositoryImpl(
     remoteDataSource: HomeRemoteDataSource(apiClient),
     cacheManager: cacheManager,

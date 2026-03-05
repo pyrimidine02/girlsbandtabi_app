@@ -75,7 +75,7 @@ class NotificationsController
 final notificationsRepositoryProvider = FutureProvider<NotificationsRepository>(
   (ref) async {
     final apiClient = ref.watch(apiClientProvider);
-    final cacheManager = await ref.watch(cacheManagerProvider.future);
+    final cacheManager = await ref.read(cacheManagerProvider.future);
     return NotificationsRepositoryImpl(
       remoteDataSource: NotificationsRemoteDataSource(apiClient),
       cacheManager: cacheManager,
