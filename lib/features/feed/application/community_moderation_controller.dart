@@ -90,11 +90,10 @@ final communityRepositoryProvider = FutureProvider<CommunityRepository>((ref) {
 
 /// EN: Block status controller provider.
 /// KO: 차단 상태 컨트롤러 프로바이더.
-final blockStatusControllerProvider =
-    StateNotifierProvider.family<
-      BlockStatusController,
-      AsyncValue<BlockStatus>,
-      String
-    >((ref, userId) {
+final blockStatusControllerProvider = StateNotifierProvider.autoDispose
+    .family<BlockStatusController, AsyncValue<BlockStatus>, String>((
+      ref,
+      userId,
+    ) {
       return BlockStatusController(ref, userId);
     });

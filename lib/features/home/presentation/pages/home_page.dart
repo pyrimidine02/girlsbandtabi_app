@@ -24,6 +24,7 @@ import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
+import '../../../settings/application/settings_controller.dart';
 import '../../application/home_controller.dart';
 import '../../domain/entities/home_summary.dart';
 
@@ -46,6 +47,10 @@ class _HomePageState extends ConsumerState<HomePage> {
     // 기다리지만 ProjectSelector가 콘텐츠 로드 후에만 렌더링되는 데드락 방지.
     ref.watch(projectSelectionControllerProvider);
     final state = ref.watch(homeControllerProvider);
+    final avatarUrl = ref
+        .watch(userProfileControllerProvider)
+        .valueOrNull
+        ?.avatarUrl;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -66,7 +71,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             onPressed: () => context.push('/notifications'),
             tooltip: '알림',
           ),
-          const GBTProfileAction(),
+          GBTProfileAction(avatarUrl: avatarUrl),
         ],
       ),
       body: RefreshIndicator(
@@ -477,9 +482,7 @@ class _ServiceHubItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: GBTSpacing.md),
             decoration: showRightDivider
                 ? BoxDecoration(
-                    border: Border(
-                      right: BorderSide(color: dividerColor),
-                    ),
+                    border: Border(right: BorderSide(color: dividerColor)),
                   )
                 : null,
             child: Column(

@@ -271,7 +271,7 @@ class PlaceCommentsController
 /// KO: 장소 리포지토리 프로바이더.
 final placesRepositoryProvider = FutureProvider<PlacesRepository>((ref) async {
   final apiClient = ref.watch(apiClientProvider);
-  final cacheManager = await ref.watch(cacheManagerProvider.future);
+  final cacheManager = await ref.read(cacheManagerProvider.future);
   return PlacesRepositoryImpl(
     remoteDataSource: PlacesRemoteDataSource(apiClient),
     cacheManager: cacheManager,
@@ -329,33 +329,29 @@ final placeListModeProvider = StateProvider<PlaceListMode>((ref) {
 
 /// EN: Place detail controller provider.
 /// KO: 장소 상세 컨트롤러 프로바이더.
-final placeDetailControllerProvider =
-    StateNotifierProvider.family<
-      PlaceDetailController,
-      AsyncValue<PlaceDetail>,
-      String
-    >((ref, placeId) {
+final placeDetailControllerProvider = StateNotifierProvider.autoDispose
+    .family<PlaceDetailController, AsyncValue<PlaceDetail>, String>((
+      ref,
+      placeId,
+    ) {
       return PlaceDetailController(ref, placeId)..load();
     });
 
 /// EN: Place guides controller provider.
 /// KO: 장소 가이드 컨트롤러 프로바이더.
-final placeGuidesControllerProvider =
-    StateNotifierProvider.family<
-      PlaceGuidesController,
-      AsyncValue<List<PlaceGuideSummary>>,
-      String
-    >((ref, placeId) {
-      return PlaceGuidesController(ref, placeId)..load();
-    });
+final placeGuidesControllerProvider = StateNotifierProvider.autoDispose
+    .family<PlaceGuidesController, AsyncValue<List<PlaceGuideSummary>>, String>(
+      (ref, placeId) {
+        return PlaceGuidesController(ref, placeId)..load();
+      },
+    );
 
 /// EN: Place comments controller provider.
 /// KO: 장소 댓글 컨트롤러 프로바이더.
-final placeCommentsControllerProvider =
-    StateNotifierProvider.family<
-      PlaceCommentsController,
-      AsyncValue<List<PlaceComment>>,
-      String
-    >((ref, placeId) {
+final placeCommentsControllerProvider = StateNotifierProvider.autoDispose
+    .family<PlaceCommentsController, AsyncValue<List<PlaceComment>>, String>((
+      ref,
+      placeId,
+    ) {
       return PlaceCommentsController(ref, placeId)..load();
     });

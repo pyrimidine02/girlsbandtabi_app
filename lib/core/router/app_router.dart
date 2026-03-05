@@ -25,7 +25,8 @@ import '../../features/feed/presentation/pages/news_detail_page.dart';
 import '../../features/feed/presentation/pages/post_create_page.dart';
 import '../../features/feed/presentation/pages/post_detail_page.dart';
 import '../../features/feed/presentation/pages/unit_detail_page.dart';
-import '../../features/projects/domain/entities/project_entities.dart' show Unit, UnitMember;
+import '../../features/projects/domain/entities/project_entities.dart'
+    show Unit, UnitMember;
 import '../../features/feed/presentation/pages/post_edit_page.dart';
 import '../../features/feed/presentation/pages/travel_review_create_page.dart';
 import '../../features/feed/presentation/pages/travel_review_detail_page.dart';
@@ -145,17 +146,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     initialLocation: '/login',
-    debugLogDiagnostics: true,
+    debugLogDiagnostics: kDebugMode,
     redirect: (context, state) {
+      if (authState == AuthState.initial) {
+        return null;
+      }
+
       final isLoggedIn = authState == AuthState.authenticated;
       final loc = state.matchedLocation;
       final isAuthRoute =
           loc == '/login' || loc == '/register' || loc.startsWith('/auth/');
+      final isPublicRoute = loc == '/home' || loc.startsWith('/info');
 
       // EN: If logged in and on auth pages, redirect to home.
       // KO: 로그인했고 인증 페이지면 홈으로 리다이렉트.
       if (isLoggedIn && isAuthRoute) {
         return '/home';
+      }
+
+      // EN: If not logged in and trying to access protected routes, redirect
+      // EN: to login with original destination.
+      // KO: 비로그인 상태에서 보호된 경로 접근 시 원래 목적지와 함께
+      // KO: 로그인 페이지로 리다이렉트.
+      if (!isLoggedIn && !isAuthRoute && !isPublicRoute) {
+        final redirectTo = Uri.encodeComponent(state.uri.toString());
+        return '/login?redirect=$redirectTo';
       }
 
       return null;
@@ -296,7 +311,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     path: 'posts/:postId/edit',
                     name: AppRoutes.postEdit,
                     builder: (context, state) {
-                      final post = state.extra as PostDetail;
+                      final post = state.extra;
+                      if (post is! PostDetail) {
+                        return const _InvalidNavigationPage(
+                          message: '게시글 수정 경로 인자가 올바르지 않습니다.',
+                        );
+                      }
                       return PostEditPage(post: post);
                     },
                   ),
@@ -329,15 +349,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     path: 'units/:unitId',
                     name: AppRoutes.unitDetail,
                     pageBuilder: (context, state) {
-                      final unit = state.extra as Unit;
+                      final unit = state.extra;
+                      if (unit is! Unit) {
+                        return _buildAdaptiveDetailPage(
+                          key: state.pageKey,
+                          child: const _InvalidNavigationPage(
+                            message: '유닛 상세 경로 인자가 올바르지 않습니다.',
+                          ),
+                        );
+                      }
                       final projectId =
                           state.uri.queryParameters['projectId'] ?? '';
                       return _buildAdaptiveDetailPage(
                         key: state.pageKey,
-                        child: UnitDetailPage(
-                          unit: unit,
-                          projectId: projectId,
-                        ),
+                        child: UnitDetailPage(unit: unit, projectId: projectId),
                       );
                     },
                     routes: [
@@ -345,16 +370,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         path: 'members/:memberId',
                         name: AppRoutes.memberDetail,
                         pageBuilder: (context, state) {
-                          final extra =
-                              state.extra as Map<String, dynamic>;
-                          final member = extra['member'] as UnitMember;
-                          final unit = extra['unit'] as Unit;
+                          final extra = state.extra;
+                          if (extra is! Map<String, dynamic>) {
+                            return _buildAdaptiveDetailPage(
+                              key: state.pageKey,
+                              child: const _InvalidNavigationPage(
+                                message: '멤버 상세 경로 인자가 올바르지 않습니다.',
+                              ),
+                            );
+                          }
+                          final member = extra['member'];
+                          final unit = extra['unit'];
+                          if (member is! UnitMember || unit is! Unit) {
+                            return _buildAdaptiveDetailPage(
+                              key: state.pageKey,
+                              child: const _InvalidNavigationPage(
+                                message: '멤버 상세 경로 인자가 올바르지 않습니다.',
+                              ),
+                            );
+                          }
                           return _buildAdaptiveDetailPage(
                             key: state.pageKey,
-                            child: MemberDetailPage(
-                              member: member,
-                              unit: unit,
-                            ),
+                            child: MemberDetailPage(member: member, unit: unit),
                           );
                         },
                       ),
@@ -515,6 +552,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ),
   );
 });
+
+class _InvalidNavigationPage extends StatelessWidget {
+  const _InvalidNavigationPage({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Navigation Error')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(message, textAlign: TextAlign.center),
+        ),
+      ),
+    );
+  }
+}
 
 /// EN: Extension for navigation helpers
 /// KO: 네비게이션 헬퍼 확장

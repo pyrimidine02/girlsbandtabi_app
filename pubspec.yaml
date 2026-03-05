@@ -46,7 +46,6 @@ dependencies:
   # HTTP & GraphQL
   dio: ^5.4.3+1
   http_parser: ^4.1.2
-  graphql_flutter: ^5.1.2
   
   # Authentication & Storage
   flutter_secure_storage: ^9.2.2
@@ -60,17 +59,12 @@ dependencies:
   
   # JSON Serialization
   json_annotation: ^4.9.0
-  freezed_annotation: ^2.4.4
   
   # Utility
   intl: ^0.20.2
   path: ^1.9.0
-  crypto: ^3.0.3
   connectivity_plus: ^6.1.0
-  flutter_sfsymbols: ^2.0.0
   jose: ^0.3.5
-  equatable: ^2.0.5
-  table_calendar: ^3.2.0
   google_fonts: ^6.2.1
   image_picker: ^1.1.2
   flutter_image_compress: ^2.3.0
@@ -101,18 +95,12 @@ dev_dependencies:
   
   # Widget Testing Utilities
   flutter_test_helpers: ^0.1.0
-  patrol: ^3.20.0
-  
-  # Mock Data Generation
-  faker: ^2.1.0
   
   # Coverage Analysis
   coverage: ^1.6.4
   
   # Code Generation
   build_runner: ^2.4.9
-  json_serializable: ^6.8.0
-  freezed: ^2.5.7
   riverpod_generator: ^2.4.2
 
 # For information on the generic Dart part of this file, see the

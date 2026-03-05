@@ -99,7 +99,7 @@ final favoritesRepositoryProvider = FutureProvider<FavoritesRepository>((
   ref,
 ) async {
   final apiClient = ref.watch(apiClientProvider);
-  final cacheManager = await ref.watch(cacheManagerProvider.future);
+  final cacheManager = await ref.read(cacheManagerProvider.future);
   return FavoritesRepositoryImpl(
     remoteDataSource: FavoritesRemoteDataSource(apiClient),
     cacheManager: cacheManager,

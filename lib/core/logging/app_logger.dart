@@ -31,12 +31,14 @@ class AppLogger {
   /// EN: Log info message
   /// KO: 정보 메시지 로깅
   static void info(String message, {dynamic data, String? tag}) {
+    if (!kDebugMode) return;
     _log(LogLevel.info, message, data: data, tag: tag);
   }
 
   /// EN: Log warning message
   /// KO: 경고 메시지 로깅
   static void warning(String message, {dynamic data, String? tag}) {
+    if (!kDebugMode) return;
     _log(LogLevel.warning, message, data: data, tag: tag);
   }
 
@@ -48,6 +50,7 @@ class AppLogger {
     StackTrace? stackTrace,
     String? tag,
   }) {
+    if (!kDebugMode) return;
     _log(
       LogLevel.error,
       message,
@@ -69,6 +72,7 @@ class AppLogger {
     int? responseTimeMs,
     String? tag,
   }) {
+    if (!kDebugMode) return;
     final status = statusCode != null ? '[$statusCode]' : '';
     final time = responseTimeMs != null ? '(${responseTimeMs}ms)' : '';
     debug('$method $url $status $time', tag: tag ?? 'Network');
@@ -93,20 +97,15 @@ class AppLogger {
 
     // EN: Color-coded output for debug mode
     // KO: 디버그 모드에서 색상 코드 출력
-    if (kDebugMode) {
-      final colorCode = switch (level) {
-        LogLevel.debug => '\x1B[37m', // White
-        LogLevel.info => '\x1B[34m', // Blue
-        LogLevel.warning => '\x1B[33m', // Yellow
-        LogLevel.error => '\x1B[31m', // Red
-      };
-      const reset = '\x1B[0m';
-      // ignore: avoid_print
-      print('$colorCode$logMessage$reset');
-    } else {
-      // ignore: avoid_print
-      print(logMessage);
-    }
+    final colorCode = switch (level) {
+      LogLevel.debug => '\x1B[37m', // White
+      LogLevel.info => '\x1B[34m', // Blue
+      LogLevel.warning => '\x1B[33m', // Yellow
+      LogLevel.error => '\x1B[31m', // Red
+    };
+    const reset = '\x1B[0m';
+    // ignore: avoid_print
+    print('$colorCode$logMessage$reset');
 
     // EN: Print additional data if present
     // KO: 추가 데이터가 있으면 출력

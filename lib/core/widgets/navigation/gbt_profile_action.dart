@@ -3,27 +3,23 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../theme/gbt_colors.dart';
 import '../../theme/gbt_spacing.dart';
 import '../../widgets/common/gbt_image.dart';
 import '../../router/app_router.dart';
-import '../../../features/settings/application/settings_controller.dart';
 
 /// EN: AppBar action that shows the user's profile avatar or a fallback icon.
 /// KO: 사용자 프로필 아바타 또는 대체 아이콘을 표시하는 AppBar 액션.
-class GBTProfileAction extends ConsumerWidget {
-  const GBTProfileAction({super.key});
+class GBTProfileAction extends StatelessWidget {
+  const GBTProfileAction({super.key, this.avatarUrl, this.onTap});
+
+  final String? avatarUrl;
+  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profileState = ref.watch(userProfileControllerProvider);
-    final avatarUrl = profileState.maybeWhen(
-      data: (profile) => profile?.avatarUrl,
-      orElse: () => null,
-    );
-    final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
+  Widget build(BuildContext context) {
+    final hasAvatar = avatarUrl?.isNotEmpty ?? false;
 
     // EN: Use theme-aware placeholder colors.
     // KO: 테마 인식 플레이스홀더 색상을 사용합니다.
@@ -40,11 +36,11 @@ class GBTProfileAction extends ConsumerWidget {
       label: '설정',
       child: IconButton(
         tooltip: '설정',
-        onPressed: () => context.goToSettings(),
+        onPressed: onTap ?? () => context.goToSettings(),
         icon: hasAvatar
             ? ClipOval(
                 child: GBTImage(
-                  imageUrl: avatarUrl,
+                  imageUrl: avatarUrl!,
                   width: 24,
                   height: 24,
                   fit: BoxFit.cover,

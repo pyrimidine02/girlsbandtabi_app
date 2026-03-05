@@ -30,9 +30,11 @@ List<ProjectCommunityBan> filterAndSortCommunityBans({
       return true;
     }
     final displayName = ban.bannedUserDisplayName?.toLowerCase() ?? '';
+    final email = ban.bannedUserEmail?.toLowerCase() ?? '';
     final userId = ban.bannedUserId.toLowerCase();
     final reason = ban.reason?.toLowerCase() ?? '';
     return displayName.contains(normalizedQuery) ||
+        email.contains(normalizedQuery) ||
         userId.contains(normalizedQuery) ||
         reason.contains(normalizedQuery);
   }).toList();

@@ -76,11 +76,10 @@ class UserActivityController extends StateNotifier<AsyncValue<UserActivity>> {
 
 /// EN: User activity controller provider.
 /// KO: 사용자 활동 컨트롤러 프로바이더.
-final userActivityControllerProvider =
-    StateNotifierProvider.family<
-      UserActivityController,
-      AsyncValue<UserActivity>,
-      String
-    >((ref, userId) {
+final userActivityControllerProvider = StateNotifierProvider.autoDispose
+    .family<UserActivityController, AsyncValue<UserActivity>, String>((
+      ref,
+      userId,
+    ) {
       return UserActivityController(ref, userId);
     });

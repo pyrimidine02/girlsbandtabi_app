@@ -42,13 +42,17 @@ class BoardPage extends ConsumerStatefulWidget {
 class _BoardPageState extends ConsumerState<BoardPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _isFabMenuExpanded = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      setState(() {
+        _isFabMenuExpanded = false;
+      });
     });
   }
 
@@ -74,6 +78,20 @@ class _BoardPageState extends ConsumerState<BoardPage>
     );
   }
 
+  void _toggleFabMenu() {
+    if (!mounted) return;
+    setState(() {
+      _isFabMenuExpanded = !_isFabMenuExpanded;
+    });
+  }
+
+  void _closeFabMenu() {
+    if (!_isFabMenuExpanded || !mounted) return;
+    setState(() {
+      _isFabMenuExpanded = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isAuthenticated = ref.watch(isAuthenticatedProvider);
@@ -82,6 +100,7 @@ class _BoardPageState extends ConsumerState<BoardPage>
       data: (profile) => _isAdminRole(profile?.role),
       orElse: () => false,
     );
+    final avatarUrl = profileState.valueOrNull?.avatarUrl;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
@@ -91,9 +110,9 @@ class _BoardPageState extends ConsumerState<BoardPage>
             const SizedBox(width: GBTSpacing.md),
             Text(
               '게시판',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.sm),
@@ -115,19 +134,7 @@ class _BoardPageState extends ConsumerState<BoardPage>
                   .read(communityFeedControllerProvider.notifier)
                   .reload(forceRefresh: true),
             ),
-          if (_tabController.index == 0 && isAuthenticated)
-            GBTAppBarIconButton(
-              icon: Icons.flag_outlined,
-              tooltip: '내 신고 내역',
-              onPressed: () => _showMyReportsSheet(context),
-            ),
-          if (_tabController.index == 0 && isAdmin)
-            GBTAppBarIconButton(
-              icon: Icons.gavel_outlined,
-              tooltip: '커뮤니티 제재 관리',
-              onPressed: () => _showCommunityBanSheet(context),
-            ),
-          const GBTProfileAction(),
+          GBTProfileAction(avatarUrl: avatarUrl),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(44),
@@ -153,17 +160,150 @@ class _BoardPageState extends ConsumerState<BoardPage>
         controller: _tabController,
         children: const [_CommunityTab(), _TravelReviewTab()],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (_tabController.index == 0) {
-            context.goToPostCreate();
-          } else {
-            context.pushNamed(AppRoutes.travelReviewCreate);
-          }
-        },
-        tooltip: _tabController.index == 0 ? '게시글 작성' : '여행 후기 작성',
-        child: const Icon(Icons.edit_outlined),
+      floatingActionButton: _ExpandableActionFab(
+        isExpanded: _isFabMenuExpanded,
+        onToggle: _toggleFabMenu,
+        mainHeroTag: 'board-fab-main',
+        actions: [
+          if (_tabController.index == 0)
+            _FabMenuAction(
+              id: 'create-post',
+              icon: Icons.edit_outlined,
+              label: '게시글 작성',
+              onPressed: () {
+                _closeFabMenu();
+                context.goToPostCreate();
+              },
+            ),
+          if (_tabController.index == 1)
+            _FabMenuAction(
+              id: 'create-travel-review',
+              icon: Icons.rate_review_outlined,
+              label: '여행 후기 작성',
+              onPressed: () {
+                _closeFabMenu();
+                context.pushNamed(AppRoutes.travelReviewCreate);
+              },
+            ),
+          if (_tabController.index == 0 && isAuthenticated)
+            _FabMenuAction(
+              id: 'my-reports',
+              icon: Icons.flag_outlined,
+              label: '내 신고 내역',
+              onPressed: () {
+                _closeFabMenu();
+                _showMyReportsSheet(context);
+              },
+            ),
+          if (_tabController.index == 0 && isAdmin)
+            _FabMenuAction(
+              id: 'community-ban',
+              icon: Icons.gavel_outlined,
+              label: '커뮤니티 제재 관리',
+              onPressed: () {
+                _closeFabMenu();
+                _showCommunityBanSheet(context);
+              },
+            ),
+        ],
       ),
+    );
+  }
+}
+
+class _FabMenuAction {
+  const _FabMenuAction({
+    required this.id,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final String id;
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+}
+
+class _ExpandableActionFab extends StatelessWidget {
+  const _ExpandableActionFab({
+    required this.isExpanded,
+    required this.onToggle,
+    required this.mainHeroTag,
+    required this.actions,
+  });
+
+  final bool isExpanded;
+  final VoidCallback onToggle;
+  final String mainHeroTag;
+  final List<_FabMenuAction> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final labelBg = isDark
+        ? GBTColors.darkSurfaceVariant.withValues(alpha: 0.94)
+        : GBTColors.background;
+    final labelBorder = isDark ? GBTColors.darkBorder : GBTColors.border;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 180),
+          child: !isExpanded || actions.isEmpty
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
+                  child: Column(
+                    key: ValueKey(actions.length),
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: actions.reversed.map((action) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: GBTSpacing.sm,
+                                vertical: GBTSpacing.xs,
+                              ),
+                              decoration: BoxDecoration(
+                                color: labelBg,
+                                borderRadius: BorderRadius.circular(
+                                  GBTSpacing.radiusFull,
+                                ),
+                                border: Border.all(color: labelBorder),
+                              ),
+                              child: Text(
+                                action.label,
+                                style: GBTTypography.labelSmall.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: GBTSpacing.sm),
+                            FloatingActionButton.small(
+                              heroTag: 'board-fab-${action.id}',
+                              onPressed: action.onPressed,
+                              child: Icon(action.icon, size: 18),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+        ),
+        FloatingActionButton(
+          heroTag: mainHeroTag,
+          onPressed: onToggle,
+          tooltip: isExpanded ? '메뉴 닫기' : '작성 메뉴 열기',
+          child: Icon(isExpanded ? Icons.close : Icons.edit_outlined),
+        ),
+      ],
     );
   }
 }
@@ -241,27 +381,28 @@ class _CommunityTabState extends ConsumerState<_CommunityTab> {
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
-            children: ([
-              CommunityFeedMode.latest,
-              CommunityFeedMode.trending,
-              CommunityFeedMode.following,
-            ]..sort((a, b) {
-                if (a == feedState.mode) return -1;
-                if (b == feedState.mode) return 1;
-                return 0;
-              }))
-                .map(
-                  (mode) => Padding(
-                    padding: const EdgeInsets.only(right: GBTSpacing.sm),
-                    child: _FilterChipModern(
-                      label: mode.label,
-                      icon: _modeIcon(mode),
-                      isSelected: feedState.mode == mode,
-                      onTap: () => notifier.setMode(mode),
-                    ),
-                  ),
-                )
-                .toList(),
+            children:
+                ([
+                      CommunityFeedMode.latest,
+                      CommunityFeedMode.trending,
+                      CommunityFeedMode.following,
+                    ]..sort((a, b) {
+                      if (a == feedState.mode) return -1;
+                      if (b == feedState.mode) return 1;
+                      return 0;
+                    }))
+                    .map(
+                      (mode) => Padding(
+                        padding: const EdgeInsets.only(right: GBTSpacing.sm),
+                        child: _FilterChipModern(
+                          label: mode.label,
+                          icon: _modeIcon(mode),
+                          isSelected: feedState.mode == mode,
+                          onTap: () => notifier.setMode(mode),
+                        ),
+                      ),
+                    )
+                    .toList(),
           ),
         ),
         // EN: Following subscriptions row
@@ -316,12 +457,11 @@ class _CommunityTabState extends ConsumerState<_CommunityTab> {
         if (feedState.mode == CommunityFeedMode.latest &&
             feedState.posts.any((p) => (p.likeCount ?? 0) >= 5)) ...[
           _PopularPostsCarousel(
-            posts: feedState.posts
-                .where((p) => (p.likeCount ?? 0) >= 5)
-                .toList()
-              ..sort(
-                (a, b) => (b.likeCount ?? 0).compareTo(a.likeCount ?? 0),
-              ),
+            posts:
+                feedState.posts.where((p) => (p.likeCount ?? 0) >= 5).toList()
+                  ..sort(
+                    (a, b) => (b.likeCount ?? 0).compareTo(a.likeCount ?? 0),
+                  ),
             onTapPost: (postId) => context.goToPostDetail(postId),
           ),
           const SizedBox(height: GBTSpacing.xs),
@@ -1618,10 +1758,7 @@ class _HotBadge extends StatelessWidget {
 /// EN: Horizontal carousel showing top posts by likeCount in latest mode.
 /// KO: 최신 모드에서 좋아요 수 기준 상위 게시글을 보여주는 가로 캐러셀.
 class _PopularPostsCarousel extends StatelessWidget {
-  const _PopularPostsCarousel({
-    required this.posts,
-    required this.onTapPost,
-  });
+  const _PopularPostsCarousel({required this.posts, required this.onTapPost});
 
   final List<PostSummary> posts;
   final ValueChanged<String> onTapPost;
@@ -1668,8 +1805,7 @@ class _PopularPostsCarousel extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
             itemCount: displayPosts.length,
-            separatorBuilder: (_, __) =>
-                const SizedBox(width: GBTSpacing.sm),
+            separatorBuilder: (_, __) => const SizedBox(width: GBTSpacing.sm),
             itemBuilder: (context, index) => _PopularPostCard(
               post: displayPosts[index],
               onTap: () => onTapPost(displayPosts[index].id),
@@ -2042,22 +2178,27 @@ class _ReportStatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final (Color bg, Color fg) = switch (status) {
       CommunityReportStatus.open => (
-        Colors.orange.shade100,
-        Colors.orange.shade900,
+        isDark
+            ? GBTColors.warning.withValues(alpha: 0.22)
+            : GBTColors.warningLight,
+        isDark ? GBTColors.warningLight : GBTColors.warningDark,
       ),
       CommunityReportStatus.inReview => (
-        Colors.blue.shade100,
-        Colors.blue.shade900,
+        isDark ? GBTColors.info.withValues(alpha: 0.22) : GBTColors.infoLight,
+        isDark ? GBTColors.infoLight : GBTColors.infoDark,
       ),
       CommunityReportStatus.resolved => (
-        Colors.green.shade100,
-        Colors.green.shade900,
+        isDark
+            ? GBTColors.success.withValues(alpha: 0.22)
+            : GBTColors.successLight,
+        isDark ? GBTColors.successLight : GBTColors.successDark,
       ),
       CommunityReportStatus.rejected => (
-        Colors.red.shade100,
-        Colors.red.shade900,
+        isDark ? GBTColors.error.withValues(alpha: 0.22) : GBTColors.errorLight,
+        isDark ? GBTColors.errorLight : GBTColors.errorDark,
       ),
     };
 
@@ -2149,13 +2290,13 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
 
   Future<void> _lookupBanStatus() async {
     final projectCode = ref.read(selectedProjectKeyProvider);
-    final userId = _userIdController.text.trim();
+    final lookupQuery = _userIdController.text.trim();
     if (projectCode == null || projectCode.isEmpty) {
       setState(() => _lookupMessage = '프로젝트를 먼저 선택해주세요');
       return;
     }
-    if (userId.isEmpty) {
-      setState(() => _lookupMessage = '사용자 ID를 입력해주세요');
+    if (lookupQuery.isEmpty) {
+      setState(() => _lookupMessage = '사용자 ID/닉네임/이메일을 입력해주세요');
       return;
     }
 
@@ -2165,25 +2306,73 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
       _lookupBan = null;
     });
 
-    final repository = await ref.read(communityRepositoryProvider.future);
-    final result = await repository.getProjectBanStatus(
-      projectCode: projectCode,
-      userId: userId,
-    );
-    if (!mounted) return;
+    if (_looksLikeUuid(lookupQuery)) {
+      final repository = await ref.read(communityRepositoryProvider.future);
+      final result = await repository.getProjectBanStatus(
+        projectCode: projectCode,
+        userId: lookupQuery,
+      );
+      if (!mounted) return;
 
-    if (result is Success<ProjectCommunityBan>) {
-      setState(() {
-        _lookupBan = result.data;
-        _isLookupLoading = false;
-      });
-    } else if (result is Err<ProjectCommunityBan>) {
+      if (result is Success<ProjectCommunityBan>) {
+        setState(() {
+          _lookupBan = result.data;
+          _isLookupLoading = false;
+        });
+        return;
+      }
+      if (result is Err<ProjectCommunityBan>) {
+        setState(() {
+          _lookupBan = null;
+          _isLookupLoading = false;
+          _lookupMessage = result.failure.userMessage;
+        });
+        return;
+      }
+    }
+
+    if (_bans.isEmpty) {
+      await _loadBans();
+      if (!mounted) return;
+    }
+
+    final normalizedQuery = lookupQuery.toLowerCase();
+    final matches = _bans
+        .where((ban) {
+          final name = ban.bannedUserDisplayName?.toLowerCase() ?? '';
+          final email = ban.bannedUserEmail?.toLowerCase() ?? '';
+          final userId = ban.bannedUserId.toLowerCase();
+          return name.contains(normalizedQuery) ||
+              email.contains(normalizedQuery) ||
+              userId.contains(normalizedQuery);
+        })
+        .toList(growable: false);
+
+    if (!mounted) return;
+    if (matches.isEmpty) {
       setState(() {
         _lookupBan = null;
         _isLookupLoading = false;
-        _lookupMessage = result.failure.userMessage;
+        _lookupMessage = '일치하는 제재 사용자를 찾지 못했어요';
       });
+      return;
     }
+
+    if (matches.length == 1) {
+      setState(() {
+        _lookupBan = matches.first;
+        _isLookupLoading = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _lookupBan = null;
+      _isLookupLoading = false;
+      _listQuery = lookupQuery;
+      _filterController.text = lookupQuery;
+      _lookupMessage = '${matches.length}건이 검색되어 목록 필터에 적용했어요';
+    });
   }
 
   Future<void> _unbanUser(String userId) async {
@@ -2225,6 +2414,13 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
     }
   }
 
+  bool _looksLikeUuid(String value) {
+    final uuidRegex = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
+    );
+    return uuidRegex.hasMatch(value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final visibleBans = filterAndSortCommunityBans(
@@ -2263,7 +2459,7 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
               TextField(
                 controller: _userIdController,
                 decoration: InputDecoration(
-                  hintText: '사용자 ID로 제재 상태 조회',
+                  hintText: '사용자 ID/닉네임/이메일로 제재 조회',
                   suffixIcon: _isLookupLoading
                       ? const Padding(
                           padding: EdgeInsets.all(10),
@@ -2398,6 +2594,8 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
                             'ID: ${ban.bannedUserId}',
                             if (ban.reason?.isNotEmpty == true)
                               '사유: ${ban.reason!}',
+                            if (ban.bannedUserEmail?.isNotEmpty == true)
+                              '이메일: ${ban.bannedUserEmail!}',
                             if (ban.expiresAt != null)
                               '만료: ${_formatDateTime(ban.expiresAt!)}'
                             else

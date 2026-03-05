@@ -7,52 +7,15 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/utils/date_utils.dart';
+import '../../../../core/utils/palette_utils.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../projects/domain/entities/project_entities.dart';
-
-// EN: Deterministic palette — same as info_page for visual consistency.
-// KO: 일관성을 위해 info_page와 동일한 결정적 팔레트.
-const _kPalette = [
-  Color(0xFF6366F1),
-  Color(0xFF3B82F6),
-  Color(0xFFEC4899),
-  Color(0xFFF59E0B),
-  Color(0xFF10B981),
-  Color(0xFF8B5CF6),
-  Color(0xFFEF4444),
-  Color(0xFF14B8A6),
-];
-
-Color _pc(String seed) => _kPalette[seed.hashCode.abs() % _kPalette.length];
-
-// EN: Parse birthdate string → days until next birthday. Null if unparseable.
-// KO: 생일 문자열 → 다음 생일까지 남은 일수. 파싱 불가 시 null.
-int? _daysUntilBirthday(String? birthdate) {
-  if (birthdate == null || birthdate.isEmpty) return null;
-  try {
-    final parts = birthdate.replaceAll('/', '-').split('-');
-    if (parts.length < 2) return null;
-    final now = DateTime.now();
-    final month = int.parse(parts.length >= 3 ? parts[1] : parts[0]);
-    final day = int.parse(parts.length >= 3 ? parts[2] : parts[1]);
-    var next = DateTime(now.year, month, day);
-    if (next.isBefore(DateTime(now.year, now.month, now.day))) {
-      next = DateTime(now.year + 1, month, day);
-    }
-    return next.difference(DateTime(now.year, now.month, now.day)).inDays;
-  } catch (_) {
-    return null;
-  }
-}
 
 /// EN: Member detail page — shows character card + voice actor section.
 /// KO: 멤버 상세 페이지 — 캐릭터 카드 + 성우 섹션 표시.
 class MemberDetailPage extends StatelessWidget {
-  const MemberDetailPage({
-    super.key,
-    required this.member,
-    required this.unit,
-  });
+  const MemberDetailPage({super.key, required this.member, required this.unit});
 
   final UnitMember member;
   final Unit unit;
@@ -60,19 +23,28 @@ class MemberDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final paletteColor = _pc(member.name);
-    final textPrimary = isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textSecondary = isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
-    final textTertiary = isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final paletteColor = paletteColorFromSeed(member.name);
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final textTertiary = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
     final surfaceColor = isDark ? GBTColors.darkSurface : GBTColors.surface;
-    final surfaceVariant = isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant;
+    final surfaceVariant = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
 
     final hasImage = member.imageUrl != null && member.imageUrl!.isNotEmpty;
     final initial = member.name.isNotEmpty ? member.name[0] : '?';
-    final hasVA = member.voiceActorName != null && member.voiceActorName!.isNotEmpty;
+    final hasVA =
+        member.voiceActorName != null && member.voiceActorName!.isNotEmpty;
 
-    final birthdayDays = _daysUntilBirthday(member.birthdate);
+    final birthdayDays = daysUntilBirthday(member.birthdate);
 
     return Scaffold(
       body: CustomScrollView(
@@ -111,7 +83,9 @@ class MemberDetailPage extends StatelessWidget {
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: Colors.white.withValues(alpha: 0.85),
-                        shadows: const [Shadow(blurRadius: 4, color: Colors.black38)],
+                        shadows: const [
+                          Shadow(blurRadius: 4, color: Colors.black38),
+                        ],
                       ),
                     ),
                 ],
@@ -168,7 +142,10 @@ class MemberDetailPage extends StatelessWidget {
                                     fontWeight: FontWeight.w700,
                                     fontSize: 42,
                                     shadows: [
-                                      Shadow(blurRadius: 2, color: Colors.black26),
+                                      Shadow(
+                                        blurRadius: 2,
+                                        color: Colors.black26,
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -209,7 +186,9 @@ class MemberDetailPage extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: paletteColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+                          borderRadius: BorderRadius.circular(
+                            GBTSpacing.radiusFull,
+                          ),
                           border: Border.all(
                             color: paletteColor.withValues(alpha: 0.35),
                           ),
@@ -224,7 +203,8 @@ class MemberDetailPage extends StatelessWidget {
                       ),
                       if (member.instrument != null)
                         _Chip(label: member.instrument!, color: paletteColor),
-                      if (member.role != null && member.role != member.instrument)
+                      if (member.role != null &&
+                          member.role != member.instrument)
                         _Chip(label: member.role!, color: paletteColor),
                     ],
                   ),
@@ -255,7 +235,8 @@ class MemberDetailPage extends StatelessWidget {
 
                   // EN: Character description if available.
                   // KO: 캐릭터 설명 (있는 경우).
-                  if (member.description != null && member.description!.isNotEmpty) ...[
+                  if (member.description != null &&
+                      member.description!.isNotEmpty) ...[
                     const SizedBox(height: GBTSpacing.md),
                     Text(
                       member.description!,
@@ -287,7 +268,8 @@ class MemberDetailPage extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    if (member.birthdate != null && member.birthdate!.isNotEmpty)
+                    if (member.birthdate != null &&
+                        member.birthdate!.isNotEmpty)
                       _InfoRow(
                         icon: Icons.cake_outlined,
                         label: '생일',
@@ -307,7 +289,8 @@ class MemberDetailPage extends StatelessWidget {
                         textPrimary: textPrimary,
                         textTertiary: textTertiary,
                         borderColor: borderColor,
-                        showDivider: member.role != null &&
+                        showDivider:
+                            member.role != null &&
                             member.role != member.instrument,
                       ),
                     if (member.role != null && member.role != member.instrument)
@@ -421,9 +404,7 @@ class MemberDetailPage extends StatelessWidget {
             ),
           ],
 
-          const SliverToBoxAdapter(
-            child: SizedBox(height: GBTSpacing.xl2),
-          ),
+          const SliverToBoxAdapter(child: SizedBox(height: GBTSpacing.xl2)),
         ],
       ),
     );
@@ -489,7 +470,12 @@ class _InfoRow extends StatelessWidget {
           ),
         ),
         if (showDivider)
-          Divider(height: 1, indent: GBTSpacing.md, endIndent: GBTSpacing.md, color: borderColor),
+          Divider(
+            height: 1,
+            indent: GBTSpacing.md,
+            endIndent: GBTSpacing.md,
+            color: borderColor,
+          ),
       ],
     );
   }

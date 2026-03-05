@@ -126,7 +126,7 @@ final liveEventsRepositoryProvider = FutureProvider<LiveEventsRepository>((
   ref,
 ) async {
   final apiClient = ref.watch(apiClientProvider);
-  final cacheManager = await ref.watch(cacheManagerProvider.future);
+  final cacheManager = await ref.read(cacheManagerProvider.future);
   return LiveEventsRepositoryImpl(
     remoteDataSource: LiveEventsRemoteDataSource(apiClient),
     cacheManager: cacheManager,
@@ -145,12 +145,11 @@ final liveEventsListControllerProvider =
 
 /// EN: Live event detail controller provider.
 /// KO: 라이브 이벤트 상세 컨트롤러 프로바이더.
-final liveEventDetailControllerProvider =
-    StateNotifierProvider.family<
-      LiveEventDetailController,
-      AsyncValue<LiveEventDetail>,
-      String
-    >((ref, eventId) {
+final liveEventDetailControllerProvider = StateNotifierProvider.autoDispose
+    .family<LiveEventDetailController, AsyncValue<LiveEventDetail>, String>((
+      ref,
+      eventId,
+    ) {
       return LiveEventDetailController(ref, eventId)..load();
     });
 

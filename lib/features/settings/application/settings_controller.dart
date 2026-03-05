@@ -315,7 +315,7 @@ final settingsRepositoryProvider = FutureProvider<SettingsRepository>((
   ref,
 ) async {
   final apiClient = ref.watch(apiClientProvider);
-  final cacheManager = await ref.watch(cacheManagerProvider.future);
+  final cacheManager = await ref.read(cacheManagerProvider.future);
   return SettingsRepositoryImpl(
     remoteDataSource: SettingsRemoteDataSource(apiClient),
     cacheManager: cacheManager,
@@ -333,12 +333,11 @@ final userProfileControllerProvider =
 
 /// EN: User profile controller provider by ID.
 /// KO: 사용자 ID별 프로필 컨트롤러 프로바이더.
-final userProfileByIdProvider =
-    StateNotifierProvider.family<
-      UserProfileByIdController,
-      AsyncValue<UserProfile?>,
-      String
-    >((ref, userId) {
+final userProfileByIdProvider = StateNotifierProvider.autoDispose
+    .family<UserProfileByIdController, AsyncValue<UserProfile?>, String>((
+      ref,
+      userId,
+    ) {
       return UserProfileByIdController(ref, userId);
     });
 

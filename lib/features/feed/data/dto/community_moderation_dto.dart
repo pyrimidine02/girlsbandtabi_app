@@ -253,6 +253,7 @@ class ProjectCommunityBanDto {
     required this.moderatorUserId,
     required this.createdAt,
     this.bannedUserDisplayName,
+    this.bannedUserEmail,
     this.bannedUserAvatarUrl,
     this.reason,
     this.expiresAt,
@@ -264,6 +265,7 @@ class ProjectCommunityBanDto {
   final String moderatorUserId;
   final DateTime createdAt;
   final String? bannedUserDisplayName;
+  final String? bannedUserEmail;
   final String? bannedUserAvatarUrl;
   final String? reason;
   final DateTime? expiresAt;
@@ -280,6 +282,7 @@ class ProjectCommunityBanDto {
       moderatorUserId: json['moderatorUserId'] as String? ?? '',
       createdAt: _dateTime(json['createdAt']),
       bannedUserDisplayName: bannedUserMap['displayName'] as String?,
+      bannedUserEmail: bannedUserMap['email'] as String?,
       bannedUserAvatarUrl: bannedUserMap['avatarUrl'] as String?,
       reason: json['reason'] as String?,
       expiresAt: _dateTimeOrNull(json['expiresAt']),

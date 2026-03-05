@@ -206,7 +206,7 @@ final projectsRepositoryProvider = FutureProvider<ProjectsRepository>((
   ref,
 ) async {
   final apiClient = ref.watch(apiClientProvider);
-  final cacheManager = await ref.watch(cacheManagerProvider.future);
+  final cacheManager = await ref.read(cacheManagerProvider.future);
   return ProjectsRepositoryImpl(
     remoteDataSource: ProjectsRemoteDataSource(apiClient),
     cacheManager: cacheManager,
@@ -222,12 +222,11 @@ final projectsControllerProvider =
 
 /// EN: Project units controller provider.
 /// KO: 프로젝트 유닛 컨트롤러 프로바이더.
-final projectUnitsControllerProvider =
-    StateNotifierProvider.family<
-      ProjectUnitsController,
-      AsyncValue<List<Unit>>,
-      String
-    >((ref, projectKey) {
+final projectUnitsControllerProvider = StateNotifierProvider.autoDispose
+    .family<ProjectUnitsController, AsyncValue<List<Unit>>, String>((
+      ref,
+      projectKey,
+    ) {
       return ProjectUnitsController(ref, projectKey);
     });
 
@@ -263,8 +262,8 @@ class UnitMembersController
 
 /// EN: Unit members controller provider — keyed by (projectId, unitId) tuple.
 /// KO: (projectId, unitId) 쌍으로 키 지정된 유닛 멤버 컨트롤러 프로바이더.
-final unitMembersControllerProvider =
-    StateNotifierProvider.family<
+final unitMembersControllerProvider = StateNotifierProvider.autoDispose
+    .family<
       UnitMembersController,
       AsyncValue<List<UnitMember>>,
       (String, String)
