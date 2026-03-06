@@ -1,6 +1,27 @@
 # Changelog
 
 ## 2026-03-06
+- **BOARD/ADS (NATIVE SLOT)**: Added Toss-style natural sponsored slots to board feeds without timed/interstitial behavior:
+  - Added reusable inline ad card: `/lib/core/widgets/cards/gbt_sponsored_slot_card.dart`
+  - Added deterministic insertion helper: `/lib/features/feed/presentation/models/feed_native_ad_placement.dart`
+  - Applied sponsored-slot insertion to both project posts and community feed lists in `/lib/features/feed/presentation/pages/board_page.dart`
+  - Reduced feed ad density to psychologically light exposure: first after 10 posts, interval 18 posts, capped at 1 slot per list.
+  - Added one native sponsored slot to home content stream in `/lib/features/home/presentation/pages/home_page.dart`.
+  - Added placement mapping tests: `/test/features/feed/presentation/models/feed_native_ad_placement_test.dart`
+- **ADS/HYBRID (HOUSE + ADMOB)**: Introduced hybrid sponsored-slot runtime with backend decision + external ad fallback:
+  - Added new ads feature module (`domain/data/application/presentation`) for slot decision lookup and event tracking.
+  - Added `HybridSponsoredSlot` widget to support `house/network/none` rendering strategies.
+  - Connected board sponsored slot to `networkThenHouse` policy and home sponsored slot to `house` baseline policy.
+  - Added backend compatibility handling:
+    - sends both `projectKey` and `projectCode` fields for decision/event payloads
+    - retries legacy paths (`/api/v1/ads/decisions`, `/api/v1/ads/event`) when primary paths return 404
+  - Added AdMob SDK bootstrap and runtime unit resolution via `AdConfig` (`--dart-define` IDs + debug test-unit fallback).
+  - Added new API constants: `/api/v1/ads/decision`, `/api/v1/ads/events`.
+  - Added platform baseline App IDs (test IDs) to:
+    - `android/app/src/main/AndroidManifest.xml`
+    - `ios/Runner/Info.plist`
+  - Added backend request doc: `/docs/api-spec/광고슬롯_하이브리드연동요청서_v1.0.0.md`
+  - Added ADR: `/docs/adr/ADR-20260306-hybrid-sponsored-slot-admob-house.md`
 - **LEGAL/COMPLIANCE (P0 FRONT)**: Applied immediate frontend mitigations from legal-compliance request:
   - `RegisterPage`: added required consent collection (`이용약관`, `개인정보 처리방침`, `만 14세 이상`) and pre-submit final confirmation modal.
   - `VerificationSheet`: added location-collection pre-notice + mandatory consent gate before starting verification (blocks OS permission/API flow until agreed).

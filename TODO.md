@@ -32,6 +32,18 @@
 - Run board search-sheet QA:
   - community feed/discover 탭에서 search icon -> bottom-sheet input -> result/apply/clear flow 확인.
   - search sheet 키보드 인셋/회전/다크모드에서 overflow 없이 표시되는지 확인.
+- Replace static board sponsored-slot copy/campaigns with server-driven ad inventory + impression/click logging contract once backend ad endpoint is available.
+- Run UX QA for sponsored-slot density (`home: 1 slot`, `board feed: max 1 slot`) and tune exposure threshold with real usage feedback.
+- Replace AdMob test App IDs/Unit IDs with production values before store rollout:
+  - Android `com.google.android.gms.ads.APPLICATION_ID` in `android/app/src/main/AndroidManifest.xml`
+  - iOS `GADApplicationIdentifier` in `ios/Runner/Info.plist`
+  - Dart defines:
+    - `ADMOB_ANDROID_NATIVE_HOME_UNIT_ID`
+    - `ADMOB_IOS_NATIVE_HOME_UNIT_ID`
+    - `ADMOB_ANDROID_NATIVE_BOARD_UNIT_ID`
+    - `ADMOB_IOS_NATIVE_BOARD_UNIT_ID`
+- Confirm backend availability for `/api/v1/ads/decision` + `/api/v1/ads/events` and switch from client fallback-only operation to server-driven campaign control.
+- Remove temporary ads endpoint compatibility fallback (`/api/v1/ads/decisions`, `/api/v1/ads/event`) once backend path contract is finalized across all environments.
 - Run QA for JP place directions deeplink rollout:
   - `directions` CTA visibility rule (`JP only show`, `KR/others hidden`) on place detail and places list cards.
   - provider action-sheet ordering (`iOS: Apple first`, `Android: Google first`) and external-app open + browser fallback behavior.

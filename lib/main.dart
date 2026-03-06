@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'app.dart';
 import 'core/config/app_config.dart';
@@ -21,8 +22,9 @@ Future<void> main() async {
 
   // EN: Initialize app configuration
   // KO: 앱 구성 초기화
-  final environment =
-      kReleaseMode ? Environment.production : Environment.development;
+  final environment = kReleaseMode
+      ? Environment.production
+      : Environment.development;
   AppConfig.instance.init(
     environment: environment,
     // EN: Override with actual values for production.
@@ -77,6 +79,12 @@ Future<void> main() async {
 /// KO: 스토리지 + 인증 확인을 위한 논블로킹 부트스트랩.
 Future<void> _bootstrap(ProviderContainer container) async {
   try {
+    // EN: Initialize mobile ads SDK early for native slot rendering.
+    // KO: 네이티브 슬롯 렌더링을 위해 모바일 광고 SDK를 미리 초기화합니다.
+    if (!kIsWeb) {
+      await MobileAds.instance.initialize();
+    }
+
     // EN: Pre-initialize local storage.
     // KO: 로컬 저장소 사전 초기화.
     await container.read(localStorageProvider.future);

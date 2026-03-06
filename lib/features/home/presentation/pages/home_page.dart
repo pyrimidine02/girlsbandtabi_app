@@ -23,6 +23,8 @@ import '../../../../core/widgets/layout/gbt_carousel_section.dart';
 import '../../../../core/widgets/layout/gbt_greeting_header.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
+import '../../../ads/domain/entities/ad_slot_entities.dart';
+import '../../../ads/presentation/widgets/hybrid_sponsored_slot.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../../settings/application/settings_controller.dart';
@@ -256,6 +258,17 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ),
 
+        // EN: Single native sponsored slot on home to keep exposure light.
+        // KO: 노출 부담을 줄이기 위해 홈에는 네이티브 스폰서 슬롯 1개만 배치.
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(top: GBTSpacing.md),
+            child: _HomeSponsoredSlot(
+              onTap: () => context.goNamed(AppRoutes.places),
+            ),
+          ),
+        ),
+
         // EN: Empty state
         // KO: 빈 상태
         if (summary.isEmpty)
@@ -408,6 +421,49 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   bool _hasText(String? value) => value != null && value.trim().isNotEmpty;
+}
+
+/// EN: Home sponsored slot card shown once per screen build.
+/// KO: 화면당 한 번만 노출되는 홈 스폰서 슬롯 카드입니다.
+class _HomeSponsoredSlot extends StatelessWidget {
+  const _HomeSponsoredSlot({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return HybridSponsoredSlot(
+      request: const AdSlotRequest(placement: AdSlotPlacement.homePrimary),
+      noDecisionStrategy: NoDecisionStrategy.house,
+      fallback: SponsoredFallbackContent(
+        badgeLabel: context.l10n(ko: '광고', en: 'AD', ja: '広告'),
+        sponsorLabel: context.l10n(
+          ko: 'GirlsBandTabi 추천',
+          en: 'GirlsBandTabi Sponsored',
+          ja: 'GirlsBandTabi スポンサー',
+        ),
+        title: context.l10n(
+          ko: '성지 방문 전, 장소 태그와 동선을 먼저 확인해보세요',
+          en: 'Check place tags and routes before your visit',
+          ja: '聖地訪問前に場所タグと動線を確認しましょう',
+        ),
+        description: context.l10n(
+          ko: '근처 장소를 빠르게 비교해 오늘 동선을 자연스럽게 정할 수 있어요.',
+          en: 'Compare nearby places quickly and plan today\'s route naturally.',
+          ja: '近くの場所をすぐ比較して今日の動線を自然に決められます。',
+        ),
+        ctaLabel: context.l10n(
+          ko: '장소 탐색 시작',
+          en: 'Start Exploring Places',
+          ja: '場所探索を開始',
+        ),
+        icon: Icons.map_outlined,
+        accentColor: GBTColors.accentTeal,
+        onTap: onTap,
+      ),
+      margin: const EdgeInsets.symmetric(horizontal: GBTSpacing.pageHorizontal),
+    );
+  }
 }
 
 /// EN: Service hub — 3-column quick access row for community / places / info.
