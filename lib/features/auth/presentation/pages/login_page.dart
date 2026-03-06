@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
@@ -44,9 +45,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       if (!mounted) return;
       next.whenOrNull(
         error: (error, _) {
-          final message = error is Failure
-              ? error.userMessage
-              : error.toString();
+          final message = _buildSafeLoginErrorMessage(context, error);
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text(message)));
@@ -74,14 +73,22 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   child: Semantics(
                     // EN: Group logo and title for screen readers
                     // KO: 스크린 리더를 위해 로고와 제목을 그룹화
-                    label: 'Girls Band Tabi - 성지순례의 시작',
+                    label: context.l10n(
+                      ko: 'Girls Band Tabi - 성지순례의 시작',
+                      en: 'Girls Band Tabi - The start of your pilgrimage',
+                      ja: 'Girls Band Tabi - 聖地巡礼のはじまり',
+                    ),
                     child: Column(
                       children: [
                         Icon(
                           Icons.music_note,
                           size: 64,
                           color: colorScheme.primary,
-                          semanticLabel: 'Girls Band Tabi 로고',
+                          semanticLabel: context.l10n(
+                            ko: 'Girls Band Tabi 로고',
+                            en: 'Girls Band Tabi logo',
+                            ja: 'Girls Band Tabi ロゴ',
+                          ),
                         ),
                         const SizedBox(height: GBTSpacing.md),
                         Text(
@@ -92,7 +99,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ),
                         const SizedBox(height: GBTSpacing.xs),
                         Text(
-                          '성지순례의 시작',
+                          context.l10n(
+                            ko: '성지순례의 시작',
+                            en: 'The start of your pilgrimage',
+                            ja: '聖地巡礼のはじまり',
+                          ),
                           style: GBTTypography.bodyMedium.copyWith(
                             color: colorScheme.onSurfaceVariant,
                           ),
@@ -108,14 +119,22 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 // KO: 사용자명 필드
                 GBTTextField(
                   controller: _usernameController,
-                  label: '사용자명',
-                  hint: '아이디를 입력하세요',
+                  label: context.l10n(ko: '사용자명', en: 'Username', ja: 'ユーザー名'),
+                  hint: context.l10n(
+                    ko: '아이디를 입력하세요',
+                    en: 'Enter your username',
+                    ja: 'ユーザー名を入力してください',
+                  ),
                   prefixIcon: Icons.person_outline,
                   keyboardType: TextInputType.text,
                   textInputAction: TextInputAction.next,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return '사용자명을 입력해주세요';
+                      return context.l10n(
+                        ko: '사용자명을 입력해주세요',
+                        en: 'Please enter your username',
+                        ja: 'ユーザー名を入力してください',
+                      );
                     }
                     return null;
                   },
@@ -127,8 +146,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 // KO: 비밀번호 필드
                 GBTTextField(
                   controller: _passwordController,
-                  label: '비밀번호',
-                  hint: '비밀번호를 입력하세요',
+                  label: context.l10n(ko: '비밀번호', en: 'Password', ja: 'パスワード'),
+                  hint: context.l10n(
+                    ko: '비밀번호를 입력하세요',
+                    en: 'Enter your password',
+                    ja: 'パスワードを入力してください',
+                  ),
                   prefixIcon: Icons.lock_outlined,
                   obscureText: _obscurePassword,
                   suffixIcon: _obscurePassword
@@ -142,10 +165,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   textInputAction: TextInputAction.done,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return '비밀번호를 입력해주세요';
+                      return context.l10n(
+                        ko: '비밀번호를 입력해주세요',
+                        en: 'Please enter your password',
+                        ja: 'パスワードを入力してください',
+                      );
                     }
                     if (value.length < 6) {
-                      return '비밀번호는 6자 이상이어야 합니다';
+                      return context.l10n(
+                        ko: '비밀번호는 6자 이상이어야 합니다',
+                        en: 'Password must be at least 6 characters',
+                        ja: 'パスワードは6文字以上で入力してください',
+                      );
                     }
                     return null;
                   },
@@ -157,11 +188,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 // EN: Login button
                 // KO: 로그인 버튼
                 GBTButton(
-                  label: '로그인',
+                  label: context.l10n(ko: '로그인', en: 'Login', ja: 'ログイン'),
                   isLoading: isLoading,
                   isFullWidth: true,
                   onPressed: isLoading ? null : _handleLogin,
-                  semanticLabel: isLoading ? '로그인 진행 중' : '로그인',
+                  semanticLabel: isLoading
+                      ? context.l10n(
+                          ko: '로그인 진행 중',
+                          en: 'Logging in',
+                          ja: 'ログイン中',
+                        )
+                      : context.l10n(ko: '로그인', en: 'Login', ja: 'ログイン'),
                 ),
 
                 const SizedBox(height: GBTSpacing.xxl),
@@ -177,7 +214,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   children: [
                     Flexible(
                       child: Text(
-                        '계정이 없으신가요?',
+                        context.l10n(
+                          ko: '계정이 없으신가요?',
+                          en: "Don't have an account?",
+                          ja: 'アカウントをお持ちでないですか？',
+                        ),
                         style: GBTTypography.bodyMedium.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),
@@ -186,7 +227,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                     Semantics(
                       button: true,
-                      label: '회원가입 페이지로 이동',
+                      label: context.l10n(
+                        ko: '회원가입 페이지로 이동',
+                        en: 'Go to register page',
+                        ja: '会員登録ページへ移動',
+                      ),
                       child: TextButton(
                         onPressed: () => context.push('/register'),
                         style: TextButton.styleFrom(
@@ -196,7 +241,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           ),
                         ),
                         child: Text(
-                          '회원가입',
+                          context.l10n(ko: '회원가입', en: 'Sign up', ja: '会員登録'),
                           style: GBTTypography.labelLarge.copyWith(
                             color: colorScheme.primary,
                           ),
@@ -213,7 +258,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 Center(
                   child: Semantics(
                     button: true,
-                    label: '로그인 없이 앱 둘러보기',
+                    label: context.l10n(
+                      ko: '로그인 없이 앱 둘러보기',
+                      en: 'Browse app without login',
+                      ja: 'ログインせずにアプリを見る',
+                    ),
                     child: TextButton(
                       onPressed: () => context.go('/home'),
                       style: TextButton.styleFrom(
@@ -223,7 +272,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ),
                       ),
                       child: Text(
-                        '로그인 없이 둘러보기',
+                        context.l10n(
+                          ko: '로그인 없이 둘러보기',
+                          en: 'Continue without login',
+                          ja: 'ログインせずに続ける',
+                        ),
                         style: GBTTypography.bodyMedium.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),
@@ -251,4 +304,30 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       context.go('/home');
     }
   }
+}
+
+String _buildSafeLoginErrorMessage(BuildContext context, Object error) {
+  if (error is NetworkFailure) {
+    return context.l10n(
+      ko: '네트워크 연결을 확인한 뒤 다시 시도해주세요.',
+      en: 'Check your network connection and try again.',
+      ja: 'ネットワーク接続を確認して再試行してください。',
+    );
+  }
+
+  if (error is ServerFailure && error.code == '429') {
+    return context.l10n(
+      ko: '요청이 많아 잠시 제한되었습니다. 잠시 후 다시 시도해주세요.',
+      en: 'Too many attempts. Please try again shortly.',
+      ja: '試行回数が多すぎます。しばらくしてから再試行してください。',
+    );
+  }
+
+  // EN: Keep login failure message generic to prevent account-enumeration hints.
+  // KO: 계정 유추를 막기 위해 로그인 실패 문구를 일반화합니다.
+  return context.l10n(
+    ko: '로그인에 실패했습니다. 입력 정보를 확인하고 다시 시도해주세요.',
+    en: 'Login failed. Please check your credentials and try again.',
+    ja: 'ログインに失敗しました。入力内容を確認して再試行してください。',
+  );
 }
