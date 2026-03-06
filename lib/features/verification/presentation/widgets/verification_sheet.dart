@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/accessibility/a11y_wrapper.dart';
+import '../../../../core/constants/legal_policy_constants.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -35,10 +36,14 @@ class VerificationSheet extends ConsumerStatefulWidget {
 
 class _VerificationSheetState extends ConsumerState<VerificationSheet> {
   bool _didAutoOpenReview = false;
+  bool _agreedLocationNotice = false;
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(verificationControllerProvider);
+    final locationTerms = LegalPolicyConstants.byType(
+      LegalPolicyType.locationTerms,
+    );
 
     return Padding(
       padding: EdgeInsets.only(
@@ -72,6 +77,14 @@ class _VerificationSheetState extends ConsumerState<VerificationSheet> {
             ),
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: GBTSpacing.md),
+          _LocationNoticeCard(
+            agreed: _agreedLocationNotice,
+            versionLabel: locationTerms.version,
+            onChanged: (value) {
+              setState(() => _agreedLocationNotice = value);
+            },
+          ),
           const SizedBox(height: GBTSpacing.lg),
           state.when(
             loading: () => const GBTLoading(message: '인증 처리 중...'),
@@ -100,9 +113,7 @@ class _VerificationSheetState extends ConsumerState<VerificationSheet> {
                   const SizedBox(height: GBTSpacing.md),
                   _PrimaryButton(
                     label: '다시 시도',
-                    onPressed: () async {
-                      await widget.onVerify();
-                    },
+                    onPressed: _handleStartVerification,
                   ),
                 ],
               );
@@ -152,17 +163,31 @@ class _VerificationSheetState extends ConsumerState<VerificationSheet> {
               }
 
               return _PrimaryButton(
-                label: '인증 시작',
-                onPressed: () async {
-                  ref.read(verificationControllerProvider.notifier).reset();
-                  await widget.onVerify();
-                },
+                label: _agreedLocationNotice ? '동의하고 인증 시작' : '사전 고지 동의 필요',
+                onPressed: _agreedLocationNotice
+                    ? _handleStartVerification
+                    : _showConsentRequired,
               );
             },
           ),
           const SizedBox(height: GBTSpacing.lg),
         ],
       ),
+    );
+  }
+
+  Future<void> _handleStartVerification() async {
+    if (!_agreedLocationNotice) {
+      _showConsentRequired();
+      return;
+    }
+    ref.read(verificationControllerProvider.notifier).reset();
+    await widget.onVerify();
+  }
+
+  void _showConsentRequired() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('위치 수집 사전 고지에 동의해야 인증을 시작할 수 있어요')),
     );
   }
 
@@ -176,6 +201,86 @@ class _VerificationSheetState extends ConsumerState<VerificationSheet> {
       Navigator.of(context).pop();
       widget.onWriteReview?.call();
     });
+  }
+}
+
+class _LocationNoticeCard extends StatelessWidget {
+  const _LocationNoticeCard({
+    required this.agreed,
+    required this.versionLabel,
+    required this.onChanged,
+  });
+
+  final bool agreed;
+  final String versionLabel;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(GBTSpacing.sm),
+      decoration: BoxDecoration(
+        color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        border: Border.all(
+          color: isDark ? GBTColors.darkBorderSubtle : GBTColors.border,
+          width: 0.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '위치 수집 사전 고지',
+            style: GBTTypography.bodySmall.copyWith(
+              fontWeight: FontWeight.w700,
+              color: isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: GBTSpacing.xxs),
+          Text(
+            '목적: 방문 인증\n보유기간: 관련 법령 및 운영정책 범위 내\n철회: 설정 > 약관/정책에서 확인 후 철회 요청',
+            style: GBTTypography.labelSmall.copyWith(
+              color: isDark
+                  ? GBTColors.darkTextSecondary
+                  : GBTColors.textSecondary,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: GBTSpacing.xxs),
+          Text(
+            '위치정보 이용약관 $versionLabel',
+            style: GBTTypography.labelSmall.copyWith(
+              color: isDark
+                  ? GBTColors.darkTextTertiary
+                  : GBTColors.textTertiary,
+            ),
+          ),
+          const SizedBox(height: GBTSpacing.xxs),
+          InkWell(
+            onTap: () => onChanged(!agreed),
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+            child: Row(
+              children: [
+                Checkbox(
+                  value: agreed,
+                  onChanged: (value) => onChanged(value ?? false),
+                ),
+                Expanded(
+                  child: Text(
+                    '위치 수집/이용 고지 내용을 확인했고 동의합니다 (필수)',
+                    style: GBTTypography.labelSmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

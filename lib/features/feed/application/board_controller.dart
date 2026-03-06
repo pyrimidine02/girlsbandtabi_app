@@ -2,10 +2,16 @@
 /// KO: 커뮤니티 게시판 목록 컨트롤러(추천/팔로우/최신/인기).
 library;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+
+import '../../../core/constants/api_constants.dart';
 import '../../../core/error/failure.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
+import '../../../core/realtime/sse_client.dart';
 import '../../../core/utils/result.dart';
 import '../domain/entities/feed_entities.dart';
 import 'feed_repository_provider.dart';
@@ -49,14 +55,23 @@ const Object _communityFeedNoChange = Object();
 
 extension CommunityFeedModeX on CommunityFeedMode {
   String get label {
+    final languageCode = Intl.getCurrentLocale().split(RegExp(r'[_-]')).first;
     switch (this) {
       case CommunityFeedMode.recommended:
+        if (languageCode == 'en') return 'Recommended';
+        if (languageCode == 'ja') return 'おすすめ';
         return '추천';
       case CommunityFeedMode.following:
+        if (languageCode == 'en') return 'Following';
+        if (languageCode == 'ja') return 'フォロー';
         return '팔로우';
       case CommunityFeedMode.latest:
+        if (languageCode == 'en') return 'Latest';
+        if (languageCode == 'ja') return '最新';
         return '최신';
       case CommunityFeedMode.trending:
+        if (languageCode == 'en') return 'Trending';
+        if (languageCode == 'ja') return '人気';
         return '인기';
     }
   }
@@ -66,16 +81,27 @@ enum CommunitySearchScope { all, title, author, content, media }
 
 extension CommunitySearchScopeX on CommunitySearchScope {
   String get label {
+    final languageCode = Intl.getCurrentLocale().split(RegExp(r'[_-]')).first;
     switch (this) {
       case CommunitySearchScope.all:
+        if (languageCode == 'en') return 'All';
+        if (languageCode == 'ja') return '全体';
         return '전체';
       case CommunitySearchScope.title:
+        if (languageCode == 'en') return 'Title';
+        if (languageCode == 'ja') return 'タイトル';
         return '제목';
       case CommunitySearchScope.author:
+        if (languageCode == 'en') return 'Author';
+        if (languageCode == 'ja') return '作成者';
         return '작성자';
       case CommunitySearchScope.content:
+        if (languageCode == 'en') return 'Content';
+        if (languageCode == 'ja') return '内容';
         return '내용';
       case CommunitySearchScope.media:
+        if (languageCode == 'en') return 'Media';
+        if (languageCode == 'ja') return 'メディア';
         return '미디어';
     }
   }
@@ -157,16 +183,156 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
       reload(forceRefresh: true);
       _loadSubscriptions(forceRefresh: true);
     });
+    _ref.listen<bool>(isAuthenticatedProvider, (_, isAuthenticated) {
+      if (!isAuthenticated) {
+        unawaited(stopRealtimeSync());
+        return;
+      }
+      if (_isRealtimeActive) {
+        unawaited(_connectRealtime());
+      }
+    });
   }
 
   final Ref _ref;
   static const int _pageSize = 20;
   bool _isBackgroundSyncing = false;
   DateTime? _lastBackgroundSyncAt;
+  SseConnection? _realtimeConnection;
+  StreamSubscription<SseEvent>? _realtimeSubscription;
+  Timer? _realtimeReconnectTimer;
+  Duration _reconnectDelay = const Duration(seconds: 2);
+  DateTime? _lastRealtimeRefreshAt;
+  bool _isRealtimeActive = false;
+  bool _isRealtimeConnected = false;
 
   Future<void> initialize() async {
     await _loadSubscriptions();
     await reload();
+  }
+
+  /// EN: Start realtime feed sync via SSE with polling fallback.
+  /// KO: 폴링 폴백을 유지한 채 SSE 기반 실시간 피드 동기화를 시작합니다.
+  Future<void> startRealtimeSync() async {
+    if (_isRealtimeActive) return;
+    _isRealtimeActive = true;
+    await _connectRealtime();
+  }
+
+  /// EN: Stop realtime SSE sync and keep polling fallback only.
+  /// KO: SSE 실시간 동기화를 중지하고 폴링 폴백만 유지합니다.
+  Future<void> stopRealtimeSync() async {
+    _isRealtimeActive = false;
+    _realtimeReconnectTimer?.cancel();
+    _realtimeReconnectTimer = null;
+    _isRealtimeConnected = false;
+    await _disposeRealtimeConnection();
+  }
+
+  Future<void> _connectRealtime() async {
+    if (!_isRealtimeActive || _isRealtimeConnected) return;
+    if (!_ref.read(isAuthenticatedProvider)) return;
+    if (_realtimeConnection != null || _realtimeSubscription != null) return;
+
+    final sseClient = _ref.read(sseClientProvider);
+    try {
+      final connection = await sseClient.connect(
+        path: ApiEndpoints.communityEventsStream,
+      );
+      _realtimeConnection = connection;
+      _isRealtimeConnected = true;
+      _reconnectDelay = const Duration(seconds: 2);
+
+      _realtimeSubscription = connection.events.listen(
+        _handleRealtimeEvent,
+        onError: (Object error, StackTrace stackTrace) {
+          AppLogger.warning(
+            '[CommunityFeed] SSE error; fallback to polling',
+            tag: 'CommunityFeedController',
+          );
+          unawaited(_handleRealtimeDisconnect());
+        },
+        onDone: () {
+          unawaited(_handleRealtimeDisconnect());
+        },
+        cancelOnError: true,
+      );
+    } catch (error, stackTrace) {
+      AppLogger.debug(
+        '[CommunityFeed] SSE connect failed; fallback to polling',
+        tag: 'CommunityFeedController',
+      );
+      AppLogger.error(
+        '[CommunityFeed] SSE connect exception',
+        tag: 'CommunityFeedController',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _isRealtimeConnected = false;
+      _scheduleRealtimeReconnect();
+    }
+  }
+
+  void _handleRealtimeEvent(SseEvent event) {
+    if (!_isRealtimeActive) return;
+    if (!_isCommunityEvent(event)) return;
+
+    final now = DateTime.now();
+    if (_lastRealtimeRefreshAt != null &&
+        now.difference(_lastRealtimeRefreshAt!) <
+            const Duration(milliseconds: 1200)) {
+      return;
+    }
+    _lastRealtimeRefreshAt = now;
+    unawaited(refreshInBackground(minInterval: Duration.zero));
+  }
+
+  bool _isCommunityEvent(SseEvent event) {
+    final rawType =
+        event.event ?? event.dataAsJson?['eventType']?.toString() ?? '';
+    if (rawType.isEmpty) {
+      return true;
+    }
+    final normalized = rawType.toLowerCase();
+    return normalized.contains('community') ||
+        normalized.contains('feed') ||
+        normalized.contains('post') ||
+        normalized.contains('comment') ||
+        normalized.contains('notification');
+  }
+
+  Future<void> _handleRealtimeDisconnect() async {
+    _isRealtimeConnected = false;
+    await _disposeRealtimeConnection();
+    _scheduleRealtimeReconnect();
+  }
+
+  void _scheduleRealtimeReconnect() {
+    if (!_isRealtimeActive) return;
+    _realtimeReconnectTimer?.cancel();
+    final delay = _reconnectDelay;
+    _realtimeReconnectTimer = Timer(delay, () {
+      unawaited(_connectRealtime());
+    });
+    final nextSeconds = (_reconnectDelay.inSeconds * 2).clamp(2, 60);
+    _reconnectDelay = Duration(seconds: nextSeconds);
+  }
+
+  Future<void> _disposeRealtimeConnection() async {
+    await _realtimeSubscription?.cancel();
+    _realtimeSubscription = null;
+    if (_realtimeConnection != null) {
+      await _realtimeConnection!.close();
+      _realtimeConnection = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _isRealtimeActive = false;
+    _realtimeReconnectTimer?.cancel();
+    unawaited(_disposeRealtimeConnection());
+    super.dispose();
   }
 
   Future<void> setMode(CommunityFeedMode mode) async {
@@ -219,6 +385,9 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
   Future<void> refreshInBackground({
     Duration minInterval = const Duration(seconds: 35),
   }) async {
+    if (_isRealtimeConnected && minInterval > Duration.zero) {
+      return;
+    }
     if (_isBackgroundSyncing || state.isInitialLoading || state.isLoadingMore) {
       return;
     }
@@ -230,7 +399,12 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
     }
 
     final projectKey = _ref.read(selectedProjectKeyProvider);
-    if (projectKey == null || projectKey.isEmpty) {
+    final requiresProjectSelection =
+        state.isSearching ||
+        state.mode == CommunityFeedMode.latest ||
+        state.mode == CommunityFeedMode.trending;
+    if (requiresProjectSelection &&
+        (projectKey == null || projectKey.isEmpty)) {
       return;
     }
 
@@ -239,7 +413,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
       final repository = await _ref.read(feedRepositoryProvider.future);
       if (state.isSearching) {
         final searchResult = await repository.searchPosts(
-          projectCode: projectKey,
+          projectCode: projectKey!,
           query: state.searchQuery,
           page: 0,
           size: _pageSize,
@@ -266,9 +440,25 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
 
       switch (state.mode) {
         case CommunityFeedMode.recommended:
+          final recommendedResult = await repository.getCommunityFeedByCursor(
+            cursor: null,
+            size: _pageSize,
+          );
+          if (recommendedResult is Success<PostCursorPage>) {
+            state = state.copyWith(
+              posts: recommendedResult.data.items,
+              searchSourcePosts: const [],
+              hasMore: recommendedResult.data.hasNext,
+              nextCursor: recommendedResult.data.nextCursor ?? '',
+              clearFailure: true,
+            );
+          } else if (recommendedResult is Err<PostCursorPage> &&
+              state.posts.isEmpty) {
+            state = state.copyWith(failure: recommendedResult.failure);
+          }
         case CommunityFeedMode.latest:
           final latestResult = await repository.getPostsByCursor(
-            projectCode: projectKey,
+            projectCode: projectKey!,
             cursor: null,
             size: _pageSize,
           );
@@ -286,7 +476,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
           }
         case CommunityFeedMode.trending:
           final trendingResult = await repository.getTrendingPosts(
-            projectCode: projectKey,
+            projectCode: projectKey!,
             page: 0,
             size: _pageSize,
             forceRefresh: true,
@@ -330,7 +520,12 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
 
   Future<void> reload({bool forceRefresh = false}) async {
     final projectKey = _ref.read(selectedProjectKeyProvider);
-    if (projectKey == null || projectKey.isEmpty) {
+    final requiresProjectSelection =
+        state.isSearching ||
+        state.mode == CommunityFeedMode.latest ||
+        state.mode == CommunityFeedMode.trending;
+    if (requiresProjectSelection &&
+        (projectKey == null || projectKey.isEmpty)) {
       state = state.copyWith(
         posts: const [],
         searchSourcePosts: const [],
@@ -360,7 +555,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
     final repository = await _ref.read(feedRepositoryProvider.future);
     if (state.isSearching) {
       final result = await repository.searchPosts(
-        projectCode: projectKey,
+        projectCode: projectKey!,
         query: state.searchQuery,
         page: 0,
         size: _pageSize,
@@ -394,9 +589,32 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
 
     switch (state.mode) {
       case CommunityFeedMode.recommended:
+        final result = await repository.getCommunityFeedByCursor(
+          cursor: null,
+          size: _pageSize,
+        );
+        if (result is Success<PostCursorPage>) {
+          state = state.copyWith(
+            posts: result.data.items,
+            searchSourcePosts: const [],
+            hasMore: result.data.hasNext,
+            nextCursor: result.data.nextCursor ?? '',
+            isInitialLoading: false,
+            clearFailure: true,
+          );
+        } else if (result is Err<PostCursorPage>) {
+          state = state.copyWith(
+            posts: const [],
+            searchSourcePosts: const [],
+            hasMore: false,
+            nextCursor: null,
+            isInitialLoading: false,
+            failure: result.failure,
+          );
+        }
       case CommunityFeedMode.latest:
         final result = await repository.getPostsByCursor(
-          projectCode: projectKey,
+          projectCode: projectKey!,
           cursor: null,
           size: _pageSize,
         );
@@ -421,7 +639,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
         }
       case CommunityFeedMode.trending:
         final result = await repository.getTrendingPosts(
-          projectCode: projectKey,
+          projectCode: projectKey!,
           page: 0,
           size: _pageSize,
           forceRefresh: forceRefresh,
@@ -479,13 +697,29 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
     if (state.isSearching) return;
 
     final projectKey = _ref.read(selectedProjectKeyProvider);
-    if (projectKey == null || projectKey.isEmpty) return;
+    final requiresProjectSelection =
+        state.mode == CommunityFeedMode.latest ||
+        state.mode == CommunityFeedMode.trending;
+    if (requiresProjectSelection &&
+        (projectKey == null || projectKey.isEmpty)) {
+      return;
+    }
 
     state = state.copyWith(isLoadingMore: true, clearFailure: true);
     final repository = await _ref.read(feedRepositoryProvider.future);
 
     switch (state.mode) {
       case CommunityFeedMode.recommended:
+        final cursor = state.nextCursor;
+        if (cursor == null || cursor.isEmpty) {
+          state = state.copyWith(isLoadingMore: false, hasMore: false);
+          return;
+        }
+        final result = await repository.getCommunityFeedByCursor(
+          cursor: cursor,
+          size: _pageSize,
+        );
+        _appendCursorResult(result);
       case CommunityFeedMode.latest:
         final cursor = state.nextCursor;
         if (cursor == null || cursor.isEmpty) {
@@ -493,7 +727,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
           return;
         }
         final result = await repository.getPostsByCursor(
-          projectCode: projectKey,
+          projectCode: projectKey!,
           cursor: cursor,
           size: _pageSize,
         );
@@ -501,7 +735,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
       case CommunityFeedMode.trending:
         final nextPage = state.page + 1;
         final result = await repository.getTrendingPosts(
-          projectCode: projectKey,
+          projectCode: projectKey!,
           page: nextPage,
           size: _pageSize,
         );

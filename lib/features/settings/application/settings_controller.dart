@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/error/failure.dart';
 import '../../../core/providers/core_providers.dart';
+import '../../../core/storage/local_storage.dart';
 import '../../../core/utils/result.dart';
 import '../data/datasources/settings_remote_data_source.dart';
 import '../data/repositories/settings_repository_impl.dart';
@@ -120,6 +121,7 @@ class NotificationSettingsController
     );
 
     if (result is Success<NotificationSettings>) {
+      await _persistPushEnabled(result.data.pushEnabled);
       state = AsyncData(result.data);
     } else if (result is Err<NotificationSettings>) {
       state = AsyncError(result.failure, StackTrace.current);
@@ -142,6 +144,7 @@ class NotificationSettingsController
     // KO: 실패 시 이전 상태로 복원하여 UI 일관성을 유지합니다.
     final previousState = state;
     state = AsyncData(settings);
+    await _persistPushEnabled(settings.pushEnabled);
 
     final repository = await _ref.read(settingsRepositoryProvider.future);
     final result = await repository.updateNotificationSettings(
@@ -149,12 +152,24 @@ class NotificationSettingsController
     );
 
     if (result is Success<NotificationSettings>) {
+      await _persistPushEnabled(result.data.pushEnabled);
       state = AsyncData(result.data);
     } else if (result is Err<NotificationSettings>) {
+      final previousPushEnabled = previousState.valueOrNull?.pushEnabled;
+      if (previousPushEnabled != null) {
+        await _persistPushEnabled(previousPushEnabled);
+      }
       state = previousState;
     }
 
     return result;
+  }
+
+  /// EN: Persist push toggle for foreground local-alert eligibility checks.
+  /// KO: 포그라운드 로컬 알림 표시 여부 판단용 푸시 토글을 저장합니다.
+  Future<void> _persistPushEnabled(bool value) async {
+    final storage = await _ref.read(localStorageProvider.future);
+    await storage.setBool(LocalStorageKeys.notificationsEnabled, value);
   }
 }
 

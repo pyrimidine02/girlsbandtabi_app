@@ -30,7 +30,7 @@ class LiveEventSummary {
   }
 
   String get dateLabel {
-    return DateFormat('M월 d일').format(showStartTime.toLocal());
+    return DateFormat.MMMd(_localeTag()).format(showStartTime.toLocal());
   }
 
   String get dDayLabel {
@@ -40,6 +40,13 @@ class LiveEventSummary {
   String get statusLabel => status;
 
   String get metaLabel {
+    final lang = _languageCode();
+    if (lang == 'en') {
+      return 'Projects ${projectIds.length} · Units ${unitIds.length}';
+    }
+    if (lang == 'ja') {
+      return 'プロジェクト ${projectIds.length} · ユニット ${unitIds.length}';
+    }
     return '프로젝트 ${projectIds.length} · 유닛 ${unitIds.length}';
   }
 
@@ -84,11 +91,18 @@ class LiveEventDetail {
   final String? ticketUrl;
 
   String get metaLabel {
+    final lang = _languageCode();
+    if (lang == 'en') {
+      return 'Projects ${projectIds.length} · Units ${unitIds.length}';
+    }
+    if (lang == 'ja') {
+      return 'プロジェクト ${projectIds.length} · ユニット ${unitIds.length}';
+    }
     return '프로젝트 ${projectIds.length} · 유닛 ${unitIds.length}';
   }
 
   String get dateLabel {
-    return DateFormat('yyyy년 M월 d일').format(showStartTime.toLocal());
+    return DateFormat.yMMMMd(_localeTag()).format(showStartTime.toLocal());
   }
 
   String get dDayLabel {
@@ -100,7 +114,12 @@ class LiveEventDetail {
   }
 
   String get doorTimeLabel {
-    if (doorsOpenTime == null) return '미정';
+    if (doorsOpenTime == null) {
+      final lang = _languageCode();
+      if (lang == 'en') return 'TBD';
+      if (lang == 'ja') return '未定';
+      return '미정';
+    }
     return DateFormat('HH:mm').format(doorsOpenTime!.toLocal());
   }
 
@@ -138,4 +157,14 @@ String _formatDDay(DateTime dateTime) {
     return 'D-$diff';
   }
   return 'D+${diff.abs()}';
+}
+
+String _localeTag() {
+  final locale = Intl.getCurrentLocale();
+  if (locale.isEmpty) return 'ko_KR';
+  return locale;
+}
+
+String _languageCode() {
+  return _localeTag().split(RegExp(r'[_-]')).first;
 }

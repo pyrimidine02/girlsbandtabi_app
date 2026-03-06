@@ -339,11 +339,33 @@ class ProjectSubscriptionSummary {
 }
 
 String _formatTimeAgo(DateTime? dateTime) {
-  if (dateTime == null) return '방금 전';
+  final locale = Intl.getCurrentLocale();
+  final languageCode = locale.split(RegExp(r'[_-]')).first;
+  if (dateTime == null) {
+    if (languageCode == 'en') return 'just now';
+    if (languageCode == 'ja') return 'たった今';
+    return '방금 전';
+  }
   final diff = DateTime.now().difference(dateTime);
-  if (diff.inMinutes < 1) return '방금 전';
-  if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
-  if (diff.inHours < 24) return '${diff.inHours}시간 전';
-  if (diff.inDays < 7) return '${diff.inDays}일 전';
+  if (diff.inMinutes < 1) {
+    if (languageCode == 'en') return 'just now';
+    if (languageCode == 'ja') return 'たった今';
+    return '방금 전';
+  }
+  if (diff.inMinutes < 60) {
+    if (languageCode == 'en') return '${diff.inMinutes}m ago';
+    if (languageCode == 'ja') return '${diff.inMinutes}分前';
+    return '${diff.inMinutes}분 전';
+  }
+  if (diff.inHours < 24) {
+    if (languageCode == 'en') return '${diff.inHours}h ago';
+    if (languageCode == 'ja') return '${diff.inHours}時間前';
+    return '${diff.inHours}시간 전';
+  }
+  if (diff.inDays < 7) {
+    if (languageCode == 'en') return '${diff.inDays}d ago';
+    if (languageCode == 'ja') return '${diff.inDays}日前';
+    return '${diff.inDays}일 전';
+  }
   return DateFormat('yyyy.MM.dd').format(dateTime.toLocal());
 }

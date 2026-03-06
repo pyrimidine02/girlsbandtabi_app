@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -42,11 +43,11 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('방문 기록'),
+        title: Text(context.l10n(ko: '방문 기록', en: 'Visit history', ja: '訪問履歴')),
         actions: [
           GBTAppBarIconButton(
             icon: Icons.bar_chart_rounded,
-            tooltip: '통계',
+            tooltip: context.l10n(ko: '통계', en: 'Stats', ja: '統計'),
             onPressed: () => context.goToVisitStats(),
           ),
         ],
@@ -56,12 +57,23 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage> {
             .read(userVisitsControllerProvider.notifier)
             .load(forceRefresh: true),
         child: visitsState.when(
-          loading: () =>
-              const Center(child: GBTLoading(message: '방문 기록을 불러오는 중...')),
+          loading: () => Center(
+            child: GBTLoading(
+              message: context.l10n(
+                ko: '방문 기록을 불러오는 중...',
+                en: 'Loading visit history...',
+                ja: '訪問履歴を読み込み中...',
+              ),
+            ),
+          ),
           error: (error, _) {
             final message = error is Failure
                 ? error.userMessage
-                : '방문 기록을 불러오지 못했습니다.';
+                : context.l10n(
+                    ko: '방문 기록을 불러오지 못했습니다.',
+                    en: 'Could not load visit history.',
+                    ja: '訪問履歴を読み込めませんでした。',
+                  );
             return _VisitEmptyState(
               message: message,
               onRetry: () {
@@ -73,8 +85,12 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage> {
           },
           data: (visits) {
             if (visits.isEmpty) {
-              return const _VisitEmptyState(
-                message: '아직 방문 기록이 없습니다.\n장소를 방문하고 인증해보세요!',
+              return _VisitEmptyState(
+                message: context.l10n(
+                  ko: '아직 방문 기록이 없습니다.\n장소를 방문하고 인증해보세요!',
+                  en: 'No visit history yet.\nVisit a place and verify your visit!',
+                  ja: 'まだ訪問履歴がありません。\n場所を訪問して認証してみましょう！',
+                ),
               );
             }
 
@@ -85,7 +101,7 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage> {
 
             // EN: Group visits by month for timeline sections.
             // KO: 타임라인 섹션을 위해 방문을 월별로 그룹화합니다.
-            final grouped = _groupByMonth(sorted);
+            final grouped = _groupByMonth(sorted, context);
 
             return CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(
@@ -165,11 +181,20 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage> {
     return aDate.compareTo(bDate);
   }
 
-  Map<String, List<VisitEvent>> _groupByMonth(List<VisitEvent> visits) {
+  Map<String, List<VisitEvent>> _groupByMonth(
+    List<VisitEvent> visits,
+    BuildContext context,
+  ) {
     final grouped = <String, List<VisitEvent>>{};
     for (final visit in visits) {
       final dt = visit.visitedAt;
-      final key = dt != null ? '${dt.year}년 ${dt.month}월' : '날짜 미상';
+      final key = dt != null
+          ? context.l10n(
+              ko: '${dt.year}년 ${dt.month}월',
+              en: '${dt.year}-${dt.month.toString().padLeft(2, '0')}',
+              ja: '${dt.year}年${dt.month}月',
+            )
+          : context.l10n(ko: '날짜 미상', en: 'Unknown date', ja: '日付不明');
       grouped.putIfAbsent(key, () => []).add(visit);
     }
     return grouped;
@@ -212,8 +237,12 @@ class _SummaryHeader extends StatelessWidget {
           Expanded(
             child: _SummaryItem(
               icon: Icons.check_circle_rounded,
-              label: '총 방문',
-              value: '$totalVisits회',
+              label: context.l10n(ko: '총 방문', en: 'Total visits', ja: '総訪問'),
+              value: context.l10n(
+                ko: '$totalVisits회',
+                en: '$totalVisits',
+                ja: '$totalVisits回',
+              ),
               isDark: isDark,
             ),
           ),
@@ -227,8 +256,16 @@ class _SummaryHeader extends StatelessWidget {
           Expanded(
             child: _SummaryItem(
               icon: Icons.place_rounded,
-              label: '방문 장소',
-              value: '$uniquePlaces곳',
+              label: context.l10n(
+                ko: '방문 장소',
+                en: 'Visited places',
+                ja: '訪問場所',
+              ),
+              value: context.l10n(
+                ko: '$uniquePlaces곳',
+                en: '$uniquePlaces',
+                ja: '$uniquePlacesか所',
+              ),
               isDark: isDark,
             ),
           ),
@@ -336,13 +373,23 @@ class _VisitCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final placeName = place?.name ?? '장소 정보 없음';
+    final placeName =
+        place?.name ??
+        context.l10n(ko: '장소 정보 없음', en: 'No place info', ja: '場所情報なし');
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
 
     return Semantics(
       label: isLoading
-          ? '방문 기록: 장소 이름 로딩 중, ${visit.visitedAtLabel}'
-          : '방문 기록: $placeName, ${visit.visitedAtLabel}',
+          ? context.l10n(
+              ko: '방문 기록: 장소 이름 로딩 중, ${visit.visitedAtLabel}',
+              en: 'Visit record: loading place name, ${visit.visitedAtLabel}',
+              ja: '訪問記録: 場所名読み込み中, ${visit.visitedAtLabel}',
+            )
+          : context.l10n(
+              ko: '방문 기록: $placeName, ${visit.visitedAtLabel}',
+              en: 'Visit record: $placeName, ${visit.visitedAtLabel}',
+              ja: '訪問記録: $placeName, ${visit.visitedAtLabel}',
+            ),
       button: true,
       child: Material(
         color: isDark ? GBTColors.darkSurfaceElevated : Colors.white,
@@ -360,7 +407,11 @@ class _VisitCard extends StatelessWidget {
               children: [
                 // EN: Place thumbnail
                 // KO: 장소 썸네일
-                SizedBox(width: 88, height: 88, child: _buildThumbnail(isDark)),
+                SizedBox(
+                  width: 88,
+                  height: 88,
+                  child: _buildThumbnail(context, isDark),
+                ),
 
                 // EN: Visit info
                 // KO: 방문 정보
@@ -471,14 +522,18 @@ class _VisitCard extends StatelessWidget {
     );
   }
 
-  Widget _buildThumbnail(bool isDark) {
+  Widget _buildThumbnail(BuildContext context, bool isDark) {
     if (place?.imageUrl != null && place!.imageUrl!.isNotEmpty) {
       return GBTImage(
         imageUrl: place!.imageUrl!,
         width: 88,
         height: 88,
         fit: BoxFit.cover,
-        semanticLabel: '${place!.name} 썸네일',
+        semanticLabel: context.l10n(
+          ko: '${place!.name} 썸네일',
+          en: '${place!.name} thumbnail',
+          ja: '${place!.name} サムネイル',
+        ),
       );
     }
     return Container(
@@ -548,7 +603,7 @@ class _VisitEmptyState extends StatelessWidget {
           Center(
             child: FilledButton.tonal(
               onPressed: onRetry,
-              child: const Text('다시 시도'),
+              child: Text(context.l10n(ko: '다시 시도', en: 'Retry', ja: '再試行')),
             ),
           ),
         ],

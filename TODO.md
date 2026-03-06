@@ -1,6 +1,26 @@
 # TODO
 
+- Replace hardcoded legal policy URLs/versions in `LegalPolicyConstants` with server-driven metadata once `/api/v1/policies/metadata` is available.
+- Confirm backend `POST /api/v1/auth/register` consent DTO handling in production and remove temporary legacy-register retry fallback once all environments accept `consents` payload.
+- Add widget tests for legal compliance UX:
+  - register required-consent gating + final confirmation modal
+  - verification pre-notice consent gating before onVerify invocation
+  - settings/profile legal-policy link visibility
+- Replace privacy self-service fallback behavior with fully server-backed flow once contracts are finalized:
+  - `GET /api/v1/users/me/consents` authoritative source + pagination/audit fields
+  - `PATCH /api/v1/users/me/privacy-settings` response contract for opt-out sync confirmation
+  - `POST /api/v1/users/me/privacy-requests` typed status tracking (`PENDING/APPROVED/REJECTED`)
+  - `DELETE /api/v1/users/me` graceful post-delete response and re-login policy
+- Run device QA for foreground local-alert rollout:
+  - iOS/Android에서 앱 foreground 상태에서 신규 알림 수신 시 배너/사운드 노출 확인.
+  - 알림 설정 `푸시 알림` off 시 foreground 로컬 알림 미노출 확인.
+  - 로그아웃/다른 계정 로그인 후 이전 계정 알림이 잘못 표시되지 않는지 확인.
+- Follow up backend push integration request (`docs/api-spec/푸시알림연동요청서_v1.0.0.md`) and start Phase B client work (`firebase_messaging`, token register/unregister API binding) once endpoints are confirmed.
 - Run full-device visual QA for service-fit redesign phase1 (`home`, `places`, `live`, `board`, `search`) focusing on bottom-nav reachability, segmented-tab readability, and search-field focus states (remove once validated).
+- Run QA for live-year filter on `LiveEventsPage`:
+  - 연도 칩(`전체 연도 + 연도별`) 노출/선택 상태와 스크롤 접근성 확인.
+  - 연도+밴드 동시 필터 적용 시 예정/완료 탭 결과가 기대대로 좁혀지는지 확인.
+  - 연도 필터 선택 상태에서 캘린더 FAB가 동일 연도 데이터만 표시하는지 확인.
 - Run board Toss-style nav redesign QA:
   - 게시판 탭 진입 시 하단바가 `← + 피드/발견/여행후기`로 전환되고, 화살표 탭 시 기존 메인 5탭(`홈/장소/라이브/게시판/정보`)으로 복귀하는지 확인.
   - 레거시/호환 경로 리다이렉트(` /feed`, `/discover`, `/travel-reviews-tab`, `/posts/...`, `/travel-reviews/...`)가 `/board/...`로 정상 동작하는지 확인.
@@ -18,7 +38,7 @@
 - Run QA for 2026-03-05 board redesign: feed mode segmented control readability (`추천/최신/구독/인기`), mode-context hint tone, and action-row tap accuracy on iOS/Android (remove once validated).
 - Run QA for 2026-03-05 post-detail comment density update: nickname→content spacing, overflow-menu right alignment, and reply row consistency on small-width devices (remove once validated).
 - Run role-based UX QA for new bottom action entry points (`board` expandable FAB, `live` calendar FAB): verify non-auth/non-admin users do not see restricted actions.
-- Replace temporary `recommended -> latest cursor` mapping with a dedicated recommendation feed contract once backend endpoint/reason-context fields are finalized.
+- Split `recommended` and `following` feed contracts once backend exposes dedicated recommendation context/ranking fields (currently both use integrated cursor feed).
 - Optimize community feed reaction loading by introducing a batch viewer-state endpoint (`/posts/reactions:batch`) to replace current per-card reaction-status calls.
 - Add server-side typed search support (`title/author/content/media`) or separate search endpoints so current client-side post-filtering can be replaced with backend-ranked results.
 - Run compose/edit draft QA after local auto-save rollout:
@@ -26,9 +46,10 @@
 - Expand compose autosave widget coverage with edge cases:
   - restored draft containing missing local image paths (graceful skip behavior)
   - successful submit path clears footer autosave text + persisted draft together.
-- Replace community/notifications foreground polling fallback with server event contract once available:
-  - device registration endpoints (`/notifications/devices`)
-  - realtime event stream (WebSocket/SSE) or incremental change-feed endpoint.
+- Extend compose autosave snapshot schema to persist edit-page `existing remote image` removal state (`_existingImageUrls`) so recoverable drafts restore full attachment intent, not text/local images only (remove once draft model migration + QA complete).
+- Finalize server contracts for client SSE rollout (`/community/events/stream`, `/notifications/stream`) and then reduce foreground polling cadence:
+  - event schema (`eventType`, `entityId`, `projectCode`, `occurredAt`) and replay policy (`Last-Event-ID`).
+  - reconnect/rate-limit guidance (`retry` hint, idle timeout, auth-expiry behavior).
 - Follow up server draft API proposal (`/posts/drafts`) and remove local-only limitation once backend contract is available.
 - Run Account Tools UX QA after selector unification: tab switching state retention, selection bottom-sheet open/close behavior, and selected value persistence (`프로젝트/권한/대상 유형/사유`).
 - Continue architecture roadmap Phase 3 by migrating direct imports from `feed_controller.dart` to dedicated modules (`board_controller.dart`, `news_controller.dart`, `post_controller.dart`, `reaction_controller.dart`) and remove transitional barrel when migration is complete.
@@ -88,13 +109,13 @@
 - Verify sanction precheck blocks post creation for `muted`/`banned` and allows `warning`/`none`.
 - QA the new board feed 2-layer IA (`추천/팔로잉/프로젝트` + secondary chips) for route restore and mode persistence across `/board`, `/board/discover`, and `/board/travel-reviews-tab` (remove once confirmed on iOS/Android).
 - Upload `0.0.3+2026030601` AAB to Play Console internal track and verify tester install/update path (remove once internal QA install confirmed).
+- Expand locale coverage from shell/settings copy to feature pages with hard-coded Korean strings (board, places, live, info, post detail) now that `localeProvider` is active.
 - Verify whether the iOS `FrameTiming` assertion reproduces after non-blocking bootstrap; if it does, test Flutter 3.40.x and decide on version pinning (remove once the regression is confirmed resolved).
 - Verify whether the iOS `semantics.parentDataDirty` assertion reproduces after gating map builds by active tab; if it does, isolate additional offstage platform views (remove once stable).
 - Verify whether the iOS `semantics.parentDataDirty` assertion reproduces after deferring connectivity overlay updates (remove once stable).
 - Verify whether the iOS sliver ordering assertions disappear after moving staggered list animation setup to `didChangeDependencies` (remove once stable).
 - Verify whether nav index provider sync errors disappear after deferring updates to post-frame (remove once stable).
 - Confirm backend accepts `mockProvider: none` when `isMocked=false` in verification tokens; adjust placeholder if required (remove once validated).
-- Implement the live events calendar view (calendar icon on LiveEventsPage) and apply the same sorting + D-day labels (remove once calendar UI ships).
 - Re-verify Swagger for `{projectId}` usage on units endpoints once `http://localhost:8080/swagger-ui/index.html` is reachable, and adjust ID/slug usage if required.
 - Add unit tests for `TokenService` JWE token generation (remove once verified with backend contract and coverage added).
 - Add a `dart-define` (or similar) base URL override so QA builds can target staging without code edits (release defaults to production).
@@ -168,3 +189,5 @@
 - Investigate Apple Maps dark mode styling support once the plugin exposes map style controls.
 - Replace iOS/macOS JPEG fallback with true WebP encoding (preserving metadata) once a supported encoder is available.
 - Run on-device QA for Stage 9 flows (search/verification/favorites/notifications/projects/uploads) and record findings.
+- Continue i18n rollout for remaining pages still using hardcoded Korean strings (admin/account-tools/notification-settings/travel-review mock screens) with the same `ko/en/ja` runtime locale behavior.
+- Add widget tests to guard locale switching and key board/live/project localized strings against regressions.

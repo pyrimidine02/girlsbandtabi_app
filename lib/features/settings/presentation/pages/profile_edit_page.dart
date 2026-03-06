@@ -14,8 +14,10 @@ import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
+import '../../../../core/utils/sensitive_text_utils.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/legal/legal_policy_links_section.dart';
 import '../../../uploads/application/uploads_controller.dart';
 import '../../../uploads/utils/webp_image_converter.dart';
 import '../../application/settings_controller.dart';
@@ -215,11 +217,11 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
                         fontWeight: FontWeight.w700,
                         color: _canSaveProfile
                             ? (isDark
-                                ? GBTColors.darkPrimary
-                                : GBTColors.primary)
+                                  ? GBTColors.darkPrimary
+                                  : GBTColors.primary)
                             : (isDark
-                                ? GBTColors.darkTextTertiary
-                                : GBTColors.textTertiary),
+                                  ? GBTColors.darkTextTertiary
+                                  : GBTColors.textTertiary),
                       ),
                     ),
                   ),
@@ -237,8 +239,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
                 ? '배경 이미지 업로드 중...'
                 : null,
             child: state.when(
-              loading: () =>
-                  const GBTLoading(message: '프로필을 불러오는 중...'),
+              loading: () => const GBTLoading(message: '프로필을 불러오는 중...'),
               error: (error, _) => _ProfileLoadError(
                 onRetry: () => ref
                     .read(userProfileControllerProvider.notifier)
@@ -475,6 +476,11 @@ class _ProfileForm extends StatelessWidget {
           const SizedBox(height: GBTSpacing.xs),
           _AccountInfoCard(profile: profile, isDark: isDark),
 
+          const SizedBox(height: GBTSpacing.lg),
+          _SectionHeader('약관 및 정책', isDark: isDark),
+          const SizedBox(height: GBTSpacing.xs),
+          const LegalPolicyLinksSection(),
+
           SizedBox(
             height: GBTSpacing.xl + MediaQuery.of(context).padding.bottom,
           ),
@@ -565,8 +571,9 @@ class _ImageSectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dividerColor =
-        isDark ? GBTColors.darkBorderSubtle : GBTColors.divider;
+    final dividerColor = isDark
+        ? GBTColors.darkBorderSubtle
+        : GBTColors.divider;
 
     return _SectionCard(
       child: Column(
@@ -673,9 +680,7 @@ class _CoverTile extends StatelessWidget {
                 Container(
                   color: Colors.black.withValues(alpha: 0.18),
                   child: Center(
-                    child: _CameraChip(
-                      label: hasImage ? '배경 변경' : '배경 추가',
-                    ),
+                    child: _CameraChip(label: hasImage ? '배경 변경' : '배경 추가'),
                   ),
                 )
               else
@@ -770,10 +775,12 @@ class _AvatarTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textTertiary =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textTertiary = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
     final hasImage = avatarUrl != null && avatarUrl!.isNotEmpty;
 
     return Semantics(
@@ -843,11 +850,7 @@ class _AvatarTile extends StatelessWidget {
                       ),
                     ),
                   if (hasPending && !isUploading)
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: _PendingDot(),
-                    ),
+                    Positioned(right: 0, bottom: 0, child: _PendingDot()),
                 ],
               ),
               const SizedBox(width: GBTSpacing.md),
@@ -873,11 +876,7 @@ class _AvatarTile extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
-                color: textTertiary,
-              ),
+              Icon(Icons.chevron_right_rounded, size: 18, color: textTertiary),
             ],
           ),
         ),
@@ -907,14 +906,18 @@ class _BasicInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dividerColor =
-        isDark ? GBTColors.darkBorderSubtle : GBTColors.divider;
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textSecondary =
-        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
-    final textTertiary =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final dividerColor = isDark
+        ? GBTColors.darkBorderSubtle
+        : GBTColors.divider;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final textTertiary = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
     final focusedColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
 
     return _SectionCard(
@@ -1039,8 +1042,9 @@ class _AccountInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dividerColor =
-        isDark ? GBTColors.darkBorderSubtle : GBTColors.divider;
+    final dividerColor = isDark
+        ? GBTColors.darkBorderSubtle
+        : GBTColors.divider;
 
     return _SectionCard(
       child: Column(
@@ -1049,7 +1053,7 @@ class _AccountInfoCard extends StatelessWidget {
             icon: Icons.mail_outline_rounded,
             iconBgColor: const Color(0xFF3B82F6),
             label: '이메일',
-            value: profile.email,
+            value: maskEmail(profile.email),
             isDark: isDark,
           ),
           Divider(
@@ -1095,10 +1099,12 @@ class _AccountInfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textTertiary =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textTertiary = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -1192,8 +1198,9 @@ class _ProfileLoadError extends StatelessWidget {
             Text(
               '프로필 정보를 불러오지 못했어요',
               style: GBTTypography.titleSmall.copyWith(
-                color:
-                    isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
+                color: isDark
+                    ? GBTColors.darkTextPrimary
+                    : GBTColors.textPrimary,
               ),
             ),
             const SizedBox(height: GBTSpacing.sm),
@@ -1251,8 +1258,9 @@ class _LoginRequired extends StatelessWidget {
             Text(
               '로그인이 필요합니다',
               style: GBTTypography.titleSmall.copyWith(
-                color:
-                    isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
+                color: isDark
+                    ? GBTColors.darkTextPrimary
+                    : GBTColors.textPrimary,
               ),
             ),
             const SizedBox(height: GBTSpacing.sm),
@@ -1269,10 +1277,7 @@ class _LoginRequired extends StatelessWidget {
             Semantics(
               button: true,
               label: '로그인 페이지로 이동',
-              child: FilledButton(
-                onPressed: onLogin,
-                child: const Text('로그인'),
-              ),
+              child: FilledButton(onPressed: onLogin, child: const Text('로그인')),
             ),
           ],
         ),

@@ -45,6 +45,7 @@ dependencies:
   
   # HTTP & GraphQL
   dio: ^5.4.3+1
+  http: ^1.5.0
   http_parser: ^4.1.2
   
   # Authentication & Storage
@@ -68,6 +69,7 @@ dependencies:
   google_fonts: ^6.2.1
   image_picker: ^1.1.2
   flutter_image_compress: ^2.3.0
+  flutter_local_notifications: ^19.4.2
 
   # Map & Location UI
   google_maps_flutter: ^2.14.0

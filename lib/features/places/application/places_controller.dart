@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
+import '../../projects/application/projects_controller.dart';
+import '../../projects/domain/entities/project_entities.dart';
 import '../data/datasources/places_remote_data_source.dart';
 import '../data/repositories/places_repository_impl.dart';
 import '../domain/entities/place_comment_entities.dart';
@@ -185,16 +187,33 @@ class PlacesRegionOptionsController
 }
 
 class PlaceDetailController extends StateNotifier<AsyncValue<PlaceDetail>> {
-  PlaceDetailController(this._ref, this.placeId) : super(const AsyncLoading());
+  PlaceDetailController(this._ref, this.placeId) : super(const AsyncLoading()) {
+    _ref.listen<String?>(selectedProjectKeyProvider, (_, __) {
+      if (mounted) {
+        load(forceRefresh: true);
+      }
+    });
+    _ref.listen<String?>(selectedProjectIdProvider, (_, __) {
+      if (mounted) {
+        load(forceRefresh: true);
+      }
+    });
+  }
 
   final Ref _ref;
   final String placeId;
 
   Future<void> load({bool forceRefresh = false}) async {
-    final projectKey = _ref.read(selectedProjectKeyProvider);
-    if (projectKey == null || projectKey.isEmpty) {
-      // EN: Wait for project selection before loading.
-      // KO: 로드 전 프로젝트 선택을 기다립니다.
+    final resolvedProjectKey = await _resolveProjectKey();
+    if (resolvedProjectKey == null || resolvedProjectKey.isEmpty) {
+      // EN: Surface explicit error instead of leaving the detail page in
+      // EN: indefinite loading when project context is missing.
+      // KO: 프로젝트 컨텍스트가 없을 때 무한 로딩 상태로 남기지 않고
+      // KO: 명시적 에러를 노출합니다.
+      state = AsyncError(
+        const CacheFailure('Project context is not ready'),
+        StackTrace.current,
+      );
       return;
     }
 
@@ -202,17 +221,61 @@ class PlaceDetailController extends StateNotifier<AsyncValue<PlaceDetail>> {
 
     final repository = await _ref.read(placesRepositoryProvider.future);
 
-    final result = await repository.getPlaceDetail(
-      projectId: projectKey,
+    var result = await repository.getPlaceDetail(
+      projectId: resolvedProjectKey,
       placeId: placeId,
       forceRefresh: forceRefresh,
     );
+    final selectedProjectId = _ref.read(selectedProjectIdProvider);
+    if (result is Err<PlaceDetail> &&
+        selectedProjectId != null &&
+        selectedProjectId.isNotEmpty &&
+        selectedProjectId != resolvedProjectKey) {
+      result = await repository.getPlaceDetail(
+        projectId: selectedProjectId,
+        placeId: placeId,
+        forceRefresh: forceRefresh,
+      );
+    }
 
     if (result is Success<PlaceDetail>) {
       state = AsyncData(result.data);
     } else if (result is Err<PlaceDetail>) {
       state = AsyncError(result.failure, StackTrace.current);
     }
+  }
+
+  Future<String?> _resolveProjectKey() async {
+    final projectKey = _ref.read(selectedProjectKeyProvider);
+    if (projectKey != null && projectKey.isNotEmpty) {
+      return projectKey;
+    }
+
+    final projectId = _ref.read(selectedProjectIdProvider);
+    if (projectId != null && projectId.isNotEmpty) {
+      return projectId;
+    }
+
+    final selection = _ref.read(projectSelectionControllerProvider);
+    if (selection.projectKey != null && selection.projectKey!.isNotEmpty) {
+      return selection.projectKey;
+    }
+
+    final repository = await _ref.read(projectsRepositoryProvider.future);
+    final projectsResult = await repository.getProjects();
+    if (projectsResult is Success<List<Project>> &&
+        projectsResult.data.isNotEmpty) {
+      final firstProject = projectsResult.data.first;
+      final resolvedProjectKey = firstProject.code.isNotEmpty
+          ? firstProject.code
+          : firstProject.id;
+      await _ref
+          .read(projectSelectionControllerProvider.notifier)
+          .selectProject(resolvedProjectKey, projectId: firstProject.id);
+      return resolvedProjectKey;
+    }
+
+    return null;
   }
 }
 

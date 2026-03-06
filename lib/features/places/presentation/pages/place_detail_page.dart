@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -63,7 +64,13 @@ class PlaceDetailPage extends ConsumerWidget {
                   )
                 : null,
             icon: const Icon(Icons.location_on_rounded),
-            label: const Text('이곳에 다녀왔어요'),
+            label: Text(
+              context.l10n(
+                ko: '이곳에 다녀왔어요',
+                en: 'I visited here',
+                ja: 'ここに行ってきました',
+              ),
+            ),
             style: FilledButton.styleFrom(
               minimumSize: const Size(double.infinity, 52),
             ),
@@ -115,7 +122,11 @@ class PlaceDetailPage extends ConsumerWidget {
             error: (error, _) {
               final message = error is Failure
                   ? error.userMessage
-                  : '장소 정보를 불러오지 못했어요';
+                  : context.l10n(
+                      ko: '장소 정보를 불러오지 못했어요',
+                      en: 'Could not load place details',
+                      ja: '場所情報を読み込めませんでした',
+                    );
               return [
                 SliverFillRemaining(
                   child: Center(
@@ -220,7 +231,17 @@ class PlaceDetailPage extends ConsumerWidget {
         actions: [
           _OverlayIconButton(
             icon: isFavorite ? Icons.favorite : Icons.favorite_border,
-            tooltip: isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가',
+            tooltip: isFavorite
+                ? context.l10n(
+                    ko: '즐겨찾기 해제',
+                    en: 'Remove favorite',
+                    ja: 'お気に入り解除',
+                  )
+                : context.l10n(
+                    ko: '즐겨찾기 추가',
+                    en: 'Add favorite',
+                    ja: 'お気に入り追加',
+                  ),
             onPressed: () {
               ref
                   .read(favoritesControllerProvider.notifier)
@@ -233,7 +254,7 @@ class PlaceDetailPage extends ConsumerWidget {
           ),
           _OverlayIconButton(
             icon: Icons.share_outlined,
-            tooltip: '장소 공유',
+            tooltip: context.l10n(ko: '장소 공유', en: 'Share place', ja: '場所を共有'),
             onPressed: () {
               // EN: TODO: Share place
               // KO: TODO: 장소 공유
@@ -288,7 +309,9 @@ class PlaceDetailPage extends ConsumerWidget {
                           directions: place.directions!,
                         ),
                         icon: const Icon(Icons.near_me_rounded, size: 18),
-                        label: const Text('길안내'),
+                        label: Text(
+                          context.l10n(ko: '길안내', en: 'Directions', ja: '経路案内'),
+                        ),
                       ),
                     ),
                   ],
@@ -299,13 +322,21 @@ class PlaceDetailPage extends ConsumerWidget {
                     children: [
                       _QuickStatBadge(
                         icon: Icons.people_outline_rounded,
-                        label: '${place.visitCount ?? 0}명 방문',
+                        label: context.l10n(
+                          ko: '${place.visitCount ?? 0}명 방문',
+                          en: '${place.visitCount ?? 0} visits',
+                          ja: '${place.visitCount ?? 0}人が訪問',
+                        ),
                         isDark: isDark,
                       ),
                       const SizedBox(width: GBTSpacing.sm),
                       _QuickStatBadge(
                         icon: Icons.favorite_outline_rounded,
-                        label: '${place.favoriteCount ?? 0}명 관심',
+                        label: context.l10n(
+                          ko: '${place.favoriteCount ?? 0}명 관심',
+                          en: '${place.favoriteCount ?? 0} interested',
+                          ja: '${place.favoriteCount ?? 0}人がお気に入り',
+                        ),
                         isDark: isDark,
                       ),
                     ],
@@ -316,14 +347,19 @@ class PlaceDetailPage extends ConsumerWidget {
                   // EN: Description section.
                   // KO: 소개 섹션.
                   Text(
-                    '소개',
+                    context.l10n(ko: '소개', en: 'About', ja: '紹介'),
                     style: GBTTypography.titleMedium.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: GBTSpacing.sm),
                   Text(
-                    place.description ?? '소개 정보가 없습니다.',
+                    place.description ??
+                        context.l10n(
+                          ko: '소개 정보가 없습니다.',
+                          en: 'No description available.',
+                          ja: '紹介情報がありません。',
+                        ),
                     style: GBTTypography.bodyMedium.copyWith(
                       color: secondaryColor,
                     ),
@@ -332,7 +368,11 @@ class PlaceDetailPage extends ConsumerWidget {
                   // EN: Place category horizontal chip scroll.
                   // KO: 장소 분류 가로 스크롤 칩.
                   Text(
-                    '장소 분류',
+                    context.l10n(
+                      ko: '장소 분류',
+                      en: 'Place categories',
+                      ja: '場所カテゴリー',
+                    ),
                     style: GBTTypography.titleMedium.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -373,7 +413,11 @@ class PlaceDetailPage extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
                 child: Text(
-                  '장소 분류 정보가 없습니다.',
+                  context.l10n(
+                    ko: '장소 분류 정보가 없습니다.',
+                    en: 'No category information.',
+                    ja: 'カテゴリー情報がありません。',
+                  ),
                   style: GBTTypography.bodySmall.copyWith(
                     color: secondaryColor,
                   ),
@@ -388,7 +432,7 @@ class PlaceDetailPage extends ConsumerWidget {
                   // EN: Related bands section.
                   // KO: 관련 밴드 섹션.
                   Text(
-                    '관련 밴드',
+                    context.l10n(ko: '관련 밴드', en: 'Related bands', ja: '関連バンド'),
                     style: GBTTypography.titleMedium.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -396,7 +440,11 @@ class PlaceDetailPage extends ConsumerWidget {
                   const SizedBox(height: GBTSpacing.sm),
                   if (unitsState == null)
                     Text(
-                      '관련 밴드 정보가 없습니다.',
+                      context.l10n(
+                        ko: '관련 밴드 정보가 없습니다.',
+                        en: 'No related band information.',
+                        ja: '関連バンド情報がありません。',
+                      ),
                       style: GBTTypography.bodySmall.copyWith(
                         color: secondaryColor,
                       ),
@@ -412,7 +460,11 @@ class PlaceDetailPage extends ConsumerWidget {
                       error: (error, _) {
                         final message = error is Failure
                             ? error.userMessage
-                            : '관련 밴드를 불러오지 못했어요';
+                            : context.l10n(
+                                ko: '관련 밴드를 불러오지 못했어요',
+                                en: 'Could not load related bands',
+                                ja: '関連バンドを読み込めませんでした',
+                              );
                         return Text(
                           message,
                           style: GBTTypography.bodySmall.copyWith(
@@ -423,7 +475,11 @@ class PlaceDetailPage extends ConsumerWidget {
                       data: (units) {
                         if (units.isEmpty) {
                           return Text(
-                            '관련 밴드 정보가 없습니다.',
+                            context.l10n(
+                              ko: '관련 밴드 정보가 없습니다.',
+                              en: 'No related band information.',
+                              ja: '関連バンド情報がありません。',
+                            ),
                             style: GBTTypography.bodySmall.copyWith(
                               color: secondaryColor,
                             ),
@@ -451,7 +507,7 @@ class PlaceDetailPage extends ConsumerWidget {
                   // EN: Guide section.
                   // KO: 가이드 섹션.
                   Text(
-                    '장소 가이드',
+                    context.l10n(ko: '장소 가이드', en: 'Place guides', ja: '場所ガイド'),
                     style: GBTTypography.titleMedium.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -468,7 +524,11 @@ class PlaceDetailPage extends ConsumerWidget {
                   // EN: Reviews section.
                   // KO: 방문 후기 섹션.
                   Text(
-                    '방문 후기',
+                    context.l10n(
+                      ko: '방문 후기',
+                      en: 'Visit reviews',
+                      ja: '訪問レビュー',
+                    ),
                     style: GBTTypography.titleMedium.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -541,7 +601,11 @@ class _PhotoGalleryState extends State<_PhotoGallery> {
         child: GBTImage(
           imageUrl: images.first,
           fit: BoxFit.cover,
-          semanticLabel: '${widget.placeName} 사진',
+          semanticLabel: context.l10n(
+            ko: '${widget.placeName} 사진',
+            en: '${widget.placeName} photo',
+            ja: '${widget.placeName} 写真',
+          ),
         ),
       );
     }
@@ -559,7 +623,11 @@ class _PhotoGalleryState extends State<_PhotoGallery> {
             final child = GBTImage(
               imageUrl: images[index],
               fit: BoxFit.cover,
-              semanticLabel: '${widget.placeName} 사진 ${index + 1}',
+              semanticLabel: context.l10n(
+                ko: '${widget.placeName} 사진 ${index + 1}',
+                en: '${widget.placeName} photo ${index + 1}',
+                ja: '${widget.placeName} 写真 ${index + 1}',
+              ),
             );
             if (index == 0) {
               return Hero(
@@ -755,14 +823,32 @@ class _GuideSection extends StatelessWidget {
       ),
       error: (error, _) {
         if (_isForbidden(error)) {
-          return _SectionMessage(message: '아직 준비중입니다.');
+          return _SectionMessage(
+            message: context.l10n(
+              ko: '아직 준비중입니다.',
+              en: 'Coming soon.',
+              ja: '準備中です。',
+            ),
+          );
         }
-        final message = error is Failure ? error.userMessage : '가이드를 불러오지 못했어요';
+        final message = error is Failure
+            ? error.userMessage
+            : context.l10n(
+                ko: '가이드를 불러오지 못했어요',
+                en: 'Could not load guides',
+                ja: 'ガイドを読み込めませんでした',
+              );
         return _SectionMessage(message: message, onRetry: onRetry);
       },
       data: (guides) {
         if (guides.isEmpty) {
-          return _SectionMessage(message: '등록된 가이드가 없습니다.');
+          return _SectionMessage(
+            message: context.l10n(
+              ko: '등록된 가이드가 없습니다.',
+              en: 'No guides available.',
+              ja: '登録されたガイドがありません。',
+            ),
+          );
         }
         return ListView.separated(
           shrinkWrap: true,
@@ -806,7 +892,11 @@ class _GuideCard extends StatelessWidget {
         : GBTColors.textTertiary;
 
     return Semantics(
-      label: '가이드: ${guide.title.isNotEmpty ? guide.title : '가이드'}',
+      label: context.l10n(
+        ko: '가이드: ${guide.title.isNotEmpty ? guide.title : '가이드'}',
+        en: 'Guide: ${guide.title.isNotEmpty ? guide.title : 'Guide'}',
+        ja: 'ガイド: ${guide.title.isNotEmpty ? guide.title : 'ガイド'}',
+      ),
       child: Container(
         padding: const EdgeInsets.all(GBTSpacing.md),
         decoration: BoxDecoration(
@@ -839,7 +929,9 @@ class _GuideCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    guide.title.isNotEmpty ? guide.title : '가이드',
+                    guide.title.isNotEmpty
+                        ? guide.title
+                        : context.l10n(ko: '가이드', en: 'Guide', ja: 'ガイド'),
                     style: GBTTypography.labelLarge.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -946,14 +1038,32 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
       ),
       error: (error, _) {
         if (_isForbidden(error)) {
-          return _SectionMessage(message: '아직 준비중입니다.');
+          return _SectionMessage(
+            message: context.l10n(
+              ko: '아직 준비중입니다.',
+              en: 'Coming soon.',
+              ja: '準備中です。',
+            ),
+          );
         }
-        final message = error is Failure ? error.userMessage : '후기를 불러오지 못했어요';
+        final message = error is Failure
+            ? error.userMessage
+            : context.l10n(
+                ko: '후기를 불러오지 못했어요',
+                en: 'Could not load reviews',
+                ja: 'レビューを読み込めませんでした',
+              );
         return _SectionMessage(message: message, onRetry: widget.onRetry);
       },
       data: (comments) {
         if (comments.isEmpty) {
-          return _SectionMessage(message: '등록된 후기가 없습니다.');
+          return _SectionMessage(
+            message: context.l10n(
+              ko: '등록된 후기가 없습니다.',
+              en: 'No reviews available.',
+              ja: '登録されたレビューがありません。',
+            ),
+          );
         }
         return ListView.separated(
           shrinkWrap: true,
@@ -1034,7 +1144,11 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
         }
       });
     }
-    _showMessage(isApproved ? '사진 승인 완료' : '사진 반려 완료');
+    _showMessage(
+      isApproved
+          ? context.l10n(ko: '사진 승인 완료', en: 'Photo approved', ja: '写真を承認しました')
+          : context.l10n(ko: '사진 반려 완료', en: 'Photo rejected', ja: '写真を却下しました'),
+    );
   }
 
   void _showMessage(String message) {
@@ -1050,7 +1164,11 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
       barrierColor: Colors.black.withValues(alpha: 0.85),
       builder: (context) {
         return Semantics(
-          label: '사진 확대 보기. 탭하여 닫기',
+          label: context.l10n(
+            ko: '사진 확대 보기. 탭하여 닫기',
+            en: 'Photo preview. Tap to close.',
+            ja: '写真プレビュー。タップで閉じる',
+          ),
           child: GestureDetector(
             onTap: () => Navigator.of(context).pop(),
             child: Dialog(
@@ -1062,7 +1180,11 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
                   child: GBTImage(
                     imageUrl: url,
                     fit: BoxFit.contain,
-                    semanticLabel: '방문 후기 사진 확대',
+                    semanticLabel: context.l10n(
+                      ko: '방문 후기 사진 확대',
+                      en: 'Review photo zoomed',
+                      ja: 'レビュー写真拡大',
+                    ),
                   ),
                 ),
               ),
@@ -1130,7 +1252,9 @@ class _ReviewCard extends StatelessWidget {
     final tertiaryColor = isDark
         ? GBTColors.darkTextTertiary
         : GBTColors.textTertiary;
-    final authorLabel = comment.authorId.isNotEmpty ? '방문자' : '익명 방문자';
+    final authorLabel = comment.authorId.isNotEmpty
+        ? context.l10n(ko: '방문자', en: 'Visitor', ja: '訪問者')
+        : context.l10n(ko: '익명 방문자', en: 'Anonymous visitor', ja: '匿名の訪問者');
 
     return Container(
       padding: const EdgeInsets.all(GBTSpacing.md),
@@ -1196,7 +1320,11 @@ class _ReviewCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
                   ),
                   child: Text(
-                    '답글 ${comment.replyCount}',
+                    context.l10n(
+                      ko: '답글 ${comment.replyCount}',
+                      en: 'Replies ${comment.replyCount}',
+                      ja: '返信 ${comment.replyCount}',
+                    ),
                     style: GBTTypography.labelSmall.copyWith(
                       color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
                     ),
@@ -1233,7 +1361,11 @@ class _ReviewCard extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final url = comment.photoUrls[index];
                   return Semantics(
-                    label: '방문 후기 사진 ${index + 1}. 탭하여 확대',
+                    label: context.l10n(
+                      ko: '방문 후기 사진 ${index + 1}. 탭하여 확대',
+                      en: 'Review photo ${index + 1}. Tap to zoom.',
+                      ja: 'レビュー写真 ${index + 1}。タップで拡大',
+                    ),
                     button: true,
                     child: GestureDetector(
                       onTap: () => onPhotoTap(url),
@@ -1246,7 +1378,11 @@ class _ReviewCard extends StatelessWidget {
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
-                          semanticLabel: '방문 후기 사진',
+                          semanticLabel: context.l10n(
+                            ko: '방문 후기 사진',
+                            en: 'Review photo',
+                            ja: 'レビュー写真',
+                          ),
                         ),
                       ),
                     ),
@@ -1261,12 +1397,12 @@ class _ReviewCard extends StatelessWidget {
             const SizedBox(height: GBTSpacing.sm),
             if (isRejected)
               Text(
-                '반려됨',
+                context.l10n(ko: '반려됨', en: 'Rejected', ja: '却下済み'),
                 style: GBTTypography.labelSmall.copyWith(color: secondaryColor),
               )
             else if (isFullyApproved)
               Text(
-                '승인됨',
+                context.l10n(ko: '승인됨', en: 'Approved', ja: '承認済み'),
                 style: GBTTypography.labelSmall.copyWith(color: secondaryColor),
               ),
             Row(
@@ -1275,14 +1411,28 @@ class _ReviewCard extends StatelessWidget {
                   onPressed: isApproving || isFullyApproved || isRejected
                       ? null
                       : () => onApprove(true),
-                  child: Text(isApproving ? '처리 중...' : '사진 승인'),
+                  child: Text(
+                    isApproving
+                        ? context.l10n(
+                            ko: '처리 중...',
+                            en: 'Processing...',
+                            ja: '処理中...',
+                          )
+                        : context.l10n(
+                            ko: '사진 승인',
+                            en: 'Approve photo',
+                            ja: '写真承認',
+                          ),
+                  ),
                 ),
                 const SizedBox(width: GBTSpacing.sm),
                 OutlinedButton(
                   onPressed: isApproving || isFullyApproved || isRejected
                       ? null
                       : () => onApprove(false),
-                  child: const Text('사진 반려'),
+                  child: Text(
+                    context.l10n(ko: '사진 반려', en: 'Reject photo', ja: '写真却下'),
+                  ),
                 ),
               ],
             ),
@@ -1315,7 +1465,10 @@ class _SectionMessage extends StatelessWidget {
         ),
         if (onRetry != null) ...[
           const SizedBox(height: GBTSpacing.xs),
-          TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+          TextButton(
+            onPressed: onRetry,
+            child: Text(context.l10n(ko: '다시 시도', en: 'Retry', ja: '再試行')),
+          ),
         ],
       ],
     );
@@ -1347,8 +1500,12 @@ void _showVerificationSheet(
     context: context,
     isScrollControlled: true,
     builder: (context) => VerificationSheet(
-      title: '방문 인증',
-      description: '현재 위치를 확인해 방문 인증을 진행합니다.',
+      title: context.l10n(ko: '방문 인증', en: 'Visit verification', ja: '訪問認証'),
+      description: context.l10n(
+        ko: '현재 위치를 확인해 방문 인증을 진행합니다.',
+        en: 'Verify your current location to complete visit verification.',
+        ja: '現在地を確認して訪問認証を進めます。',
+      ),
       onVerify: () => ref
           .read(verificationControllerProvider.notifier)
           .verifyPlace(placeId, targetName: placeName),

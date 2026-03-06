@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:intl/intl.dart';
 
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -125,12 +126,17 @@ class VisitDetailPage extends ConsumerWidget {
               child: FilledButton.icon(
                 onPressed: () => context.goToPlaceDetail(placeId),
                 icon: const Icon(Icons.place_rounded),
-                label: const Text('장소 상세 보기'),
+                label: Text(
+                  context.l10n(
+                    ko: '장소 상세 보기',
+                    en: 'View place details',
+                    ja: '場所詳細を見る',
+                  ),
+                ),
                 style: FilledButton.styleFrom(
                   minimumSize: const Size(double.infinity, 52),
                   shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(GBTSpacing.radiusMd),
+                    borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
                   ),
                 ),
               ),
@@ -185,13 +191,12 @@ class _HeroAppBar extends StatelessWidget {
       foregroundColor: hasImage ? Colors.white : null,
       flexibleSpace: FlexibleSpaceBar(
         title: Text(
-          place?.name ?? '방문 상세',
+          place?.name ??
+              context.l10n(ko: '방문 상세', en: 'Visit detail', ja: '訪問詳細'),
           style: GBTTypography.titleSmall.copyWith(
             color: hasImage
                 ? Colors.white
-                : (isDark
-                    ? GBTColors.darkTextPrimary
-                    : GBTColors.textPrimary),
+                : (isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary),
             fontWeight: FontWeight.w600,
           ),
           maxLines: 1,
@@ -204,7 +209,11 @@ class _HeroAppBar extends StatelessWidget {
                   GBTImage(
                     imageUrl: place!.imageUrl!,
                     fit: BoxFit.cover,
-                    semanticLabel: '${place!.name} 이미지',
+                    semanticLabel: context.l10n(
+                      ko: '${place!.name} 이미지',
+                      en: '${place!.name} image',
+                      ja: '${place!.name} 画像',
+                    ),
                   ),
                   // EN: Gradient overlay for text readability
                   // KO: 텍스트 가독성을 위한 그라디언트 오버레이
@@ -213,10 +222,7 @@ class _HeroAppBar extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black54,
-                        ],
+                        colors: [Colors.transparent, Colors.black54],
                         stops: [0.5, 1.0],
                       ),
                     ),
@@ -284,7 +290,7 @@ class _VisitInfoCards extends StatelessWidget {
           Expanded(
             child: _InfoChip(
               icon: Icons.calendar_today_rounded,
-              label: '방문 일시',
+              label: context.l10n(ko: '방문 일시', en: 'Visited at', ja: '訪問日時'),
               value: visitedAt.isNotEmpty ? visitedAt : '-',
               isDark: isDark,
             ),
@@ -295,8 +301,10 @@ class _VisitInfoCards extends StatelessWidget {
               icon: hasCoordinates
                   ? Icons.gps_fixed_rounded
                   : Icons.gps_off_rounded,
-              label: 'GPS 인증',
-              value: hasCoordinates ? '인증됨' : '미인증',
+              label: context.l10n(ko: 'GPS 인증', en: 'GPS verify', ja: 'GPS認証'),
+              value: hasCoordinates
+                  ? context.l10n(ko: '인증됨', en: 'Verified', ja: '認証済み')
+                  : context.l10n(ko: '미인증', en: 'Not verified', ja: '未認証'),
               isDark: isDark,
               highlight: hasCoordinates,
             ),
@@ -327,7 +335,9 @@ class _InfoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(GBTSpacing.md),
       decoration: BoxDecoration(
-        color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surfaceVariant,
+        color: isDark
+            ? GBTColors.darkSurfaceElevated
+            : GBTColors.surfaceVariant,
         borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
         border: highlight
             ? Border.all(
@@ -348,8 +358,8 @@ class _InfoChip extends StatelessWidget {
                 color: highlight
                     ? (isDark ? GBTColors.darkPrimary : GBTColors.primary)
                     : (isDark
-                        ? GBTColors.darkTextTertiary
-                        : GBTColors.textTertiary),
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary),
               ),
               const SizedBox(width: GBTSpacing.xs),
               Text(
@@ -367,8 +377,7 @@ class _InfoChip extends StatelessWidget {
             value,
             style: GBTTypography.bodyMedium.copyWith(
               fontWeight: FontWeight.w600,
-              color:
-                  isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
+              color: isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -408,7 +417,7 @@ class _PlaceInfoSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '장소 정보',
+            context.l10n(ko: '장소 정보', en: 'Place info', ja: '場所情報'),
             style: GBTTypography.titleMedium.copyWith(
               fontWeight: FontWeight.w700,
             ),
@@ -417,7 +426,7 @@ class _PlaceInfoSection extends StatelessWidget {
           if (isLoading) ...[
             _buildShimmer(),
           ] else if (place != null) ...[
-            _buildPlaceCard(),
+            _buildPlaceCard(context),
           ] else ...[
             Container(
               padding: const EdgeInsets.all(GBTSpacing.md),
@@ -428,7 +437,11 @@ class _PlaceInfoSection extends StatelessWidget {
                 borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
               ),
               child: Text(
-                '장소 정보를 불러올 수 없습니다',
+                context.l10n(
+                  ko: '장소 정보를 불러올 수 없습니다',
+                  en: 'Could not load place info',
+                  ja: '場所情報を読み込めません',
+                ),
                 style: GBTTypography.bodyMedium.copyWith(
                   color: isDark
                       ? GBTColors.darkTextSecondary
@@ -442,7 +455,7 @@ class _PlaceInfoSection extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaceCard() {
+  Widget _buildPlaceCard(BuildContext context) {
     return Material(
       color: isDark ? GBTColors.darkSurfaceElevated : Colors.white,
       borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
@@ -460,14 +473,17 @@ class _PlaceInfoSection extends StatelessWidget {
                 child: SizedBox(
                   width: 64,
                   height: 64,
-                  child: place!.imageUrl != null &&
-                          place!.imageUrl!.isNotEmpty
+                  child: place!.imageUrl != null && place!.imageUrl!.isNotEmpty
                       ? GBTImage(
                           imageUrl: place!.imageUrl!,
                           width: 64,
                           height: 64,
                           fit: BoxFit.cover,
-                          semanticLabel: '${place!.name} 이미지',
+                          semanticLabel: context.l10n(
+                            ko: '${place!.name} 이미지',
+                            en: '${place!.name} image',
+                            ja: '${place!.name} 画像',
+                          ),
                         )
                       : Container(
                           color: isDark
@@ -574,8 +590,9 @@ class _PlaceInfoSection extends StatelessWidget {
       child: Container(
         height: 80,
         decoration: BoxDecoration(
-          color:
-              isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
+          color: isDark
+              ? GBTColors.darkSurfaceVariant
+              : GBTColors.surfaceVariant,
           borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
         ),
       ),
@@ -614,7 +631,17 @@ class _MapSection extends StatelessWidget {
           Row(
             children: [
               Text(
-                isVerificationLocation ? '인증 위치' : '장소 위치',
+                isVerificationLocation
+                    ? context.l10n(
+                        ko: '인증 위치',
+                        en: 'Verified location',
+                        ja: '認証位置',
+                      )
+                    : context.l10n(
+                        ko: '장소 위치',
+                        en: 'Place location',
+                        ja: '場所位置',
+                      ),
                 style: GBTTypography.titleMedium.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -633,7 +660,7 @@ class _MapSection extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    '추정',
+                    context.l10n(ko: '추정', en: 'Approx', ja: '推定'),
                     style: GBTTypography.labelSmall.copyWith(
                       color: isDark
                           ? GBTColors.darkTextSecondary
@@ -650,9 +677,7 @@ class _MapSection extends StatelessWidget {
             borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
             child: SizedBox(
               height: 200,
-              child: kIsWeb
-                  ? _mapPlaceholder()
-                  : _buildMap(),
+              child: kIsWeb ? _mapPlaceholder(context) : _buildMap(context),
             ),
           ),
         ],
@@ -660,10 +685,11 @@ class _MapSection extends StatelessWidget {
     );
   }
 
-  Widget _buildMap() {
-    final isApple =
-        !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-    final pinLabel = isVerificationLocation ? '인증 위치' : '장소 위치';
+  Widget _buildMap(BuildContext context) {
+    final isApple = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    final pinLabel = isVerificationLocation
+        ? context.l10n(ko: '인증 위치', en: 'Verified location', ja: '認証位置')
+        : context.l10n(ko: '장소 위치', en: 'Place location', ja: '場所位置');
 
     if (isApple) {
       return amaps.AppleMap(
@@ -713,7 +739,7 @@ class _MapSection extends StatelessWidget {
     );
   }
 
-  Widget _mapPlaceholder() {
+  Widget _mapPlaceholder(BuildContext context) {
     return Container(
       color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
       child: Center(
@@ -729,7 +755,11 @@ class _MapSection extends StatelessWidget {
             ),
             const SizedBox(height: GBTSpacing.sm),
             Text(
-              '웹에서는 지도를 지원하지 않습니다',
+              context.l10n(
+                ko: '웹에서는 지도를 지원하지 않습니다',
+                en: 'Map is not supported on web',
+                ja: 'Webでは地図をサポートしていません',
+              ),
               style: GBTTypography.bodySmall.copyWith(
                 color: isDark
                     ? GBTColors.darkTextSecondary
@@ -765,7 +795,11 @@ class _VisitStatsSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '이 장소 방문 통계',
+            context.l10n(
+              ko: '이 장소 방문 통계',
+              en: 'Visit stats for this place',
+              ja: 'この場所の訪問統計',
+            ),
             style: GBTTypography.titleMedium.copyWith(
               fontWeight: FontWeight.w700,
             ),
@@ -784,7 +818,11 @@ class _VisitStatsSection extends StatelessWidget {
               ),
             ),
             error: (_, __) => Text(
-              '통계를 불러올 수 없습니다',
+              context.l10n(
+                ko: '통계를 불러올 수 없습니다',
+                en: 'Could not load stats',
+                ja: '統計を読み込めません',
+              ),
               style: GBTTypography.bodyMedium.copyWith(
                 color: isDark
                     ? GBTColors.darkTextSecondary
@@ -794,7 +832,11 @@ class _VisitStatsSection extends StatelessWidget {
             data: (summary) {
               if (summary == null) {
                 return Text(
-                  '통계 정보 없음',
+                  context.l10n(
+                    ko: '통계 정보 없음',
+                    en: 'No stats available',
+                    ja: '統計情報なし',
+                  ),
                   style: GBTTypography.bodyMedium.copyWith(
                     color: isDark
                         ? GBTColors.darkTextSecondary
@@ -802,7 +844,7 @@ class _VisitStatsSection extends StatelessWidget {
                   ),
                 );
               }
-              return _buildStats(summary);
+              return _buildStats(context, summary);
             },
           ),
         ],
@@ -810,14 +852,18 @@ class _VisitStatsSection extends StatelessWidget {
     );
   }
 
-  Widget _buildStats(VisitSummary summary) {
+  Widget _buildStats(BuildContext context, VisitSummary summary) {
     return Row(
       children: [
         Expanded(
           child: _MiniStatCard(
             icon: Icons.repeat_rounded,
-            label: '총 방문',
-            value: '${summary.visitCount}회',
+            label: context.l10n(ko: '총 방문', en: 'Total visits', ja: '総訪問'),
+            value: context.l10n(
+              ko: '${summary.visitCount}회',
+              en: '${summary.visitCount}',
+              ja: '${summary.visitCount}回',
+            ),
             isDark: isDark,
           ),
         ),
@@ -825,7 +871,7 @@ class _VisitStatsSection extends StatelessWidget {
         Expanded(
           child: _MiniStatCard(
             icon: Icons.first_page_rounded,
-            label: '첫 방문',
+            label: context.l10n(ko: '첫 방문', en: 'First visit', ja: '初回訪問'),
             value: summary.firstVisitedLabel.isNotEmpty
                 ? summary.firstVisitedLabel
                 : '-',
@@ -836,7 +882,7 @@ class _VisitStatsSection extends StatelessWidget {
         Expanded(
           child: _MiniStatCard(
             icon: Icons.last_page_rounded,
-            label: '최근 방문',
+            label: context.l10n(ko: '최근 방문', en: 'Latest visit', ja: '最近の訪問'),
             value: summary.lastVisitedLabel.isNotEmpty
                 ? summary.lastVisitedLabel
                 : '-',
@@ -869,7 +915,9 @@ class _MiniStatCard extends StatelessWidget {
         vertical: GBTSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surfaceVariant,
+        color: isDark
+            ? GBTColors.darkSurfaceElevated
+            : GBTColors.surfaceVariant,
         borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
       ),
       child: Column(
@@ -884,8 +932,7 @@ class _MiniStatCard extends StatelessWidget {
             value,
             style: GBTTypography.labelMedium.copyWith(
               fontWeight: FontWeight.w700,
-              color:
-                  isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
+              color: isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
             ),
             textAlign: TextAlign.center,
             maxLines: 1,

@@ -10,6 +10,7 @@ import '../../../../core/security/secure_storage.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/auth_tokens.dart';
 import '../../domain/entities/oauth_provider.dart';
+import '../../domain/entities/register_consent.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_data_source.dart';
 import '../dto/email_verification_confirm_request.dart';
@@ -48,15 +49,33 @@ class AuthRepositoryImpl implements AuthRepository {
     required String username,
     required String password,
     required String nickname,
+    List<RegisterConsent> consents = const [],
   }) async {
-    final result = await _remoteDataSource.register(
+    final primaryResult = await _remoteDataSource.register(
       RegisterRequest(
         username: username,
         password: password,
         nickname: nickname,
+        consents: consents,
       ),
     );
-    return _persistTokens(result);
+
+    // EN: Compatibility fallback for backends that still reject `consents`.
+    // KO: `consents` 필드를 아직 허용하지 않는 백엔드에 대한 하위호환 재시도입니다.
+    if (consents.isNotEmpty &&
+        primaryResult is Err<TokenResponse> &&
+        _shouldRetryLegacyRegister(primaryResult.failure)) {
+      final legacyResult = await _remoteDataSource.register(
+        RegisterRequest(
+          username: username,
+          password: password,
+          nickname: nickname,
+        ),
+      );
+      return _persistTokens(legacyResult);
+    }
+
+    return _persistTokens(primaryResult);
   }
 
   @override
@@ -176,5 +195,22 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       return null;
     }
+  }
+
+  bool _shouldRetryLegacyRegister(Failure failure) {
+    final normalizedMessage = failure.message.toLowerCase();
+    final normalizedCode = (failure.code ?? '').toLowerCase();
+
+    final mentionsConsents =
+        normalizedMessage.contains('consents') ||
+        normalizedCode.contains('consents');
+    final likelyContractMismatch =
+        normalizedMessage.contains('unrecognized') ||
+        normalizedMessage.contains('unknown') ||
+        normalizedMessage.contains('not allowed') ||
+        normalizedMessage.contains('cannot deserialize') ||
+        normalizedMessage.contains('json parse');
+
+    return mentionsConsents && likelyContractMismatch;
   }
 }

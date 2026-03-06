@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/localization/locale_text.dart';
 import '../core/providers/core_providers.dart';
 import '../core/theme/gbt_colors.dart';
 import '../core/theme/gbt_spacing.dart';
@@ -77,8 +78,14 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         final messenger = ScaffoldMessenger.of(context);
         messenger.hideCurrentSnackBar();
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text('뒤로 버튼을 한 번 더 누르면 앱이 종료됩니다'),
+          SnackBar(
+            content: Text(
+              context.l10n(
+                ko: '뒤로 버튼을 한 번 더 누르면 앱이 종료됩니다',
+                en: 'Press back again within 3 seconds to exit',
+                ja: '3秒以内にもう一度戻るを押すと終了します',
+              ),
+            ),
             duration: _androidExitBackWindow,
           ),
         );
@@ -109,31 +116,31 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                 },
               )
             : GBTBottomNav(
-                items: const [
+                items: [
                   GBTBottomNavItem(
                     icon: Icons.home_outlined,
                     activeIcon: Icons.home,
-                    label: '홈',
+                    label: context.l10n(ko: '홈', en: 'Home', ja: 'ホーム'),
                   ),
                   GBTBottomNavItem(
                     icon: Icons.place_outlined,
                     activeIcon: Icons.place,
-                    label: '장소',
+                    label: context.l10n(ko: '장소', en: 'Places', ja: '場所'),
                   ),
                   GBTBottomNavItem(
                     icon: Icons.music_note_outlined,
                     activeIcon: Icons.music_note,
-                    label: '라이브',
+                    label: context.l10n(ko: '라이브', en: 'Live', ja: 'ライブ'),
                   ),
                   GBTBottomNavItem(
                     icon: Icons.forum_outlined,
                     activeIcon: Icons.forum,
-                    label: '게시판',
+                    label: context.l10n(ko: '게시판', en: 'Board', ja: '掲示板'),
                   ),
                   GBTBottomNavItem(
                     icon: Icons.auto_stories_outlined,
                     activeIcon: Icons.auto_stories,
-                    label: '정보',
+                    label: context.l10n(ko: '정보', en: 'Info', ja: '情報'),
                   ),
                 ],
                 currentIndex: currentIndex,
@@ -173,10 +180,18 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 enum _BoardSubSection { feed, discover, travelReview }
 
 extension on _BoardSubSection {
-  String get label => switch (this) {
-    _BoardSubSection.feed => '피드',
-    _BoardSubSection.discover => '발견',
-    _BoardSubSection.travelReview => '여행후기',
+  String label(BuildContext context) => switch (this) {
+    _BoardSubSection.feed => context.l10n(ko: '피드', en: 'Feed', ja: 'フィード'),
+    _BoardSubSection.discover => context.l10n(
+      ko: '발견',
+      en: 'Discover',
+      ja: '発見',
+    ),
+    _BoardSubSection.travelReview => context.l10n(
+      ko: '여행후기',
+      en: 'Travel Reviews',
+      ja: '旅行レビュー',
+    ),
   };
 
   IconData get icon => switch (this) {
@@ -246,7 +261,11 @@ class _BoardSubBottomNav extends StatelessWidget {
                   children: [
                     Semantics(
                       button: true,
-                      label: '이전 화면으로 돌아가기',
+                      label: context.l10n(
+                        ko: '이전 화면으로 돌아가기',
+                        en: 'Go back to previous screen',
+                        ja: '前の画面に戻る',
+                      ),
                       child: InkWell(
                         onTap: () {
                           HapticFeedback.selectionClick();
@@ -277,8 +296,19 @@ class _BoardSubBottomNav extends StatelessWidget {
                             child: Semantics(
                               button: true,
                               selected: isSelected,
-                              label: '${value.label} 탭',
-                              hint: isSelected ? '현재 선택됨' : '탭하면 이동합니다',
+                              label:
+                                  '${value.label(context)} ${context.l10n(ko: '탭', en: 'tab', ja: 'タブ')}',
+                              hint: isSelected
+                                  ? context.l10n(
+                                      ko: '현재 선택됨',
+                                      en: 'Currently selected',
+                                      ja: '現在選択中',
+                                    )
+                                  : context.l10n(
+                                      ko: '탭하면 이동합니다',
+                                      en: 'Tap to switch',
+                                      ja: 'タップして切り替え',
+                                    ),
                               child: InkWell(
                                 onTap: () {
                                   HapticFeedback.selectionClick();
@@ -307,7 +337,7 @@ class _BoardSubBottomNav extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        value.label,
+                                        value.label(context),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: Theme.of(context)

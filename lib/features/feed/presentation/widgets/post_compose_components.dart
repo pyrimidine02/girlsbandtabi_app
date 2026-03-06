@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/widgets/common/gbt_image.dart';
 
 /// EN: Appends markdown image blocks to post content.
 /// KO: 게시글 본문 뒤에 이미지 마크다운 블록을 추가합니다.
@@ -23,6 +24,74 @@ String appendImageMarkdownContent(String content, List<String> urls) {
     buffer.writeln('![]($url)');
   }
   return buffer.toString().trim();
+}
+
+/// EN: Intro card for compose pages.
+/// KO: 작성/수정 페이지 상단 소개 카드입니다.
+class PostComposeIntroCard extends StatelessWidget {
+  const PostComposeIntroCard({
+    super.key,
+    required this.title,
+    required this.description,
+    this.icon = Icons.edit_note_outlined,
+  });
+
+  final String title;
+  final String description;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(GBTSpacing.md),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.7),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+            ),
+            child: Icon(icon, size: 18, color: colorScheme.primary),
+          ),
+          const SizedBox(width: GBTSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GBTTypography.labelLarge.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: GBTSpacing.xxs),
+                Text(
+                  description,
+                  style: GBTTypography.bodySmall.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// EN: Inline banner for recovering an unsent local draft.
@@ -446,6 +515,98 @@ class PostComposePickedImageTile extends StatelessWidget {
                   ),
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// EN: Preview tile for existing remote image URLs.
+/// KO: 기존 원격 이미지 URL 미리보기 타일입니다.
+class PostComposeRemoteImageTile extends StatelessWidget {
+  const PostComposeRemoteImageTile({
+    super.key,
+    required this.imageUrl,
+    required this.filename,
+    required this.onPreview,
+    this.onRemove,
+  });
+
+  final String imageUrl;
+  final String filename;
+  final VoidCallback onPreview;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Semantics(
+      button: true,
+      label: '$filename 미리보기',
+      child: Material(
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPreview,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: GBTImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.cover,
+                  errorWidget: Container(
+                    color: colorScheme.surfaceContainerHighest,
+                    alignment: Alignment.center,
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GBTSpacing.xs,
+                    vertical: GBTSpacing.xxs,
+                  ),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0x00000000), Color(0xB3000000)],
+                    ),
+                  ),
+                  child: Text(
+                    filename,
+                    style: GBTTypography.caption.copyWith(color: Colors.white),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              if (onRemove != null)
+                Positioned(
+                  top: GBTSpacing.xs,
+                  right: GBTSpacing.xs,
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: IconButton.filled(
+                      padding: EdgeInsets.zero,
+                      onPressed: onRemove,
+                      iconSize: 14,
+                      icon: const Icon(Icons.close),
+                      tooltip: '사진 제거',
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

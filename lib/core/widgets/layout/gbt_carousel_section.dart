@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../localization/locale_text.dart';
 import '../../theme/gbt_colors.dart';
 import '../../theme/gbt_spacing.dart';
 import '../../theme/gbt_typography.dart';
@@ -69,12 +70,13 @@ class GBTCarouselSection extends StatelessWidget {
               ),
               if (onSeeAll != null)
                 Semantics(
-                  label: '$title 전체보기',
+                  label:
+                      '$title ${context.l10n(ko: "전체 보기", en: "see all", ja: "すべて見る")}',
                   button: true,
                   child: TextButton(
                     onPressed: onSeeAll,
                     child: Text(
-                      '전체보기',
+                      context.l10n(ko: '전체 보기', en: 'See all', ja: 'すべて見る'),
                       style: GBTTypography.bodySmall.copyWith(
                         color: isDark
                             ? GBTColors.darkPrimary

@@ -158,3 +158,9 @@ final liveEventDetailControllerProvider = StateNotifierProvider.autoDispose
 final selectedLiveBandIdsProvider = StateProvider<List<String>>((ref) {
   return const [];
 });
+
+/// EN: Selected year for live events client-side filter (null = all years).
+/// KO: 라이브 이벤트 클라이언트 연도 필터 선택값 (null = 전체 연도).
+final selectedLiveEventYearProvider = StateProvider<int?>((ref) {
+  return null;
+});

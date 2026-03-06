@@ -184,6 +184,15 @@ class PostSummaryDto {
       imageUrls = [resolvedThumbnail];
     }
 
+    final resolvedContent = _firstNonEmptyString([
+      json['content'],
+      json['body'],
+      json['text'],
+      json['excerpt'],
+      json['summary'],
+      json['description'],
+    ]);
+
     return PostSummaryDto(
       id: json['id'] as String? ?? '',
       projectId: json['projectId'] as String? ?? '',
@@ -191,7 +200,7 @@ class PostSummaryDto {
       title: json['title'] as String? ?? '',
       createdAt: _dateTime(json['createdAt']),
       imageUrls: imageUrls,
-      content: json['content'] as String?,
+      content: resolvedContent,
       thumbnailUrl: resolvedThumbnail,
       authorName: resolvedAuthorName,
       authorAvatarUrl: resolvedAvatarUrl,
@@ -275,12 +284,21 @@ class PostDetailDto {
         json['authorProfileImageUrl'] as String? ??
         authorProfile?.avatarUrl;
 
+    final resolvedContent = _firstNonEmptyString([
+      json['content'],
+      json['body'],
+      json['text'],
+      json['excerpt'],
+      json['summary'],
+      json['description'],
+    ]);
+
     return PostDetailDto(
       id: json['id'] as String? ?? '',
       projectId: json['projectId'] as String? ?? '',
       authorId: json['authorId'] as String? ?? '',
       title: json['title'] as String? ?? '',
-      content: json['content'] as String?,
+      content: resolvedContent,
       createdAt: _dateTime(json['createdAt']),
       updatedAt: _dateTimeOrNull(json['updatedAt']),
       imageUrls: _imageUrls(json['images'] ?? json['imageUrls']),
@@ -365,6 +383,18 @@ int? _intOrNull(dynamic value) {
   if (value is int) return value;
   if (value is num) return value.toInt();
   if (value is String) return int.tryParse(value);
+  return null;
+}
+
+String? _firstNonEmptyString(List<dynamic> values) {
+  for (final value in values) {
+    if (value is String) {
+      final trimmed = value.trim();
+      if (trimmed.isNotEmpty) {
+        return trimmed;
+      }
+    }
+  }
   return null;
 }
 

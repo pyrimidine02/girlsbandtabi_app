@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -49,16 +50,22 @@ class _UserConnectionsPageState extends ConsumerState<UserConnectionsPage> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(
-            widget.displayName == null ? '연결' : '${widget.displayName} 연결',
+            widget.displayName == null
+                ? context.l10n(ko: '연결', en: 'Connections', ja: 'つながり')
+                : '${widget.displayName} ${context.l10n(ko: "연결", en: "connections", ja: "つながり")}',
           ),
-          bottom: const PreferredSize(
+          bottom: PreferredSize(
             preferredSize: Size.fromHeight(44),
             child: GBTSegmentedTabBar(
               height: 44,
               margin: EdgeInsets.symmetric(horizontal: GBTSpacing.md2),
               tabs: [
-                Tab(text: '팔로워'),
-                Tab(text: '팔로잉'),
+                Tab(
+                  text: context.l10n(ko: '팔로워', en: 'Followers', ja: 'フォロワー'),
+                ),
+                Tab(
+                  text: context.l10n(ko: '팔로잉', en: 'Following', ja: 'フォロー中'),
+                ),
               ],
             ),
           ),
@@ -74,7 +81,11 @@ class _UserConnectionsPageState extends ConsumerState<UserConnectionsPage> {
                   _followersQuery = value;
                 });
               },
-              emptyMessage: '아직 팔로워가 없습니다',
+              emptyMessage: context.l10n(
+                ko: '아직 팔로워가 없습니다',
+                en: 'No followers yet',
+                ja: 'まだフォロワーがいません',
+              ),
             ),
             _ConnectionsTabBody(
               userId: widget.userId,
@@ -85,7 +96,11 @@ class _UserConnectionsPageState extends ConsumerState<UserConnectionsPage> {
                   _followingQuery = value;
                 });
               },
-              emptyMessage: '아직 팔로우한 사용자가 없습니다',
+              emptyMessage: context.l10n(
+                ko: '아직 팔로우한 사용자가 없습니다',
+                en: 'No followed users yet',
+                ja: 'まだフォローしたユーザーがいません',
+              ),
             ),
           ],
         ),
@@ -125,18 +140,32 @@ class _ConnectionsTabBody extends ConsumerWidget {
         Padding(
           padding: GBTSpacing.paddingPage,
           child: GBTSearchBar(
-            hint: '닉네임 또는 소개 검색',
+            hint: context.l10n(
+              ko: '닉네임 또는 소개 검색',
+              en: 'Search nickname or bio',
+              ja: 'ニックネームまたは紹介を検索',
+            ),
             onChanged: onQueryChanged,
             onClear: () => onQueryChanged(''),
           ),
         ),
         Expanded(
           child: state.when(
-            loading: () => const GBTLoading(message: '목록을 불러오는 중...'),
+            loading: () => GBTLoading(
+              message: context.l10n(
+                ko: '목록을 불러오는 중...',
+                en: 'Loading list...',
+                ja: '一覧を読み込み中...',
+              ),
+            ),
             error: (error, _) {
               final message = error is Failure
                   ? error.userMessage
-                  : '목록을 불러오지 못했습니다';
+                  : context.l10n(
+                      ko: '목록을 불러오지 못했습니다',
+                      en: 'Failed to load list',
+                      ja: '一覧を読み込めませんでした',
+                    );
               return GBTErrorState(
                 message: message,
                 onRetry: () => ref.invalidate(provider),
@@ -146,7 +175,13 @@ class _ConnectionsTabBody extends ConsumerWidget {
               final filtered = _filter(items, query);
               if (filtered.isEmpty) {
                 return GBTEmptyState(
-                  message: query.isEmpty ? emptyMessage : '검색 결과가 없습니다',
+                  message: query.isEmpty
+                      ? emptyMessage
+                      : context.l10n(
+                          ko: '검색 결과가 없습니다',
+                          en: 'No search results',
+                          ja: '検索結果がありません',
+                        ),
                 );
               }
 
@@ -255,7 +290,9 @@ class _ConnectionsTabBody extends ConsumerWidget {
                                     horizontal: GBTSpacing.sm,
                                   ),
                                 ),
-                                child: const Text('보기'),
+                                child: Text(
+                                  context.l10n(ko: '보기', en: 'View', ja: '見る'),
+                                ),
                               ),
                             ],
                           ),
@@ -318,7 +355,11 @@ class _ConnectionAvatar extends StatelessWidget {
         width: 42,
         height: 42,
         fit: BoxFit.cover,
-        semanticLabel: '프로필 이미지',
+        semanticLabel: context.l10n(
+          ko: '프로필 이미지',
+          en: 'Profile image',
+          ja: 'プロフィール画像',
+        ),
       ),
     );
   }

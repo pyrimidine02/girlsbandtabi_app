@@ -7,6 +7,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
@@ -27,7 +28,7 @@ class OAuthButtonsSection extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.sm),
               child: Text(
-                '소셜 로그인',
+                context.l10n(ko: '소셜 로그인', en: 'Social login', ja: 'ソーシャルログイン'),
                 style: GBTTypography.labelMedium.copyWith(
                   color: GBTColors.textTertiary,
                 ),
@@ -44,7 +45,11 @@ class OAuthButtonsSection extends ConsumerWidget {
         _XSignInButton(onPressed: () => _showInfo(context)),
         const SizedBox(height: GBTSpacing.sm),
         Text(
-          '소셜 로그인은 준비 중입니다.',
+          context.l10n(
+            ko: '소셜 로그인은 준비 중입니다.',
+            en: 'Social login is coming soon.',
+            ja: 'ソーシャルログインは準備中です。',
+          ),
           textAlign: TextAlign.center,
           style: GBTTypography.bodySmall.copyWith(
             color: GBTColors.textSecondary,
@@ -55,9 +60,17 @@ class OAuthButtonsSection extends ConsumerWidget {
   }
 
   void _showInfo(BuildContext context) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('소셜 로그인은 준비 중입니다')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.l10n(
+            ko: '소셜 로그인은 준비 중입니다',
+            en: 'Social login is coming soon',
+            ja: 'ソーシャルログインは準備中です',
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -87,7 +100,11 @@ class _GoogleSignInButton extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: 'Google로 계속하기',
+      label: context.l10n(
+        ko: 'Google로 계속하기',
+        en: 'Continue with Google',
+        ja: 'Googleで続行',
+      ),
       child: Material(
         color: bgColor,
         borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
@@ -112,7 +129,11 @@ class _GoogleSignInButton extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Google로 계속하기',
+                  context.l10n(
+                    ko: 'Google로 계속하기',
+                    en: 'Continue with Google',
+                    ja: 'Googleで続行',
+                  ),
                   style: GBTTypography.labelLarge.copyWith(
                     color: textColor,
                     fontWeight: FontWeight.w500,
@@ -150,7 +171,11 @@ class _AppleSignInButton extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: 'Apple로 로그인',
+      label: context.l10n(
+        ko: 'Apple로 로그인',
+        en: 'Sign in with Apple',
+        ja: 'Appleでログイン',
+      ),
       child: Material(
         color: bgColor,
         borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
@@ -165,7 +190,11 @@ class _AppleSignInButton extends StatelessWidget {
                 Icon(Icons.apple, color: textColor, size: 20),
                 const SizedBox(width: 12),
                 Text(
-                  'Apple로 로그인',
+                  context.l10n(
+                    ko: 'Apple로 로그인',
+                    en: 'Sign in with Apple',
+                    ja: 'Appleでログイン',
+                  ),
                   style: GBTTypography.labelLarge.copyWith(
                     color: textColor,
                     fontWeight: FontWeight.w500,
@@ -203,7 +232,7 @@ class _XSignInButton extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: 'X로 로그인',
+      label: context.l10n(ko: 'X로 로그인', en: 'Sign in with X', ja: 'Xでログイン'),
       child: Material(
         color: bgColor,
         borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
@@ -224,7 +253,11 @@ class _XSignInButton extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'X로 로그인',
+                  context.l10n(
+                    ko: 'X로 로그인',
+                    en: 'Sign in with X',
+                    ja: 'Xでログイン',
+                  ),
                   style: GBTTypography.labelLarge.copyWith(
                     color: textColor,
                     fontWeight: FontWeight.w500,

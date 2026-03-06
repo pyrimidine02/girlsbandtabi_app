@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
@@ -71,25 +72,33 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('알림'),
+        title: Text(context.l10n(ko: '알림', en: 'Notifications', ja: '通知')),
         actions: [
           GBTAppBarIconButton(
             icon: Icons.done_all,
-            tooltip: '전체 읽음 처리',
+            tooltip: context.l10n(
+              ko: '전체 읽음 처리',
+              en: 'Mark all as read',
+              ja: 'すべて既読にする',
+            ),
             onPressed: () => ref
                 .read(notificationsControllerProvider.notifier)
                 .markAllAsRead(),
           ),
           GBTAppBarIconButton(
             icon: Icons.refresh,
-            tooltip: '새로고침',
+            tooltip: context.l10n(ko: '새로고침', en: 'Refresh', ja: '更新'),
             onPressed: () => ref
                 .read(notificationsControllerProvider.notifier)
                 .load(forceRefresh: true),
           ),
           GBTAppBarIconButton(
             icon: Icons.settings_outlined,
-            tooltip: '알림 설정',
+            tooltip: context.l10n(
+              ko: '알림 설정',
+              en: 'Notification settings',
+              ja: '通知設定',
+            ),
             onPressed: () => context.push('/settings/notifications'),
           ),
         ],
@@ -110,13 +119,23 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage>
                 },
               ),
               const SizedBox(height: GBTSpacing.md),
-              const GBTLoading(message: '알림을 불러오는 중...'),
+              GBTLoading(
+                message: context.l10n(
+                  ko: '알림을 불러오는 중...',
+                  en: 'Loading notifications...',
+                  ja: '通知を読み込み中...',
+                ),
+              ),
             ],
           ),
           error: (error, _) {
             final message = error is Failure
                 ? error.userMessage
-                : '알림을 불러오지 못했어요';
+                : context.l10n(
+                    ko: '알림을 불러오지 못했어요',
+                    en: 'Failed to load notifications',
+                    ja: '通知を読み込めませんでした',
+                  );
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: GBTSpacing.paddingPage,
@@ -157,8 +176,16 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage>
                   GBTEmptyState(
                     icon: Icons.notifications_none,
                     message: _showUnreadOnly
-                        ? '읽지 않은 알림이 없습니다.'
-                        : '새 알림이 없습니다.',
+                        ? context.l10n(
+                            ko: '읽지 않은 알림이 없습니다.',
+                            en: 'No unread notifications.',
+                            ja: '未読通知はありません。',
+                          )
+                        : context.l10n(
+                            ko: '새 알림이 없습니다.',
+                            en: 'No new notifications.',
+                            ja: '新しい通知はありません。',
+                          ),
                   ),
                 ],
               );
@@ -215,9 +242,15 @@ class _FilterRow extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: SegmentedButton<bool>(
         showSelectedIcon: false,
-        segments: const [
-          ButtonSegment<bool>(value: false, label: Text('전체')),
-          ButtonSegment<bool>(value: true, label: Text('읽지 않음')),
+        segments: [
+          ButtonSegment<bool>(
+            value: false,
+            label: Text(context.l10n(ko: '전체', en: 'All', ja: '全体')),
+          ),
+          ButtonSegment<bool>(
+            value: true,
+            label: Text(context.l10n(ko: '읽지 않음', en: 'Unread', ja: '未読')),
+          ),
         ],
         selected: <bool>{showUnreadOnly},
         onSelectionChanged: (selection) {

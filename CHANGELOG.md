@@ -1,5 +1,72 @@
 # Changelog
 
+## 2026-03-06
+- **LEGAL/COMPLIANCE (P0 FRONT)**: Applied immediate frontend mitigations from legal-compliance request:
+  - `RegisterPage`: added required consent collection (`이용약관`, `개인정보 처리방침`, `만 14세 이상`) and pre-submit final confirmation modal.
+  - `VerificationSheet`: added location-collection pre-notice + mandatory consent gate before starting verification (blocks OS permission/API flow until agreed).
+  - `LoginPage`/`RegisterPage`: hardened auth failure snackbars to generic, account-enumeration-safe messages.
+  - Added reusable legal policy links component with version labels and external open flow:
+    - `/lib/core/constants/legal_policy_constants.dart`
+    - `/lib/core/widgets/legal/legal_policy_links_section.dart`
+  - Exposed policy links in required paths:
+    - register page
+    - settings support section (`이용약관/개인정보 처리방침/위치정보 이용약관`)
+    - profile edit page
+  - Masked email display in settings/profile edit surfaces to reduce sensitive-data exposure.
+- **LEGAL/COMPLIANCE (P1 MOBILE SELF-SERVICE)**: Completed in-app privacy self-service navigation and local auditability baseline:
+  - Added new settings entries/routes:
+    - `/settings/privacy-rights` (`개인정보 및 권리행사`)
+    - `/settings/consents` (`동의 이력`)
+  - Added `PrivacyRightsPage` for user-side actions:
+    - auto-translation transfer opt-out toggle (`PATCH /users/me/privacy-settings` with local fallback)
+    - processing restriction request (`POST /users/me/privacy-requests` with local history fallback)
+    - self account deletion trigger (`DELETE /users/me`)
+  - Added `ConsentHistoryPage` data strategy:
+    - primary fetch: `GET /users/me/consents`
+    - fallback: locally stored consent snapshots when server contract is absent/empty
+  - Extended register request payload with consent records (`type/version/agreed/agreedAt`) and added compatibility retry without `consents` when legacy backend schema rejects the new field.
+  - Persisted signup consent snapshots to local storage after successful register.
+  - Extended logout local-data purge to include privacy/compliance keys:
+    - `user_consents`, `auto_translation_enabled`, `privacy_request_history`
+- **DOCS/ADR**:
+  - Added ADR: `ADR-20260306-frontend-legal-compliance-phase1.md`
+  - Added backend contract request: `docs/api-spec/법률컴플라이언스_계약확정요청서_v1.0.0.md`
+- **NOTIFICATIONS/ALERT (FOREGROUND)**: Implemented actual in-app notification alert delivery path:
+  - Added `LocalNotificationsService` with `flutter_local_notifications` for local banner/sound delivery.
+  - Added global realtime bootstrap in `GBTApp` (`notificationsRealtimeBootstrapProvider`) so notification SSE stays active outside notifications page.
+  - Removed page-scoped realtime stop/start from `NotificationsPage` to prevent stream teardown on route change.
+  - Added new-unread delta detection in `NotificationsController` and trigger local alerts (up to 3 per refresh) only when user push setting is enabled.
+  - Added auth-transition snapshot reset to avoid cross-account notification ID contamination after logout/login.
+- **SETTINGS/NOTIFICATIONS**: Synced server `pushEnabled` with local storage (`notifications_enabled`) so local-alert policy follows notification settings in real time.
+- **DOCS/API-REQUEST**: Added push integration request doc for backend (`docs/api-spec/푸시알림연동요청서_v1.0.0.md`) and ADR (`ADR-20260306-notification-local-alert-bootstrap.md`).
+- **REALTIME/SSE (PHASE1)**: Added client-side SSE integration with safe polling fallback for board feed + notifications:
+  - Added reusable SSE client (`SseClient`, `SseConnection`, `SseEvent`) and DI provider (`sseClientProvider`).
+  - Added stream endpoint constants for user realtime channels (`/api/v1/community/events/stream`, `/api/v1/notifications/stream`).
+  - Wired `CommunityFeedController` and `NotificationsController` to start/stop SSE, handle reconnect (exponential backoff), and trigger throttled background refresh on realtime events.
+  - Kept existing periodic refresh as fallback and automatically skip poll refresh while SSE is connected.
+- **COMMUNITY/FEED (RECOMMENDED SCOPE FIX)**: Switched `추천` feed loading from project-scoped cursor (`/projects/{projectCode}/posts/cursor`) to integrated cursor feed (`/community/feed/cursor`) so posts can mix across projects.
+  - Applied the same source switch for initial load, background refresh, and pagination in `CommunityFeedController`.
+  - Made project selection requirement mode-aware so `추천/팔로잉` can load without a selected project, while `최신/인기/검색` still require project context.
+- **COMMUNITY/COMPOSE (EDIT UX FIX)**: Fixed post-edit content/image handling and aligned compose surface style:
+  - `PostEditPage` now strips markdown/inline image URLs from editor text (`stripImageMarkdown`) so raw R2 URLs are no longer shown in the content field.
+  - Existing post images are now loaded from `post.imageUrls + extractImageUrls(content)` and managed as first-class attachments (preview/remove/clear-all) in edit mode.
+  - Edit submit now re-appends normalized existing + newly uploaded image URLs into markdown, preserving image attachments while editing plain text.
+  - Added shared `PostComposeRemoteImageTile` and `PostComposeIntroCard`, and applied intro card to both create/edit pages for a more consistent compose UX rhythm.
+- **I18N/JP (EXPANSION)**: Extended runtime `ko/en/ja` localization across remaining high-traffic detail flows without design changes:
+  - Places: localized `places_map_page`, `place_detail_page`, `place_review_sheet`, and shared directions launcher copy (titles/tooltips/empty/error/CTA/semantics).
+  - Visits: localized `visit_history_page`, `visit_detail_page`, `visit_stats_page` (headers/cards/map/stat labels/empty states/semantics).
+  - Feed/Auth supporting surfaces: localized `info_page`, `news_detail_page`, `user_profile_page`, `user_connections_page`, `oauth_callback_page`, `oauth_buttons`, `community_report_sheet`, `band_filter_sheet`.
+  - Community moderation domain labels now locale-aware via `Intl.getCurrentLocale()` mapping (`ko/en/ja`).
+- **I18N/STABILITY**: Kept existing UI/UX and navigation behavior unchanged while replacing hard-coded visible Korean copy with `context.l10n(...)` in updated screens.
+- **LIVE/FILTER**: Added year-based live-event filter to handle long event lists:
+  - Added `selectedLiveEventYearProvider` (`null = 전체 연도`) in live-events application layer.
+  - Added year chip row (`전체 연도 + 연도별`) below band chips only on 완료 탭.
+  - Applied selected-year filtering to 완료 리스트와 완료 탭 진입 시 캘린더 FAB modal.
+  - Updated 완료 탭 empty-state text to include selected year context when active.
+- **LIVE/FILTER/VALIDATION**:
+  - `flutter analyze lib/features/live_events/application/live_events_controller.dart lib/features/live_events/presentation/pages/live_events_page.dart`
+  - `flutter test test/features/live_events`
+
 ## 2026-03-05
 - **ROUTING/NAV-OPTION-B**: Promoted board sections to global bottom tabs (`피드/발견/여행후기/정보`) and removed dependence on board-internal section switching:
   - Restored primary shell tabs to 기존 5탭 (`홈/장소/라이브/게시판/정보`).
@@ -720,3 +787,17 @@
 - Verified release APK metadata with Android build-tools `aapt`:
   - `versionName=0.0.3`
   - `versionCode=2026030601`
+- Enabled runtime locale switching with persistence and Japanese support wiring:
+  - Added `localeProvider` (`LocaleNotifier`) to load/save locale preference from `LocalStorage`.
+  - Connected `MaterialApp.router.locale` to the provider (removed fixed `ko_KR` locale).
+  - Replaced Settings language row “coming soon” with a working picker (`System/한국어/English/日本語`).
+  - Added lightweight `context.l10n(...)` helper and applied it to global shell copy (offline banner, Android back-exit snackbar, bottom nav labels, board sub-nav labels).
+- Expanded locale-aware copy and formatting across board/live/project surfaces without changing layout:
+  - Localized board page app bar/FAB/menu/dialog/snackbar text, my-report sheet, and moderation sheet for `ko/en/ja`.
+  - Reworked board search bottom sheet to remove `TextEditingController` lifecycle coupling and avoid disposed-controller crashes.
+  - Localized live events calendar/list/filter strings and accessibility labels (`ko/en/ja`), including month/week/day labels.
+  - Localized project selector error/empty/retry semantics labels.
+  - Made feed time-ago/count labels locale-aware (`ko/en/ja`) in domain/application helpers.
+- Validation:
+  - `flutter analyze lib/core/providers/core_providers.dart lib/app.dart lib/shared/main_scaffold.dart lib/features/settings/presentation/pages/settings_page.dart lib/core/localization/locale_text.dart`
+  - `flutter analyze`

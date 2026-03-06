@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
@@ -88,7 +89,11 @@ class _OAuthCallbackPageState extends ConsumerState<OAuthCallbackPage> {
 
     if (_failure != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('로그인 실패')),
+        appBar: AppBar(
+          title: Text(
+            context.l10n(ko: '로그인 실패', en: 'Login failed', ja: 'ログイン失敗'),
+          ),
+        ),
         body: Center(
           child: Padding(
             padding: GBTSpacing.paddingPage,
@@ -101,11 +106,19 @@ class _OAuthCallbackPageState extends ConsumerState<OAuthCallbackPage> {
                   Icons.error_outline,
                   size: GBTSpacing.xxxl,
                   color: colorScheme.error,
-                  semanticLabel: '로그인 오류',
+                  semanticLabel: context.l10n(
+                    ko: '로그인 오류',
+                    en: 'Login error',
+                    ja: 'ログインエラー',
+                  ),
                 ),
                 const SizedBox(height: GBTSpacing.md),
                 Text(
-                  '로그인에 실패했습니다',
+                  context.l10n(
+                    ko: '로그인에 실패했습니다',
+                    en: 'Login failed',
+                    ja: 'ログインに失敗しました',
+                  ),
                   style: GBTTypography.titleMedium.copyWith(
                     color: colorScheme.onSurface,
                   ),
@@ -126,11 +139,21 @@ class _OAuthCallbackPageState extends ConsumerState<OAuthCallbackPage> {
                 const SizedBox(height: GBTSpacing.lg),
                 Semantics(
                   button: true,
-                  label: '로그인 페이지로 돌아가기',
+                  label: context.l10n(
+                    ko: '로그인 페이지로 돌아가기',
+                    en: 'Back to login page',
+                    ja: 'ログインページに戻る',
+                  ),
                   child: ElevatedButton.icon(
                     onPressed: () => context.go('/login'),
                     icon: const Icon(Icons.arrow_back, size: 18),
-                    label: const Text('로그인으로 돌아가기'),
+                    label: Text(
+                      context.l10n(
+                        ko: '로그인으로 돌아가기',
+                        en: 'Back to login',
+                        ja: 'ログインに戻る',
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(
                         GBTSpacing.touchTarget,
@@ -146,8 +169,16 @@ class _OAuthCallbackPageState extends ConsumerState<OAuthCallbackPage> {
       );
     }
 
-    return const Scaffold(
-      body: Center(child: GBTLoading(message: '로그인 처리 중...')),
+    return Scaffold(
+      body: Center(
+        child: GBTLoading(
+          message: context.l10n(
+            ko: '로그인 처리 중...',
+            en: 'Processing login...',
+            ja: 'ログイン処理中...',
+          ),
+        ),
+      ),
     );
   }
 }

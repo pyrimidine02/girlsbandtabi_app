@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/widgets/sheets/gbt_bottom_sheet.dart';
 import '../../domain/entities/place_entities.dart';
 
@@ -21,8 +22,12 @@ Future<void> showPlaceDirectionsSheet(
 
   await showGBTActionSheet<void>(
     context: context,
-    title: '$placeName 길안내',
-    cancelLabel: '취소',
+    title: context.l10n(
+      ko: '$placeName 길안내',
+      en: '$placeName directions',
+      ja: '$placeName 経路案内',
+    ),
+    cancelLabel: context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル'),
     actions: orderedProviders
         .map(
           (provider) => GBTActionSheetItem<void>(
@@ -95,9 +100,17 @@ Future<void> _launchDirectionsUrl(
   final uri = Uri.tryParse(url);
   if (uri == null) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('길안내 링크를 열 수 없어요')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.l10n(
+            ko: '길안내 링크를 열 수 없어요',
+            en: 'Could not open directions link',
+            ja: '経路案内リンクを開けませんでした',
+          ),
+        ),
+      ),
+    );
     return;
   }
 
@@ -119,7 +132,15 @@ Future<void> _launchDirectionsUrl(
   }
 
   if (!context.mounted) return;
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text('$providerLabel 길안내를 열지 못했어요')));
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        context.l10n(
+          ko: '$providerLabel 길안내를 열지 못했어요',
+          en: 'Could not open $providerLabel directions',
+          ja: '$providerLabel の経路案内を開けませんでした',
+        ),
+      ),
+    ),
+  );
 }

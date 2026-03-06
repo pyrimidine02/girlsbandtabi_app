@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../domain/entities/community_moderation.dart';
@@ -61,7 +62,10 @@ class _CommunityReportSheetState extends State<CommunityReportSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('신고하기', style: GBTTypography.titleSmall),
+              Text(
+                context.l10n(ko: '신고하기', en: 'Report', ja: '通報'),
+                style: GBTTypography.titleSmall,
+              ),
               const SizedBox(height: GBTSpacing.md),
               RadioGroup<CommunityReportReason>(
                 groupValue: _selectedReason,
@@ -89,9 +93,17 @@ class _CommunityReportSheetState extends State<CommunityReportSheet> {
                 textInputAction: TextInputAction.done,
                 onTapOutside: (_) => _dismissKeyboard(),
                 onSubmitted: (_) => _dismissKeyboard(),
-                decoration: const InputDecoration(
-                  labelText: '추가 설명',
-                  hintText: '필요한 설명을 남겨주세요 (선택)',
+                decoration: InputDecoration(
+                  labelText: context.l10n(
+                    ko: '추가 설명',
+                    en: 'Additional details',
+                    ja: '追加説明',
+                  ),
+                  hintText: context.l10n(
+                    ko: '필요한 설명을 남겨주세요 (선택)',
+                    en: 'Leave extra details if needed (optional)',
+                    ja: '必要なら補足説明を入力してください（任意）',
+                  ),
                 ),
               ),
               const SizedBox(height: GBTSpacing.lg),
@@ -107,7 +119,9 @@ class _CommunityReportSheetState extends State<CommunityReportSheet> {
                       ),
                     );
                   },
-                  child: const Text('신고 접수'),
+                  child: Text(
+                    context.l10n(ko: '신고 접수', en: 'Submit report', ja: '通報受付'),
+                  ),
                 ),
               ),
             ],

@@ -6,12 +6,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import 'core/connectivity/connectivity_service.dart';
+import 'core/localization/locale_text.dart';
 import 'core/providers/core_providers.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/gbt_colors.dart';
 import 'core/theme/gbt_theme.dart';
+import 'features/notifications/application/notifications_controller.dart';
 
 /// EN: Main application widget
 /// KO: 메인 앱 위젯
@@ -20,8 +23,13 @@ class GBTApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // EN: Keep notification realtime sync alive at app scope.
+    // KO: 앱 전역에서 알림 실시간 동기화를 유지합니다.
+    ref.watch(notificationsRealtimeBootstrapProvider);
+
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeModeProvider);
+    final appLocale = ref.watch(localeProvider);
 
     return MaterialApp.router(
       title: 'Girls Band Tabi',
@@ -39,7 +47,7 @@ class GBTApp extends ConsumerWidget {
 
       // EN: Localization
       // KO: 다국어 지원
-      locale: const Locale('ko', 'KR'),
+      locale: appLocale,
       supportedLocales: const [
         Locale('ko', 'KR'),
         Locale('en', 'US'),
@@ -58,12 +66,12 @@ class GBTApp extends ConsumerWidget {
         final backgroundGradient = isDark
             ? GBTColors.darkAppBackgroundGradient
             : GBTColors.appBackgroundGradient;
+        Intl.defaultLocale = Localizations.localeOf(context).toLanguageTag();
         // EN: Icon brightness flips with theme so status bar & nav bar icons
         //     remain readable in both light and dark mode (edge-to-edge).
         // KO: 테마에 따라 아이콘 밝기를 반전시켜 라이트/다크 모드 모두에서
         //     상태 바·네비게이션 바 아이콘이 잘 보이도록 합니다 (엣지 투 엣지).
-        final iconBrightness =
-            isDark ? Brightness.light : Brightness.dark;
+        final iconBrightness = isDark ? Brightness.light : Brightness.dark;
 
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle(
@@ -190,7 +198,11 @@ class _OfflineBanner extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                '오프라인 모드 - 일부 기능이 제한됩니다',
+                context.l10n(
+                  ko: '오프라인 모드 - 일부 기능이 제한됩니다',
+                  en: 'Offline mode - some features are limited',
+                  ja: 'オフラインモード - 一部機能は制限されます',
+                ),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onError,
                 ),
