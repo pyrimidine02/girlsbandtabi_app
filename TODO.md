@@ -1,5 +1,11 @@
 # TODO
 
+- Run auth regression QA for 2026-03-06 login hardening:
+  - verify rapid multi-tap on login CTA still issues a single `POST /api/v1/auth/login`.
+  - verify same-account concurrent login attempts are deduplicated client-side.
+  - verify `409`/`429` retry behavior matches UX expectations and does not trigger immediate retry loops.
+  - verify login success no longer reproduces immediate protected-API `401` (`/api/v1/home/summary`) on real devices.
+- If backend starts returning explicit login `retryAfter` metadata for `429`, replace fixed `1200ms` delay with server-driven wait.
 - Replace hardcoded legal policy URLs/versions in `LegalPolicyConstants` with server-driven metadata once `/api/v1/policies/metadata` is available.
 - Confirm backend `POST /api/v1/auth/register` consent DTO handling in production and remove temporary legacy-register retry fallback once all environments accept `consents` payload.
 - Add widget tests for legal compliance UX:

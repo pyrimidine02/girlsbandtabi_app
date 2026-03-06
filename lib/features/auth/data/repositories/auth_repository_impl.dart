@@ -25,23 +25,39 @@ class AuthRepositoryImpl implements AuthRepository {
     required AuthRemoteDataSource remoteDataSource,
     required SecureStorage secureStorage,
     DateTime Function()? now,
+    Future<void> Function(Duration)? sleep,
   }) : _remoteDataSource = remoteDataSource,
        _secureStorage = secureStorage,
-       _now = now ?? DateTime.now;
+       _now = now ?? DateTime.now,
+       _sleep = sleep ?? Future<void>.delayed;
 
   final AuthRemoteDataSource _remoteDataSource;
   final SecureStorage _secureStorage;
   final DateTime Function() _now;
+  final Future<void> Function(Duration) _sleep;
+  final Map<String, Future<Result<AuthTokens>>> _inFlightLoginRequests =
+      <String, Future<Result<AuthTokens>>>{};
 
   @override
   Future<Result<AuthTokens>> login({
     required String username,
     required String password,
   }) async {
-    final result = await _remoteDataSource.login(
-      LoginRequest(username: username, password: password),
-    );
-    return _persistTokens(result);
+    final normalizedUsername = username.trim().toLowerCase();
+    final inFlight = _inFlightLoginRequests[normalizedUsername];
+    if (inFlight != null) {
+      return inFlight;
+    }
+
+    final future = _loginWithRetry(username: username, password: password);
+    _inFlightLoginRequests[normalizedUsername] = future;
+    try {
+      return await future;
+    } finally {
+      if (identical(_inFlightLoginRequests[normalizedUsername], future)) {
+        _inFlightLoginRequests.remove(normalizedUsername);
+      }
+    }
   }
 
   @override
@@ -157,6 +173,20 @@ class AuthRepositoryImpl implements AuthRepository {
         await _secureStorage.saveUserId(newUserId);
       }
 
+      // EN: Ensure tokens are persisted before returning success to callers
+      // EN: that will immediately call protected APIs.
+      // KO: 호출자가 즉시 보호 API를 호출하더라도 안전하도록 토큰 저장을
+      // KO: 재검증한 뒤 성공을 반환합니다.
+      final hasTokens = await _secureStorage.hasValidTokens();
+      if (!hasTokens) {
+        return Result.failure(
+          const AuthFailure(
+            'Token persistence failed',
+            code: 'token_persist_failed',
+          ),
+        );
+      }
+
       return Result.success(AuthTokens.fromResponse(tokenResponse));
     }
 
@@ -212,5 +242,55 @@ class AuthRepositoryImpl implements AuthRepository {
         normalizedMessage.contains('json parse');
 
     return mentionsConsents && likelyContractMismatch;
+  }
+
+  Future<Result<AuthTokens>> _loginWithRetry({
+    required String username,
+    required String password,
+  }) async {
+    final request = LoginRequest(username: username.trim(), password: password);
+    final firstResult = await _remoteDataSource.login(request);
+
+    if (firstResult is Success<TokenResponse>) {
+      return _persistTokens(firstResult);
+    }
+    if (firstResult is! Err<TokenResponse>) {
+      return Result.failure(
+        const UnknownFailure('Unknown login result', code: 'unknown_login'),
+      );
+    }
+
+    if (_isConflictFailure(firstResult.failure)) {
+      await _sleep(const Duration(milliseconds: 280));
+      return _persistTokens(await _remoteDataSource.login(request));
+    }
+
+    if (_isRateLimitFailure(firstResult.failure)) {
+      await _sleep(const Duration(milliseconds: 1200));
+      return _persistTokens(await _remoteDataSource.login(request));
+    }
+
+    return Result.failure(firstResult.failure);
+  }
+
+  bool _isConflictFailure(Failure failure) {
+    if (failure.code == '409') {
+      return true;
+    }
+    final lowerCode = (failure.code ?? '').toLowerCase();
+    final lowerMessage = failure.message.toLowerCase();
+    return lowerCode.contains('conflict') ||
+        lowerMessage.contains('conflict') ||
+        lowerMessage.contains('duplicate');
+  }
+
+  bool _isRateLimitFailure(Failure failure) {
+    if (failure.code == '429') {
+      return true;
+    }
+    final lowerCode = (failure.code ?? '').toLowerCase();
+    final lowerMessage = failure.message.toLowerCase();
+    return lowerCode.contains('too_many') ||
+        lowerMessage.contains('too many requests');
   }
 }

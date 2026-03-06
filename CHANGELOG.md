@@ -1,6 +1,19 @@
 # Changelog
 
 ## 2026-03-06
+- **AUTH/LOGIN (SPEC ALIGN + DUPLICATE GUARD)**: Hardened mobile login flow against contract mismatch, duplicate sends, and post-login token races:
+  - Kept login request contract fixed to `{"username","password"}` and added test coverage to guard against accidental `email`-key payload regressions.
+  - Added in-flight same-account deduplication in `AuthRepositoryImpl.login` (normalized username key) to prevent concurrent duplicate login requests.
+  - Added bounded retry policy for transient login failures:
+    - `409` conflict: one retry after short delay (`280ms`)
+    - `429` rate-limit: delayed retry (`1200ms`) and then fail
+  - Added token persistence guard before reporting auth success (`hasValidTokens`) to reduce login-success → protected-API-401 race windows.
+  - Updated login page UX:
+    - request-in-flight local submit lock (`_isSubmitting`) + disabled button/re-submit prevention
+    - status-code-specific error guidance for `400/401/403/429`
+    - email-oriented field copy while still sending `username` key in API payload
+  - Added repository login-policy tests:
+    - payload key contract, in-flight dedupe, `409` retry, `429` retry, non-retry failures, token-persist failure path.
 - **BOARD/ADS (NATIVE SLOT)**: Added Toss-style natural sponsored slots to board feeds without timed/interstitial behavior:
   - Added reusable inline ad card: `/lib/core/widgets/cards/gbt_sponsored_slot_card.dart`
   - Added deterministic insertion helper: `/lib/features/feed/presentation/models/feed_native_ad_placement.dart`

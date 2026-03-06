@@ -30,6 +30,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -54,7 +55,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     });
 
     final authState = ref.watch(authControllerProvider);
-    final isLoading = authState.isLoading;
+    final isLoading = authState.isLoading || _isSubmitting;
 
     return Scaffold(
       body: SafeArea(
@@ -115,25 +116,25 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                 const SizedBox(height: GBTSpacing.xxxl),
 
-                // EN: Username field
-                // KO: 사용자명 필드
+                // EN: Email input mapped to username contract field.
+                // KO: username 계약 필드에 매핑되는 이메일 입력 필드.
                 GBTTextField(
                   controller: _usernameController,
-                  label: context.l10n(ko: '사용자명', en: 'Username', ja: 'ユーザー名'),
+                  label: context.l10n(ko: '이메일', en: 'Email', ja: 'メールアドレス'),
                   hint: context.l10n(
-                    ko: '아이디를 입력하세요',
-                    en: 'Enter your username',
-                    ja: 'ユーザー名を入力してください',
+                    ko: '이메일을 입력하세요',
+                    en: 'Enter your email',
+                    ja: 'メールアドレスを入力してください',
                   ),
                   prefixIcon: Icons.person_outline,
-                  keyboardType: TextInputType.text,
+                  keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return context.l10n(
-                        ko: '사용자명을 입력해주세요',
-                        en: 'Please enter your username',
-                        ja: 'ユーザー名を入力してください',
+                        ko: '이메일을 입력해주세요',
+                        en: 'Please enter your email',
+                        ja: 'メールアドレスを入力してください',
                       );
                     }
                     return null;
@@ -180,7 +181,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     }
                     return null;
                   },
-                  onSubmitted: (_) => _handleLogin(),
+                  onSubmitted: (_) => isLoading ? null : _handleLogin(),
                 ),
 
                 const SizedBox(height: GBTSpacing.lg),
@@ -293,15 +294,27 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _handleLogin() async {
+    if (_isSubmitting) return;
     if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _isSubmitting = true;
+    });
     final controller = ref.read(authControllerProvider.notifier);
-    final result = await controller.login(
-      username: _usernameController.text.trim(),
-      password: _passwordController.text,
-    );
-    if (!mounted) return;
-    if (result is Success<void>) {
-      context.go('/home');
+    try {
+      final result = await controller.login(
+        username: _usernameController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (!mounted) return;
+      if (result is Success<void>) {
+        context.go('/home');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 }
@@ -312,6 +325,31 @@ String _buildSafeLoginErrorMessage(BuildContext context, Object error) {
       ko: '네트워크 연결을 확인한 뒤 다시 시도해주세요.',
       en: 'Check your network connection and try again.',
       ja: 'ネットワーク接続を確認して再試行してください。',
+    );
+  }
+
+  if (error is ValidationFailure ||
+      (error is ServerFailure && error.code == '400')) {
+    return context.l10n(
+      ko: '요청 형식 또는 입력값을 다시 확인해주세요.',
+      en: 'Please check the request format or input values.',
+      ja: 'リクエスト形式または入力値を確認してください。',
+    );
+  }
+
+  if (error is AuthFailure && error.code == '401') {
+    return context.l10n(
+      ko: '이메일 또는 비밀번호를 확인해주세요.',
+      en: 'Please check your email or password.',
+      ja: 'メールアドレスまたはパスワードを確認してください。',
+    );
+  }
+
+  if (error is AuthFailure && error.code == '403') {
+    return context.l10n(
+      ko: '계정 상태를 확인해주세요. 이메일 인증 또는 계정 활성화가 필요할 수 있습니다.',
+      en: 'Please check your account status. Email verification or activation may be required.',
+      ja: 'アカウント状態を確認してください。メール認証または有効化が必要な場合があります。',
     );
   }
 

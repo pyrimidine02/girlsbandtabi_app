@@ -103,7 +103,10 @@ class SecureStorage {
   Future<bool> hasValidTokens() async {
     final accessToken = await getAccessToken();
     final refreshToken = await getRefreshToken();
-    return accessToken != null && refreshToken != null;
+    return accessToken != null &&
+        accessToken.isNotEmpty &&
+        refreshToken != null &&
+        refreshToken.isNotEmpty;
   }
 
   // ========================================
