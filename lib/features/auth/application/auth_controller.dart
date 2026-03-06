@@ -15,6 +15,7 @@ import '../../settings/application/settings_controller.dart';
 import '../data/datasources/auth_remote_data_source.dart';
 import '../data/repositories/auth_repository_impl.dart';
 import '../domain/entities/oauth_provider.dart';
+import '../domain/entities/register_consent.dart';
 import '../domain/repositories/auth_repository.dart';
 import 'oauth_service.dart';
 
@@ -66,12 +67,14 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     required String username,
     required String password,
     required String nickname,
+    List<RegisterConsent> consents = const [],
   }) async {
     state = const AsyncLoading();
     final result = await _repository.register(
       username: username,
       password: password,
       nickname: nickname,
+      consents: consents,
     );
     return _handleAuthResult(result);
   }
@@ -231,6 +234,9 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
         localStorage.remove(LocalStorageKeys.recentSearches),
         localStorage.remove(LocalStorageKeys.lastSyncTime),
         localStorage.remove(LocalStorageKeys.cachedHomeData),
+        localStorage.remove(LocalStorageKeys.userConsents),
+        localStorage.remove(LocalStorageKeys.autoTranslationEnabled),
+        localStorage.remove(LocalStorageKeys.privacyRequestHistory),
       ]);
     } catch (e, stackTrace) {
       AppLogger.error(

@@ -36,6 +36,9 @@ class ApiEndpoints {
   static String userVisitDetail(String visitId) => '$userVisits/$visitId';
   static const String usersSearch = '$apiVersion/users/search';
   static String userProfile(String userId) => '$apiVersion/users/$userId';
+  static const String userPrivacySettings = '$userMe/privacy-settings';
+  static const String userConsents = '$userMe/consents';
+  static const String userPrivacyRequests = '$userMe/privacy-requests';
   static String userFollow(String userId) => '${userProfile(userId)}/follow';
   static String userFollowers(String userId) =>
       '${userProfile(userId)}/followers';
@@ -58,6 +61,7 @@ class ApiEndpoints {
   static const String notifications = '$apiVersion/notifications';
   static String notificationRead(String id) => '$notifications/$id/read';
   static const String notificationSettings = '$notifications/settings';
+  static const String notificationsStream = '$notifications/stream';
 
   // ============================================================
   // EN: Verification endpoints (8.3)
@@ -298,6 +302,8 @@ class ApiEndpoints {
   // EN: Community subscription endpoints.
   // KO: 커뮤니티 구독 엔드포인트.
   static const String communityFeedCursor = '$apiVersion/community/feed/cursor';
+  static const String communityEventsStream =
+      '$apiVersion/community/events/stream';
   static const String communitySubscriptions =
       '$apiVersion/community/subscriptions';
 

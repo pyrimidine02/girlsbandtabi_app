@@ -37,6 +37,8 @@ import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/settings/presentation/pages/profile_edit_page.dart';
 import '../../features/settings/presentation/pages/notification_settings_page.dart';
 import '../../features/settings/presentation/pages/account_tools_page.dart';
+import '../../features/settings/presentation/pages/privacy_rights_page.dart';
+import '../../features/settings/presentation/pages/consent_history_page.dart';
 import '../../features/admin_ops/presentation/pages/admin_ops_page.dart';
 import '../../features/visits/presentation/pages/visit_detail_page.dart';
 import '../../features/visits/presentation/pages/visit_history_page.dart';
@@ -121,6 +123,8 @@ class AppRoutes {
   static const String profileEdit = 'profile-edit';
   static const String notificationSettings = 'notification-settings';
   static const String accountTools = 'account-tools';
+  static const String privacyRights = 'privacy-rights';
+  static const String consentHistory = 'consent-history';
   static const String adminOps = 'admin-ops';
   static const String visitHistory = 'visit-history';
   static const String visitDetail = 'visit-detail';
@@ -496,6 +500,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: 'account-tools',
             name: AppRoutes.accountTools,
             builder: (context, state) => const AccountToolsPage(),
+          ),
+          GoRoute(
+            path: 'privacy-rights',
+            name: AppRoutes.privacyRights,
+            builder: (context, state) => const PrivacyRightsPage(),
+          ),
+          GoRoute(
+            path: 'consents',
+            name: AppRoutes.consentHistory,
+            builder: (context, state) => const ConsentHistoryPage(),
           ),
           GoRoute(
             path: 'admin',
