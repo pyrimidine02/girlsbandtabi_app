@@ -23,6 +23,8 @@ import '../../../../core/widgets/common/gbt_action_icons.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
+import '../../../ads/domain/entities/ad_slot_entities.dart';
+import '../../../ads/presentation/widgets/hybrid_sponsored_slot.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
@@ -34,6 +36,7 @@ import '../../application/report_rate_limiter.dart';
 import '../../application/user_follow_list_controller.dart';
 import '../../domain/entities/community_moderation.dart';
 import '../../domain/entities/feed_entities.dart';
+import '../models/feed_native_ad_placement.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../widgets/community_report_sheet.dart';
 
@@ -605,9 +608,24 @@ class _ProjectPostList extends ConsumerWidget {
               .load(forceRefresh: true),
           child: ListView.builder(
             padding: const EdgeInsets.only(bottom: 80),
-            itemCount: posts.length,
-            itemBuilder: (context, index) =>
-                _CommunityPostCard(post: posts[index]),
+            itemCount: FeedNativeAdPlacement.totalItemCount(posts.length),
+            itemBuilder: (context, index) {
+              if (FeedNativeAdPlacement.isAdIndex(
+                listIndex: index,
+                postCount: posts.length,
+              )) {
+                final adOrdinal = FeedNativeAdPlacement.adOrdinalForIndex(
+                  listIndex: index,
+                  postCount: posts.length,
+                );
+                return _FeedSponsoredCard(adOrdinal: adOrdinal);
+              }
+              final postIndex = FeedNativeAdPlacement.postIndexForListIndex(
+                listIndex: index,
+                postCount: posts.length,
+              );
+              return _CommunityPostCard(post: posts[postIndex]);
+            },
           ),
         );
       },
@@ -1752,32 +1770,172 @@ class _CommunityList extends StatelessWidget {
             },
             child: KeyedSubtree(
               key: ValueKey(state.mode),
-              child: ListView.builder(
-                controller: scrollController,
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.only(top: 6, bottom: 88),
-                itemCount: state.posts.length + (state.isLoadingMore ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index >= state.posts.length) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: GBTSpacing.md),
-                      child: Center(
-                        child: SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                    );
-                  }
-                  final post = state.posts[index];
-                  return _CommunityPostCard(post: post);
+              child: Builder(
+                builder: (context) {
+                  final feedItemCount = FeedNativeAdPlacement.totalItemCount(
+                    state.posts.length,
+                  );
+                  final totalCount =
+                      feedItemCount + (state.isLoadingMore ? 1 : 0);
+                  return ListView.builder(
+                    controller: scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(top: 6, bottom: 88),
+                    itemCount: totalCount,
+                    itemBuilder: (context, index) {
+                      if (index >= feedItemCount) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(
+                            vertical: GBTSpacing.md,
+                          ),
+                          child: Center(
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        );
+                      }
+
+                      if (FeedNativeAdPlacement.isAdIndex(
+                        listIndex: index,
+                        postCount: state.posts.length,
+                      )) {
+                        final adOrdinal =
+                            FeedNativeAdPlacement.adOrdinalForIndex(
+                              listIndex: index,
+                              postCount: state.posts.length,
+                            );
+                        return _FeedSponsoredCard(adOrdinal: adOrdinal);
+                      }
+
+                      final postIndex =
+                          FeedNativeAdPlacement.postIndexForListIndex(
+                            listIndex: index,
+                            postCount: state.posts.length,
+                          );
+                      final post = state.posts[postIndex];
+                      return _CommunityPostCard(post: post);
+                    },
+                  );
                 },
               ),
             ),
           );
         },
       ),
+    );
+  }
+}
+
+class _FeedSponsoredCampaign {
+  /// EN: Selects deterministic fallback copy by slot order.
+  /// KO: 슬롯 순번 기준으로 결정적인 폴백 문구를 선택합니다.
+  static SponsoredFallbackContent fallbackContent(
+    BuildContext context,
+    int adOrdinal,
+  ) {
+    switch (adOrdinal % 3) {
+      case 1:
+        return SponsoredFallbackContent(
+          icon: Icons.map_outlined,
+          title: context.l10n(
+            ko: '오늘 갈 만한 성지를 바로 찾아보세요',
+            en: 'Find today\'s pilgrimage spots quickly',
+            ja: '今日行ける聖地をすぐに探しましょう',
+          ),
+          description: context.l10n(
+            ko: '거리와 태그를 기준으로 장소를 빠르게 탐색할 수 있어요.',
+            en: 'Browse places fast by distance and tags.',
+            ja: '距離とタグを基準に場所を素早く探せます。',
+          ),
+          ctaLabel: context.l10n(
+            ko: '장소 탐색하기',
+            en: 'Explore Places',
+            ja: '場所を探す',
+          ),
+          accentColor: GBTColors.accentTeal,
+          badgeLabel: context.l10n(ko: '광고', en: 'AD', ja: '広告'),
+          sponsorLabel: context.l10n(
+            ko: 'GirlsBandTabi 추천',
+            en: 'GirlsBandTabi Sponsored',
+            ja: 'GirlsBandTabi スポンサー',
+          ),
+          onTap: () => context.goNamed(AppRoutes.places),
+        );
+      case 2:
+        return SponsoredFallbackContent(
+          icon: Icons.rate_review_outlined,
+          title: context.l10n(
+            ko: '실제 이동 동선이 담긴 여행후기를 확인하세요',
+            en: 'Read travel reviews with real routes',
+            ja: '実際の移動動線がある旅行レビューを確認しましょう',
+          ),
+          description: context.l10n(
+            ko: '같은 프로젝트 팬들의 방문 기록과 팁을 한 번에 볼 수 있어요.',
+            en: 'See fellow fans\' visit logs and tips at once.',
+            ja: '同じプロジェクトのファンの訪問記録とコツをまとめて見られます。',
+          ),
+          ctaLabel: context.l10n(
+            ko: '여행후기 보기',
+            en: 'Open Reviews',
+            ja: '旅行レビューを見る',
+          ),
+          accentColor: GBTColors.secondary,
+          badgeLabel: context.l10n(ko: '광고', en: 'AD', ja: '広告'),
+          sponsorLabel: context.l10n(
+            ko: 'GirlsBandTabi 추천',
+            en: 'GirlsBandTabi Sponsored',
+            ja: 'GirlsBandTabi スポンサー',
+          ),
+          onTap: () => context.goNamed(AppRoutes.travelReviewTab),
+        );
+      default:
+        return SponsoredFallbackContent(
+          icon: Icons.music_note_outlined,
+          title: context.l10n(
+            ko: '다가오는 라이브 일정을 놓치지 마세요',
+            en: 'Don\'t miss upcoming live events',
+            ja: '近づくライブ日程を見逃さないでください',
+          ),
+          description: context.l10n(
+            ko: '예정/완료 필터로 공연 흐름을 빠르게 확인할 수 있어요.',
+            en: 'Track event flow fast with upcoming/completed filters.',
+            ja: '予定/完了フィルターで公演の流れを素早く確認できます。',
+          ),
+          ctaLabel: context.l10n(
+            ko: '라이브 보기',
+            en: 'View Live Events',
+            ja: 'ライブを見る',
+          ),
+          accentColor: GBTColors.accentBlue,
+          badgeLabel: context.l10n(ko: '광고', en: 'AD', ja: '広告'),
+          sponsorLabel: context.l10n(
+            ko: 'GirlsBandTabi 추천',
+            en: 'GirlsBandTabi Sponsored',
+            ja: 'GirlsBandTabi スポンサー',
+          ),
+          onTap: () => context.goNamed(AppRoutes.live),
+        );
+    }
+  }
+}
+
+class _FeedSponsoredCard extends StatelessWidget {
+  const _FeedSponsoredCard({required this.adOrdinal});
+
+  final int adOrdinal;
+
+  @override
+  Widget build(BuildContext context) {
+    return HybridSponsoredSlot(
+      request: AdSlotRequest(
+        placement: AdSlotPlacement.boardFeed,
+        ordinal: adOrdinal,
+      ),
+      noDecisionStrategy: NoDecisionStrategy.networkThenHouse,
+      fallback: _FeedSponsoredCampaign.fallbackContent(context, adOrdinal),
     );
   }
 }
@@ -2204,77 +2362,72 @@ class _CommunityPostCard extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        // EN: Right-side square thumbnail (always reserved).
-                        // KO: 오른쪽 정사각형 썸네일 영역 (항상 고정).
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Stack(
-                            children: [
-                              SizedBox(
-                                width: thumbnailSize,
-                                height: thumbnailSize,
-                                child: hasThumbnailImage
-                                    ? GBTImage(
-                                        imageUrl: firstImageUrl,
-                                        fit: BoxFit.cover,
-                                        semanticLabel:
-                                            '${post.title} ${context.l10n(ko: "첨부 이미지", en: "attached image", ja: "添付画像")}',
-                                      )
-                                    : Container(
-                                        color: isDark
-                                            ? GBTColors.darkSurfaceVariant
-                                            : GBTColors.surfaceVariant,
-                                        alignment: Alignment.center,
-                                        child: Icon(
-                                          Icons.image_outlined,
-                                          size: 22,
-                                          color: tertiaryColor,
-                                        ),
-                                      ),
-                              ),
-                              if (hasThumbnailImage &&
-                                  post.imageUrls.length > 1)
-                                Positioned(
-                                  right: 4,
-                                  bottom: 4,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 5,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.65,
-                                      ),
-                                      borderRadius: BorderRadius.circular(
-                                        GBTSpacing.radiusFull,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.photo_library_outlined,
-                                          size: 10,
-                                          color: Colors.white,
-                                        ),
-                                        const SizedBox(width: 3),
-                                        Text(
-                                          '${post.imageUrls.length}',
-                                          style: GBTTypography.labelSmall
-                                              .copyWith(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 10,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
+                        // EN: Keep thumbnail area size reserved for layout rhythm.
+                        // EN: When no image exists, leave the area visually empty.
+                        // KO: 레이아웃 리듬을 위해 썸네일 영역 크기는 유지합니다.
+                        // KO: 이미지가 없으면 시각적으로 빈 공간으로 둡니다.
+                        if (hasThumbnailImage)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Stack(
+                              children: [
+                                SizedBox(
+                                  width: thumbnailSize,
+                                  height: thumbnailSize,
+                                  child: GBTImage(
+                                    imageUrl: firstImageUrl,
+                                    fit: BoxFit.cover,
+                                    semanticLabel:
+                                        '${post.title} ${context.l10n(ko: "첨부 이미지", en: "attached image", ja: "添付画像")}',
                                   ),
                                 ),
-                            ],
+                                if (post.imageUrls.length > 1)
+                                  Positioned(
+                                    right: 4,
+                                    bottom: 4,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 5,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.65,
+                                        ),
+                                        borderRadius: BorderRadius.circular(
+                                          GBTSpacing.radiusFull,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.photo_library_outlined,
+                                            size: 10,
+                                            color: Colors.white,
+                                          ),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            '${post.imageUrls.length}',
+                                            style: GBTTypography.labelSmall
+                                                .copyWith(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 10,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          )
+                        else
+                          const SizedBox(
+                            width: thumbnailSize,
+                            height: thumbnailSize,
                           ),
-                        ),
                       ],
                     ),
                   ],

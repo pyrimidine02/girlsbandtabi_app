@@ -78,6 +78,8 @@ class ApiEndpoints {
   // ============================================================
   static const String homeSummary = '$apiVersion/home/summary';
   static const String search = '$apiVersion/search';
+  static const String adsDecision = '$apiVersion/ads/decision';
+  static const String adsEvents = '$apiVersion/ads/events';
 
   // ============================================================
   // EN: Project endpoints (8.5)
