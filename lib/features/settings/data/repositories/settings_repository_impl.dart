@@ -12,6 +12,7 @@ import '../../domain/entities/user_profile.dart';
 import '../../domain/repositories/settings_repository.dart';
 import '../datasources/settings_remote_data_source.dart';
 import '../dto/account_tools_dto.dart';
+import '../dto/notification_device_dto.dart';
 import '../dto/notification_settings_dto.dart';
 import '../dto/user_profile_dto.dart';
 
@@ -172,6 +173,35 @@ class SettingsRepositoryImpl implements SettingsRepository {
     } catch (e, stackTrace) {
       final failure = ErrorHandler.mapException(e, stackTrace);
       return Result.failure(failure);
+    }
+  }
+
+  @override
+  Future<Result<void>> deactivateNotificationDevice({
+    required String deviceId,
+  }) async {
+    try {
+      final result = await _remoteDataSource.deactivateNotificationDevice(
+        deviceId: deviceId,
+      );
+
+      if (result is Success<NotificationDeviceDeactivationDto>) {
+        // EN: Treat any 200 success as successful deactivation intent.
+        // KO: 200 성공 응답은 deactivated 값과 무관하게 해제 의도 성공으로 처리합니다.
+        return const Result.success(null);
+      }
+      if (result is Err<NotificationDeviceDeactivationDto>) {
+        return Result.failure(result.failure);
+      }
+
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown notification device deactivate result',
+          code: 'unknown_notification_device_deactivate',
+        ),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
     }
   }
 

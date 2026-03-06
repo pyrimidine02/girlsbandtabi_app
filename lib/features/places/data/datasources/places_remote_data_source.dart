@@ -126,6 +126,19 @@ class PlacesRemoteDataSource {
     );
   }
 
+  /// EN: Fetch high-priority guides (pinned/featured) for a place.
+  /// KO: 장소의 고우선순위(고정/추천) 가이드를 조회합니다.
+  Future<Result<List<PlaceGuideSummaryDto>>> fetchHighPriorityPlaceGuides({
+    required String placeId,
+    int limit = 20,
+  }) {
+    return _apiClient.get<List<PlaceGuideSummaryDto>>(
+      ApiEndpoints.placeGuidesHighPriority(placeId),
+      queryParameters: {'limit': limit},
+      fromJson: (json) => _decodeGuideList(json),
+    );
+  }
+
   /// EN: Fetch comments for a place.
   /// KO: 장소 댓글을 조회합니다.
   Future<Result<List<PlaceCommentDetailDto>>> fetchPlaceComments({

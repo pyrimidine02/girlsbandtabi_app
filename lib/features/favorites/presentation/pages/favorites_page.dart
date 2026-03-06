@@ -4,10 +4,10 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/localization/locale_text.dart';
+import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
@@ -106,7 +106,9 @@ class FavoritesPage extends ConsumerWidget {
                 children: [
                   const SizedBox(height: GBTSpacing.sm),
                   GBTSegmentedTabBar(
-                    margin: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: GBTSpacing.md,
+                    ),
                     isScrollable: true,
                     tabs: [
                       Tab(
@@ -118,7 +120,9 @@ class FavoritesPage extends ConsumerWidget {
                       Tab(
                         text: context.l10n(ko: '이벤트', en: 'Events', ja: 'イベント'),
                       ),
-                      Tab(text: context.l10n(ko: '뉴스', en: 'News', ja: 'ニュース')),
+                      Tab(
+                        text: context.l10n(ko: '뉴스', en: 'News', ja: 'ニュース'),
+                      ),
                     ],
                   ),
                   Expanded(
@@ -208,12 +212,13 @@ class _FavoriteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = _typeColor(item.type);
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textTertiary =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
-    final surfaceColor =
-        isDark ? GBTColors.darkSurfaceElevated : Colors.white;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textTertiary = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    final surfaceColor = isDark ? GBTColors.darkSurfaceElevated : Colors.white;
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
 
     return Semantics(
@@ -262,7 +267,11 @@ class _FavoriteCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: GBTSpacing.xs),
-                        _TypeBadge(type: item.type, color: color, isDark: isDark),
+                        _TypeBadge(
+                          type: item.type,
+                          color: color,
+                          isDark: isDark,
+                        ),
                       ],
                     ),
                   ),
@@ -374,11 +383,7 @@ List<FavoriteItem> _filter(List<FavoriteItem> items, FavoriteType type) {
 String _typeLabel(BuildContext context, FavoriteType type) {
   return switch (type) {
     FavoriteType.place => context.l10n(ko: '장소', en: 'Places', ja: '場所'),
-    FavoriteType.liveEvent => context.l10n(
-      ko: '이벤트',
-      en: 'Events',
-      ja: 'イベント',
-    ),
+    FavoriteType.liveEvent => context.l10n(ko: '이벤트', en: 'Events', ja: 'イベント'),
     FavoriteType.news => context.l10n(ko: '뉴스', en: 'News', ja: 'ニュース'),
     FavoriteType.post => context.l10n(
       ko: '커뮤니티',
@@ -393,11 +398,11 @@ String _typeLabel(BuildContext context, FavoriteType type) {
 /// KO: 타입 배지에 카테고리별 액센트 색상을 반환합니다.
 Color _typeColor(FavoriteType type) {
   return switch (type) {
-    FavoriteType.place => const Color(0xFF14B8A6),      // teal
-    FavoriteType.liveEvent => const Color(0xFF6366F1),  // indigo
-    FavoriteType.news => const Color(0xFFF59E0B),       // amber
-    FavoriteType.post => const Color(0xFFEC4899),       // pink
-    FavoriteType.unknown => const Color(0xFF9E9E9E),    // neutral
+    FavoriteType.place => const Color(0xFF14B8A6), // teal
+    FavoriteType.liveEvent => const Color(0xFF6366F1), // indigo
+    FavoriteType.news => const Color(0xFFF59E0B), // amber
+    FavoriteType.post => const Color(0xFFEC4899), // pink
+    FavoriteType.unknown => const Color(0xFF9E9E9E), // neutral
   };
 }
 
@@ -413,21 +418,21 @@ IconData _typeIcon(FavoriteType type) {
   };
 }
 
-// EN: Use push so /favorites stays in the back stack — pressing back returns here.
-// KO: /favorites가 백스택에 남도록 push를 사용합니다 — 뒤로가기 시 즐겨찾기로 복귀합니다.
+// EN: Route through shared helpers so overlay->shell transitions use safe navigation policy.
+// KO: 오버레이->쉘 전환 시 안전한 이동 정책을 적용하도록 공통 헬퍼로 라우팅합니다.
 void _openItem(BuildContext context, FavoriteItem item) {
   switch (item.type) {
     case FavoriteType.place:
-      context.push('/places/${item.entityId}');
+      context.goToPlaceDetail(item.entityId);
       break;
     case FavoriteType.liveEvent:
-      context.push('/live/${item.entityId}');
+      context.goToLiveDetail(item.entityId);
       break;
     case FavoriteType.news:
-      context.push('/info/news/${item.entityId}');
+      context.goToNewsDetail(item.entityId);
       break;
     case FavoriteType.post:
-      context.push('/board/posts/${item.entityId}');
+      context.goToPostDetail(item.entityId);
       break;
     case FavoriteType.unknown:
       break;

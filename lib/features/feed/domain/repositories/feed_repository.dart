@@ -47,6 +47,13 @@ abstract class FeedRepository {
     int size = 20,
   });
 
+  /// EN: Get following-only community feed by cursor.
+  /// KO: 팔로잉 전용 커뮤니티 피드를 커서 기반으로 가져옵니다.
+  Future<Result<PostCursorPage>> getCommunityFollowingFeedByCursor({
+    String? cursor,
+    int size = 20,
+  });
+
   /// EN: Search posts in the selected project.
   /// KO: 선택된 프로젝트의 게시글을 검색합니다.
   Future<Result<List<PostSummary>>> searchPosts({

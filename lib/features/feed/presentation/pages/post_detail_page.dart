@@ -971,7 +971,7 @@ class _PostDetailContent extends StatelessWidget {
                                     child: Row(
                                       children: [
                                         SizedBox(
-                                          height: 30,
+                                          height: 27,
                                           child: FilledButton.tonal(
                                             onPressed:
                                                 (isFollowLoading ||
@@ -979,9 +979,16 @@ class _PostDetailContent extends StatelessWidget {
                                                 ? null
                                                 : onToggleFollowAuthor,
                                             style: FilledButton.styleFrom(
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                              tapTargetSize:
+                                                  MaterialTapTargetSize
+                                                      .shrinkWrap,
+                                              shape: const StadiumBorder(),
+                                              minimumSize: const Size(0, 27),
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                    horizontal: GBTSpacing.sm,
+                                                    horizontal: 10,
                                                   ),
                                             ),
                                             child: Text(
@@ -989,23 +996,14 @@ class _PostDetailContent extends StatelessWidget {
                                                   ? '차단됨'
                                                   : (followStatus?.following ??
                                                         false)
-                                                  ? '팔로우 취소'
+                                                  ? '팔로잉'
                                                   : '팔로우',
-                                              style: GBTTypography.labelSmall,
+                                              style: GBTTypography.labelSmall
+                                                  .copyWith(
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
                                             ),
                                           ),
-                                        ),
-                                        const SizedBox(width: GBTSpacing.xs),
-                                        TextButton(
-                                          onPressed: () =>
-                                              onTapAuthor(post.authorId),
-                                          style: TextButton.styleFrom(
-                                            minimumSize: const Size(0, 30),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: GBTSpacing.xs,
-                                            ),
-                                          ),
-                                          child: const Text('프로필 보기'),
                                         ),
                                       ],
                                     ),
@@ -1713,9 +1711,7 @@ class _CommentItemState extends State<_CommentItem> {
                     reply: widget.replies[i],
                     postAuthorId: widget.postAuthorId,
                     rootCommentId: widget.comment.id,
-                    parentLookup: {
-                      for (final r in widget.replies) r.id: r,
-                    },
+                    parentLookup: {for (final r in widget.replies) r.id: r},
                     onTapAuthor: widget.onTapAuthor,
                     canEdit: widget.currentUserId == widget.replies[i].authorId,
                     canDelete:
@@ -1898,47 +1894,53 @@ class _ReplyItem extends StatelessWidget {
                         const SizedBox(height: GBTSpacing.xxs),
                         // EN: Show @mention when this is a reply-of-reply (parent is not the root).
                         // KO: 대댓글인 경우(부모가 루트 아님) @멘션을 표시합니다.
-                        Builder(builder: (context) {
-                          final directParentId = reply.parentCommentId;
-                          final isReplyOfReply = directParentId != null &&
-                              directParentId != rootCommentId;
-                          final parentAuthor = isReplyOfReply
-                              ? (parentLookup[directParentId]?.authorName
-                                  ?.isNotEmpty == true
-                                  ? parentLookup[directParentId]!.authorName!
-                                  : null)
-                              : null;
-                          if (parentAuthor != null) {
-                            return Text.rich(
-                              TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: '@$parentAuthor ',
-                                    style: GBTTypography.bodySmall.copyWith(
-                                      color: primaryColor,
-                                      fontWeight: FontWeight.w600,
-                                      height: 1.45,
+                        Builder(
+                          builder: (context) {
+                            final directParentId = reply.parentCommentId;
+                            final isReplyOfReply =
+                                directParentId != null &&
+                                directParentId != rootCommentId;
+                            final parentAuthor = isReplyOfReply
+                                ? (parentLookup[directParentId]
+                                              ?.authorName
+                                              ?.isNotEmpty ==
+                                          true
+                                      ? parentLookup[directParentId]!
+                                            .authorName!
+                                      : null)
+                                : null;
+                            if (parentAuthor != null) {
+                              return Text.rich(
+                                TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: '@$parentAuthor ',
+                                      style: GBTTypography.bodySmall.copyWith(
+                                        color: primaryColor,
+                                        fontWeight: FontWeight.w600,
+                                        height: 1.45,
+                                      ),
                                     ),
-                                  ),
-                                  TextSpan(
-                                    text: reply.content,
-                                    style: GBTTypography.bodySmall.copyWith(
-                                      color: contentColor,
-                                      height: 1.45,
+                                    TextSpan(
+                                      text: reply.content,
+                                      style: GBTTypography.bodySmall.copyWith(
+                                        color: contentColor,
+                                        height: 1.45,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
+                              );
+                            }
+                            return Text(
+                              reply.content,
+                              style: GBTTypography.bodySmall.copyWith(
+                                color: contentColor,
+                                height: 1.45,
                               ),
                             );
-                          }
-                          return Text(
-                            reply.content,
-                            style: GBTTypography.bodySmall.copyWith(
-                              color: contentColor,
-                              height: 1.45,
-                            ),
-                          );
-                        }),
+                          },
+                        ),
                         const SizedBox(height: GBTSpacing.xs),
                         _ReplyActionButton(
                           label: '답글',

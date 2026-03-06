@@ -144,6 +144,7 @@ class _NotificationSettingsView extends StatelessWidget {
               onChanged: (v) =>
                   onChanged(settings.copyWith(liveEventsEnabled: v)),
               isDark: isDark,
+              enabled: settings.pushEnabled,
             ),
             _NotifToggleRow(
               icon: Icons.favorite_rounded,
@@ -156,6 +157,7 @@ class _NotificationSettingsView extends StatelessWidget {
               onChanged: (v) =>
                   onChanged(settings.copyWith(favoritesEnabled: v)),
               isDark: isDark,
+              enabled: settings.pushEnabled,
             ),
             _NotifToggleRow(
               icon: Icons.chat_bubble_rounded,
@@ -168,6 +170,7 @@ class _NotificationSettingsView extends StatelessWidget {
                   onChanged(settings.copyWith(commentsEnabled: v)),
               isDark: isDark,
               isLast: true,
+              enabled: settings.pushEnabled,
             ),
           ],
         ),
@@ -190,22 +193,31 @@ class _SummaryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final enabledCount = [
-      settings.pushEnabled,
-      settings.emailEnabled,
-      settings.liveEventsEnabled,
-      settings.favoritesEnabled,
-      settings.commentsEnabled,
-    ].where((e) => e).length;
+    final contentEnabledCount = settings.pushEnabled
+        ? [
+            settings.liveEventsEnabled,
+            settings.favoritesEnabled,
+            settings.commentsEnabled,
+          ].where((value) => value).length
+        : 0;
+    final enabledCount =
+        [
+          settings.pushEnabled,
+          settings.emailEnabled,
+        ].where((value) => value).length +
+        contentEnabledCount;
 
     final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
-    final surfaceColor =
-        isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface;
+    final surfaceColor = isDark
+        ? GBTColors.darkSurfaceElevated
+        : GBTColors.surface;
     final borderColor = isDark ? GBTColors.darkBorderSubtle : GBTColors.border;
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textSecondary =
-        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
 
     return Container(
       padding: const EdgeInsets.all(GBTSpacing.md),
@@ -244,7 +256,9 @@ class _SummaryHeader extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '원하는 채널과 콘텐츠 알림만 선택하세요',
-                  style: GBTTypography.labelSmall.copyWith(color: textSecondary),
+                  style: GBTTypography.labelSmall.copyWith(
+                    color: textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -301,7 +315,9 @@ class _NotifGroupCard extends StatelessWidget {
           child: Text(
             title,
             style: GBTTypography.labelSmall.copyWith(
-              color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+              color: isDark
+                  ? GBTColors.darkTextTertiary
+                  : GBTColors.textTertiary,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.5,
             ),
@@ -339,6 +355,7 @@ class _NotifToggleRow extends StatelessWidget {
     required this.isDark,
     this.semanticLabel,
     this.isLast = false,
+    this.enabled = true,
   });
 
   final IconData icon;
@@ -350,14 +367,28 @@ class _NotifToggleRow extends StatelessWidget {
   final bool isDark;
   final String? semanticLabel;
   final bool isLast;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textTertiary =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textTertiary = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    final textDisabled = isDark
+        ? GBTColors.darkTextTertiary.withValues(alpha: 0.55)
+        : GBTColors.textTertiary.withValues(alpha: 0.55);
     final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final effectiveTextPrimary = enabled ? textPrimary : textDisabled;
+    final effectiveTextTertiary = enabled ? textTertiary : textDisabled;
+    final effectiveIconColor = enabled
+        ? iconColor
+        : iconColor.withValues(alpha: 0.45);
+    final effectiveIconBg = enabled
+        ? iconColor.withValues(alpha: 0.12)
+        : iconColor.withValues(alpha: 0.07);
 
     return Column(
       children: [
@@ -365,7 +396,7 @@ class _NotifToggleRow extends StatelessWidget {
           toggled: value,
           label: semanticLabel ?? '$title - $subtitle',
           child: InkWell(
-            onTap: () => onChanged(!value),
+            onTap: enabled ? () => onChanged(!value) : null,
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: GBTSpacing.md,
@@ -379,10 +410,10 @@ class _NotifToggleRow extends StatelessWidget {
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: iconColor.withValues(alpha: 0.12),
+                      color: effectiveIconBg,
                       borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
                     ),
-                    child: Icon(icon, color: iconColor, size: 20),
+                    child: Icon(icon, color: effectiveIconColor, size: 20),
                   ),
                   const SizedBox(width: GBTSpacing.md),
                   // EN: Title + subtitle
@@ -394,14 +425,14 @@ class _NotifToggleRow extends StatelessWidget {
                         Text(
                           title,
                           style: GBTTypography.bodyMedium.copyWith(
-                            color: textPrimary,
+                            color: effectiveTextPrimary,
                           ),
                         ),
                         const SizedBox(height: 1),
                         Text(
                           subtitle,
                           style: GBTTypography.labelSmall.copyWith(
-                            color: textTertiary,
+                            color: effectiveTextTertiary,
                           ),
                         ),
                       ],
@@ -411,7 +442,7 @@ class _NotifToggleRow extends StatelessWidget {
                   // KO: 기본 색상 커스텀 스위치
                   Switch(
                     value: value,
-                    onChanged: onChanged,
+                    onChanged: enabled ? onChanged : null,
                     activeThumbColor: primaryColor,
                     activeTrackColor: primaryColor.withValues(alpha: 0.4),
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -441,12 +472,15 @@ class _LoginRequired extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textSecondary =
-        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
-    final textTertiary =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final textTertiary = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
 
     return Center(
       child: Padding(
@@ -475,10 +509,7 @@ class _LoginRequired extends StatelessWidget {
             Semantics(
               button: true,
               label: '로그인 페이지로 이동',
-              child: FilledButton(
-                onPressed: onLogin,
-                child: const Text('로그인'),
-              ),
+              child: FilledButton(onPressed: onLogin, child: const Text('로그인')),
             ),
           ],
         ),

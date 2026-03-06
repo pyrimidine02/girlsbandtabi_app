@@ -38,6 +38,7 @@ class ErrorHandler {
       DioExceptionType.badResponse => _mapStatusCode(
         e.response?.statusCode,
         e.response?.data,
+        e.response?.headers,
         e.stackTrace,
       ),
       DioExceptionType.connectionError => NetworkFailure(
@@ -62,6 +63,7 @@ class ErrorHandler {
   static Failure _mapStatusCode(
     int? code,
     dynamic data,
+    Headers? headers,
     StackTrace? stackTrace,
   ) {
     final message = _extractErrorMessage(data);
@@ -100,6 +102,7 @@ class ErrorHandler {
         message ?? 'Too many requests',
         code: '429',
         stackTrace: stackTrace,
+        retryAfterMs: _extractRetryAfterMs(data, headers),
       ),
       500 => ServerFailure(
         message ?? 'Internal server error',
@@ -204,6 +207,119 @@ class ErrorHandler {
       }
       return MapEntry(key, <String>[]);
     });
+  }
+
+  /// EN: Extract rate-limit retry delay in milliseconds from body/headers.
+  /// KO: 응답 본문/헤더에서 속도 제한 재시도 대기 시간(밀리초)을 추출합니다.
+  static int? _extractRetryAfterMs(dynamic data, Headers? headers) {
+    final bodyMs = _extractRetryAfterFromBody(data);
+    if (bodyMs != null && bodyMs > 0) {
+      return bodyMs;
+    }
+
+    final retryAfterHeader = headers?.value('retry-after');
+    final retryAfterMsFromHeader = _parseRetryAfterHeader(retryAfterHeader);
+    if (retryAfterMsFromHeader != null && retryAfterMsFromHeader > 0) {
+      return retryAfterMsFromHeader;
+    }
+
+    final rateLimitResetHeader =
+        headers?.value('x-ratelimit-reset') ??
+        headers?.value('x-rate-limit-reset');
+    final rateLimitResetMs = _parseRateLimitResetHeader(rateLimitResetHeader);
+    if (rateLimitResetMs != null && rateLimitResetMs > 0) {
+      return rateLimitResetMs;
+    }
+
+    return null;
+  }
+
+  /// EN: Parse retry-after hint from JSON response body.
+  /// KO: JSON 응답 본문의 retry-after 힌트를 파싱합니다.
+  static int? _extractRetryAfterFromBody(dynamic data) {
+    if (data is! Map<String, dynamic>) return null;
+
+    final error = data['error'];
+    if (error is Map<String, dynamic>) {
+      final nested = _parseRetryAfterValue(error['retryAfter']);
+      if (nested != null) return nested;
+      final nestedMs = _parseRetryAfterValue(error['retryAfterMs']);
+      if (nestedMs != null) return nestedMs;
+    }
+
+    final direct = _parseRetryAfterValue(data['retryAfter']);
+    if (direct != null) return direct;
+    return _parseRetryAfterValue(data['retryAfterMs']);
+  }
+
+  /// EN: Parse retry-after field as milliseconds.
+  /// KO: retry-after 필드를 밀리초로 파싱합니다.
+  static int? _parseRetryAfterValue(dynamic value) {
+    if (value == null) return null;
+    if (value is num) {
+      if (value <= 0) return null;
+      // EN: Backend body currently provides retryAfter in milliseconds.
+      // KO: 현재 백엔드 본문 retryAfter는 밀리초 단위를 사용합니다.
+      return value.round();
+    }
+    if (value is! String) return null;
+    final parsed = int.tryParse(value.trim());
+    if (parsed == null || parsed <= 0) return null;
+    return parsed;
+  }
+
+  /// EN: Parse `Retry-After` header as milliseconds.
+  /// KO: `Retry-After` 헤더를 밀리초로 파싱합니다.
+  static int? _parseRetryAfterHeader(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    final trimmed = value.trim();
+
+    final seconds = int.tryParse(trimmed);
+    if (seconds != null && seconds > 0) {
+      return Duration(seconds: seconds).inMilliseconds;
+    }
+
+    DateTime? parsedDate;
+    try {
+      parsedDate = HttpDate.parse(trimmed);
+    } catch (_) {
+      parsedDate = DateTime.tryParse(trimmed);
+    }
+    if (parsedDate == null) return null;
+    final now = DateTime.now().toUtc();
+    final delay = parsedDate.toUtc().difference(now);
+    if (delay <= Duration.zero) return null;
+    return delay.inMilliseconds;
+  }
+
+  /// EN: Parse `X-RateLimit-Reset` header as milliseconds until retry.
+  /// KO: `X-RateLimit-Reset` 헤더를 재시도까지 남은 밀리초로 파싱합니다.
+  static int? _parseRateLimitResetHeader(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    final parsed = int.tryParse(value.trim());
+    if (parsed == null || parsed <= 0) return null;
+
+    final now = DateTime.now();
+    // EN: Epoch milliseconds.
+    // KO: epoch 밀리초.
+    if (parsed > 1000000000000) {
+      final target = DateTime.fromMillisecondsSinceEpoch(parsed, isUtc: true);
+      final delay = target.difference(now.toUtc());
+      return delay > Duration.zero ? delay.inMilliseconds : null;
+    }
+    // EN: Epoch seconds.
+    // KO: epoch 초.
+    if (parsed > 1000000000) {
+      final target = DateTime.fromMillisecondsSinceEpoch(
+        parsed * 1000,
+        isUtc: true,
+      );
+      final delay = target.difference(now.toUtc());
+      return delay > Duration.zero ? delay.inMilliseconds : null;
+    }
+    // EN: Seconds until reset.
+    // KO: reset까지 남은 초.
+    return Duration(seconds: parsed).inMilliseconds;
   }
 
   /// EN: Map general exceptions to Failure type

@@ -198,6 +198,44 @@ class FeedRepositoryImpl implements FeedRepository {
   }
 
   @override
+  Future<Result<PostCursorPage>> getCommunityFollowingFeedByCursor({
+    String? cursor,
+    int size = 20,
+  }) async {
+    try {
+      var result = await _remoteDataSource.fetchCommunityFollowingFeedByCursor(
+        cursor: cursor,
+        size: size,
+      );
+      if (result is Err<PostCursorPageDto> &&
+          result.failure is NotFoundFailure &&
+          result.failure.code == '404') {
+        result = await _remoteDataSource.fetchCommunityFeedByCursor(
+          cursor: cursor,
+          size: size,
+        );
+      }
+
+      if (result is Success<PostCursorPageDto>) {
+        return Result.success(PostCursorPage.fromDto(result.data));
+      }
+      if (result is Err<PostCursorPageDto>) {
+        return Result.failure(result.failure);
+      }
+
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown following community feed cursor result',
+          code: 'unknown_following_community_feed_cursor',
+        ),
+      );
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  @override
   Future<Result<List<PostSummary>>> searchPosts({
     required String projectCode,
     required String query,

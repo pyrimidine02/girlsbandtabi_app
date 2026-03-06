@@ -22,6 +22,39 @@ void main() {
     expect(dto.moderationStatus, 'QUARANTINED');
   });
 
+  test('PostSummaryDto parses alternate thumbnail keys from project feed', () {
+    final json = {
+      'id': 'post-alt-1',
+      'projectId': 'proj-1',
+      'authorId': 'user-1',
+      'title': '대체 키 테스트',
+      'createdAt': '2026-03-07T00:00:00Z',
+      'coverImage': {'image_url': 'https://example.com/cover-from-object.webp'},
+      'image_urls': [
+        {'file_url': 'https://example.com/list-image-1.webp'},
+      ],
+    };
+
+    final dto = PostSummaryDto.fromJson(json);
+    expect(dto.thumbnailUrl, 'https://example.com/cover-from-object.webp');
+    expect(dto.imageUrls, ['https://example.com/list-image-1.webp']);
+  });
+
+  test('PostSummaryDto falls back to thumbnail when image array is absent', () {
+    final json = {
+      'id': 'post-alt-2',
+      'projectId': 'proj-1',
+      'authorId': 'user-1',
+      'title': 'thumbnail fallback',
+      'createdAt': '2026-03-07T00:00:00Z',
+      'thumbnail_image_url': 'https://example.com/thumb.webp',
+    };
+
+    final dto = PostSummaryDto.fromJson(json);
+    expect(dto.thumbnailUrl, 'https://example.com/thumb.webp');
+    expect(dto.imageUrls, ['https://example.com/thumb.webp']);
+  });
+
   test('PostDetailDto parses swagger keys', () {
     final json = {
       'id': 'post-2',

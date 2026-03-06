@@ -48,7 +48,16 @@ final class AuthFailure extends Failure {
 /// EN: Server-side failures (5xx errors)
 /// KO: 서버 측 실패 (5xx 에러)
 final class ServerFailure extends Failure {
-  const ServerFailure(super.message, {super.code, super.stackTrace});
+  const ServerFailure(
+    super.message, {
+    super.code,
+    super.stackTrace,
+    this.retryAfterMs,
+  });
+
+  /// EN: Optional server-provided retry hint in milliseconds.
+  /// KO: 서버가 제공한 선택적 재시도 힌트(밀리초)입니다.
+  final int? retryAfterMs;
 
   @override
   String get userMessage {

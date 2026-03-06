@@ -159,20 +159,34 @@ class PostSummaryDto {
         json['authorProfileImageUrl'] as String? ??
         authorProfile?.avatarUrl;
 
-    // EN: Resolve thumbnail URL from various possible field names.
-    // KO: 다양한 필드명에서 썸네일 URL을 해석합니다.
-    final resolvedThumbnail =
-        json['thumbnailUrl'] as String? ??
-        json['coverImageUrl'] as String? ??
-        json['firstImageUrl'] as String? ??
-        json['thumbnail'] as String?;
+    // EN: Resolve thumbnail URL from various possible field names/shapes.
+    // KO: 다양한 필드명/형태에서 썸네일 URL을 해석합니다.
+    final resolvedThumbnail = _firstNonEmptyString([
+      json['thumbnailUrl'],
+      json['thumbnail_url'],
+      json['coverImageUrl'],
+      json['cover_image_url'],
+      json['firstImageUrl'],
+      json['first_image_url'],
+      json['thumbnailImageUrl'],
+      json['thumbnail_image_url'],
+      _extractUrlFromDynamic(json['thumbnail']),
+      _extractUrlFromDynamic(json['coverImage']),
+      _extractUrlFromDynamic(json['cover_image']),
+      _extractUrlFromDynamic(json['thumbnailImage']),
+      _extractUrlFromDynamic(json['thumbnail_image']),
+    ]);
 
     // EN: Try multiple keys for image arrays.
     // KO: 이미지 배열을 여러 키에서 시도합니다.
     var imageUrls = _imageUrls(
       json['images'] ??
           json['imageUrls'] ??
+          json['image_urls'] ??
           json['attachments'] ??
+          json['files'] ??
+          json['photoUrls'] ??
+          json['photo_urls'] ??
           json['media'],
     );
 
@@ -358,6 +372,10 @@ DateTime? _dateTimeOrNull(dynamic value) {
 
 List<String> _imageUrls(dynamic raw) {
   final urls = <String>[];
+  if (raw is String && raw.isNotEmpty) {
+    urls.add(raw);
+    return urls;
+  }
   if (raw is List) {
     for (final item in raw) {
       if (item is String && item.isNotEmpty) {
@@ -368,8 +386,13 @@ List<String> _imageUrls(dynamic raw) {
         final url =
             item['url'] as String? ??
             item['imageUrl'] as String? ??
+            item['image_url'] as String? ??
             item['src'] as String? ??
-            item['thumbnailUrl'] as String?;
+            item['thumbnailUrl'] as String? ??
+            item['thumbnail_url'] as String? ??
+            item['fileUrl'] as String? ??
+            item['file_url'] as String? ??
+            item['path'] as String?;
         if (url is String && url.isNotEmpty) {
           urls.add(url);
         }
@@ -377,6 +400,27 @@ List<String> _imageUrls(dynamic raw) {
     }
   }
   return urls;
+}
+
+String? _extractUrlFromDynamic(dynamic raw) {
+  if (raw is String) {
+    final trimmed = raw.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+  if (raw is Map<String, dynamic>) {
+    return _firstNonEmptyString([
+      raw['url'],
+      raw['imageUrl'],
+      raw['image_url'],
+      raw['src'],
+      raw['thumbnailUrl'],
+      raw['thumbnail_url'],
+      raw['fileUrl'],
+      raw['file_url'],
+      raw['path'],
+    ]);
+  }
+  return null;
 }
 
 int? _intOrNull(dynamic value) {

@@ -61,6 +61,11 @@ class ApiEndpoints {
   static const String notifications = '$apiVersion/notifications';
   static String notificationRead(String id) => '$notifications/$id/read';
   static const String notificationSettings = '$notifications/settings';
+  static const String notificationDevices = '$notifications/devices';
+  static String notificationDevice(String deviceId) =>
+      '$notificationDevices/$deviceId';
+  static String notificationDeviceToken(String deviceId) =>
+      '${notificationDevice(deviceId)}/token';
   static const String notificationsStream = '$notifications/stream';
 
   // ============================================================
@@ -304,6 +309,8 @@ class ApiEndpoints {
   // EN: Community subscription endpoints.
   // KO: 커뮤니티 구독 엔드포인트.
   static const String communityFeedCursor = '$apiVersion/community/feed/cursor';
+  static const String communityFollowingFeedCursor =
+      '$apiVersion/community/feed/following/cursor';
   static const String communityEventsStream =
       '$apiVersion/community/events/stream';
   static const String communitySubscriptions =

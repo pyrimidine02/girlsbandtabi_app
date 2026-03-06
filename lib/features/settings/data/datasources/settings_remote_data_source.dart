@@ -6,6 +6,7 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/utils/result.dart';
 import '../dto/account_tools_dto.dart';
+import '../dto/notification_device_dto.dart';
 import '../dto/notification_settings_dto.dart';
 import '../dto/user_profile_dto.dart';
 
@@ -69,6 +70,18 @@ class SettingsRemoteDataSource {
       data: settings.toJson(),
       fromJson: (json) =>
           NotificationSettingsDto.fromJson(json as Map<String, dynamic>),
+    );
+  }
+
+  /// EN: Deactivate notification device registration by deviceId.
+  /// KO: deviceId 기준 알림 디바이스 등록을 비활성화합니다.
+  Future<Result<NotificationDeviceDeactivationDto>>
+  deactivateNotificationDevice({required String deviceId}) {
+    return _apiClient.delete<NotificationDeviceDeactivationDto>(
+      ApiEndpoints.notificationDevice(deviceId),
+      fromJson: (json) => NotificationDeviceDeactivationDto.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
     );
   }
 
