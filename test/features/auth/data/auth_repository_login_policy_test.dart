@@ -110,6 +110,7 @@ void main() {
         remoteDataSource: remoteDataSource,
         secureStorage: secureStorage,
         sleep: (duration) async => sleeps.add(duration),
+        nextInt: (_) => 60,
       );
 
       final result = await repository.login(
@@ -151,6 +152,41 @@ void main() {
       expect(result, isA<Success>());
       verify(() => remoteDataSource.login(any())).called(2);
       expect(sleeps, [const Duration(milliseconds: 1200)]);
+    });
+
+    test('uses server retryAfter hint for 429 rate limit', () async {
+      final sleeps = <Duration>[];
+      var callCount = 0;
+      when(() => remoteDataSource.login(any())).thenAnswer((_) async {
+        callCount++;
+        if (callCount == 1) {
+          return Result.failure(
+            const ServerFailure(
+              'Too many requests',
+              code: '429',
+              retryAfterMs: 2300,
+            ),
+          );
+        }
+        return Result.success(
+          TokenResponse(accessToken: 'token-3b', refreshToken: 'refresh-3b'),
+        );
+      });
+
+      final repository = AuthRepositoryImpl(
+        remoteDataSource: remoteDataSource,
+        secureStorage: secureStorage,
+        sleep: (duration) async => sleeps.add(duration),
+      );
+
+      final result = await repository.login(
+        username: 'user@example.com',
+        password: 'pw',
+      );
+
+      expect(result, isA<Success>());
+      verify(() => remoteDataSource.login(any())).called(2);
+      expect(sleeps, [const Duration(milliseconds: 2300)]);
     });
 
     test('does not retry for non 409/429 failures', () async {

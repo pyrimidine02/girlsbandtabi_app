@@ -69,8 +69,18 @@ final sseClientProvider = Provider<SseClient>((ref) {
 final localNotificationsServiceProvider = Provider<LocalNotificationsService>((
   ref,
 ) {
-  return LocalNotificationsService();
+  final service = LocalNotificationsService();
+  ref.onDispose(service.dispose);
+  return service;
 });
+
+/// EN: Stream provider for local-notification tap events.
+/// KO: 로컬 알림 탭 이벤트 스트림 프로바이더입니다.
+final localNotificationTapEventsProvider =
+    StreamProvider<LocalNotificationTapEvent>((ref) {
+      final service = ref.watch(localNotificationsServiceProvider);
+      return service.tapEvents;
+    });
 
 /// EN: Analytics service provider.
 /// KO: 분석 서비스 프로바이더.

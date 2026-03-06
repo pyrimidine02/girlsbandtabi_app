@@ -151,6 +151,7 @@ void main() {
           method: 'DELETE',
         ),
         (path: ApiEndpoints.communityFeedCursor, method: 'GET'),
+        (path: ApiEndpoints.communityFollowingFeedCursor, method: 'GET'),
         (path: ApiEndpoints.communitySubscriptions, method: 'GET'),
         (path: ApiEndpoints.communityReports, method: 'POST'),
         (path: ApiEndpoints.communityReportsMe, method: 'GET'),

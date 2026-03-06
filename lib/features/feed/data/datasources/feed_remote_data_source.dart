@@ -100,6 +100,21 @@ class FeedRemoteDataSource {
     );
   }
 
+  /// EN: Fetch following-only community feed by cursor.
+  /// KO: 팔로잉 전용 커뮤니티 피드를 커서 기반으로 조회합니다.
+  Future<Result<PostCursorPageDto>> fetchCommunityFollowingFeedByCursor({
+    String? cursor,
+    int size = ApiPagination.defaultSize,
+  }) {
+    return _apiClient.get<PostCursorPageDto>(
+      ApiEndpoints.communityFollowingFeedCursor,
+      queryParameters: _cursorQuery(cursor: cursor, size: size),
+      fromJson: (json) => PostCursorPageDto.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
+    );
+  }
+
   /// EN: Fetch community posts by author.
   /// KO: 작성자별 커뮤니티 게시글을 조회합니다.
   Future<Result<List<PostSummaryDto>>> fetchPostsByAuthor({

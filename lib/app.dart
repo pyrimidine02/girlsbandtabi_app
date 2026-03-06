@@ -2,19 +2,24 @@
 /// KO: 테마 및 라우터 구성을 포함한 메인 앱 위젯
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'core/connectivity/connectivity_service.dart';
 import 'core/localization/locale_text.dart';
+import 'core/notifications/local_notifications_service.dart';
 import 'core/providers/core_providers.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/gbt_colors.dart';
 import 'core/theme/gbt_theme.dart';
 import 'features/notifications/application/notifications_controller.dart';
+import 'features/notifications/domain/entities/notification_navigation.dart';
 
 /// EN: Main application widget
 /// KO: 메인 앱 위젯
@@ -28,6 +33,20 @@ class GBTApp extends ConsumerWidget {
     ref.watch(notificationsRealtimeBootstrapProvider);
 
     final router = ref.watch(appRouterProvider);
+    ref.listen<AsyncValue<LocalNotificationTapEvent>>(
+      localNotificationTapEventsProvider,
+      (_, next) {
+        next.whenData(
+          (tapEvent) => _handleLocalNotificationTap(
+            ref: ref,
+            router: router,
+            tapEvent: tapEvent,
+          ),
+        );
+      },
+    );
+    unawaited(ref.read(localNotificationsServiceProvider).initialize());
+
     final themeMode = ref.watch(themeModeProvider);
     final appLocale = ref.watch(localeProvider);
 
@@ -95,8 +114,10 @@ class GBTApp extends ConsumerWidget {
               onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
               child: DecoratedBox(
                 decoration: BoxDecoration(gradient: backgroundGradient),
-                child: _ConnectivityWrapper(
-                  child: child ?? const SizedBox.shrink(),
+                child: _NotificationsLifecycleBridge(
+                  child: _ConnectivityWrapper(
+                    child: child ?? const SizedBox.shrink(),
+                  ),
                 ),
               ),
             ),
@@ -115,6 +136,85 @@ class GBTApp extends ConsumerWidget {
       _ => ThemeMode.system,
     };
   }
+
+  void _handleLocalNotificationTap({
+    required WidgetRef ref,
+    required GoRouter router,
+    required LocalNotificationTapEvent tapEvent,
+  }) {
+    final notifier = ref.read(notificationsControllerProvider.notifier);
+    if (tapEvent.notificationId.isNotEmpty) {
+      unawaited(notifier.markAsRead(tapEvent.notificationId, refresh: false));
+    }
+
+    final targetPath =
+        resolveNotificationNavigationPath(
+          type: tapEvent.type,
+          deeplink: tapEvent.deeplink,
+          actionUrl: tapEvent.actionUrl,
+          entityId: tapEvent.entityId,
+        ) ??
+        '/notifications';
+
+    final currentPath = router.routeInformationProvider.value.uri.path;
+    if (currentPath != targetPath) {
+      router.go(targetPath);
+    }
+    unawaited(notifier.refreshInBackground(minInterval: Duration.zero));
+  }
+}
+
+/// EN: Lifecycle bridge to enforce SSE single-connection policy per app session.
+/// KO: 앱 세션 단일 SSE 연결 정책을 강제하는 라이프사이클 브리지입니다.
+class _NotificationsLifecycleBridge extends ConsumerStatefulWidget {
+  const _NotificationsLifecycleBridge({required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<_NotificationsLifecycleBridge> createState() =>
+      _NotificationsLifecycleBridgeState();
+}
+
+class _NotificationsLifecycleBridgeState
+    extends ConsumerState<_NotificationsLifecycleBridge>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!ref.read(isAuthenticatedProvider)) {
+      return;
+    }
+    final notifier = ref.read(notificationsControllerProvider.notifier);
+    switch (state) {
+      case AppLifecycleState.resumed:
+        unawaited(notifier.startRealtimeSync());
+        break;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        unawaited(notifier.stopRealtimeSync());
+        break;
+      case AppLifecycleState.inactive:
+        // EN: Ignore transient inactive transitions.
+        // KO: 일시적 inactive 전환은 무시합니다.
+        break;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// EN: Wrapper widget for connectivity status display

@@ -691,6 +691,20 @@ class PlacesRepositoryImpl implements PlacesRepository {
     int page,
     int size,
   ) async {
+    // EN: Prefer high-priority guides endpoint for pinned content.
+    // KO: 고정 콘텐츠 우선을 위해 high-priority 가이드 엔드포인트를 우선 사용합니다.
+    if (page == 0) {
+      final priorityResult = await _remoteDataSource
+          .fetchHighPriorityPlaceGuides(placeId: placeId, limit: size);
+      if (priorityResult is Success<List<PlaceGuideSummaryDto>>) {
+        return priorityResult.data;
+      }
+      if (priorityResult is Err<List<PlaceGuideSummaryDto>> &&
+          !_shouldFallbackFromHighPriorityGuides(priorityResult.failure)) {
+        throw priorityResult.failure;
+      }
+    }
+
     final result = await _remoteDataSource.fetchPlaceGuides(
       placeId: placeId,
       page: page,
@@ -703,6 +717,15 @@ class PlacesRepositoryImpl implements PlacesRepository {
       throw result.failure;
     }
     throw const UnknownFailure('Unknown place guides result');
+  }
+
+  bool _shouldFallbackFromHighPriorityGuides(Failure failure) {
+    // EN: Fallback to legacy guides endpoint on contract-shape differences.
+    // KO: 계약 형태 차이(엔드포인트 미지원/파라미터 불일치)에서는 레거시 엔드포인트로 폴백합니다.
+    return failure.code == '400' ||
+        failure.code == '404' ||
+        failure.code == '405' ||
+        failure.code == '422';
   }
 
   Future<List<PlaceCommentDetailDto>> _fetchPlaceComments(

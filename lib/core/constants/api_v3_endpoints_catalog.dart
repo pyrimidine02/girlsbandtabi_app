@@ -67,6 +67,7 @@ class ApiV3EndpointCatalog {
     '/api/v1/auth/refresh': ['POST'],
     '/api/v1/auth/register': ['POST'],
     '/api/v1/community/feed/cursor': ['GET'],
+    '/api/v1/community/feed/following/cursor': ['GET'],
     '/api/v1/community/reports': ['POST'],
     '/api/v1/community/reports/me': ['GET'],
     '/api/v1/community/reports/{reportId}': ['DELETE', 'GET'],

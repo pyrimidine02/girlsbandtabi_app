@@ -495,10 +495,8 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
             state = state.copyWith(failure: trendingResult.failure);
           }
         case CommunityFeedMode.following:
-          final followingResult = await repository.getCommunityFeedByCursor(
-            cursor: null,
-            size: _pageSize,
-          );
+          final followingResult = await repository
+              .getCommunityFollowingFeedByCursor(cursor: null, size: _pageSize);
           if (followingResult is Success<PostCursorPage>) {
             state = state.copyWith(
               posts: followingResult.data.items,
@@ -666,7 +664,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
           );
         }
       case CommunityFeedMode.following:
-        final result = await repository.getCommunityFeedByCursor(
+        final result = await repository.getCommunityFollowingFeedByCursor(
           cursor: null,
           size: _pageSize,
         );
@@ -757,7 +755,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
           state = state.copyWith(isLoadingMore: false, hasMore: false);
           return;
         }
-        final result = await repository.getCommunityFeedByCursor(
+        final result = await repository.getCommunityFollowingFeedByCursor(
           cursor: cursor,
           size: _pageSize,
         );

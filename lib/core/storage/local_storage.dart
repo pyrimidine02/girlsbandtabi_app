@@ -17,6 +17,8 @@ class LocalStorageKeys {
   static const String locale = 'locale';
   static const String onboardingCompleted = 'onboarding_completed';
   static const String notificationsEnabled = 'notifications_enabled';
+  static const String notificationDeviceId = 'notification_device_id';
+  static const String notificationDeviceIdLegacy = 'notifications_device_id';
   static const String userConsents = 'user_consents';
   static const String autoTranslationEnabled = 'auto_translation_enabled';
   static const String privacyRequestHistory = 'privacy_request_history';

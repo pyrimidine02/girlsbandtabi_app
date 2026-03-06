@@ -3,6 +3,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,6 +18,22 @@ import '../data/datasources/notifications_remote_data_source.dart';
 import '../data/repositories/notifications_repository_impl.dart';
 import '../domain/entities/notification_entities.dart';
 import '../domain/repositories/notifications_repository.dart';
+
+class _NotificationNavigationHint {
+  const _NotificationNavigationHint({
+    this.type,
+    this.actionUrl,
+    this.deeplink,
+    this.entityId,
+    this.projectCode,
+  });
+
+  final String? type;
+  final String? actionUrl;
+  final String? deeplink;
+  final String? entityId;
+  final String? projectCode;
+}
 
 class NotificationsController
     extends StateNotifier<AsyncValue<List<NotificationItem>>> {
@@ -41,12 +58,15 @@ class NotificationsController
   SseConnection? _realtimeConnection;
   StreamSubscription<SseEvent>? _realtimeSubscription;
   Timer? _realtimeReconnectTimer;
-  Duration _reconnectDelay = const Duration(seconds: 2);
+  Duration _reconnectDelay = const Duration(seconds: 1);
   DateTime? _lastRealtimeRefreshAt;
   bool _isRealtimeActive = false;
   bool _isRealtimeConnected = false;
+  final Random _random = Random();
   bool _hasSeededNotificationSnapshot = false;
   final Set<String> _knownNotificationIds = <String>{};
+  final Map<String, _NotificationNavigationHint> _navigationHintsById =
+      <String, _NotificationNavigationHint>{};
   bool _hasCheckedLocalPermission = false;
   bool _canShowLocalAlerts = false;
 
@@ -80,7 +100,7 @@ class NotificationsController
       );
       _realtimeConnection = connection;
       _isRealtimeConnected = true;
-      _reconnectDelay = const Duration(seconds: 2);
+      _reconnectDelay = const Duration(seconds: 1);
 
       _realtimeSubscription = connection.events.listen(
         _handleRealtimeEvent,
@@ -115,6 +135,7 @@ class NotificationsController
   void _handleRealtimeEvent(SseEvent event) {
     if (!_isRealtimeActive) return;
     if (!_isNotificationEvent(event)) return;
+    _captureNavigationHint(event);
 
     final now = DateTime.now();
     if (_lastRealtimeRefreshAt != null &&
@@ -147,11 +168,15 @@ class NotificationsController
   void _scheduleRealtimeReconnect() {
     if (!_isRealtimeActive) return;
     _realtimeReconnectTimer?.cancel();
-    final delay = _reconnectDelay;
+    final baseDelay = _reconnectDelay;
+    // EN: Add small jitter to avoid reconnect stampedes across clients.
+    // KO: 클라이언트 동시 재연결 폭주를 줄이기 위해 작은 지터를 추가합니다.
+    final jitterMs = _random.nextInt(250);
+    final delay = baseDelay + Duration(milliseconds: jitterMs);
     _realtimeReconnectTimer = Timer(delay, () {
       unawaited(_connectRealtime());
     });
-    final nextSeconds = (_reconnectDelay.inSeconds * 2).clamp(2, 60);
+    final nextSeconds = (_reconnectDelay.inSeconds * 2).clamp(1, 8);
     _reconnectDelay = Duration(seconds: nextSeconds);
   }
 
@@ -178,8 +203,9 @@ class NotificationsController
     );
 
     if (result is Success<List<NotificationItem>>) {
-      await _captureNotificationDelta(result.data, allowLocalAlert: false);
-      state = AsyncData(result.data);
+      final enrichedItems = _enrichNotifications(result.data);
+      await _captureNotificationDelta(enrichedItems, allowLocalAlert: false);
+      state = AsyncData(enrichedItems);
     } else if (result is Err<List<NotificationItem>>) {
       state = AsyncError(result.failure, StackTrace.current);
     }
@@ -209,8 +235,9 @@ class NotificationsController
       );
       final result = await repository.getNotifications(forceRefresh: true);
       if (result is Success<List<NotificationItem>>) {
-        await _captureNotificationDelta(result.data, allowLocalAlert: true);
-        state = AsyncData(result.data);
+        final enrichedItems = _enrichNotifications(result.data);
+        await _captureNotificationDelta(enrichedItems, allowLocalAlert: true);
+        state = AsyncData(enrichedItems);
       } else if (result is Err<List<NotificationItem>> &&
           state.valueOrNull == null) {
         state = AsyncError(result.failure, StackTrace.current);
@@ -295,7 +322,66 @@ class NotificationsController
   void _resetNotificationSnapshot() {
     _hasSeededNotificationSnapshot = false;
     _knownNotificationIds.clear();
+    _navigationHintsById.clear();
     _lastBackgroundSyncAt = null;
+  }
+
+  List<NotificationItem> _enrichNotifications(List<NotificationItem> items) {
+    if (_navigationHintsById.isEmpty) {
+      return items;
+    }
+    return items
+        .map((item) {
+          final hint = _navigationHintsById[item.id];
+          if (hint == null) {
+            return item;
+          }
+          return NotificationItem(
+            id: item.id,
+            title: item.title,
+            body: item.body,
+            createdAt: item.createdAt,
+            isRead: item.isRead,
+            type: item.type ?? hint.type,
+            actionUrl: item.actionUrl ?? hint.actionUrl,
+            deeplink: item.deeplink ?? hint.deeplink,
+            entityId: item.entityId ?? hint.entityId,
+            projectCode: item.projectCode ?? hint.projectCode,
+          );
+        })
+        .toList(growable: false);
+  }
+
+  void _captureNavigationHint(SseEvent event) {
+    final payload = event.dataAsJson;
+    if (payload == null) return;
+
+    final notificationId =
+        payload['notificationId']?.toString() ??
+        payload['entityId']?.toString() ??
+        event.id;
+    if (notificationId == null || notificationId.isEmpty) {
+      return;
+    }
+
+    _navigationHintsById[notificationId] = _NotificationNavigationHint(
+      type:
+          payload['notificationType']?.toString() ??
+          payload['type']?.toString(),
+      actionUrl: payload['actionUrl']?.toString(),
+      deeplink:
+          payload['deeplink']?.toString() ?? payload['deepLink']?.toString(),
+      entityId:
+          payload['targetId']?.toString() ??
+          payload['contentId']?.toString() ??
+          payload['entityId']?.toString(),
+      projectCode:
+          payload['projectCode']?.toString() ??
+          payload['projectId']?.toString(),
+    );
+    if (_navigationHintsById.length > 300) {
+      _navigationHintsById.remove(_navigationHintsById.keys.first);
+    }
   }
 
   Future<bool> _isPushEnabledByUserSetting() async {

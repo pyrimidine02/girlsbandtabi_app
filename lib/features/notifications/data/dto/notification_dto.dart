@@ -9,6 +9,11 @@ class NotificationItemDto {
     required this.body,
     required this.createdAt,
     required this.read,
+    this.type,
+    this.actionUrl,
+    this.deeplink,
+    this.entityId,
+    this.projectCode,
   });
 
   final String id;
@@ -16,11 +21,16 @@ class NotificationItemDto {
   final String body;
   final DateTime createdAt;
   final bool read;
+  final String? type;
+  final String? actionUrl;
+  final String? deeplink;
+  final String? entityId;
+  final String? projectCode;
 
   bool get isRead => read;
 
   factory NotificationItemDto.fromJson(Map<String, dynamic> json) {
-    final createdAtRaw = json['createdAt'] as String? ?? '';
+    final createdAtRaw = _string(json, ['createdAt', 'created_at']) ?? '';
     final parsedCreatedAt =
         DateTime.tryParse(createdAtRaw) ??
         DateTime.fromMillisecondsSinceEpoch(0);
@@ -31,6 +41,16 @@ class NotificationItemDto {
       body: _string(json, ['body', 'message', 'content']) ?? '',
       createdAt: parsedCreatedAt,
       read: _bool(json, ['read', 'isRead'], false),
+      type: _string(json, ['type', 'notificationType', 'notification_type']),
+      actionUrl: _string(json, ['actionUrl', 'actionURL', 'action_url']),
+      deeplink: _string(json, ['deeplink', 'deepLink', 'deep_link']),
+      entityId: _string(json, [
+        'entityId',
+        'entity_id',
+        'targetId',
+        'target_id',
+      ]),
+      projectCode: _string(json, ['projectCode', 'project_code']),
     );
   }
 
@@ -41,6 +61,11 @@ class NotificationItemDto {
       'body': body,
       'createdAt': createdAt.toIso8601String(),
       'read': read,
+      if (type != null) 'type': type,
+      if (actionUrl != null) 'actionUrl': actionUrl,
+      if (deeplink != null) 'deeplink': deeplink,
+      if (entityId != null) 'entityId': entityId,
+      if (projectCode != null) 'projectCode': projectCode,
     };
   }
 }

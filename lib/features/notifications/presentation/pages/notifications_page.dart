@@ -17,6 +17,7 @@ import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../application/notifications_controller.dart';
 import '../../domain/entities/notification_entities.dart';
+import '../../domain/entities/notification_navigation.dart';
 
 /// EN: Notifications page widget.
 /// KO: 알림 페이지 위젯.
@@ -209,9 +210,36 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage>
                   ...entry.value.map(
                     (item) => _NotificationItem(
                       item: item,
-                      onTap: () => ref
-                          .read(notificationsControllerProvider.notifier)
-                          .markAsRead(item.id),
+                      onTap: () async {
+                        final notifier = ref.read(
+                          notificationsControllerProvider.notifier,
+                        );
+                        await notifier.markAsRead(item.id, refresh: false);
+                        if (!context.mounted) return;
+
+                        final targetPath = resolveNotificationNavigationPath(
+                          type: item.type,
+                          deeplink: item.deeplink,
+                          actionUrl: item.actionUrl,
+                          entityId: item.entityId,
+                        );
+                        final router = GoRouter.of(context);
+                        final currentPath =
+                            router.routeInformationProvider.value.uri.path;
+                        final destination =
+                            targetPath ??
+                            (normalizeNotificationType(item.type) ==
+                                    notificationTypeSystemNotice
+                                ? '/notifications'
+                                : null);
+                        if (destination != null && currentPath != destination) {
+                          context.push(destination);
+                        }
+
+                        await notifier.refreshInBackground(
+                          minInterval: Duration.zero,
+                        );
+                      },
                     ),
                   ),
                 ],

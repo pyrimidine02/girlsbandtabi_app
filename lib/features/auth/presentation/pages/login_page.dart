@@ -353,7 +353,25 @@ String _buildSafeLoginErrorMessage(BuildContext context, Object error) {
     );
   }
 
+  if (error is ServerFailure && error.code == '409') {
+    return context.l10n(
+      ko: '동시 요청이 감지되었습니다. 잠시 후 다시 시도해주세요.',
+      en: 'A conflicting login request was detected. Please try again shortly.',
+      ja: '競合するログイン要求が検知されました。しばらくしてから再試行してください。',
+    );
+  }
+
   if (error is ServerFailure && error.code == '429') {
+    final retryAfterSeconds = error.retryAfterMs != null
+        ? (error.retryAfterMs! / 1000).ceil()
+        : null;
+    if (retryAfterSeconds != null && retryAfterSeconds > 0) {
+      return context.l10n(
+        ko: '$retryAfterSeconds초 후 다시 시도해주세요.',
+        en: 'Please try again in $retryAfterSeconds seconds.',
+        ja: '$retryAfterSeconds秒後に再試行してください。',
+      );
+    }
     return context.l10n(
       ko: '요청이 많아 잠시 제한되었습니다. 잠시 후 다시 시도해주세요.',
       en: 'Too many attempts. Please try again shortly.',

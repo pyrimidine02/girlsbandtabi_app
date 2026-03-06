@@ -1,5 +1,99 @@
 # Changelog
 
+## 2026-03-07
+- **HOME/PROJECT-GATE (INFINITE LOADING GUARD)**:
+  - Fixed home-screen infinite loading when project bootstrap fails (`GET /api/v1/projects` 5xx) and no `selectedProjectKey` is set.
+  - `HomePage` now gates home rendering by project selection state:
+    - if project list loading: keep skeleton
+    - if project list error: show error state with retry (`projects reload + home reload`)
+    - if project list is empty: show explicit empty/error state
+    - if projects are available but no selected key: auto-select first project and continue
+  - Validation:
+    - `dart analyze lib/features/home/presentation/pages/home_page.dart lib/features/home/application/home_controller.dart lib/features/projects/application/projects_controller.dart`
+    - `flutter test test/features/home/data/home_summary_dto_test.dart`
+- **AUTH/NOTIFICATIONS/PLACES (BACKEND ALIGNMENT v1.0.0)**:
+  - Login `429` handling now carries server retry hints from response body/headers (`retryAfter`, `Retry-After`, `X-RateLimit-Reset`) via `ServerFailure.retryAfterMs`.
+  - Login UX now has explicit error branches for `409` and `429` (including wait-time copy when retry hint exists).
+  - Login auto-retry on `429` now uses server-provided delay hint (clamped for single retry safety).
+  - Login `409` conflict retry now applies a short jitter delay (single retry) to reduce thundering-herd retries.
+  - Notification SSE reconnect policy updated to `1s -> 2s -> 4s -> 8s` with jitter to reduce reconnect bursts.
+  - App lifecycle now enforces SSE hygiene: on background transition, existing notifications SSE connection is disposed; on resume, one connection is re-established.
+  - `POST_CREATED` notification navigation now falls back to `/board` when post ID is missing (instead of no-op/inbox fallback).
+  - Place guide loading now prefers `GET /api/v1/places/{placeId}/guides/high-priority?limit={size}` on first page, with compatibility fallback to legacy guides endpoint.
+  - Validation:
+    - `flutter analyze lib/core/error/failure.dart lib/core/error/error_handler.dart lib/features/auth/data/repositories/auth_repository_impl.dart lib/features/auth/presentation/pages/login_page.dart lib/features/notifications/application/notifications_controller.dart lib/features/places/data/datasources/places_remote_data_source.dart lib/features/places/data/repositories/places_repository_impl.dart`
+    - `flutter test test/features/auth/data/auth_repository_login_policy_test.dart test/core/error/error_handler_test.dart`
+    - `flutter test test/features/notifications`
+    - `flutter test test/features/places`
+- **COMMUNITY/FOLLOWING-FEED (CURSOR ENDPOINT SPLIT)**:
+  - Switched mobile `팔로잉` tab feed source to dedicated endpoint:
+    - from `GET /api/v1/community/feed/cursor`
+    - to `GET /api/v1/community/feed/following/cursor`
+  - Added dedicated API constant/repository path and kept `추천` tab on existing integrated feed endpoint.
+  - Added backward-compatible safety fallback:
+    - if following endpoint returns `404`, app falls back to `GET /api/v1/community/feed/cursor`.
+  - Live probe (2026-03-07):
+    - `GET /api/v1/community/feed/following/cursor` returned `404` on production at probe time.
+    - fallback path kept mobile behavior non-breaking until backend route rollout.
+  - Updated endpoint contract coverage:
+    - `lib/core/constants/api_v3_endpoints_catalog.dart`
+    - `test/core/constants/api_endpoints_contract_test.dart`
+  - Validation:
+    - `dart analyze lib/core/constants/api_constants.dart lib/core/constants/api_v3_endpoints_catalog.dart lib/features/feed/data/datasources/feed_remote_data_source.dart lib/features/feed/domain/repositories/feed_repository.dart lib/features/feed/data/repositories/feed_repository_impl.dart lib/features/feed/application/board_controller.dart`
+    - `flutter test test/core/constants/api_endpoints_contract_test.dart`
+- **ROUTING/SETTINGS-QUICK-ACTION (BLANK DETAIL FIX)**:
+  - Stabilized cross-stack navigation from top-level overlay screens (`/settings`, `/favorites`, `/visits`, `/visit-stats`, `/notifications`, `/search`) into shell-detail routes.
+  - Updated `AppRouterExtension` to use `go(...)` instead of `pushNamed(...)` when moving from overlay context to shell routes (`place/live/news/post detail`) to prevent nested shell stack rendering as blank pages.
+  - Updated favorites card navigation to route through `AppRouterExtension` (`goToPlaceDetail/goToLiveDetail/goToNewsDetail/goToPostDetail`) for consistent behavior.
+  - Validation:
+    - `flutter analyze lib/core/router/app_router.dart lib/features/favorites/presentation/pages/favorites_page.dart`
+    - `flutter test test/features/favorites test/features/visits`
+- **NOTIFICATIONS/SETTINGS + PUSH ACTION ROUTING**:
+  - Notification settings now enforce master-toggle UX contract:
+    - when `pushEnabled=false`, category toggles (`COMMENT/FAVORITE/LIVE_EVENT`) are disabled and greyed out
+    - category selection is preserved and reused when push is re-enabled.
+  - Expanded notification payload model parsing to include routing hints:
+    - `type`, `actionUrl`, `deeplink`, `entityId`, `projectCode` (camel/snake case compatible).
+  - Added legacy-to-new push type normalization:
+    - `FOLLOWING_POST -> POST_CREATED`
+    - `SYSTEM_BROADCAST/SYSTEM -> SYSTEM_NOTICE`
+  - Implemented notification navigation resolver:
+    - `POST_CREATED`: opens `/board/posts/{postId}` via deeplink/actionUrl/entityId parsing
+    - `SYSTEM_NOTICE`: `actionUrl` 우선, 없으면 `/notifications` 폴백.
+  - Added app-global local-notification tap handling:
+    - taps now trigger mark-as-read + route navigation.
+  - Added SSE navigation-hint enrichment to bridge cases where list API lacks routing fields.
+  - Added tests:
+    - `test/features/notifications/data/notification_dto_test.dart`
+    - `test/features/notifications/domain/notification_navigation_test.dart`
+- **NOTIFICATIONS/PUSH-OFF (DEVICE DEACTIVATE IDEMPOTENT COMPAT)**:
+  - Added notification-device API constants:
+    - `ApiEndpoints.notificationDevices`
+    - `ApiEndpoints.notificationDevice(deviceId)`
+    - `ApiEndpoints.notificationDeviceToken(deviceId)`
+  - Added `NotificationDeviceDeactivationDto` parsing and remote call support in settings data source.
+  - Added `SettingsRepository.deactivateNotificationDevice(...)` contract and repository implementation.
+  - Updated `NotificationSettingsController` OFF transition flow:
+    - ON → OFF 성공 시 저장된 `notificationDeviceId`(레거시 키 포함)를 조회해 `DELETE /notifications/devices/{deviceId}` 호출
+    - HTTP 200 응답은 `deactivated` 값이 `false`여도 성공 처리
+    - 성공 시 저장된 deviceId 키 제거
+    - 실제 실패(네트워크/인증/서버 오류)에서만 실패 결과를 반환해 에러 UX 노출
+  - Added DTO compatibility test:
+    - `test/features/settings/data/notification_device_dto_test.dart`
+- **COMMUNITY/POST-DETAIL + USER-PROFILE UX TUNE**:
+  - Post detail author area now removes separate `프로필 보기` CTA and keeps a single profile-entry pattern via author avatar tap.
+  - Reduced visual weight of follow CTA on post detail (`27px` compact tonal pill) to better fit header typography rhythm.
+  - Redesigned user profile header for cleaner social profile flow:
+    - card-style header with compact cover area
+    - clearer name/summary/bio hierarchy
+    - compact pill action row (`팔로우/차단` or `프로필 수정`)
+    - simplified follower/following stat cards for faster scan.
+  - User profile app bar title now reflects context (`내 프로필` vs target user display name).
+- **COMMUNITY/FEED (PROJECT SWITCH THUMBNAIL RESILIENCE)**:
+  - Hardened `PostSummaryDto` image parsing to support more backend payload variants (`thumbnail_url`, `coverImage` object, `image_urls`, nested `file_url`/`image_url` keys).
+  - Added fallback normalization so summary cards still get preview images when only alternate thumbnail fields are present.
+  - Added DTO tests for alternate project-feed image key shapes.
+
 ## 2026-03-06
 - **AUTH/LOGIN (SPEC ALIGN + DUPLICATE GUARD)**: Hardened mobile login flow against contract mismatch, duplicate sends, and post-login token races:
   - Kept login request contract fixed to `{"username","password"}` and added test coverage to guard against accidental `email`-key payload regressions.

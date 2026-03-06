@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/accessibility/a11y_wrapper.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/localization/locale_text.dart';
+import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
@@ -26,6 +27,7 @@ import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../ads/domain/entities/ad_slot_entities.dart';
 import '../../../ads/presentation/widgets/hybrid_sponsored_slot.dart';
 import '../../../projects/application/projects_controller.dart';
+import '../../../projects/domain/entities/project_entities.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../../settings/application/settings_controller.dart';
 import '../../application/home_controller.dart';
@@ -49,11 +51,15 @@ class _HomePageState extends ConsumerState<HomePage> {
     // KO: 프로젝트 선택을 즉시 초기화 — HomeController가 selectedProjectKey를
     // 기다리지만 ProjectSelector가 콘텐츠 로드 후에만 렌더링되는 데드락 방지.
     ref.watch(projectSelectionControllerProvider);
+    final selectedProjectKey = ref.watch(selectedProjectKeyProvider);
+    final projectsState = ref.watch(projectsControllerProvider);
     final state = ref.watch(homeControllerProvider);
     final avatarUrl = ref
         .watch(userProfileControllerProvider)
         .valueOrNull
         ?.avatarUrl;
+    final isProjectSelected =
+        selectedProjectKey != null && selectedProjectKey.isNotEmpty;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -81,12 +87,56 @@ class _HomePageState extends ConsumerState<HomePage> {
         onRefresh: () =>
             ref.read(homeControllerProvider.notifier).load(forceRefresh: true),
         edgeOffset: MediaQuery.of(context).padding.top + kToolbarHeight,
-        child: state.when(
-          loading: () => _buildLoading(),
-          error: (error, _) => _buildError(error),
-          data: (summary) => _buildContent(summary),
-        ),
+        child: !isProjectSelected
+            ? _buildProjectGate(projectsState)
+            : state.when(
+                loading: () => _buildLoading(),
+                error: (error, _) => _buildError(error),
+                data: (summary) => _buildContent(summary),
+              ),
       ),
+    );
+  }
+
+  Widget _buildProjectGate(AsyncValue<List<Project>> projectsState) {
+    return projectsState.when(
+      loading: _buildLoading,
+      error: (error, _) => _buildError(
+        error,
+        onRetry: () {
+          ref
+              .read(projectsControllerProvider.notifier)
+              .load(forceRefresh: true);
+          ref.read(homeControllerProvider.notifier).load(forceRefresh: true);
+        },
+      ),
+      data: (projects) {
+        if (projects.isEmpty) {
+          return _buildError(
+            const ValidationFailure(
+              'No projects available',
+              code: 'projects_empty',
+            ),
+            onRetry: () => ref
+                .read(projectsControllerProvider.notifier)
+                .load(forceRefresh: true),
+          );
+        }
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final current = ref.read(selectedProjectKeyProvider);
+          if (current != null && current.isNotEmpty) {
+            return;
+          }
+          final first = projects.first;
+          final firstProjectKey = first.code.isNotEmpty ? first.code : first.id;
+          ref
+              .read(projectSelectionControllerProvider.notifier)
+              .selectProject(firstProjectKey, projectId: first.id);
+        });
+
+        return _buildLoading();
+      },
     );
   }
 
@@ -180,7 +230,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildError(Object error) {
+  Widget _buildError(Object error, {VoidCallback? onRetry}) {
     final message = error is Failure
         ? error.userMessage
         : context.l10n(
@@ -200,9 +250,11 @@ class _HomePageState extends ConsumerState<HomePage> {
           hasScrollBody: false,
           child: GBTErrorState(
             message: message,
-            onRetry: () => ref
-                .read(homeControllerProvider.notifier)
-                .load(forceRefresh: true),
+            onRetry:
+                onRetry ??
+                () => ref
+                    .read(homeControllerProvider.notifier)
+                    .load(forceRefresh: true),
           ),
         ),
       ],

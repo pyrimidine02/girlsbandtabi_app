@@ -100,13 +100,22 @@ class UserProfilePage extends ConsumerWidget {
     if (isMyProfile) {
       headerAction = OutlinedButton(
         onPressed: () => context.pushNamed(AppRoutes.profileEdit),
+        style: OutlinedButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: const StadiumBorder(),
+          minimumSize: const Size(0, 32),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+        ),
         child: Text(
           context.l10n(ko: '프로필 수정', en: 'Edit profile', ja: 'プロフィール編集'),
+          style: GBTTypography.labelSmall.copyWith(fontWeight: FontWeight.w700),
         ),
       );
     } else if (isAuthenticated) {
-      headerAction = Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      headerAction = Wrap(
+        spacing: GBTSpacing.xs,
+        runSpacing: GBTSpacing.xs,
         children: [
           FilledButton.tonal(
             onPressed: canFollow
@@ -142,13 +151,22 @@ class UserProfilePage extends ConsumerWidget {
                     }
                   }
                 : null,
+            style: FilledButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: const StadiumBorder(),
+              minimumSize: const Size(0, 32),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
             child: Text(
               isBlockedProfile
                   ? context.l10n(ko: '차단됨', en: 'Blocked', ja: 'ブロック済み')
                   : followLabel,
+              style: GBTTypography.labelSmall.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          const SizedBox(height: GBTSpacing.xs),
           OutlinedButton(
             onPressed: isBlockActionBusy
                 ? null
@@ -190,7 +208,19 @@ class UserProfilePage extends ConsumerWidget {
                       );
                     }
                   },
-            child: Text(blockLabel),
+            style: OutlinedButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: const StadiumBorder(),
+              minimumSize: const Size(0, 32),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+            child: Text(
+              blockLabel,
+              style: GBTTypography.labelSmall.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       );
@@ -200,7 +230,11 @@ class UserProfilePage extends ConsumerWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(context.l10n(ko: '프로필', en: 'Profile', ja: 'プロフィール')),
+          title: Text(
+            isMyProfile
+                ? context.l10n(ko: '내 프로필', en: 'My Profile', ja: 'マイプロフィール')
+                : displayName,
+          ),
           bottom: PreferredSize(
             preferredSize: Size.fromHeight(44),
             child: GBTSegmentedTabBar(
@@ -432,6 +466,8 @@ class _ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? GBTColors.darkSurface : GBTColors.surface;
+    final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
     final secondaryColor = isDark
         ? GBTColors.darkTextSecondary
         : GBTColors.textSecondary;
@@ -442,136 +478,183 @@ class _ProfileHeader extends StatelessWidget {
     return Semantics(
       label:
           '${context.l10n(ko: "프로필", en: "Profile", ja: "プロフィール")}: $displayName. $bioLabel',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            height: 148,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned.fill(
-                  child: coverUrl == null || coverUrl!.isEmpty
-                      ? Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: isDark
-                                  ? [
-                                      GBTColors.darkSurfaceVariant,
-                                      GBTColors.darkBackground,
-                                    ]
-                                  : [GBTColors.surfaceAlternate, Colors.white],
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          GBTSpacing.pageHorizontal,
+          GBTSpacing.md,
+          GBTSpacing.pageHorizontal,
+          GBTSpacing.md,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusLg + 2),
+            border: Border.all(color: borderColor),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(GBTSpacing.radiusLg + 2),
+                ),
+                child: SizedBox(
+                  height: 102,
+                  width: double.infinity,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      coverUrl == null || coverUrl!.isEmpty
+                          ? Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: isDark
+                                      ? [
+                                          GBTColors.darkSurfaceVariant,
+                                          GBTColors.darkBackground,
+                                        ]
+                                      : [
+                                          GBTColors.surfaceAlternate,
+                                          Colors.white,
+                                        ],
+                                ),
+                              ),
+                            )
+                          : GBTImage(
+                              imageUrl: coverUrl!,
+                              width: double.infinity,
+                              height: double.infinity,
+                              fit: BoxFit.cover,
+                              semanticLabel: context.l10n(
+                                ko: '프로필 배경 이미지',
+                                en: 'Profile cover image',
+                                ja: 'プロフィール背景画像',
+                              ),
                             ),
-                          ),
-                        )
-                      : GBTImage(
-                          imageUrl: coverUrl!,
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                          semanticLabel: context.l10n(
-                            ko: '프로필 배경 이미지',
-                            en: 'Profile cover image',
-                            ja: 'プロフィール背景画像',
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              (isDark ? Colors.black : Colors.white).withValues(
+                                alpha: 0.18,
+                              ),
+                            ],
                           ),
                         ),
-                ),
-                Positioned(
-                  left: GBTSpacing.md,
-                  bottom: -24,
-                  child: Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      color: isDark ? GBTColors.darkBackground : Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: _ProfileAvatar(url: avatarUrl, radius: 34),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-          Padding(
-            padding: GBTSpacing.paddingPage,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+              ),
+              Transform.translate(
+                offset: const Offset(0, -20),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GBTSpacing.md,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: surfaceColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: _ProfileAvatar(url: avatarUrl, radius: 30),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  GBTSpacing.md,
+                  0,
+                  GBTSpacing.md,
+                  GBTSpacing.md,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        displayName,
-                        style: GBTTypography.titleSmall.copyWith(
-                          fontWeight: FontWeight.w700,
+                    Text(
+                      displayName,
+                      style: GBTTypography.titleSmall.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (summaryLabel != null &&
+                        summaryLabel!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        summaryLabel!,
+                        style: GBTTypography.labelSmall.copyWith(
+                          color: labelColor,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                    ],
+                    const SizedBox(height: GBTSpacing.sm),
+                    Text(
+                      bioLabel,
+                      style: GBTTypography.bodySmall.copyWith(
+                        color: secondaryColor,
+                        height: 1.45,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     if (action != null) ...[
-                      const SizedBox(width: GBTSpacing.sm),
+                      const SizedBox(height: GBTSpacing.sm),
                       action!,
                     ],
-                  ],
-                ),
-                if (summaryLabel != null &&
-                    summaryLabel!.trim().isNotEmpty) ...[
-                  const SizedBox(height: GBTSpacing.xs),
-                  Text(
-                    summaryLabel!,
-                    style: GBTTypography.labelSmall.copyWith(color: labelColor),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-                const SizedBox(height: GBTSpacing.sm),
-                Text(
-                  bioLabel,
-                  style: GBTTypography.bodySmall.copyWith(
-                    color: secondaryColor,
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: GBTSpacing.md),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _ConnectionStatTile(
-                        label: context.l10n(
-                          ko: '팔로워',
-                          en: 'Followers',
-                          ja: 'フォロワー',
+                    const SizedBox(height: GBTSpacing.md),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _ConnectionStatTile(
+                            label: context.l10n(
+                              ko: '팔로워',
+                              en: 'Followers',
+                              ja: 'フォロワー',
+                            ),
+                            value: followerCount == null
+                                ? '-'
+                                : '${followerCount!}',
+                            onTap: onOpenFollowers,
+                          ),
                         ),
-                        value: followerCount == null
-                            ? '-'
-                            : '${followerCount!}',
-                        onTap: onOpenFollowers,
-                      ),
-                    ),
-                    const SizedBox(width: GBTSpacing.sm),
-                    Expanded(
-                      child: _ConnectionStatTile(
-                        label: context.l10n(
-                          ko: '팔로잉',
-                          en: 'Following',
-                          ja: 'フォロー中',
+                        const SizedBox(width: GBTSpacing.sm),
+                        Expanded(
+                          child: _ConnectionStatTile(
+                            label: context.l10n(
+                              ko: '팔로잉',
+                              en: 'Following',
+                              ja: 'フォロー中',
+                            ),
+                            value: followingCount == null
+                                ? '-'
+                                : '${followingCount!}',
+                            onTap: onOpenFollowing,
+                          ),
                         ),
-                        value: followingCount == null
-                            ? '-'
-                            : '${followingCount!}',
-                        onTap: onOpenFollowing,
-                      ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -597,8 +680,8 @@ class _ConnectionStatTile extends StatelessWidget {
       onTap: onTap,
       child: Ink(
         padding: const EdgeInsets.symmetric(
-          horizontal: GBTSpacing.sm,
-          vertical: GBTSpacing.sm,
+          horizontal: GBTSpacing.md,
+          vertical: GBTSpacing.sm + 1,
         ),
         decoration: BoxDecoration(
           color: isDark
@@ -609,7 +692,8 @@ class _ConnectionStatTile extends StatelessWidget {
             color: isDark ? GBTColors.darkBorder : GBTColors.border,
           ),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               value,
@@ -618,15 +702,14 @@ class _ConnectionStatTile extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(width: GBTSpacing.xs),
-            Text(label, style: GBTTypography.labelSmall),
-            const Spacer(),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 18,
-              color: isDark
-                  ? GBTColors.darkTextTertiary
-                  : GBTColors.textTertiary,
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: GBTTypography.labelSmall.copyWith(
+                color: isDark
+                    ? GBTColors.darkTextSecondary
+                    : GBTColors.textSecondary,
+              ),
             ),
           ],
         ),

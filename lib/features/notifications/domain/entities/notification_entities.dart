@@ -13,6 +13,11 @@ class NotificationItem {
     required this.body,
     required this.createdAt,
     required this.isRead,
+    this.type,
+    this.actionUrl,
+    this.deeplink,
+    this.entityId,
+    this.projectCode,
   });
 
   final String id;
@@ -20,6 +25,11 @@ class NotificationItem {
   final String body;
   final DateTime createdAt;
   final bool isRead;
+  final String? type;
+  final String? actionUrl;
+  final String? deeplink;
+  final String? entityId;
+  final String? projectCode;
 
   String get dateLabel {
     return DateFormat('yyyy.MM.dd').format(createdAt.toLocal());
@@ -32,6 +42,11 @@ class NotificationItem {
       body: dto.body,
       createdAt: dto.createdAt,
       isRead: dto.isRead,
+      type: dto.type,
+      actionUrl: dto.actionUrl,
+      deeplink: dto.deeplink,
+      entityId: dto.entityId,
+      projectCode: dto.projectCode,
     );
   }
 }

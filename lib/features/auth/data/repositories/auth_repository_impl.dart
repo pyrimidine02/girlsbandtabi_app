@@ -3,6 +3,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/logging/app_logger.dart';
@@ -26,15 +27,18 @@ class AuthRepositoryImpl implements AuthRepository {
     required SecureStorage secureStorage,
     DateTime Function()? now,
     Future<void> Function(Duration)? sleep,
+    int Function(int maxExclusive)? nextInt,
   }) : _remoteDataSource = remoteDataSource,
        _secureStorage = secureStorage,
        _now = now ?? DateTime.now,
-       _sleep = sleep ?? Future<void>.delayed;
+       _sleep = sleep ?? Future<void>.delayed,
+       _nextInt = nextInt ?? Random().nextInt;
 
   final AuthRemoteDataSource _remoteDataSource;
   final SecureStorage _secureStorage;
   final DateTime Function() _now;
   final Future<void> Function(Duration) _sleep;
+  final int Function(int maxExclusive) _nextInt;
   final Map<String, Future<Result<AuthTokens>>> _inFlightLoginRequests =
       <String, Future<Result<AuthTokens>>>{};
 
@@ -261,12 +265,13 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     if (_isConflictFailure(firstResult.failure)) {
-      await _sleep(const Duration(milliseconds: 280));
+      await _sleep(_resolveConflictRetryDelay());
       return _persistTokens(await _remoteDataSource.login(request));
     }
 
     if (_isRateLimitFailure(firstResult.failure)) {
-      await _sleep(const Duration(milliseconds: 1200));
+      final retryDelay = _resolveRateLimitRetryDelay(firstResult.failure);
+      await _sleep(retryDelay);
       return _persistTokens(await _remoteDataSource.login(request));
     }
 
@@ -292,5 +297,30 @@ class AuthRepositoryImpl implements AuthRepository {
     final lowerMessage = failure.message.toLowerCase();
     return lowerCode.contains('too_many') ||
         lowerMessage.contains('too many requests');
+  }
+
+  Duration _resolveRateLimitRetryDelay(Failure failure) {
+    const fallback = Duration(milliseconds: 1200);
+    if (failure is! ServerFailure || failure.retryAfterMs == null) {
+      return fallback;
+    }
+
+    final retryAfterMs = failure.retryAfterMs!;
+    if (retryAfterMs <= 0) {
+      return fallback;
+    }
+
+    // EN: Clamp server hints to avoid excessive wait in automatic retry flow.
+    // KO: 자동 재시도 흐름에서 과도한 대기를 피하기 위해 서버 힌트를 제한합니다.
+    final clampedMs = retryAfterMs.clamp(500, 5000).toInt();
+    return Duration(milliseconds: clampedMs);
+  }
+
+  Duration _resolveConflictRetryDelay() {
+    // EN: Add short jitter to reduce concurrent login-thrashing on conflicts.
+    // KO: 충돌(409) 발생 시 동시 로그인 재시도 폭주를 줄이기 위해 짧은 지터를 둡니다.
+    const baseMs = 220;
+    const jitterWindowMs = 121; // 220ms ~ 340ms
+    return Duration(milliseconds: baseMs + _nextInt(jitterWindowMs));
   }
 }

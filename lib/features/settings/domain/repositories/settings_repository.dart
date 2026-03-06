@@ -29,6 +29,8 @@ abstract class SettingsRepository {
     required NotificationSettings settings,
   });
 
+  Future<Result<void>> deactivateNotificationDevice({required String deviceId});
+
   Future<Result<List<UserBlock>>> getUserBlocks({bool forceRefresh = false});
 
   Future<Result<void>> unblockUser({required String targetUserId});

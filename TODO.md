@@ -1,11 +1,47 @@
 # TODO
 
+- Run QA for home project-gate loading guard (2026-03-07):
+  - `GET /api/v1/projects`가 5xx일 때 홈이 무한 스피너가 아니라 에러/재시도 상태를 노출하는지 확인.
+  - 에러 상태에서 `다시 시도` 시 프로젝트 목록 재조회 + 홈 재조회가 함께 트리거되는지 확인.
+  - 프로젝트 목록이 복구되면 첫 프로젝트 자동 선택 후 홈 콘텐츠가 정상 진입되는지 확인.
+  - 프로젝트 목록이 비어있는 환경에서 명시적 빈 상태 메시지가 표시되는지 확인.
+- Run QA for backend-alignment patch (2026-03-07):
+  - 로그인 `429` 응답에서 대기시간 안내 문구(`N초 후 재시도`)가 노출되는지 확인.
+  - 로그인 `409` 충돌 응답이 전용 문구로 표시되는지 확인.
+  - 로그인 `409` 재시도 지연이 짧은 지터 범위(`220~340ms`)로 1회만 동작하는지 확인.
+  - 알림 SSE 재연결 백오프가 `1s -> 2s -> 4s -> 8s(+jitter)`로 동작하고 중복 연결이 없는지 확인.
+  - 앱 백그라운드 진입 시 SSE 연결이 정리되고 포그라운드 복귀 시 단일 연결로 재시작되는지 확인.
+  - `POST_CREATED` 알림에서 `postId`가 없는 payload도 `/board`로 안전 폴백되는지 확인.
+  - 장소 가이드 first-page 호출이 `guides/high-priority?limit=20` 우선이며, 미지원 환경에서 `/guides?page&size` 폴백이 정상 동작하는지 확인.
+- Run QA for following-tab dedicated cursor endpoint split (2026-03-07):
+  - `팔로잉` 탭에서 `GET /api/v1/community/feed/following/cursor` 호출 여부 확인.
+  - `추천` 탭은 기존 `GET /api/v1/community/feed/cursor` 유지되는지 확인.
+  - 백엔드 미배포 구간에서 `404` 발생 시 앱 폴백(`community/feed/cursor`)이 실제로 작동하는지 확인.
+  - 팔로우 계정이 글을 작성한 케이스에서 응답 `items` 및 UI 리스트 건수 일치 여부 확인.
+  - 팔로우 계정이 없는 케이스에서 빈 상태 문구/페이징 처리(`hasNext/nextCursor`) 확인.
+- Backend rollout follow-up:
+  - production `GET /api/v1/community/feed/following/cursor` is currently `404` (probe date: 2026-03-07).
+  - remove temporary client-side `404 -> community/feed/cursor` fallback after backend deployment is confirmed.
+
+- Run QA for settings quick-action navigation blank-screen fix (2026-03-07):
+  - `/settings` -> `즐겨찾기/방문기록/통계` 진입 후 카드 탭 시 상세 화면이 정상 렌더링되는지 확인.
+  - overlay 화면에서 `장소/라이브/뉴스/게시글` 상세로 이동 시 빈 화면 없이 라우팅되는지 확인.
+  - iOS/Android에서 뒤로가기 동작(overlay -> shell 전환 후 back stack 기대치) 확인.
+- Run QA for profile-entry consistency and user-profile redesign (2026-03-07):
+  - post detail author area: avatar tap -> profile navigation, and no standalone `프로필 보기` button.
+  - compact follow CTA readability/tap accuracy on small-width devices.
+  - user profile header layout validation (`cover/avatar/name/bio/actions/stats`) in light/dark mode and dynamic text scaling.
+- Run QA for notification toggle/push-action routing contract (2026-03-07):
+  - `pushEnabled=false`에서 하위 카테고리 토글 비활성/회색 처리 확인 및 재활성 시 기존 선택 유지 확인.
+  - `POST_CREATED` 알림 탭(로컬 알림/인박스) 시 게시글 상세(`/board/posts/:postId`) 이동 확인.
+  - `SYSTEM_NOTICE` 알림 탭 시 `actionUrl` 우선 이동, 없으면 `/notifications` 폴백 확인.
+  - 백그라운드/포그라운드 알림 탭 후 읽음 처리 반영 및 중복 네비게이션 방지 확인.
 - Run auth regression QA for 2026-03-06 login hardening:
   - verify rapid multi-tap on login CTA still issues a single `POST /api/v1/auth/login`.
   - verify same-account concurrent login attempts are deduplicated client-side.
   - verify `409`/`429` retry behavior matches UX expectations and does not trigger immediate retry loops.
   - verify login success no longer reproduces immediate protected-API `401` (`/api/v1/home/summary`) on real devices.
-- If backend starts returning explicit login `retryAfter` metadata for `429`, replace fixed `1200ms` delay with server-driven wait.
+- Confirm backend `429` hint contract (`retryAfter` body unit, `Retry-After`, `X-RateLimit-Reset` format) and simplify client parsing once fixed.
 - Replace hardcoded legal policy URLs/versions in `LegalPolicyConstants` with server-driven metadata once `/api/v1/policies/metadata` is available.
 - Confirm backend `POST /api/v1/auth/register` consent DTO handling in production and remove temporary legacy-register retry fallback once all environments accept `consents` payload.
 - Add widget tests for legal compliance UX:
@@ -65,6 +101,10 @@
   - restored draft containing missing local image paths (graceful skip behavior)
   - successful submit path clears footer autosave text + persisted draft together.
 - Extend compose autosave snapshot schema to persist edit-page `existing remote image` removal state (`_existingImageUrls`) so recoverable drafts restore full attachment intent, not text/local images only (remove once draft model migration + QA complete).
+- Complete push-device lifecycle integration:
+  - register device on login/app-start (`POST /api/v1/notifications/devices`) and persist `deviceId`
+  - rotate push token via `PATCH /api/v1/notifications/devices/{deviceId}/token`
+  - keep `notificationDeviceId` local-storage key synchronized with server registration state (remove once fully wired + QA complete).
 - Finalize server contracts for client SSE rollout (`/community/events/stream`, `/notifications/stream`) and then reduce foreground polling cadence:
   - event schema (`eventType`, `entityId`, `projectCode`, `occurredAt`) and replay policy (`Last-Event-ID`).
   - reconnect/rate-limit guidance (`retry` hint, idle timeout, auth-expiry behavior).

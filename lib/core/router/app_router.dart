@@ -655,21 +655,67 @@ class _InvalidNavigationPage extends StatelessWidget {
 /// EN: Extension for navigation helpers
 /// KO: 네비게이션 헬퍼 확장
 extension AppRouterExtension on BuildContext {
+  bool _shouldUseGoForShellNavigation(String targetPath) {
+    final currentPath = GoRouter.of(
+      this,
+    ).routeInformationProvider.value.uri.path;
+    if (currentPath == targetPath) {
+      return false;
+    }
+    // EN: Replace route from top-level overlays to shell branches to avoid
+    // EN: stacking a second shell navigator that can render as a blank page.
+    // KO: 최상위 오버레이에서 쉘 브랜치로 이동할 때 두 번째 쉘 네비게이터가
+    // KO: 중첩되어 빈 화면으로 보이는 문제를 막기 위해 교체 이동(go)을 사용합니다.
+    return currentPath.startsWith('/settings') ||
+        currentPath.startsWith('/favorites') ||
+        currentPath.startsWith('/visits') ||
+        currentPath.startsWith('/visit-stats') ||
+        currentPath.startsWith('/notifications') ||
+        currentPath.startsWith('/search');
+  }
+
   /// EN: Navigate to place detail
   /// KO: 장소 상세로 이동
   void goToPlaceDetail(String placeId) {
+    final router = GoRouter.of(this);
+    final targetPath = router.namedLocation(
+      AppRoutes.placeDetail,
+      pathParameters: {'placeId': placeId},
+    );
+    if (_shouldUseGoForShellNavigation(targetPath)) {
+      go(targetPath);
+      return;
+    }
     pushNamed(AppRoutes.placeDetail, pathParameters: {'placeId': placeId});
   }
 
   /// EN: Navigate to live event detail
   /// KO: 라이브 이벤트 상세로 이동
   void goToLiveDetail(String eventId) {
+    final router = GoRouter.of(this);
+    final targetPath = router.namedLocation(
+      AppRoutes.liveDetail,
+      pathParameters: {'eventId': eventId},
+    );
+    if (_shouldUseGoForShellNavigation(targetPath)) {
+      go(targetPath);
+      return;
+    }
     pushNamed(AppRoutes.liveDetail, pathParameters: {'eventId': eventId});
   }
 
   /// EN: Navigate to news detail
   /// KO: 뉴스 상세로 이동
   void goToNewsDetail(String newsId) {
+    final router = GoRouter.of(this);
+    final targetPath = router.namedLocation(
+      AppRoutes.newsDetail,
+      pathParameters: {'newsId': newsId},
+    );
+    if (_shouldUseGoForShellNavigation(targetPath)) {
+      go(targetPath);
+      return;
+    }
     pushNamed(AppRoutes.newsDetail, pathParameters: {'newsId': newsId});
   }
 
@@ -724,6 +770,10 @@ extension AppRouterExtension on BuildContext {
 
     _lastPostDetailNavigationAt = now;
     _lastPostDetailNavigationPath = targetPath;
+    if (_shouldUseGoForShellNavigation(targetPath)) {
+      go(targetPath);
+      return;
+    }
     pushNamed(AppRoutes.postDetail, pathParameters: {'postId': postId});
   }
 
