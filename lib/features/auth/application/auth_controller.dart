@@ -165,6 +165,15 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
 
   Future<Result<void>> _handleAuthResult(Result<dynamic> result) async {
     if (result is Success<dynamic>) {
+      final hasTokens = await _secureStorage.hasValidTokens();
+      if (!hasTokens) {
+        const failure = AuthFailure(
+          'Authentication succeeded but tokens were not persisted',
+          code: 'token_not_persisted',
+        );
+        state = AsyncError(failure, StackTrace.current);
+        return Result.failure(failure);
+      }
       await _clearAppCaches();
       _authStateNotifier.setAuthenticated();
       state = const AsyncData(null);
