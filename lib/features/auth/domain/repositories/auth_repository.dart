@@ -5,6 +5,7 @@ library;
 import '../../../../core/utils/result.dart';
 import '../entities/auth_tokens.dart';
 import '../entities/oauth_provider.dart';
+import '../entities/register_consent.dart';
 
 /// EN: Contract for authentication data operations.
 /// KO: 인증 데이터 작업을 위한 계약.
@@ -18,6 +19,7 @@ abstract class AuthRepository {
     required String username,
     required String password,
     required String nickname,
+    List<RegisterConsent> consents = const [],
   });
 
   /// EN: Send email verification for registration.
