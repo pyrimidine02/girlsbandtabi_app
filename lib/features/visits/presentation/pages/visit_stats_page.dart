@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -44,22 +45,33 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('방문 통계'),
+        title: Text(context.l10n(ko: '방문 통계', en: 'Visit stats', ja: '訪問統計')),
         actions: [
           GBTAppBarIconButton(
             icon: Icons.history_rounded,
-            tooltip: '방문 기록',
+            tooltip: context.l10n(ko: '방문 기록', en: 'Visit history', ja: '訪問履歴'),
             onPressed: () => context.goToVisitHistory(),
           ),
         ],
       ),
       body: visitsState.when(
-        loading: () =>
-            const Center(child: GBTLoading(message: '통계를 불러오는 중...')),
+        loading: () => Center(
+          child: GBTLoading(
+            message: context.l10n(
+              ko: '통계를 불러오는 중...',
+              en: 'Loading stats...',
+              ja: '統計を読み込み中...',
+            ),
+          ),
+        ),
         error: (error, _) {
           final message = error is Failure
               ? error.userMessage
-              : '통계를 불러오지 못했습니다.';
+              : context.l10n(
+                  ko: '통계를 불러오지 못했습니다.',
+                  en: 'Could not load stats.',
+                  ja: '統計を読み込めませんでした。',
+                );
           return _StatsEmptyState(
             message: message,
             onRetry: () {
@@ -71,8 +83,12 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
         },
         data: (visits) {
           if (visits.isEmpty) {
-            return const _StatsEmptyState(
-              message: '아직 통계가 없습니다.\n장소를 방문하면 통계가 생성됩니다.',
+            return _StatsEmptyState(
+              message: context.l10n(
+                ko: '아직 통계가 없습니다.\n장소를 방문하면 통계가 생성됩니다.',
+                en: 'No stats yet.\nStats will appear after you visit places.',
+                ja: 'まだ統計がありません。\n場所を訪問すると統計が作成されます。',
+              ),
             );
           }
 
@@ -121,27 +137,43 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
                     children: [
                       _StatCard(
                         icon: Icons.check_circle_rounded,
-                        title: '총 방문',
+                        title: context.l10n(
+                          ko: '총 방문',
+                          en: 'Total visits',
+                          ja: '総訪問',
+                        ),
                         value: '${stats.totalVisits}',
-                        unit: '회',
+                        unit: context.l10n(ko: '회', en: '', ja: '回'),
                         color: GBTColors.primary,
                       ),
                       _StatCard(
                         icon: Icons.place_rounded,
-                        title: '방문 장소',
+                        title: context.l10n(
+                          ko: '방문 장소',
+                          en: 'Visited places',
+                          ja: '訪問場所',
+                        ),
                         value: '${stats.uniquePlaces}',
-                        unit: '곳',
+                        unit: context.l10n(ko: '곳', en: '', ja: 'か所'),
                         color: GBTColors.accentTeal,
                       ),
                       _StatCard(
                         icon: Icons.flag_rounded,
-                        title: '첫 방문',
+                        title: context.l10n(
+                          ko: '첫 방문',
+                          en: 'First visit',
+                          ja: '初回訪問',
+                        ),
                         value: stats.firstVisitLabel,
                         color: const Color(0xFF6366F1),
                       ),
                       _StatCard(
                         icon: Icons.update_rounded,
-                        title: '최근 방문',
+                        title: context.l10n(
+                          ko: '최근 방문',
+                          en: 'Latest visit',
+                          ja: '最近の訪問',
+                        ),
                         value: stats.lastVisitLabel,
                         color: const Color(0xFFF59E0B),
                       ),
@@ -164,7 +196,11 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
                           GBTSpacing.xs,
                         ),
                         child: Text(
-                          '자주 방문한 장소',
+                          context.l10n(
+                            ko: '자주 방문한 장소',
+                            en: 'Most visited places',
+                            ja: 'よく訪れた場所',
+                          ),
                           style: GBTTypography.labelSmall.copyWith(
                             fontWeight: FontWeight.w600,
                             color: isDark
@@ -187,7 +223,11 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
                         horizontal: GBTSpacing.pageHorizontal,
                       ),
                       child: Text(
-                        '표시할 방문 기록이 없습니다.',
+                        context.l10n(
+                          ko: '표시할 방문 기록이 없습니다.',
+                          en: 'No visit records to display.',
+                          ja: '表示する訪問記録がありません。',
+                        ),
                         style: GBTTypography.bodySmall.copyWith(
                           color: GBTColors.textSecondary,
                         ),
@@ -266,12 +306,12 @@ class _RankingBanner extends StatelessWidget {
       error: (_, __) => const SizedBox.shrink(),
       data: (ranking) {
         if (ranking == null) return const SizedBox.shrink();
-        return _buildBanner(ranking, isDark);
+        return _buildBanner(context, ranking, isDark);
       },
     );
   }
 
-  Widget _buildBanner(UserRanking ranking, bool isDark) {
+  Widget _buildBanner(BuildContext context, UserRanking ranking, bool isDark) {
     final percentage = ranking.totalUsers > 0
         ? ((ranking.rank / ranking.totalUsers) * 100).toStringAsFixed(0)
         : '0';
@@ -312,7 +352,7 @@ class _RankingBanner extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '등',
+                  context.l10n(ko: '등', en: 'th', ja: '位'),
                   style: GBTTypography.labelSmall.copyWith(
                     color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
                     fontSize: 10,
@@ -330,14 +370,18 @@ class _RankingBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '내 순위',
+                  context.l10n(ko: '내 순위', en: 'My rank', ja: '私の順位'),
                   style: GBTTypography.titleSmall.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '전체 ${ranking.totalUsers}명 중 상위 $percentage%',
+                  context.l10n(
+                    ko: '전체 ${ranking.totalUsers}명 중 상위 $percentage%',
+                    en: 'Top $percentage% of ${ranking.totalUsers} users',
+                    ja: '全${ranking.totalUsers}人中 上位$percentage%',
+                  ),
                   style: GBTTypography.bodySmall.copyWith(
                     color: isDark
                         ? GBTColors.darkTextSecondary
@@ -493,13 +537,23 @@ class _TopPlaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final placeName = place?.name ?? '장소 정보 없음';
+    final placeName =
+        place?.name ??
+        context.l10n(ko: '장소 정보 없음', en: 'No place info', ja: '場所情報なし');
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
 
     return Semantics(
       label: isLoading
-          ? '장소 이름 로딩 중, 방문 $visitCount회'
-          : '$placeName, 방문 $visitCount회',
+          ? context.l10n(
+              ko: '장소 이름 로딩 중, 방문 $visitCount회',
+              en: 'Loading place name, $visitCount visits',
+              ja: '場所名読み込み中、$visitCount回訪問',
+            )
+          : context.l10n(
+              ko: '$placeName, 방문 $visitCount회',
+              en: '$placeName, $visitCount visits',
+              ja: '$placeName、$visitCount回訪問',
+            ),
       button: true,
       child: Material(
         color: isDark ? GBTColors.darkSurfaceElevated : Colors.white,
@@ -543,7 +597,7 @@ class _TopPlaceCard extends StatelessWidget {
                   child: SizedBox(
                     width: 48,
                     height: 48,
-                    child: _buildThumbnail(isDark),
+                    child: _buildThumbnail(context, isDark),
                   ),
                 ),
                 const SizedBox(width: GBTSpacing.sm),
@@ -578,7 +632,11 @@ class _TopPlaceCard extends StatelessWidget {
                         ),
                       const SizedBox(height: 4),
                       Text(
-                        '방문 $visitCount회',
+                        context.l10n(
+                          ko: '방문 $visitCount회',
+                          en: '$visitCount visits',
+                          ja: '$visitCount回訪問',
+                        ),
                         style: GBTTypography.bodySmall.copyWith(
                           color: isDark
                               ? GBTColors.darkTextSecondary
@@ -604,14 +662,18 @@ class _TopPlaceCard extends StatelessWidget {
     );
   }
 
-  Widget _buildThumbnail(bool isDark) {
+  Widget _buildThumbnail(BuildContext context, bool isDark) {
     if (place?.imageUrl != null && place!.imageUrl!.isNotEmpty) {
       return GBTImage(
         imageUrl: place!.imageUrl!,
         width: 48,
         height: 48,
         fit: BoxFit.cover,
-        semanticLabel: '${place!.name} 썸네일',
+        semanticLabel: context.l10n(
+          ko: '${place!.name} 썸네일',
+          en: '${place!.name} thumbnail',
+          ja: '${place!.name} サムネイル',
+        ),
       );
     }
     return Container(
@@ -748,7 +810,7 @@ class _StatsEmptyState extends StatelessWidget {
           Center(
             child: FilledButton.tonal(
               onPressed: onRetry,
-              child: const Text('다시 시도'),
+              child: Text(context.l10n(ko: '다시 시도', en: 'Retry', ja: '再試行')),
             ),
           ),
         ],

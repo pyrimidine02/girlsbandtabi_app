@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_decorations.dart';
@@ -40,7 +41,7 @@ class _InfoPageState extends ConsumerState<InfoPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
-  static const _tabs = ['소식', '유닛', '악곡'];
+  static const _tabCount = 3;
   static const _tabIcons = [
     Icons.newspaper_outlined,
     Icons.groups_outlined,
@@ -50,7 +51,7 @@ class _InfoPageState extends ConsumerState<InfoPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController = TabController(length: _tabCount, vsync: this);
     _tabController.addListener(() => setState(() {}));
   }
 
@@ -89,6 +90,11 @@ class _InfoPageState extends ConsumerState<InfoPage>
         .watch(userProfileControllerProvider)
         .valueOrNull
         ?.avatarUrl;
+    final tabs = [
+      context.l10n(ko: '소식', en: 'News', ja: 'お知らせ'),
+      context.l10n(ko: '유닛', en: 'Units', ja: 'ユニット'),
+      context.l10n(ko: '악곡', en: 'Songs', ja: '楽曲'),
+    ];
 
     return Scaffold(
       // EN: No shadow — only bottom border for visual separation.
@@ -102,7 +108,7 @@ class _InfoPageState extends ConsumerState<InfoPage>
           children: [
             const SizedBox(width: GBTSpacing.md),
             Text(
-              '정보',
+              context.l10n(ko: '정보', en: 'Info', ja: '情報'),
               style: GBTTypography.titleMedium.copyWith(
                 fontWeight: FontWeight.w700,
                 color: isDark
@@ -112,11 +118,7 @@ class _InfoPageState extends ConsumerState<InfoPage>
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.sm),
-              child: Container(
-                width: 1,
-                height: 16,
-                color: borderColor,
-              ),
+              child: Container(width: 1, height: 16, color: borderColor),
             ),
             const Expanded(child: ProjectSelectorCompact()),
           ],
@@ -142,9 +144,7 @@ class _InfoPageState extends ConsumerState<InfoPage>
                   // KO: 인디고 밑줄 인디케이터, 3px 높이, 둥근 끝.
                   indicator: UnderlineTabIndicator(
                     borderSide: BorderSide(
-                      color: isDark
-                          ? GBTColors.darkPrimary
-                          : GBTColors.primary,
+                      color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
                       width: 3,
                     ),
                     borderRadius: const BorderRadius.only(
@@ -168,7 +168,7 @@ class _InfoPageState extends ConsumerState<InfoPage>
                     fontWeight: FontWeight.w500,
                   ),
                   dividerHeight: 0,
-                  tabs: List.generate(_tabs.length, (i) {
+                  tabs: List.generate(tabs.length, (i) {
                     final isSelected = _tabController.index == i;
                     return Tab(
                       height: 44,
@@ -187,7 +187,7 @@ class _InfoPageState extends ConsumerState<InfoPage>
                                       : GBTColors.textSecondary),
                           ),
                           const SizedBox(width: GBTSpacing.xs),
-                          Text(_tabs[i]),
+                          Text(tabs[i]),
                         ],
                       ),
                     );
@@ -228,7 +228,13 @@ class _NewsTab extends ConsumerWidget {
     return newsState.when(
       loading: () => const _NewsTabSkeleton(),
       error: (error, _) {
-        final message = error is Failure ? error.userMessage : '뉴스를 불러오지 못했어요';
+        final message = error is Failure
+            ? error.userMessage
+            : context.l10n(
+                ko: '뉴스를 불러오지 못했어요',
+                en: 'Failed to load news',
+                ja: 'ニュースを読み込めませんでした',
+              );
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: GBTSpacing.paddingPage,
@@ -248,11 +254,15 @@ class _NewsTab extends ConsumerWidget {
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: GBTSpacing.paddingPage,
-            children: const [
-              SizedBox(height: GBTSpacing.lg),
+            children: [
+              const SizedBox(height: GBTSpacing.lg),
               GBTEmptyState(
                 icon: Icons.newspaper_outlined,
-                message: '아직 소식이 없어요',
+                message: context.l10n(
+                  ko: '아직 소식이 없어요',
+                  en: 'No news yet',
+                  ja: 'まだお知らせがありません',
+                ),
               ),
             ],
           );
@@ -280,7 +290,11 @@ class _NewsTab extends ConsumerWidget {
                     ),
                     child: _SectionHeader(
                       icon: Icons.article_outlined,
-                      label: '최근 소식',
+                      label: context.l10n(
+                        ko: '최근 소식',
+                        en: 'Recent news',
+                        ja: '最新のお知らせ',
+                      ),
                     ),
                   ),
                 _NewsRowItem(news: newsList[index]),
@@ -329,10 +343,7 @@ class _NewsHeroCard extends StatelessWidget {
             color: isDark ? GBTColors.darkSurface : GBTColors.surface,
             boxShadow: isDark ? GBTShadows.darkMd : GBTShadows.md,
             border: isDark
-                ? Border.all(
-                    color: GBTColors.darkBorder,
-                    width: 0.5,
-                  )
+                ? Border.all(color: GBTColors.darkBorder, width: 0.5)
                 : null,
           ),
           clipBehavior: Clip.antiAlias,
@@ -350,7 +361,11 @@ class _NewsHeroCard extends StatelessWidget {
                           GBTImage(
                             imageUrl: thumbnail,
                             fit: BoxFit.cover,
-                            semanticLabel: '소식 이미지',
+                            semanticLabel: context.l10n(
+                              ko: '소식 이미지',
+                              en: 'News image',
+                              ja: 'お知らせ画像',
+                            ),
                           ),
                           // EN: Bottom gradient overlay for text legibility.
                           // KO: 텍스트 가독성을 위한 하단 그라데이션 오버레이.
@@ -359,10 +374,7 @@ class _NewsHeroCard extends StatelessWidget {
                               gradient: LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  Color(0xCC000000),
-                                ],
+                                colors: [Colors.transparent, Color(0xCC000000)],
                                 stops: [0.45, 1.0],
                               ),
                             ),
@@ -464,7 +476,11 @@ class _NewsHeroCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 2),
                         Text(
-                          '자세히 보기',
+                          context.l10n(
+                            ko: '자세히 보기',
+                            en: 'Read more',
+                            ja: '詳しく見る',
+                          ),
                           style: GBTTypography.labelSmall.copyWith(
                             color: isDark
                                 ? GBTColors.darkPrimary
@@ -624,7 +640,11 @@ class _NewsThumbnail extends StatelessWidget {
       width: 80,
       height: 80,
       borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-      semanticLabel: '뉴스 썸네일',
+      semanticLabel: context.l10n(
+        ko: '뉴스 썸네일',
+        en: 'News thumbnail',
+        ja: 'ニュースサムネイル',
+      ),
     );
   }
 }
@@ -722,11 +742,15 @@ class _UnitsTab extends ConsumerWidget {
     if (projectKey == null) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(height: GBTSpacing.lg),
+        children: [
+          const SizedBox(height: GBTSpacing.lg),
           GBTEmptyState(
             icon: Icons.groups_outlined,
-            message: '프로젝트를 먼저 선택해주세요',
+            message: context.l10n(
+              ko: '프로젝트를 먼저 선택해주세요',
+              en: 'Please select a project first',
+              ja: '先にプロジェクトを選択してください',
+            ),
           ),
         ],
       );
@@ -737,7 +761,13 @@ class _UnitsTab extends ConsumerWidget {
     return unitsState.when(
       loading: () => const _UnitsTabSkeleton(),
       error: (error, _) {
-        final message = error is Failure ? error.userMessage : '유닛을 불러오지 못했어요';
+        final message = error is Failure
+            ? error.userMessage
+            : context.l10n(
+                ko: '유닛을 불러오지 못했어요',
+                en: 'Failed to load units',
+                ja: 'ユニットを読み込めませんでした',
+              );
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: GBTSpacing.paddingPage,
@@ -757,11 +787,15 @@ class _UnitsTab extends ConsumerWidget {
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: GBTSpacing.paddingPage,
-            children: const [
-              SizedBox(height: GBTSpacing.lg),
+            children: [
+              const SizedBox(height: GBTSpacing.lg),
               GBTEmptyState(
                 icon: Icons.groups_outlined,
-                message: '등록된 유닛이 없습니다',
+                message: context.l10n(
+                  ko: '등록된 유닛이 없습니다',
+                  en: 'No units available',
+                  ja: '登録されたユニットがありません',
+                ),
               ),
             ],
           );
@@ -785,7 +819,7 @@ class _UnitsTab extends ConsumerWidget {
               ),
               child: _SectionHeaderWithCount(
                 icon: Icons.groups_outlined,
-                label: '유닛',
+                label: context.l10n(ko: '유닛', en: 'Units', ja: 'ユニット'),
                 count: units.length,
               ),
             ),
@@ -974,42 +1008,42 @@ class _UnitAccordionCardState extends ConsumerState<_UnitAccordionCard>
                                             )),
                                           );
                                           return membersState.maybeWhen(
-                                            data: (members) =>
-                                                members.isEmpty
-                                                    ? const SizedBox.shrink()
-                                                    : Container(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              horizontal: 6,
-                                                              vertical: 2,
-                                                            ),
-                                                        decoration:
-                                                            BoxDecoration(
-                                                              color: widget
-                                                                  .paletteColor
-                                                                  .withValues(
-                                                                    alpha: 0.15,
-                                                                  ),
-                                                              borderRadius:
-                                                                  BorderRadius.circular(
-                                                                    GBTSpacing
-                                                                        .radiusFull,
-                                                                  ),
-                                                            ),
-                                                        child: Text(
-                                                          '${members.length}명',
-                                                          style: GBTTypography
-                                                              .labelSmall
-                                                              .copyWith(
-                                                                color: widget
-                                                                    .paletteColor,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w700,
-                                                                fontSize: 10,
-                                                              ),
+                                            data: (members) => members.isEmpty
+                                                ? const SizedBox.shrink()
+                                                : Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 6,
+                                                          vertical: 2,
                                                         ),
+                                                    decoration: BoxDecoration(
+                                                      color: widget.paletteColor
+                                                          .withValues(
+                                                            alpha: 0.15,
+                                                          ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            GBTSpacing
+                                                                .radiusFull,
+                                                          ),
+                                                    ),
+                                                    child: Text(
+                                                      context.l10n(
+                                                        ko: '${members.length}명',
+                                                        en: '${members.length}',
+                                                        ja: '${members.length}名',
                                                       ),
+                                                      style: GBTTypography
+                                                          .labelSmall
+                                                          .copyWith(
+                                                            color: widget
+                                                                .paletteColor,
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                            fontSize: 10,
+                                                          ),
+                                                    ),
+                                                  ),
                                             orElse: () =>
                                                 const SizedBox.shrink(),
                                           );
@@ -1136,7 +1170,11 @@ class _UnitMembersList extends ConsumerWidget {
       error: (_, __) => Padding(
         padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
         child: Text(
-          '멤버 정보를 불러오지 못했어요',
+          context.l10n(
+            ko: '멤버 정보를 불러오지 못했어요',
+            en: 'Failed to load members',
+            ja: 'メンバー情報を読み込めませんでした',
+          ),
           style: GBTTypography.labelSmall.copyWith(
             color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
           ),
@@ -1147,7 +1185,11 @@ class _UnitMembersList extends ConsumerWidget {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
             child: Text(
-              '멤버 정보가 없습니다',
+              context.l10n(
+                ko: '멤버 정보가 없습니다',
+                en: 'No member information',
+                ja: 'メンバー情報がありません',
+              ),
               style: GBTTypography.labelSmall.copyWith(
                 color: isDark
                     ? GBTColors.darkTextTertiary
@@ -1176,14 +1218,14 @@ class _UnitMembersList extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.mic_rounded,
-                    size: 13,
-                    color: paletteColor,
-                  ),
+                  Icon(Icons.mic_rounded, size: 13, color: paletteColor),
                   const SizedBox(width: GBTSpacing.xs),
                   Text(
-                    '멤버 · 성우',
+                    context.l10n(
+                      ko: '멤버 · 성우',
+                      en: 'Members · Voice actors',
+                      ja: 'メンバー・声優',
+                    ),
                     style: GBTTypography.labelSmall.copyWith(
                       fontWeight: FontWeight.w700,
                       color: paletteColor,
@@ -1414,7 +1456,8 @@ class _MemberAvatar extends StatelessWidget {
         height: size,
         borderRadius: BorderRadius.circular(size / 2),
         fit: BoxFit.cover,
-        semanticLabel: '$initial 멤버 이미지',
+        semanticLabel:
+            '$initial ${context.l10n(ko: "멤버 이미지", en: "member image", ja: "メンバー画像")}',
       );
     }
 
@@ -1487,7 +1530,7 @@ class _SongsTab extends StatelessWidget {
         const SizedBox(height: GBTSpacing.lg),
         Center(
           child: Text(
-            '악곡 목록',
+            context.l10n(ko: '악곡 목록', en: 'Song list', ja: '楽曲一覧'),
             style: GBTTypography.titleMedium.copyWith(
               fontWeight: FontWeight.w700,
               color: textPrimary,
@@ -1497,7 +1540,7 @@ class _SongsTab extends StatelessWidget {
         const SizedBox(height: GBTSpacing.xs),
         Center(
           child: Text(
-            '준비 중이에요',
+            context.l10n(ko: '준비 중이에요', en: 'Coming soon', ja: '準備中です'),
             style: GBTTypography.bodySmall.copyWith(color: textSecondary),
           ),
         ),
@@ -1543,7 +1586,14 @@ class _SongsTab extends StatelessWidget {
         const SizedBox(height: GBTSpacing.xl),
         // EN: Section label for album placeholder grid.
         // KO: 앨범 플레이스홀더 그리드 섹션 레이블.
-        _SectionHeader(icon: Icons.library_music_outlined, label: '앨범 미리보기'),
+        _SectionHeader(
+          icon: Icons.library_music_outlined,
+          label: context.l10n(
+            ko: '앨범 미리보기',
+            en: 'Album preview',
+            ja: 'アルバムプレビュー',
+          ),
+        ),
         const SizedBox(height: GBTSpacing.sm),
         // EN: Album art placeholder grid with palette color accents.
         // KO: 팔레트 색상 강조가 있는 앨범 아트 플레이스홀더 그리드.
@@ -1578,7 +1628,7 @@ class _SongsTab extends StatelessWidget {
                   ),
                   const SizedBox(height: GBTSpacing.xs),
                   Text(
-                    '준비 중',
+                    context.l10n(ko: '준비 중', en: 'Soon', ja: '準備中'),
                     style: GBTTypography.caption.copyWith(
                       color: textTertiary,
                       fontWeight: FontWeight.w500,

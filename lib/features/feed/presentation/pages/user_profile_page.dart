@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
@@ -50,11 +51,18 @@ class UserProfilePage extends ConsumerWidget {
     );
     final isMyProfile = myProfile?.id == userId;
     final profile = isMyProfile ? myProfile : publicProfile;
-    final displayName = profile?.displayName ?? '사용자';
+    final displayName =
+        profile?.displayName ?? context.l10n(ko: '사용자', en: 'User', ja: 'ユーザー');
     final avatarUrl = profile?.avatarUrl;
     final coverUrl = profile?.coverImageUrl;
     final bio = profile?.bio?.trim();
-    final bioLabel = (bio != null && bio.isNotEmpty) ? bio : '소개가 아직 없습니다.';
+    final bioLabel = (bio != null && bio.isNotEmpty)
+        ? bio
+        : context.l10n(
+            ko: '소개가 아직 없습니다.',
+            en: 'No bio yet.',
+            ja: '紹介はまだありません。',
+          );
     final blockState = !isMyProfile && isAuthenticated
         ? ref.watch(blockStatusControllerProvider(userId))
         : const AsyncValue<BlockStatus>.loading();
@@ -82,13 +90,19 @@ class UserProfilePage extends ConsumerWidget {
     final isBlockActionBusy = blockStatus == null;
     final isFollowActionBusy = followState.isLoading;
     final canFollow = !isBlockedProfile && !isFollowActionBusy;
-    final followLabel = isFollowed ? '팔로우 취소' : '팔로우';
-    final blockLabel = blockStatus?.blockedByMe == true ? '차단 해제' : '차단';
+    final followLabel = isFollowed
+        ? context.l10n(ko: '팔로우 취소', en: 'Unfollow', ja: 'フォロー解除')
+        : context.l10n(ko: '팔로우', en: 'Follow', ja: 'フォロー');
+    final blockLabel = blockStatus?.blockedByMe == true
+        ? context.l10n(ko: '차단 해제', en: 'Unblock', ja: 'ブロック解除')
+        : context.l10n(ko: '차단', en: 'Block', ja: 'ブロック');
     Widget? headerAction;
     if (isMyProfile) {
       headerAction = OutlinedButton(
         onPressed: () => context.pushNamed(AppRoutes.profileEdit),
-        child: const Text('프로필 수정'),
+        child: Text(
+          context.l10n(ko: '프로필 수정', en: 'Edit profile', ja: 'プロフィール編集'),
+        ),
       );
     } else if (isAuthenticated) {
       headerAction = Column(
@@ -104,14 +118,35 @@ class UserProfilePage extends ConsumerWidget {
                     if (result is Success<bool>) {
                       _showSnackBar(
                         context,
-                        result.data ? '사용자를 팔로우했어요' : '팔로우를 취소했어요',
+                        result.data
+                            ? context.l10n(
+                                ko: '사용자를 팔로우했어요',
+                                en: 'You followed this user',
+                                ja: 'このユーザーをフォローしました',
+                              )
+                            : context.l10n(
+                                ko: '팔로우를 취소했어요',
+                                en: 'Unfollowed',
+                                ja: 'フォローを解除しました',
+                              ),
                       );
                     } else {
-                      _showSnackBar(context, '팔로우 상태를 변경하지 못했어요');
+                      _showSnackBar(
+                        context,
+                        context.l10n(
+                          ko: '팔로우 상태를 변경하지 못했어요',
+                          en: 'Failed to update follow status',
+                          ja: 'フォロー状態を変更できませんでした',
+                        ),
+                      );
                     }
                   }
                 : null,
-            child: Text(isBlockedProfile ? '차단됨' : followLabel),
+            child: Text(
+              isBlockedProfile
+                  ? context.l10n(ko: '차단됨', en: 'Blocked', ja: 'ブロック済み')
+                  : followLabel,
+            ),
           ),
           const SizedBox(height: GBTSpacing.xs),
           OutlinedButton(
@@ -122,7 +157,14 @@ class UserProfilePage extends ConsumerWidget {
                         .read(blockStatusControllerProvider(userId).notifier)
                         .toggleBlock();
                     if (result is Err<void> && context.mounted) {
-                      _showSnackBar(context, '차단 상태를 변경하지 못했어요');
+                      _showSnackBar(
+                        context,
+                        context.l10n(
+                          ko: '차단 상태를 변경하지 못했어요',
+                          en: 'Failed to update block status',
+                          ja: 'ブロック状態を変更できませんでした',
+                        ),
+                      );
                       return;
                     }
                     final updated = ref
@@ -134,7 +176,17 @@ class UserProfilePage extends ConsumerWidget {
                     if (context.mounted) {
                       _showSnackBar(
                         context,
-                        updated ? '사용자를 차단했어요' : '차단을 해제했어요',
+                        updated
+                            ? context.l10n(
+                                ko: '사용자를 차단했어요',
+                                en: 'User blocked',
+                                ja: 'ユーザーをブロックしました',
+                              )
+                            : context.l10n(
+                                ko: '차단을 해제했어요',
+                                en: 'User unblocked',
+                                ja: 'ブロックを解除しました',
+                              ),
                       );
                     }
                   },
@@ -148,15 +200,19 @@ class UserProfilePage extends ConsumerWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('프로필'),
-          bottom: const PreferredSize(
+          title: Text(context.l10n(ko: '프로필', en: 'Profile', ja: 'プロフィール')),
+          bottom: PreferredSize(
             preferredSize: Size.fromHeight(44),
             child: GBTSegmentedTabBar(
               height: 44,
               margin: EdgeInsets.symmetric(horizontal: GBTSpacing.md2),
               tabs: [
-                Tab(text: '작성한 글'),
-                Tab(text: '작성한 댓글'),
+                Tab(
+                  text: context.l10n(ko: '작성한 글', en: 'Posts', ja: '投稿'),
+                ),
+                Tab(
+                  text: context.l10n(ko: '작성한 댓글', en: 'Comments', ja: 'コメント'),
+                ),
               ],
             ),
           ),
@@ -184,11 +240,21 @@ class UserProfilePage extends ConsumerWidget {
                       blockedByAdmin: blockStatus?.blockedByAdmin == true,
                     )
                   : activityState.when(
-                      loading: () => const GBTLoading(message: '활동을 불러오는 중...'),
+                      loading: () => GBTLoading(
+                        message: context.l10n(
+                          ko: '활동을 불러오는 중...',
+                          en: 'Loading activity...',
+                          ja: 'アクティビティを読み込み中...',
+                        ),
+                      ),
                       error: (error, _) {
                         final message = error is Failure
                             ? error.userMessage
-                            : '활동을 불러오지 못했어요';
+                            : context.l10n(
+                                ko: '활동을 불러오지 못했어요',
+                                en: 'Failed to load activity',
+                                ja: 'アクティビティを読み込めませんでした',
+                              );
                         return GBTErrorState(
                           message: message,
                           onRetry: () {
@@ -249,12 +315,28 @@ class _BlockedProfileState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final message = blockedByAdmin
-        ? '관리자 정책으로 이 사용자의 활동을 볼 수 없습니다.'
+        ? context.l10n(
+            ko: '관리자 정책으로 이 사용자의 활동을 볼 수 없습니다.',
+            en: 'You cannot view this user due to admin policy.',
+            ja: '管理者ポリシーによりこのユーザーの活動を表示できません。',
+          )
         : blockedByMe
-        ? '차단한 사용자의 활동은 숨겨집니다.'
+        ? context.l10n(
+            ko: '차단한 사용자의 활동은 숨겨집니다.',
+            en: 'Blocked user activity is hidden.',
+            ja: 'ブロックしたユーザーの活動は非表示です。',
+          )
         : blockedMe
-        ? '이 사용자가 나를 차단해 활동을 볼 수 없습니다.'
-        : '활동을 표시할 수 없습니다.';
+        ? context.l10n(
+            ko: '이 사용자가 나를 차단해 활동을 볼 수 없습니다.',
+            en: 'This user blocked you, activity is unavailable.',
+            ja: 'このユーザーにブロックされているため活動を表示できません。',
+          )
+        : context.l10n(
+            ko: '활동을 표시할 수 없습니다.',
+            en: 'Cannot display activity.',
+            ja: '活動を表示できません。',
+          );
 
     return Center(
       child: Padding(
@@ -310,7 +392,11 @@ class _ProfileAvatar extends StatelessWidget {
         width: radius * 2,
         height: radius * 2,
         fit: BoxFit.cover,
-        semanticLabel: '프로필 사진',
+        semanticLabel: context.l10n(
+          ko: '프로필 사진',
+          en: 'Profile image',
+          ja: 'プロフィール画像',
+        ),
       ),
     );
   }
@@ -354,7 +440,8 @@ class _ProfileHeader extends StatelessWidget {
         : GBTColors.textTertiary;
 
     return Semantics(
-      label: '프로필: $displayName. $bioLabel',
+      label:
+          '${context.l10n(ko: "프로필", en: "Profile", ja: "プロフィール")}: $displayName. $bioLabel',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -384,7 +471,11 @@ class _ProfileHeader extends StatelessWidget {
                           width: double.infinity,
                           height: double.infinity,
                           fit: BoxFit.cover,
-                          semanticLabel: '프로필 배경 이미지',
+                          semanticLabel: context.l10n(
+                            ko: '프로필 배경 이미지',
+                            en: 'Profile cover image',
+                            ja: 'プロフィール背景画像',
+                          ),
                         ),
                 ),
                 Positioned(
@@ -450,7 +541,11 @@ class _ProfileHeader extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _ConnectionStatTile(
-                        label: '팔로워',
+                        label: context.l10n(
+                          ko: '팔로워',
+                          en: 'Followers',
+                          ja: 'フォロワー',
+                        ),
                         value: followerCount == null
                             ? '-'
                             : '${followerCount!}',
@@ -460,7 +555,11 @@ class _ProfileHeader extends StatelessWidget {
                     const SizedBox(width: GBTSpacing.sm),
                     Expanded(
                       child: _ConnectionStatTile(
-                        label: '팔로잉',
+                        label: context.l10n(
+                          ko: '팔로잉',
+                          en: 'Following',
+                          ja: 'フォロー中',
+                        ),
                         value: followingCount == null
                             ? '-'
                             : '${followingCount!}',
@@ -551,9 +650,15 @@ class _PostsTab extends StatelessWidget {
         onRefresh: onRefresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          children: const [
-            SizedBox(height: 80),
-            GBTEmptyState(message: '작성한 글이 없습니다'),
+          children: [
+            const SizedBox(height: 80),
+            GBTEmptyState(
+              message: context.l10n(
+                ko: '작성한 글이 없습니다',
+                en: 'No posts yet',
+                ja: '投稿がありません',
+              ),
+            ),
           ],
         ),
       );
@@ -642,9 +747,15 @@ class _CommentsTab extends StatelessWidget {
         onRefresh: onRefresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          children: const [
-            SizedBox(height: 80),
-            GBTEmptyState(message: '작성한 댓글이 없습니다'),
+          children: [
+            const SizedBox(height: 80),
+            GBTEmptyState(
+              message: context.l10n(
+                ko: '작성한 댓글이 없습니다',
+                en: 'No comments yet',
+                ja: 'コメントがありません',
+              ),
+            ),
           ],
         ),
       );

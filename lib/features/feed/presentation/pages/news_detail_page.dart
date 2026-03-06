@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -28,13 +29,29 @@ class NewsDetailPage extends ConsumerWidget {
 
     return state.when(
       loading: () => Scaffold(
-        appBar: AppBar(title: const Text('뉴스')),
-        body: const GBTLoading(message: '뉴스를 불러오는 중...'),
+        appBar: AppBar(
+          title: Text(context.l10n(ko: '뉴스', en: 'News', ja: 'ニュース')),
+        ),
+        body: GBTLoading(
+          message: context.l10n(
+            ko: '뉴스를 불러오는 중...',
+            en: 'Loading news...',
+            ja: 'ニュースを読み込み中...',
+          ),
+        ),
       ),
       error: (error, _) {
-        final message = error is Failure ? error.userMessage : '뉴스를 불러오지 못했어요';
+        final message = error is Failure
+            ? error.userMessage
+            : context.l10n(
+                ko: '뉴스를 불러오지 못했어요',
+                en: 'Failed to load news',
+                ja: 'ニュースを読み込めませんでした',
+              );
         return Scaffold(
-          appBar: AppBar(title: const Text('뉴스')),
+          appBar: AppBar(
+            title: Text(context.l10n(ko: '뉴스', en: 'News', ja: 'ニュース')),
+          ),
           body: GBTErrorState(
             message: message,
             onRetry: () => ref
@@ -83,7 +100,7 @@ class _NewsDetailView extends StatelessWidget {
             actions: [
               IconButton(
                 icon: const Icon(Icons.bookmark_border),
-                tooltip: '북마크',
+                tooltip: context.l10n(ko: '북마크', en: 'Bookmark', ja: 'ブックマーク'),
                 onPressed: () {
                   // EN: TODO: Toggle bookmark.
                   // KO: TODO: 북마크 토글.
@@ -91,7 +108,7 @@ class _NewsDetailView extends StatelessWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.share),
-                tooltip: '공유',
+                tooltip: context.l10n(ko: '공유', en: 'Share', ja: '共有'),
                 onPressed: () {
                   // EN: TODO: Share news.
                   // KO: TODO: 뉴스 공유.
@@ -117,7 +134,13 @@ class _NewsDetailView extends StatelessWidget {
                   const Divider(),
                   const SizedBox(height: GBTSpacing.lg),
                   SelectableText(
-                    content.isNotEmpty ? content : '기사 본문을 불러오지 못했어요.',
+                    content.isNotEmpty
+                        ? content
+                        : context.l10n(
+                            ko: '기사 본문을 불러오지 못했어요.',
+                            en: 'Failed to load article body.',
+                            ja: '記事本文を読み込めませんでした。',
+                          ),
                     style: GBTTypography.bodyMedium.copyWith(
                       height: 1.8,
                       color: bodyColor,
@@ -168,7 +191,11 @@ class _NewsHeaderImage extends StatelessWidget {
         width: double.infinity,
         height: double.infinity,
         fit: BoxFit.cover,
-        semanticLabel: '뉴스 대표 이미지',
+        semanticLabel: context.l10n(
+          ko: '뉴스 대표 이미지',
+          en: 'News cover image',
+          ja: 'ニュース代表画像',
+        ),
       ),
     );
   }

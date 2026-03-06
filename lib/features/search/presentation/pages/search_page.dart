@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
@@ -127,7 +128,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           child: GBTSearchBar(
             controller: _searchController,
             focusNode: _focusNode,
-            hint: '장소, 이벤트, 밴드 검색...',
+            hint: context.l10n(
+              ko: '장소, 이벤트, 밴드 검색...',
+              en: 'Search places, events, bands...',
+              ja: '場所、イベント、バンドを検索...',
+            ),
             autofocus: true,
             onChanged: _onQueryChanged,
             onSubmitted: _onSubmit,
@@ -215,7 +220,12 @@ class _ScopeToggleRow extends StatelessWidget {
       child: Row(
         children: [
           _ScopePill(
-            label: projectScopeLabel ?? '현재 프로젝트',
+            label: projectScopeLabel ??
+                context.l10n(
+                  ko: '현재 프로젝트',
+                  en: 'Current project',
+                  ja: '現在のプロジェクト',
+                ),
             isSelected: scopedToCurrentProject,
             onTap: () => onChanged(true),
             primaryColor: primaryColor,
@@ -223,7 +233,11 @@ class _ScopeToggleRow extends StatelessWidget {
           ),
           const SizedBox(width: GBTSpacing.xs),
           _ScopePill(
-            label: '전체 검색',
+            label: context.l10n(
+              ko: '전체 검색',
+              en: 'Search all',
+              ja: '全体検索',
+            ),
             isSelected: !scopedToCurrentProject,
             onTap: () => onChanged(false),
             primaryColor: primaryColor,
@@ -255,7 +269,8 @@ class _ScopePill extends StatelessWidget {
     return Semantics(
       button: true,
       selected: isSelected,
-      label: '$label 검색 범위 ${isSelected ? '선택됨' : ''}',
+      label:
+          '$label ${context.l10n(ko: "검색 범위", en: "search scope", ja: "検索範囲")} ${isSelected ? context.l10n(ko: "선택됨", en: "selected", ja: "選択済み") : ''}',
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
@@ -353,7 +368,11 @@ class _RecentSearches extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '최근 검색어',
+                context.l10n(
+                  ko: '최근 검색어',
+                  en: 'Recent searches',
+                  ja: '最近の検索',
+                ),
                 style: GBTTypography.labelMedium.copyWith(
                   fontWeight: FontWeight.w600,
                   color: isDark
@@ -373,7 +392,11 @@ class _RecentSearches extends StatelessWidget {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   child: Text(
-                    '전체 삭제',
+                    context.l10n(
+                      ko: '전체 삭제',
+                      en: 'Clear all',
+                      ja: 'すべて削除',
+                    ),
                     style: GBTTypography.labelSmall.copyWith(
                       color: secondaryColor,
                     ),
@@ -386,7 +409,11 @@ class _RecentSearches extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
             child: Text(
-              '최근 검색어가 없습니다.',
+              context.l10n(
+                ko: '최근 검색어가 없습니다.',
+                en: 'No recent searches.',
+                ja: '最近の検索履歴はありません。',
+              ),
               style: GBTTypography.bodySmall.copyWith(color: secondaryColor),
             ),
           )
@@ -404,7 +431,11 @@ class _RecentSearches extends StatelessWidget {
               itemBuilder: (context, index) {
                 final item = items[index];
                 return Semantics(
-                  label: '최근 검색어: $item. 탭하여 검색',
+                  label: context.l10n(
+                    ko: '최근 검색어: $item. 탭하여 검색',
+                    en: 'Recent search: $item. Tap to search',
+                    ja: '最近の検索: $item。タップして検索',
+                  ),
                   button: true,
                   child: _RecentChip(
                     label: item,
@@ -443,7 +474,11 @@ class _RecentSearches extends StatelessWidget {
               ),
               const SizedBox(width: GBTSpacing.xs),
               Text(
-                '인기 검색어',
+                context.l10n(
+                  ko: '인기 검색어',
+                  en: 'Trending searches',
+                  ja: '人気検索語',
+                ),
                 style: GBTTypography.labelMedium.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -462,7 +497,11 @@ class _RecentSearches extends StatelessWidget {
               : (isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary);
 
           return Semantics(
-            label: '인기 검색어 $rank위: $keyword',
+            label: context.l10n(
+              ko: '인기 검색어 $rank위: $keyword',
+              en: 'Trending search rank $rank: $keyword',
+              ja: '人気検索 $rank位: $keyword',
+            ),
             button: true,
             child: InkWell(
               onTap: () => onSelect(keyword),
@@ -602,18 +641,23 @@ class _SearchResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final allTab = context.l10n(ko: '전체', en: 'All', ja: '全体');
+    final placesTab = context.l10n(ko: '장소', en: 'Places', ja: '場所');
+    final eventsTab = context.l10n(ko: '이벤트', en: 'Events', ja: 'イベント');
+    final newsTab = context.l10n(ko: '뉴스', en: 'News', ja: 'ニュース');
+
     return DefaultTabController(
       length: 4,
       child: Column(
         children: [
-          const GBTSegmentedTabBar(
-            margin: EdgeInsets.symmetric(horizontal: GBTSpacing.md),
+          GBTSegmentedTabBar(
+            margin: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
             isScrollable: true,
             tabs: [
-              Tab(text: '전체'),
-              Tab(text: '장소'),
-              Tab(text: '이벤트'),
-              Tab(text: '뉴스'),
+              Tab(text: allTab),
+              Tab(text: placesTab),
+              Tab(text: eventsTab),
+              Tab(text: newsTab),
             ],
           ),
           const SizedBox(height: GBTSpacing.xs),
@@ -634,7 +678,11 @@ class _SearchResults extends StatelessWidget {
               error: (error, _) {
                 final message = error is Failure
                     ? error.userMessage
-                    : '검색 결과를 불러오지 못했어요';
+                    : context.l10n(
+                        ko: '검색 결과를 불러오지 못했어요',
+                        en: 'Failed to load search results',
+                        ja: '検索結果を読み込めませんでした',
+                      );
                 return ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: GBTSpacing.paddingPage,
@@ -683,11 +731,15 @@ class _SearchResultList extends StatelessWidget {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: GBTSpacing.paddingPage,
-        children: const [
-          SizedBox(height: GBTSpacing.lg),
+        children: [
+          const SizedBox(height: GBTSpacing.lg),
           GBTEmptyState(
             icon: Icons.search_off_rounded,
-            message: '검색 결과가 없습니다.\n다른 키워드로 검색해보세요.',
+            message: context.l10n(
+              ko: '검색 결과가 없습니다.\n다른 키워드로 검색해보세요.',
+              en: 'No search results.\nTry another keyword.',
+              ja: '検索結果がありません。\n別のキーワードで検索してください。',
+            ),
           ),
         ],
       );
@@ -723,7 +775,7 @@ class _SearchResultItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final typeLabel = _typeLabel(item.type);
+    final typeLabel = _typeLabel(context, item.type);
     final accentColor = _typeAccentColor(item.type, isDark: isDark);
     final secondaryColor = isDark
         ? GBTColors.darkTextSecondary
@@ -767,7 +819,7 @@ class _SearchResultItem extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _subtitleText(item),
+                      _subtitleText(context, item),
                       style: GBTTypography.bodySmall.copyWith(
                         color: secondaryColor,
                       ),
@@ -818,7 +870,11 @@ class _SearchThumbnail extends StatelessWidget {
           width: 48,
           height: 48,
           fit: BoxFit.cover,
-          semanticLabel: '검색 결과 이미지',
+          semanticLabel: context.l10n(
+            ko: '검색 결과 이미지',
+            en: 'Search result image',
+            ja: '検索結果画像',
+          ),
         ),
       );
     }
@@ -876,15 +932,27 @@ List<SearchItem> _filterByType(List<SearchItem> items, SearchItemType type) {
   return items.where((item) => item.type == type).toList();
 }
 
-String _typeLabel(SearchItemType type) {
+String _typeLabel(BuildContext context, SearchItemType type) {
   return switch (type) {
-    SearchItemType.place => '장소',
-    SearchItemType.liveEvent => '이벤트',
-    SearchItemType.news => '뉴스',
-    SearchItemType.post => '커뮤니티',
-    SearchItemType.unit => '유닛',
-    SearchItemType.project => '프로젝트',
-    SearchItemType.unknown => '기타',
+    SearchItemType.place => context.l10n(ko: '장소', en: 'Places', ja: '場所'),
+    SearchItemType.liveEvent => context.l10n(
+      ko: '이벤트',
+      en: 'Events',
+      ja: 'イベント',
+    ),
+    SearchItemType.news => context.l10n(ko: '뉴스', en: 'News', ja: 'ニュース'),
+    SearchItemType.post => context.l10n(
+      ko: '커뮤니티',
+      en: 'Community',
+      ja: 'コミュニティ',
+    ),
+    SearchItemType.unit => context.l10n(ko: '유닛', en: 'Unit', ja: 'ユニット'),
+    SearchItemType.project => context.l10n(
+      ko: '프로젝트',
+      en: 'Project',
+      ja: 'プロジェクト',
+    ),
+    SearchItemType.unknown => context.l10n(ko: '기타', en: 'Other', ja: 'その他'),
   };
 }
 
@@ -928,7 +996,7 @@ Color _typeAccentColor(SearchItemType type, {required bool isDark}) {
   };
 }
 
-String _subtitleText(SearchItem item) {
+String _subtitleText(BuildContext context, SearchItem item) {
   if (item.subtitle != null && item.subtitle!.isNotEmpty) {
     return item.subtitle!;
   }
@@ -938,7 +1006,11 @@ String _subtitleText(SearchItem item) {
   if (item.dateLabel.isNotEmpty) {
     return item.dateLabel;
   }
-  return '상세 정보를 확인해보세요';
+  return context.l10n(
+    ko: '상세 정보를 확인해보세요',
+    en: 'Check the details',
+    ja: '詳細を確認してください',
+  );
 }
 
 void _handleTap(BuildContext context, SearchItem item) {

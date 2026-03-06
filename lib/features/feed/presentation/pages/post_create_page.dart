@@ -265,6 +265,12 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: GBTSpacing.paddingPage,
                   children: [
+                    const PostComposeIntroCard(
+                      title: '게시글을 작성해요',
+                      description: '핵심 정보와 사진을 함께 올리면 피드에서 더 잘 보여요.',
+                      icon: Icons.edit_note_outlined,
+                    ),
+                    const SizedBox(height: GBTSpacing.md),
                     PostComposeStatusCard(
                       completionRatio: _completionRatio,
                       hasTitle: _titleController.text.trim().isNotEmpty,

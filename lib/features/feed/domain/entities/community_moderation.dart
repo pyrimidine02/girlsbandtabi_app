@@ -2,6 +2,8 @@
 /// KO: 커뮤니티 신고/차단 도메인 엔티티.
 library;
 
+import 'package:intl/intl.dart';
+
 enum CommunityReportTargetType { post, comment, user }
 
 extension CommunityReportTargetTypeX on CommunityReportTargetType {
@@ -17,12 +19,19 @@ extension CommunityReportTargetTypeX on CommunityReportTargetType {
   }
 
   String get label {
+    final languageCode = _languageCode();
     switch (this) {
       case CommunityReportTargetType.post:
+        if (languageCode == 'en') return 'Post';
+        if (languageCode == 'ja') return '投稿';
         return '게시글';
       case CommunityReportTargetType.comment:
+        if (languageCode == 'en') return 'Comment';
+        if (languageCode == 'ja') return 'コメント';
         return '댓글';
       case CommunityReportTargetType.user:
+        if (languageCode == 'en') return 'User';
+        if (languageCode == 'ja') return 'ユーザー';
         return '사용자';
     }
   }
@@ -76,24 +85,43 @@ extension CommunityReportReasonX on CommunityReportReason {
   }
 
   String get label {
+    final languageCode = _languageCode();
     switch (this) {
       case CommunityReportReason.spam:
+        if (languageCode == 'en') return 'Spam/Flood';
+        if (languageCode == 'ja') return 'スパム/連投';
         return '스팸/도배';
       case CommunityReportReason.abuse:
+        if (languageCode == 'en') return 'Abuse/Insult';
+        if (languageCode == 'ja') return '暴言/侮辱';
         return '욕설/모욕';
       case CommunityReportReason.harassment:
+        if (languageCode == 'en') return 'Harassment';
+        if (languageCode == 'ja') return '嫌がらせ';
         return '괴롭힘';
       case CommunityReportReason.hate:
+        if (languageCode == 'en') return 'Hate speech';
+        if (languageCode == 'ja') return 'ヘイト表現';
         return '혐오 표현';
       case CommunityReportReason.offTopic:
+        if (languageCode == 'en') return 'Off-topic';
+        if (languageCode == 'ja') return '話題と無関係';
         return '주제와 무관';
       case CommunityReportReason.illegal:
+        if (languageCode == 'en') return 'Illegal content';
+        if (languageCode == 'ja') return '違法コンテンツ';
         return '불법 콘텐츠';
       case CommunityReportReason.misinformation:
+        if (languageCode == 'en') return 'Misinformation';
+        if (languageCode == 'ja') return '虚偽情報';
         return '허위 정보';
       case CommunityReportReason.copyright:
+        if (languageCode == 'en') return 'Copyright infringement';
+        if (languageCode == 'ja') return '著作権侵害';
         return '저작권 침해';
       case CommunityReportReason.other:
+        if (languageCode == 'en') return 'Other';
+        if (languageCode == 'ja') return 'その他';
         return '기타';
     }
   }
@@ -139,12 +167,19 @@ extension ContentModerationStatusX on ContentModerationStatus {
   }
 
   String get label {
+    final languageCode = _languageCode();
     switch (this) {
       case ContentModerationStatus.published:
+        if (languageCode == 'en') return 'Normal';
+        if (languageCode == 'ja') return '正常';
         return '정상';
       case ContentModerationStatus.quarantined:
+        if (languageCode == 'en') return 'Under review';
+        if (languageCode == 'ja') return '確認中';
         return '검토 중';
       case ContentModerationStatus.deleted:
+        if (languageCode == 'en') return 'Deleted';
+        if (languageCode == 'ja') return '削除済み';
         return '삭제됨';
     }
   }
@@ -180,14 +215,23 @@ extension UserSanctionLevelX on UserSanctionLevel {
   }
 
   String get label {
+    final languageCode = _languageCode();
     switch (this) {
       case UserSanctionLevel.none:
+        if (languageCode == 'en') return 'Normal';
+        if (languageCode == 'ja') return '正常';
         return '정상';
       case UserSanctionLevel.warning:
+        if (languageCode == 'en') return 'Warning';
+        if (languageCode == 'ja') return '警告';
         return '경고';
       case UserSanctionLevel.muted:
+        if (languageCode == 'en') return 'Muted';
+        if (languageCode == 'ja') return '投稿制限';
         return '작성 제한';
       case UserSanctionLevel.banned:
+        if (languageCode == 'en') return 'Banned';
+        if (languageCode == 'ja') return '利用停止';
         return '이용 정지';
     }
   }
@@ -267,6 +311,12 @@ class BlockStatus {
   final bool blockedByMe;
   final bool blockedMe;
   final bool blockedByAdmin;
+}
+
+String _languageCode() {
+  final locale = Intl.getCurrentLocale();
+  if (locale.isEmpty) return 'ko';
+  return locale.split(RegExp(r'[_-]')).first;
 }
 
 enum CommunityReportStatus { open, inReview, resolved, rejected }

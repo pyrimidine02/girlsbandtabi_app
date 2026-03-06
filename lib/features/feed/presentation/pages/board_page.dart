@@ -8,8 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
@@ -92,7 +94,8 @@ class _BoardPageState extends ConsumerState<BoardPage> {
     final query = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _CommunitySearchSheet(initialQuery: feedState.searchQuery),
+      builder: (_) =>
+          _CommunitySearchSheet(initialQuery: feedState.searchQuery),
     );
     if (!mounted || query == null) return;
     if (query.isEmpty) {
@@ -116,9 +119,9 @@ class _BoardPageState extends ConsumerState<BoardPage> {
     // KO: 섹션 인덱스가 표시할 콘텐츠를 결정합니다 (서브 하단바로 제어).
     final sectionIndex = widget.initialTabIndex.clamp(0, 2);
     final sectionTitle = switch (sectionIndex) {
-      0 => '피드',
-      1 => '발견',
-      _ => '여행후기',
+      0 => context.l10n(ko: '피드', en: 'Feed', ja: 'フィード'),
+      1 => context.l10n(ko: '발견', en: 'Discover', ja: '発見'),
+      _ => context.l10n(ko: '여행후기', en: 'Travel Reviews', ja: '旅行レビュー'),
     };
 
     return Scaffold(
@@ -141,7 +144,7 @@ class _BoardPageState extends ConsumerState<BoardPage> {
           if (sectionIndex != 2)
             GBTAppBarIconButton(
               icon: Icons.search_rounded,
-              tooltip: '검색',
+              tooltip: context.l10n(ko: '검색', en: 'Search', ja: '検索'),
               onPressed: () => _openSearchSheet(context),
             ),
           GBTProfileAction(avatarUrl: avatarUrl),
@@ -161,7 +164,7 @@ class _BoardPageState extends ConsumerState<BoardPage> {
             _FabMenuAction(
               id: 'create-post',
               icon: Icons.edit_outlined,
-              label: '게시글 작성',
+              label: context.l10n(ko: '게시글 작성', en: 'Write Post', ja: '投稿作成'),
               onPressed: () {
                 _closeFabMenu();
                 context.goToPostCreate();
@@ -171,7 +174,11 @@ class _BoardPageState extends ConsumerState<BoardPage> {
             _FabMenuAction(
               id: 'create-review',
               icon: Icons.rate_review_outlined,
-              label: '여행후기 작성',
+              label: context.l10n(
+                ko: '여행후기 작성',
+                en: 'Write Review',
+                ja: '旅行レビュー作成',
+              ),
               onPressed: () {
                 _closeFabMenu();
                 context.pushNamed(AppRoutes.travelReviewCreate);
@@ -181,7 +188,11 @@ class _BoardPageState extends ConsumerState<BoardPage> {
             _FabMenuAction(
               id: 'my-reports',
               icon: Icons.flag_outlined,
-              label: '내 신고 내역',
+              label: context.l10n(
+                ko: '내 신고 내역',
+                en: 'My Reports',
+                ja: '自分の通報履歴',
+              ),
               onPressed: () {
                 _closeFabMenu();
                 _showMyReportsSheet(context);
@@ -191,7 +202,11 @@ class _BoardPageState extends ConsumerState<BoardPage> {
             _FabMenuAction(
               id: 'ban',
               icon: Icons.gavel_outlined,
-              label: '커뮤니티 제재 관리',
+              label: context.l10n(
+                ko: '커뮤니티 제재 관리',
+                en: 'Moderation',
+                ja: 'コミュニティ制裁管理',
+              ),
               onPressed: () {
                 _closeFabMenu();
                 _showCommunityBanSheet(context);
@@ -306,7 +321,13 @@ class _ExpandableActionFab extends StatelessWidget {
         FloatingActionButton(
           heroTag: mainHeroTag,
           onPressed: onToggle,
-          tooltip: isExpanded ? '메뉴 닫기' : '작성 메뉴 열기',
+          tooltip: isExpanded
+              ? context.l10n(ko: '메뉴 닫기', en: 'Close menu', ja: 'メニューを閉じる')
+              : context.l10n(
+                  ko: '작성 메뉴 열기',
+                  en: 'Open compose menu',
+                  ja: '作成メニューを開く',
+                ),
           child: Icon(isExpanded ? Icons.close : Icons.edit_outlined),
         ),
       ],
@@ -343,6 +364,9 @@ class _FeedSectionState extends ConsumerState<_FeedSection>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(
+      ref.read(communityFeedControllerProvider.notifier).startRealtimeSync(),
+    );
     _scrollController.addListener(_handleScroll);
     _foregroundRefreshTimer = Timer.periodic(
       const Duration(seconds: 35),
@@ -359,6 +383,9 @@ class _FeedSectionState extends ConsumerState<_FeedSection>
 
   @override
   void dispose() {
+    unawaited(
+      ref.read(communityFeedControllerProvider.notifier).stopRealtimeSync(),
+    );
     _foregroundRefreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _scrollController
@@ -409,8 +436,9 @@ class _FeedSectionState extends ConsumerState<_FeedSection>
     final notifier = ref.read(communityFeedControllerProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
-    final tertiaryColor =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
 
     return Column(
       children: [
@@ -427,9 +455,21 @@ class _FeedSectionState extends ConsumerState<_FeedSection>
             children: _FeedTopTab.values.map((tab) {
               final isSelected = tab == _tab;
               final label = switch (tab) {
-                _FeedTopTab.recommended => '추천',
-                _FeedTopTab.following => '팔로잉',
-                _FeedTopTab.project => '프로젝트',
+                _FeedTopTab.recommended => context.l10n(
+                  ko: '추천',
+                  en: 'Recommended',
+                  ja: 'おすすめ',
+                ),
+                _FeedTopTab.following => context.l10n(
+                  ko: '팔로잉',
+                  en: 'Following',
+                  ja: 'フォロー中',
+                ),
+                _FeedTopTab.project => context.l10n(
+                  ko: '프로젝트',
+                  en: 'Project',
+                  ja: 'プロジェクト',
+                ),
               };
               return Padding(
                 padding: const EdgeInsets.only(right: GBTSpacing.lg),
@@ -459,8 +499,7 @@ class _FeedSectionState extends ConsumerState<_FeedSection>
                         height: 2,
                         width: isSelected ? 20.0 : 0.0,
                         decoration: BoxDecoration(
-                          color:
-                              isSelected ? primaryColor : Colors.transparent,
+                          color: isSelected ? primaryColor : Colors.transparent,
                           borderRadius: BorderRadius.circular(1),
                         ),
                       ),
@@ -476,10 +515,7 @@ class _FeedSectionState extends ConsumerState<_FeedSection>
         // KO: 프로젝트 선택기 — 프로젝트 탭에서만 표시.
         if (_tab == _FeedTopTab.project) ...[
           const SizedBox(height: GBTSpacing.xs),
-          const SizedBox(
-            height: 40,
-            child: ProjectSelectorCompact(),
-          ),
+          const SizedBox(height: 40, child: ProjectSelectorCompact()),
           const SizedBox(height: GBTSpacing.xs),
           const Expanded(child: _ProjectPostList()),
         ],
@@ -527,17 +563,22 @@ class _ProjectPostList extends ConsumerWidget {
         ],
       ),
       error: (err, _) {
-        final message = err is Failure ? err.userMessage : '게시글을 불러오지 못했어요';
+        final message = err is Failure
+            ? err.userMessage
+            : context.l10n(
+                ko: '게시글을 불러오지 못했어요',
+                en: 'Failed to load posts',
+                ja: '投稿を読み込めませんでした',
+              );
         return ListView(
           padding: GBTSpacing.paddingPage,
           children: [
             const SizedBox(height: GBTSpacing.lg),
             GBTErrorState(
               message: message,
-              onRetry: () =>
-                  ref.read(postListControllerProvider.notifier).load(
-                    forceRefresh: true,
-                  ),
+              onRetry: () => ref
+                  .read(postListControllerProvider.notifier)
+                  .load(forceRefresh: true),
             ),
           ],
         );
@@ -546,17 +587,22 @@ class _ProjectPostList extends ConsumerWidget {
         if (posts.isEmpty) {
           return ListView(
             padding: GBTSpacing.paddingPage,
-            children: const [
-              SizedBox(height: GBTSpacing.lg),
-              GBTEmptyState(message: '이 프로젝트에 아직 게시글이 없습니다'),
+            children: [
+              const SizedBox(height: GBTSpacing.lg),
+              GBTEmptyState(
+                message: context.l10n(
+                  ko: '이 프로젝트에 아직 게시글이 없습니다',
+                  en: 'No posts in this project yet',
+                  ja: 'このプロジェクトにはまだ投稿がありません',
+                ),
+              ),
             ],
           );
         }
         return RefreshIndicator(
-          onRefresh: () =>
-              ref.read(postListControllerProvider.notifier).load(
-                forceRefresh: true,
-              ),
+          onRefresh: () => ref
+              .read(postListControllerProvider.notifier)
+              .load(forceRefresh: true),
           child: ListView.builder(
             padding: const EdgeInsets.only(bottom: 80),
             itemCount: posts.length,
@@ -595,16 +641,25 @@ class _CommunityTabState extends ConsumerState<_CommunityTab>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(
+      ref.read(communityFeedControllerProvider.notifier).startRealtimeSync(),
+    );
     _scrollController.addListener(_handleScroll);
     _foregroundRefreshTimer = Timer.periodic(
       const Duration(seconds: 35),
       (_) => _refreshFeedIfVisible(),
     );
-    _syncSectionMode();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncSectionMode();
+    });
   }
 
   @override
   void dispose() {
+    unawaited(
+      ref.read(communityFeedControllerProvider.notifier).stopRealtimeSync(),
+    );
     _foregroundRefreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _scrollController
@@ -617,7 +672,10 @@ class _CommunityTabState extends ConsumerState<_CommunityTab>
   void didUpdateWidget(covariant _CommunityTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isDiscoverSection != widget.isDiscoverSection) {
-      _syncSectionMode(previousWasDiscover: oldWidget.isDiscoverSection);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _syncSectionMode(previousWasDiscover: oldWidget.isDiscoverSection);
+      });
     }
   }
 
@@ -645,6 +703,7 @@ class _CommunityTabState extends ConsumerState<_CommunityTab>
   }
 
   void _syncSectionMode({bool? previousWasDiscover}) {
+    if (!mounted) return;
     final notifier = ref.read(communityFeedControllerProvider.notifier);
     final state = ref.read(communityFeedControllerProvider);
     if (widget.isDiscoverSection) {
@@ -686,11 +745,11 @@ class _CommunityTabState extends ConsumerState<_CommunityTab>
     // KO: 팔로잉 모드 + 유효한 유저 ID일 때만 팔로잉 유저 목록 감시.
     final AsyncValue<List<UserFollowSummary>>? followingUsersAsync =
         (!feedState.isSearching &&
-                !widget.isDiscoverSection &&
-                primaryMode == CommunityFeedMode.following &&
-                currentUserId != null)
-            ? ref.watch(userFollowingProvider(currentUserId))
-            : null;
+            !widget.isDiscoverSection &&
+            primaryMode == CommunityFeedMode.following &&
+            currentUserId != null)
+        ? ref.watch(userFollowingProvider(currentUserId))
+        : null;
 
     return Column(
       children: [
@@ -713,28 +772,29 @@ class _CommunityTabState extends ConsumerState<_CommunityTab>
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
-              children: const [
-                CommunitySearchScope.all,
-                CommunitySearchScope.title,
-                CommunitySearchScope.author,
-                CommunitySearchScope.content,
-                CommunitySearchScope.media,
-              ].map((scope) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: GBTSpacing.sm),
-                  child: _FilterChipModern(
-                    label: scope.label,
-                    icon: _searchScopeIcon(scope),
-                    isSelected: feedState.searchScope == scope,
-                    onTap: () => notifier.setSearchScope(scope),
-                  ),
-                );
-              }).toList(),
+              children:
+                  const [
+                    CommunitySearchScope.all,
+                    CommunitySearchScope.title,
+                    CommunitySearchScope.author,
+                    CommunitySearchScope.content,
+                    CommunitySearchScope.media,
+                  ].map((scope) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: GBTSpacing.sm),
+                      child: _FilterChipModern(
+                        label: _searchScopeLabel(context, scope),
+                        icon: _searchScopeIcon(scope),
+                        isSelected: feedState.searchScope == scope,
+                        onTap: () => notifier.setSearchScope(scope),
+                      ),
+                    );
+                  }).toList(),
             ),
           ),
           _FeedSearchSummary(
             query: feedState.searchQuery,
-            scopeLabel: feedState.searchScope.label,
+            scopeLabel: _searchScopeLabel(context, feedState.searchScope),
             resultCount: feedState.posts.length,
           ),
         ],
@@ -747,7 +807,8 @@ class _CommunityTabState extends ConsumerState<_CommunityTab>
           const SizedBox(height: GBTSpacing.xs),
           SizedBox(
             height: 34,
-            child: followingUsersAsync?.when(
+            child:
+                followingUsersAsync?.when(
                   loading: () => const Center(
                     child: SizedBox(
                       width: 16,
@@ -763,7 +824,11 @@ class _CommunityTabState extends ConsumerState<_CommunityTab>
                             vertical: 8,
                           ),
                           child: Text(
-                            '팔로우한 유저가 없습니다',
+                            context.l10n(
+                              ko: '팔로우한 유저가 없습니다',
+                              en: 'No followed users yet',
+                              ja: 'フォロー中のユーザーがいません',
+                            ),
                             style: GBTTypography.caption.copyWith(
                               color: isDark
                                   ? GBTColors.darkTextTertiary
@@ -815,10 +880,7 @@ class _CommunityTabState extends ConsumerState<_CommunityTab>
 /// EN: Simple text-based feed mode selector — no borders, no backgrounds, Toss-style.
 /// KO: 토스 스타일 단순 텍스트 피드 모드 선택기 — 테두리/배경 없음.
 class _FeedModeTabRow extends StatelessWidget {
-  const _FeedModeTabRow({
-    required this.selectedMode,
-    required this.onChanged,
-  });
+  const _FeedModeTabRow({required this.selectedMode, required this.onChanged});
 
   final CommunityFeedMode selectedMode;
   final ValueChanged<CommunityFeedMode> onChanged;
@@ -829,12 +891,25 @@ class _FeedModeTabRow extends StatelessWidget {
     CommunityFeedMode.latest,
   ];
 
-  static String _label(CommunityFeedMode m) => switch (m) {
-    CommunityFeedMode.recommended => '추천',
-    CommunityFeedMode.following => '팔로잉',
-    CommunityFeedMode.latest => '최신',
-    _ => m.label,
-  };
+  static String _label(BuildContext context, CommunityFeedMode m) =>
+      switch (m) {
+        CommunityFeedMode.recommended => context.l10n(
+          ko: '추천',
+          en: 'Recommended',
+          ja: 'おすすめ',
+        ),
+        CommunityFeedMode.following => context.l10n(
+          ko: '팔로잉',
+          en: 'Following',
+          ja: 'フォロー中',
+        ),
+        CommunityFeedMode.latest => context.l10n(
+          ko: '최신',
+          en: 'Latest',
+          ja: '最新',
+        ),
+        _ => m.label,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -861,13 +936,15 @@ class _FeedModeTabRow extends StatelessWidget {
                     curve: Curves.easeOutCubic,
                     style: GBTTypography.labelMedium.copyWith(
                       color: isSelected ? primaryColor : tertiaryColor,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                     ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                         vertical: GBTSpacing.sm,
                       ),
-                      child: Text(_label(mode)),
+                      child: Text(_label(context, mode)),
                     ),
                   ),
                   AnimatedContainer(
@@ -904,18 +981,12 @@ class _CommunitySearchSheet extends StatefulWidget {
 }
 
 class _CommunitySearchSheetState extends State<_CommunitySearchSheet> {
-  late final TextEditingController _controller;
+  late String _query;
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.initialQuery);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+    _query = widget.initialQuery;
   }
 
   @override
@@ -932,17 +1003,25 @@ class _CommunitySearchSheetState extends State<_CommunitySearchSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('게시글 검색', style: GBTTypography.titleMedium),
+              Text(
+                context.l10n(ko: '게시글 검색', en: 'Search posts', ja: '投稿検索'),
+                style: GBTTypography.titleMedium,
+              ),
               const SizedBox(height: GBTSpacing.sm),
-              TextField(
-                controller: _controller,
+              TextFormField(
                 autofocus: true,
+                initialValue: _query,
+                onChanged: (value) => _query = value,
                 textInputAction: TextInputAction.search,
-                decoration: const InputDecoration(
-                  hintText: '제목/작성자/내용',
-                  prefixIcon: Icon(Icons.search_rounded),
+                decoration: InputDecoration(
+                  hintText: context.l10n(
+                    ko: '제목/작성자/내용',
+                    en: 'Title/Author/Content',
+                    ja: 'タイトル/作成者/内容',
+                  ),
+                  prefixIcon: const Icon(Icons.search_rounded),
                 ),
-                onSubmitted: (value) =>
+                onFieldSubmitted: (value) =>
                     Navigator.of(context).pop(value.trim()),
               ),
               const SizedBox(height: GBTSpacing.sm),
@@ -950,13 +1029,14 @@ class _CommunitySearchSheetState extends State<_CommunitySearchSheet> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(''),
-                    child: const Text('초기화'),
+                    child: Text(
+                      context.l10n(ko: '초기화', en: 'Reset', ja: 'リセット'),
+                    ),
                   ),
                   const Spacer(),
                   FilledButton(
-                    onPressed: () =>
-                        Navigator.of(context).pop(_controller.text.trim()),
-                    child: const Text('검색'),
+                    onPressed: () => Navigator.of(context).pop(_query.trim()),
+                    child: Text(context.l10n(ko: '검색', en: 'Search', ja: '検索')),
                   ),
                 ],
               ),
@@ -1004,7 +1084,7 @@ class _FeedSearchSummary extends StatelessWidget {
           const SizedBox(width: GBTSpacing.xxs),
           Expanded(
             child: Text(
-              '"$query" · $scopeLabel $resultCount건',
+              '"$query" · $scopeLabel ${context.l10n(ko: "$resultCount건", en: "$resultCount results", ja: "$resultCount件")}',
               style: GBTTypography.caption.copyWith(
                 color: isDark
                     ? GBTColors.darkTextSecondary
@@ -1114,7 +1194,9 @@ class _FollowingUserPill extends StatelessWidget {
           vertical: 4,
         ),
         decoration: BoxDecoration(
-          color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
+          color: isDark
+              ? GBTColors.darkSurfaceVariant
+              : GBTColors.surfaceVariant,
           borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
           border: Border.all(
             color: isDark ? GBTColors.darkBorder : GBTColors.border,
@@ -1322,7 +1404,11 @@ class _TravelReviewCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 3),
                           Text(
-                            '${places.length}곳',
+                            context.l10n(
+                              ko: '${places.length}곳',
+                              en: '${places.length} places',
+                              ja: '${places.length}か所',
+                            ),
                             style: GBTTypography.labelSmall.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
@@ -1598,12 +1684,32 @@ class _CommunityList extends StatelessWidget {
 
           if (state.posts.isEmpty) {
             final message = state.isSearching
-                ? '${state.searchScope.label} 검색 결과가 없습니다'
+                ? context.l10n(
+                    ko: '${_searchScopeLabel(context, state.searchScope)} 검색 결과가 없습니다',
+                    en: 'No search results in ${_searchScopeLabel(context, state.searchScope)}',
+                    ja: '${_searchScopeLabel(context, state.searchScope)}の検索結果がありません',
+                  )
                 : switch (state.mode) {
-                    CommunityFeedMode.recommended => '추천 피드에 표시할 글이 없습니다',
-                    CommunityFeedMode.following => '팔로우 피드에 표시할 글이 없습니다',
-                    CommunityFeedMode.latest => '아직 피드 글이 없습니다',
-                    CommunityFeedMode.trending => '인기 글이 아직 없습니다',
+                    CommunityFeedMode.recommended => context.l10n(
+                      ko: '추천 피드에 표시할 글이 없습니다',
+                      en: 'No posts in recommended feed',
+                      ja: 'おすすめフィードに表示する投稿がありません',
+                    ),
+                    CommunityFeedMode.following => context.l10n(
+                      ko: '팔로우 피드에 표시할 글이 없습니다',
+                      en: 'No posts in following feed',
+                      ja: 'フォローフィードに表示する投稿がありません',
+                    ),
+                    CommunityFeedMode.latest => context.l10n(
+                      ko: '아직 피드 글이 없습니다',
+                      en: 'No feed posts yet',
+                      ja: 'まだフィード投稿がありません',
+                    ),
+                    CommunityFeedMode.trending => context.l10n(
+                      ko: '인기 글이 아직 없습니다',
+                      en: 'No trending posts yet',
+                      ja: 'まだ人気投稿がありません',
+                    ),
                   };
             return ListView(
               controller: scrollController,
@@ -1629,15 +1735,16 @@ class _CommunityList extends StatelessWidget {
             switchInCurve: Curves.easeOutCubic,
             switchOutCurve: Curves.easeInCubic,
             transitionBuilder: (child, animation) {
-              final offsetAnim = Tween<Offset>(
-                begin: reduceMotion ? Offset.zero : const Offset(0, 0.025),
-                end: Offset.zero,
-              ).animate(
-                CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                ),
-              );
+              final offsetAnim =
+                  Tween<Offset>(
+                    begin: reduceMotion ? Offset.zero : const Offset(0, 0.025),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  );
               return FadeTransition(
                 opacity: animation,
                 child: SlideTransition(position: offsetAnim, child: child),
@@ -1691,7 +1798,7 @@ class _CommunityPostCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authorLabel = post.authorName?.isNotEmpty == true
         ? post.authorName!
-        : '익명';
+        : context.l10n(ko: '익명', en: 'Anonymous', ja: '匿名');
     final avatarUrl = post.authorAvatarUrl?.isNotEmpty == true
         ? post.authorAvatarUrl
         : null;
@@ -1725,6 +1832,30 @@ class _CommunityPostCard extends ConsumerWidget {
         firstImageUrl = null;
       }
     }
+    final hasThumbnailImage = firstImageUrl != null && firstImageUrl.isNotEmpty;
+    const thumbnailSize = 92.0;
+    final contentRaw = post.content?.trim() ?? '';
+    String previewText = '';
+    if (contentRaw.isNotEmpty) {
+      final stripped = stripImageMarkdown(
+        contentRaw,
+      ).replaceAll(RegExp(r'\s+'), ' ').trim();
+      if (stripped.isNotEmpty) {
+        previewText = stripped;
+      } else {
+        // EN: Fallback clean-up when markdown stripping leaves empty text.
+        // KO: 마크다운 제거 후 빈 문자열일 때를 위한 폴백 정리.
+        previewText = contentRaw
+            .replaceAll(RegExp(r'!\[[^\]]*\]\([^)]+\)'), '')
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
+      }
+    }
+    final previewSnippet = previewText.isNotEmpty
+        ? (previewText.length > 90
+              ? '${previewText.substring(0, 90)}…'
+              : previewText)
+        : '';
 
     final isAuthenticated = ref.watch(isAuthenticatedProvider);
     final likeState = isAuthenticated
@@ -1775,7 +1906,9 @@ class _CommunityPostCard extends ConsumerWidget {
       data: (value) => value,
       orElse: () => null,
     );
-    final blockLabel = blockStatus?.blockedByMe == true ? '차단 해제' : '차단';
+    final blockLabel = blockStatus?.blockedByMe == true
+        ? context.l10n(ko: '차단 해제', en: 'Unblock', ja: 'ブロック解除')
+        : context.l10n(ko: '차단', en: 'Block', ja: 'ブロック');
     final showMoreButton = isAuthenticated;
     final projectsState = ref.watch(projectsControllerProvider);
     final projectName = projectsState.maybeWhen(
@@ -1786,7 +1919,10 @@ class _CommunityPostCard extends ConsumerWidget {
     // EN: Card container — rounded border, surface background, no outer divider.
     // KO: 카드 컨테이너 — 둥근 테두리, 표면 배경, 외부 구분선 없음.
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: GBTSpacing.md, vertical: 5),
+      margin: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.md,
+        vertical: 5,
+      ),
       decoration: BoxDecoration(
         color: isDark ? GBTColors.darkSurface : GBTColors.surface,
         borderRadius: BorderRadius.circular(14),
@@ -1821,7 +1957,8 @@ class _CommunityPostCard extends ConsumerWidget {
                         _Avatar(
                           url: avatarUrl,
                           radius: 16,
-                          semanticLabel: '$authorLabel 프로필 사진',
+                          semanticLabel:
+                              '$authorLabel ${context.l10n(ko: "프로필 사진", en: "profile image", ja: "プロフィール画像")}',
                           onTap: () => context.goToUserProfile(post.authorId),
                         ),
                         const SizedBox(width: GBTSpacing.sm),
@@ -1848,10 +1985,11 @@ class _CommunityPostCard extends ConsumerWidget {
                                       vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: (isDark
-                                              ? GBTColors.darkPrimary
-                                              : GBTColors.primary)
-                                          .withValues(alpha: 0.1),
+                                      color:
+                                          (isDark
+                                                  ? GBTColors.darkPrimary
+                                                  : GBTColors.primary)
+                                              .withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(
                                         GBTSpacing.radiusFull,
                                       ),
@@ -1889,7 +2027,11 @@ class _CommunityPostCard extends ConsumerWidget {
                               size: 20,
                               color: tertiaryColor,
                             ),
-                            tooltip: '더 보기',
+                            tooltip: context.l10n(
+                              ko: '더 보기',
+                              en: 'More',
+                              ja: 'その他',
+                            ),
                             padding: EdgeInsets.zero,
                             onSelected: (action) {
                               if (action == _PostCardAction.edit) {
@@ -1921,13 +2063,19 @@ class _CommunityPostCard extends ConsumerWidget {
                               final cs = Theme.of(menuContext).colorScheme;
                               return [
                                 if (isAuthor)
-                                  const PopupMenuItem(
+                                  PopupMenuItem(
                                     value: _PostCardAction.edit,
                                     child: Row(
                                       children: [
                                         Icon(Icons.edit_outlined, size: 18),
                                         SizedBox(width: GBTSpacing.sm),
-                                        Text('수정'),
+                                        Text(
+                                          context.l10n(
+                                            ko: '수정',
+                                            en: 'Edit',
+                                            ja: '編集',
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -1944,20 +2092,36 @@ class _CommunityPostCard extends ConsumerWidget {
                                         ),
                                         SizedBox(width: GBTSpacing.sm),
                                         Text(
-                                          isAuthor ? '삭제' : '관리 삭제',
+                                          isAuthor
+                                              ? context.l10n(
+                                                  ko: '삭제',
+                                                  en: 'Delete',
+                                                  ja: '削除',
+                                                )
+                                              : context.l10n(
+                                                  ko: '관리 삭제',
+                                                  en: 'Admin delete',
+                                                  ja: '管理者削除',
+                                                ),
                                           style: TextStyle(color: cs.error),
                                         ),
                                       ],
                                     ),
                                   ),
                                 if (!isAuthor && isAuthenticated)
-                                  const PopupMenuItem(
+                                  PopupMenuItem(
                                     value: _PostCardAction.report,
                                     child: Row(
                                       children: [
                                         Icon(Icons.flag_outlined, size: 18),
                                         SizedBox(width: GBTSpacing.sm),
-                                        Text('신고'),
+                                        Text(
+                                          context.l10n(
+                                            ko: '신고',
+                                            en: 'Report',
+                                            ja: '通報',
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -1987,7 +2151,11 @@ class _CommunityPostCard extends ConsumerWidget {
                                         ),
                                         SizedBox(width: GBTSpacing.sm),
                                         Text(
-                                          '커뮤니티 제재',
+                                          context.l10n(
+                                            ko: '커뮤니티 제재',
+                                            en: 'Moderation ban',
+                                            ja: 'コミュニティ制裁',
+                                          ),
                                           style: TextStyle(color: cs.error),
                                         ),
                                       ],
@@ -1999,156 +2167,116 @@ class _CommunityPostCard extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    // EN: Content area — right thumbnail layout when image exists,
-                    //     full-width text layout when no image.
-                    // KO: 콘텐츠 영역 — 이미지가 있으면 오른쪽 썸네일,
-                    //     없으면 전체 너비 텍스트.
-                    if (firstImageUrl != null)
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  post.title,
-                                  style: GBTTypography.labelLarge.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.35,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                    // EN: Content area — fixed right thumbnail slot regardless of
+                    // EN: image availability for consistent card height.
+                    // KO: 콘텐츠 영역 — 이미지 유무와 무관하게 오른쪽 썸네일 슬롯을
+                    // KO: 고정해 카드 높이를 일관되게 유지합니다.
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                post.title,
+                                style: GBTTypography.labelLarge.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.35,
                                 ),
-                                if (post.content != null &&
-                                    post.content!.isNotEmpty)
-                                  Builder(builder: (context) {
-                                    final raw =
-                                        stripImageMarkdown(post.content!);
-                                    if (raw.isEmpty) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    final snippet = raw.length > 80
-                                        ? '${raw.substring(0, 80)}…'
-                                        : raw;
-                                    return Padding(
-                                      padding:
-                                          const EdgeInsets.only(top: 4),
-                                      child: Text(
-                                        snippet,
-                                        style: GBTTypography.bodySmall
-                                            .copyWith(
-                                          color: secondaryTextColor,
-                                          height: 1.42,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    );
-                                  }),
-                              ],
-                            ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (previewSnippet.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    previewSnippet,
+                                    style: GBTTypography.bodySmall.copyWith(
+                                      color: secondaryTextColor,
+                                      height: 1.42,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                            ],
                           ),
-                          const SizedBox(width: 10),
-                          // EN: Right-side square thumbnail.
-                          // KO: 오른쪽 정사각형 썸네일.
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Stack(
-                              children: [
-                                SizedBox(
-                                  width: 78,
-                                  height: 78,
-                                  child: GBTImage(
-                                    imageUrl: firstImageUrl,
-                                    fit: BoxFit.cover,
-                                    semanticLabel: '${post.title} 첨부 이미지',
-                                  ),
-                                ),
-                                if (post.imageUrls.length > 1)
-                                  Positioned(
-                                    right: 4,
-                                    bottom: 4,
-                                    child: Container(
-                                      padding:
-                                          const EdgeInsets.symmetric(
-                                        horizontal: 5,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.65),
-                                        borderRadius:
-                                            BorderRadius.circular(
-                                          GBTSpacing.radiusFull,
+                        ),
+                        const SizedBox(width: 10),
+                        // EN: Right-side square thumbnail (always reserved).
+                        // KO: 오른쪽 정사각형 썸네일 영역 (항상 고정).
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Stack(
+                            children: [
+                              SizedBox(
+                                width: thumbnailSize,
+                                height: thumbnailSize,
+                                child: hasThumbnailImage
+                                    ? GBTImage(
+                                        imageUrl: firstImageUrl,
+                                        fit: BoxFit.cover,
+                                        semanticLabel:
+                                            '${post.title} ${context.l10n(ko: "첨부 이미지", en: "attached image", ja: "添付画像")}',
+                                      )
+                                    : Container(
+                                        color: isDark
+                                            ? GBTColors.darkSurfaceVariant
+                                            : GBTColors.surfaceVariant,
+                                        alignment: Alignment.center,
+                                        child: Icon(
+                                          Icons.image_outlined,
+                                          size: 22,
+                                          color: tertiaryColor,
                                         ),
                                       ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(
-                                            Icons.photo_library_outlined,
-                                            size: 10,
-                                            color: Colors.white,
-                                          ),
-                                          const SizedBox(width: 3),
-                                          Text(
-                                            '${post.imageUrls.length}',
-                                            style: GBTTypography.labelSmall
-                                                .copyWith(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 10,
-                                            ),
-                                          ),
-                                        ],
+                              ),
+                              if (hasThumbnailImage &&
+                                  post.imageUrls.length > 1)
+                                Positioned(
+                                  right: 4,
+                                  bottom: 4,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.65,
+                                      ),
+                                      borderRadius: BorderRadius.circular(
+                                        GBTSpacing.radiusFull,
                                       ),
                                     ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.photo_library_outlined,
+                                          size: 10,
+                                          color: Colors.white,
+                                        ),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          '${post.imageUrls.length}',
+                                          style: GBTTypography.labelSmall
+                                              .copyWith(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 10,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      )
-                    else
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            post.title,
-                            style: GBTTypography.labelLarge.copyWith(
-                              fontWeight: FontWeight.w700,
-                              height: 1.35,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (post.content != null &&
-                              post.content!.isNotEmpty)
-                            Builder(builder: (context) {
-                              final raw =
-                                  stripImageMarkdown(post.content!);
-                              if (raw.isEmpty) {
-                                return const SizedBox.shrink();
-                              }
-                              final snippet = raw.length > 120
-                                  ? '${raw.substring(0, 120)}…'
-                                  : raw;
-                              return Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  snippet,
-                                  style: GBTTypography.bodySmall.copyWith(
-                                    color: secondaryTextColor,
-                                    height: 1.45,
-                                  ),
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              );
-                            }),
-                        ],
-                      ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -2156,7 +2284,7 @@ class _CommunityPostCard extends ConsumerWidget {
               // KO: 미묘한 상단 테두리가 있는 액션 바.
               Semantics(
                 label:
-                    '좋아요 $likeCount개, 댓글 $commentCount개, 북마크 ${isBookmarked ? '설정됨' : '해제됨'}',
+                    '${context.l10n(ko: "좋아요", en: "Likes", ja: "いいね")} $likeCount${context.l10n(ko: "개", en: "", ja: "件")}, ${context.l10n(ko: "댓글", en: "Comments", ja: "コメント")} $commentCount${context.l10n(ko: "개", en: "", ja: "件")}, ${context.l10n(ko: "북마크", en: "Bookmark", ja: "ブックマーク")} ${isBookmarked ? context.l10n(ko: "설정됨", en: "on", ja: "オン") : context.l10n(ko: "해제됨", en: "off", ja: "オフ")}',
                 child: Container(
                   decoration: BoxDecoration(
                     border: Border(
@@ -2175,7 +2303,8 @@ class _CommunityPostCard extends ConsumerWidget {
                         icon: GBTActionIcons.comment,
                         label: _formatCount(commentCount),
                         color: commentActionColor,
-                        semanticsLabel: '댓글 $commentCount개',
+                        semanticsLabel:
+                            '${context.l10n(ko: "댓글", en: "Comments", ja: "コメント")} $commentCount',
                         onTap: () => context.goToPostDetail(post.id),
                       ),
                       const SizedBox(width: GBTSpacing.md),
@@ -2209,7 +2338,14 @@ class _CommunityPostCard extends ConsumerWidget {
 
   Future<void> _toggleLike(BuildContext context, WidgetRef ref) async {
     if (!ref.read(isAuthenticatedProvider)) {
-      _showSnackBar(context, '좋아요는 로그인 후 이용할 수 있어요');
+      _showSnackBar(
+        context,
+        context.l10n(
+          ko: '좋아요는 로그인 후 이용할 수 있어요',
+          en: 'Like is available after login',
+          ja: 'いいねはログイン後に利用できます',
+        ),
+      );
       return;
     }
 
@@ -2218,13 +2354,27 @@ class _CommunityPostCard extends ConsumerWidget {
         .toggleLike();
     if (!context.mounted) return;
     if (result is Err<PostLikeStatus>) {
-      _showSnackBar(context, '좋아요/좋아요 취소를 반영하지 못했어요');
+      _showSnackBar(
+        context,
+        context.l10n(
+          ko: '좋아요/좋아요 취소를 반영하지 못했어요',
+          en: 'Failed to update like',
+          ja: 'いいねの反映に失敗しました',
+        ),
+      );
     }
   }
 
   Future<void> _toggleBookmark(BuildContext context, WidgetRef ref) async {
     if (!ref.read(isAuthenticatedProvider)) {
-      _showSnackBar(context, '북마크는 로그인 후 이용할 수 있어요');
+      _showSnackBar(
+        context,
+        context.l10n(
+          ko: '북마크는 로그인 후 이용할 수 있어요',
+          en: 'Bookmark is available after login',
+          ja: 'ブックマークはログイン後に利用できます',
+        ),
+      );
       return;
     }
 
@@ -2233,7 +2383,14 @@ class _CommunityPostCard extends ConsumerWidget {
         .toggleBookmark();
     if (!context.mounted) return;
     if (result is Err<PostBookmarkStatus>) {
-      _showSnackBar(context, '북마크를 반영하지 못했어요');
+      _showSnackBar(
+        context,
+        context.l10n(
+          ko: '북마크를 반영하지 못했어요',
+          en: 'Failed to update bookmark',
+          ja: 'ブックマークの反映に失敗しました',
+        ),
+      );
     }
   }
 
@@ -2245,23 +2402,36 @@ class _CommunityPostCard extends ConsumerWidget {
   }) async {
     final projectCode = ref.read(selectedProjectKeyProvider);
     if (projectCode == null || projectCode.isEmpty) {
-      _showSnackBar(context, '프로젝트를 먼저 선택해주세요');
+      _showSnackBar(
+        context,
+        context.l10n(
+          ko: '프로젝트를 먼저 선택해주세요',
+          en: 'Please select a project first',
+          ja: '先にプロジェクトを選択してください',
+        ),
+      );
       return;
     }
 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('게시글 삭제'),
-        content: const Text('정말로 이 게시글을 삭제할까요?'),
+        title: Text(context.l10n(ko: '게시글 삭제', en: 'Delete post', ja: '投稿削除')),
+        content: Text(
+          context.l10n(
+            ko: '정말로 이 게시글을 삭제할까요?',
+            en: 'Do you want to delete this post?',
+            ja: 'この投稿を削除しますか？',
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('취소'),
+            child: Text(context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('삭제'),
+            child: Text(context.l10n(ko: '삭제', en: 'Delete', ja: '削除')),
           ),
         ],
       ),
@@ -2290,10 +2460,20 @@ class _CommunityPostCard extends ConsumerWidget {
           .read(communityFeedControllerProvider.notifier)
           .reload(forceRefresh: true);
       if (context.mounted) {
-        _showSnackBar(context, '게시글을 삭제했어요');
+        _showSnackBar(
+          context,
+          context.l10n(ko: '게시글을 삭제했어요', en: 'Post deleted', ja: '投稿を削除しました'),
+        );
       }
     } else if (result is Err<void>) {
-      _showSnackBar(context, '게시글을 삭제하지 못했어요');
+      _showSnackBar(
+        context,
+        context.l10n(
+          ko: '게시글을 삭제하지 못했어요',
+          en: 'Failed to delete post',
+          ja: '投稿を削除できませんでした',
+        ),
+      );
     }
   }
 
@@ -2302,7 +2482,14 @@ class _CommunityPostCard extends ConsumerWidget {
     if (!rateLimiter.canReport(post.id)) {
       final remaining = rateLimiter.remainingCooldown(post.id);
       final minutes = remaining.inMinutes + 1;
-      _showSnackBar(context, '$minutes분 후 다시 신고할 수 있어요');
+      _showSnackBar(
+        context,
+        context.l10n(
+          ko: '$minutes분 후 다시 신고할 수 있어요',
+          en: 'You can report again in $minutes minutes',
+          ja: '$minutes分後に再度通報できます',
+        ),
+      );
       return;
     }
 
@@ -2318,16 +2505,22 @@ class _CommunityPostCard extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('신고 접수'),
-        content: Text('게시글을 "${payload.reason.label}" 사유로 신고합니다.\n접수하시겠어요?'),
+        title: Text(context.l10n(ko: '신고 접수', en: 'Submit report', ja: '通報受付')),
+        content: Text(
+          context.l10n(
+            ko: '게시글을 "${payload.reason.label}" 사유로 신고합니다.\n접수하시겠어요?',
+            en: 'Report this post for "${payload.reason.label}"?\nDo you want to submit?',
+            ja: 'この投稿を「${payload.reason.label}」理由で通報します。\n受付しますか？',
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('취소'),
+            child: Text(context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('신고 접수'),
+            child: Text(context.l10n(ko: '신고 접수', en: 'Submit', ja: '受付')),
           ),
         ],
       ),
@@ -2348,9 +2541,23 @@ class _CommunityPostCard extends ConsumerWidget {
     }
     if (result is Success<void>) {
       rateLimiter.recordReport(post.id);
-      _showSnackBar(context, '신고가 접수되었어요. 검토 후 조치할게요');
+      _showSnackBar(
+        context,
+        context.l10n(
+          ko: '신고가 접수되었어요. 검토 후 조치할게요',
+          en: 'Report submitted. We will review it',
+          ja: '通報を受け付けました。確認後に対応します',
+        ),
+      );
     } else if (result is Err<void>) {
-      _showSnackBar(context, '신고를 접수하지 못했어요');
+      _showSnackBar(
+        context,
+        context.l10n(
+          ko: '신고를 접수하지 못했어요',
+          en: 'Failed to submit report',
+          ja: '通報を受け付けできませんでした',
+        ),
+      );
     }
   }
 
@@ -2360,7 +2567,14 @@ class _CommunityPostCard extends ConsumerWidget {
     );
     final result = await controller.toggleBlock();
     if (result is Err<void> && context.mounted) {
-      _showSnackBar(context, '차단 상태를 변경하지 못했어요');
+      _showSnackBar(
+        context,
+        context.l10n(
+          ko: '차단 상태를 변경하지 못했어요',
+          en: 'Failed to change block status',
+          ja: 'ブロック状態を変更できませんでした',
+        ),
+      );
       return;
     }
     if (!context.mounted) {
@@ -2371,35 +2585,63 @@ class _CommunityPostCard extends ConsumerWidget {
       data: (value) => value.blockedByMe,
       orElse: () => false,
     );
-    _showSnackBar(context, blockedByMe ? '사용자를 차단했어요' : '차단을 해제했어요');
+    _showSnackBar(
+      context,
+      blockedByMe
+          ? context.l10n(
+              ko: '사용자를 차단했어요',
+              en: 'User blocked',
+              ja: 'ユーザーをブロックしました',
+            )
+          : context.l10n(
+              ko: '차단을 해제했어요',
+              en: 'User unblocked',
+              ja: 'ブロックを解除しました',
+            ),
+    );
   }
 
   Future<void> _confirmBanUser(BuildContext context, WidgetRef ref) async {
     final authorLabel = post.authorName?.isNotEmpty == true
         ? post.authorName!
-        : '익명';
+        : context.l10n(ko: '익명', en: 'Anonymous', ja: '匿名');
     final projectCode = ref.read(selectedProjectKeyProvider);
     if (projectCode == null || projectCode.isEmpty) {
-      _showSnackBar(context, '프로젝트를 먼저 선택해주세요');
+      _showSnackBar(
+        context,
+        context.l10n(
+          ko: '프로젝트를 먼저 선택해주세요',
+          en: 'Please select a project first',
+          ja: '先にプロジェクトを選択してください',
+        ),
+      );
       return;
     }
 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('커뮤니티 제재'),
-        content: Text('$authorLabel 사용자를 이 프로젝트 커뮤니티에서 제재할까요?'),
+        title: Text(
+          context.l10n(ko: '커뮤니티 제재', en: 'Community ban', ja: 'コミュニティ制裁'),
+        ),
+        content: Text(
+          context.l10n(
+            ko: '$authorLabel 사용자를 이 프로젝트 커뮤니티에서 제재할까요?',
+            en: 'Ban $authorLabel from this project community?',
+            ja: '$authorLabel さんをこのプロジェクトコミュニティで制裁しますか？',
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('취소'),
+            child: Text(context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(dialogContext).colorScheme.error,
             ),
-            child: const Text('차단'),
+            child: Text(context.l10n(ko: '차단', en: 'Ban', ja: '制裁')),
           ),
         ],
       ),
@@ -2420,10 +2662,24 @@ class _CommunityPostCard extends ConsumerWidget {
           .read(communityFeedControllerProvider.notifier)
           .reload(forceRefresh: true);
       if (context.mounted) {
-        _showSnackBar(context, '$authorLabel 사용자를 커뮤니티 제재했어요');
+        _showSnackBar(
+          context,
+          context.l10n(
+            ko: '$authorLabel 사용자를 커뮤니티 제재했어요',
+            en: '$authorLabel has been banned from community',
+            ja: '$authorLabel さんをコミュニティ制裁しました',
+          ),
+        );
       }
     } else if (result is Err) {
-      _showSnackBar(context, '커뮤니티 제재에 실패했어요');
+      _showSnackBar(
+        context,
+        context.l10n(
+          ko: '커뮤니티 제재에 실패했어요',
+          en: 'Failed to apply community ban',
+          ja: 'コミュニティ制裁に失敗しました',
+        ),
+      );
     }
   }
 
@@ -2530,18 +2786,24 @@ class _AnimatedLikeButtonState extends State<_AnimatedLikeButton>
     _controller = AnimationController(vsync: this, duration: _duration);
     _scaleAnim = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween(begin: 1.0, end: 0.88)
-            .chain(CurveTween(curve: Curves.easeIn)),
+        tween: Tween(
+          begin: 1.0,
+          end: 0.88,
+        ).chain(CurveTween(curve: Curves.easeIn)),
         weight: 28,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 0.88, end: 1.08)
-            .chain(CurveTween(curve: Curves.easeOut)),
+        tween: Tween(
+          begin: 0.88,
+          end: 1.08,
+        ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 44,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 1.08, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeOutBack)),
+        tween: Tween(
+          begin: 1.08,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeOutBack)),
         weight: 28,
       ),
     ]).animate(_controller);
@@ -2568,7 +2830,8 @@ class _AnimatedLikeButtonState extends State<_AnimatedLikeButton>
       button: true,
       enabled: widget.enabled,
       toggled: widget.isLiked,
-      label: '좋아요 ${widget.likeCount}개',
+      label:
+          '${context.l10n(ko: "좋아요", en: "Likes", ja: "いいね")} ${widget.likeCount}',
       child: InkWell(
         borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
         onTap: widget.enabled ? _handleTap : null,
@@ -2653,18 +2916,24 @@ class _AnimatedBookmarkButtonState extends State<_AnimatedBookmarkButton>
     _controller = AnimationController(vsync: this, duration: _duration);
     _scaleAnim = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween(begin: 1.0, end: 0.88)
-            .chain(CurveTween(curve: Curves.easeIn)),
+        tween: Tween(
+          begin: 1.0,
+          end: 0.88,
+        ).chain(CurveTween(curve: Curves.easeIn)),
         weight: 28,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 0.88, end: 1.08)
-            .chain(CurveTween(curve: Curves.easeOut)),
+        tween: Tween(
+          begin: 0.88,
+          end: 1.08,
+        ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 44,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 1.08, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeOutBack)),
+        tween: Tween(
+          begin: 1.08,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeOutBack)),
         weight: 28,
       ),
     ]).animate(_controller);
@@ -2684,14 +2953,17 @@ class _AnimatedBookmarkButtonState extends State<_AnimatedBookmarkButton>
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        widget.isBookmarked ? widget.activeColor : widget.inactiveColor;
+    final color = widget.isBookmarked
+        ? widget.activeColor
+        : widget.inactiveColor;
 
     return Semantics(
       button: true,
       enabled: widget.enabled,
       toggled: widget.isBookmarked,
-      label: widget.isBookmarked ? '북마크 해제' : '북마크',
+      label: widget.isBookmarked
+          ? context.l10n(ko: '북마크 해제', en: 'Remove bookmark', ja: 'ブックマーク解除')
+          : context.l10n(ko: '북마크', en: 'Bookmark', ja: 'ブックマーク'),
       child: InkWell(
         borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
         onTap: widget.enabled ? _handleTap : null,
@@ -2731,11 +3003,53 @@ class _AnimatedBookmarkButtonState extends State<_AnimatedBookmarkButton>
 // ========================================
 
 String _formatCount(int count) {
-  if (count >= 10000) return '${(count / 10000).toStringAsFixed(1)}만';
-  if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}천';
+  final languageCode = Intl.getCurrentLocale().split(RegExp(r'[_-]')).first;
+  if (count >= 10000) {
+    if (languageCode == 'ja') {
+      return '${(count / 10000).toStringAsFixed(1)}万';
+    }
+    if (languageCode == 'en') {
+      return '${(count / 1000).toStringAsFixed(1)}k';
+    }
+    return '${(count / 10000).toStringAsFixed(1)}만';
+  }
+  if (count >= 1000) {
+    if (languageCode == 'ja') {
+      return '${(count / 1000).toStringAsFixed(1)}千';
+    }
+    if (languageCode == 'en') {
+      return '${(count / 1000).toStringAsFixed(1)}k';
+    }
+    return '${(count / 1000).toStringAsFixed(1)}천';
+  }
   return count.toString();
 }
 
+String _searchScopeLabel(BuildContext context, CommunitySearchScope scope) {
+  return switch (scope) {
+    CommunitySearchScope.all => context.l10n(ko: '전체', en: 'All', ja: '全体'),
+    CommunitySearchScope.title => context.l10n(
+      ko: '제목',
+      en: 'Title',
+      ja: 'タイトル',
+    ),
+    CommunitySearchScope.author => context.l10n(
+      ko: '작성자',
+      en: 'Author',
+      ja: '作成者',
+    ),
+    CommunitySearchScope.content => context.l10n(
+      ko: '내용',
+      en: 'Content',
+      ja: '内容',
+    ),
+    CommunitySearchScope.media => context.l10n(
+      ko: '미디어',
+      en: 'Media',
+      ja: 'メディア',
+    ),
+  };
+}
 
 /// EN: Returns the icon for a community search scope.
 /// KO: 커뮤니티 검색 범위 아이콘을 반환합니다.
@@ -2809,9 +3123,17 @@ class _MyReportsSheetState extends ConsumerState<_MyReportsSheet> {
     final detailResult = await repository.getMyReportDetail(reportId: reportId);
     if (!mounted) return;
     if (detailResult is Err<CommunityReportDetail>) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('신고 상세를 불러오지 못했어요')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n(
+              ko: '신고 상세를 불러오지 못했어요',
+              en: 'Failed to load report details',
+              ja: '通報詳細を読み込めませんでした',
+            ),
+          ),
+        ),
+      );
       return;
     }
     final detail = (detailResult as Success<CommunityReportDetail>).data;
@@ -2822,20 +3144,34 @@ class _MyReportsSheetState extends ConsumerState<_MyReportsSheet> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('신고 상세'),
+        title: Text(
+          context.l10n(ko: '신고 상세', en: 'Report details', ja: '通報詳細'),
+        ),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('대상: ${detail.targetType.label}'),
-              Text('사유: ${detail.reason.label}'),
-              Text('상태: ${_reportStatusLabel(detail.status)}'),
-              Text('우선순위: ${_reportPriorityLabel(detail.priority)}'),
-              Text('생성: ${_formatDateTime(detail.createdAt)}'),
+              Text(
+                '${context.l10n(ko: "대상", en: "Target", ja: "対象")}: ${detail.targetType.label}',
+              ),
+              Text(
+                '${context.l10n(ko: "사유", en: "Reason", ja: "理由")}: ${detail.reason.label}',
+              ),
+              Text(
+                '${context.l10n(ko: "상태", en: "Status", ja: "状態")}: ${_reportStatusLabel(context, detail.status)}',
+              ),
+              Text(
+                '${context.l10n(ko: "우선순위", en: "Priority", ja: "優先度")}: ${_reportPriorityLabel(context, detail.priority)}',
+              ),
+              Text(
+                '${context.l10n(ko: "생성", en: "Created", ja: "作成")}: ${_formatDateTime(detail.createdAt)}',
+              ),
               if (detail.description?.isNotEmpty == true) ...[
                 const SizedBox(height: GBTSpacing.sm),
-                Text('설명: ${detail.description!}'),
+                Text(
+                  '${context.l10n(ko: "설명", en: "Description", ja: "説明")}: ${detail.description!}',
+                ),
               ],
             ],
           ),
@@ -2859,12 +3195,28 @@ class _MyReportsSheetState extends ConsumerState<_MyReportsSheet> {
                         await _loadReports();
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('신고를 취소했어요')),
+                          SnackBar(
+                            content: Text(
+                              context.l10n(
+                                ko: '신고를 취소했어요',
+                                en: 'Report canceled',
+                                ja: '通報をキャンセルしました',
+                              ),
+                            ),
+                          ),
                         );
                       } else {
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('신고 취소에 실패했어요')),
+                          SnackBar(
+                            content: Text(
+                              context.l10n(
+                                ko: '신고 취소에 실패했어요',
+                                en: 'Failed to cancel report',
+                                ja: '通報キャンセルに失敗しました',
+                              ),
+                            ),
+                          ),
                         );
                       }
                     },
@@ -2874,11 +3226,17 @@ class _MyReportsSheetState extends ConsumerState<_MyReportsSheet> {
                       height: 14,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('신고 취소'),
+                  : Text(
+                      context.l10n(
+                        ko: '신고 취소',
+                        en: 'Cancel report',
+                        ja: '通報取り消し',
+                      ),
+                    ),
             ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('닫기'),
+            child: Text(context.l10n(ko: '닫기', en: 'Close', ja: '閉じる')),
           ),
         ],
       ),
@@ -2902,11 +3260,18 @@ class _MyReportsSheetState extends ConsumerState<_MyReportsSheet> {
             children: [
               Row(
                 children: [
-                  Text('내 신고 내역', style: GBTTypography.titleMedium),
+                  Text(
+                    context.l10n(
+                      ko: '내 신고 내역',
+                      en: 'My reports',
+                      ja: '自分の通報履歴',
+                    ),
+                    style: GBTTypography.titleMedium,
+                  ),
                   const Spacer(),
                   IconButton(
                     onPressed: _loadReports,
-                    tooltip: '새로고침',
+                    tooltip: context.l10n(ko: '새로고침', en: 'Refresh', ja: '更新'),
                     icon: const Icon(Icons.refresh),
                   ),
                 ],
@@ -2914,13 +3279,27 @@ class _MyReportsSheetState extends ConsumerState<_MyReportsSheet> {
               const SizedBox(height: GBTSpacing.sm),
               Expanded(
                 child: _isLoading
-                    ? const Center(
-                        child: GBTLoading(message: '신고 내역을 불러오는 중...'),
+                    ? Center(
+                        child: GBTLoading(
+                          message: context.l10n(
+                            ko: '신고 내역을 불러오는 중...',
+                            en: 'Loading report history...',
+                            ja: '通報履歴を読み込み中...',
+                          ),
+                        ),
                       )
                     : _errorMessage != null
                     ? Center(child: Text(_errorMessage!))
                     : _reports.isEmpty
-                    ? const Center(child: Text('신고 내역이 없습니다'))
+                    ? Center(
+                        child: Text(
+                          context.l10n(
+                            ko: '신고 내역이 없습니다',
+                            en: 'No report history',
+                            ja: '通報履歴がありません',
+                          ),
+                        ),
+                      )
                     : ListView.separated(
                         itemCount: _reports.length,
                         separatorBuilder: (_, __) =>
@@ -2945,7 +3324,11 @@ class _MyReportsSheetState extends ConsumerState<_MyReportsSheet> {
                               _formatDateTime(report.createdAt),
                               style: GBTTypography.labelSmall,
                             ),
-                            trailing: _ReportStatusChip(status: report.status),
+                            trailing: _ReportStatusChip(
+                              status: report.status,
+                              labelBuilder: (status) =>
+                                  _reportStatusLabel(context, status),
+                            ),
                           );
                         },
                       ),
@@ -2959,9 +3342,10 @@ class _MyReportsSheetState extends ConsumerState<_MyReportsSheet> {
 }
 
 class _ReportStatusChip extends StatelessWidget {
-  const _ReportStatusChip({required this.status});
+  const _ReportStatusChip({required this.status, required this.labelBuilder});
 
   final CommunityReportStatus status;
+  final String Function(CommunityReportStatus status) labelBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -2996,7 +3380,7 @@ class _ReportStatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
       ),
       child: Text(
-        _reportStatusLabel(status),
+        labelBuilder(status),
         style: GBTTypography.labelSmall.copyWith(color: fg),
       ),
     );
@@ -3043,7 +3427,11 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
     if (projectCode == null || projectCode.isEmpty) {
       setState(() {
         _isLoading = false;
-        _errorMessage = '프로젝트를 먼저 선택해주세요';
+        _errorMessage = context.l10n(
+          ko: '프로젝트를 먼저 선택해주세요',
+          en: 'Please select a project first',
+          ja: '先にプロジェクトを選択してください',
+        );
       });
       return;
     }
@@ -3079,11 +3467,23 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
     final projectCode = ref.read(selectedProjectKeyProvider);
     final lookupQuery = _userIdController.text.trim();
     if (projectCode == null || projectCode.isEmpty) {
-      setState(() => _lookupMessage = '프로젝트를 먼저 선택해주세요');
+      setState(
+        () => _lookupMessage = context.l10n(
+          ko: '프로젝트를 먼저 선택해주세요',
+          en: 'Please select a project first',
+          ja: '先にプロジェクトを選択してください',
+        ),
+      );
       return;
     }
     if (lookupQuery.isEmpty) {
-      setState(() => _lookupMessage = '사용자 ID/닉네임/이메일을 입력해주세요');
+      setState(
+        () => _lookupMessage = context.l10n(
+          ko: '사용자 ID/닉네임/이메일을 입력해주세요',
+          en: 'Enter user ID/nickname/email',
+          ja: 'ユーザーID/ニックネーム/メールを入力してください',
+        ),
+      );
       return;
     }
 
@@ -3140,7 +3540,11 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
       setState(() {
         _lookupBan = null;
         _isLookupLoading = false;
-        _lookupMessage = '일치하는 제재 사용자를 찾지 못했어요';
+        _lookupMessage = context.l10n(
+          ko: '일치하는 제재 사용자를 찾지 못했어요',
+          en: 'No matching banned user found',
+          ja: '一致する制裁ユーザーが見つかりませんでした',
+        );
       });
       return;
     }
@@ -3158,7 +3562,11 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
       _isLookupLoading = false;
       _listQuery = lookupQuery;
       _filterController.text = lookupQuery;
-      _lookupMessage = '${matches.length}건이 검색되어 목록 필터에 적용했어요';
+      _lookupMessage = context.l10n(
+        ko: '${matches.length}건이 검색되어 목록 필터에 적용했어요',
+        en: '${matches.length} matches found and applied to list filter',
+        ja: '${matches.length}件が見つかり、一覧フィルタに適用しました',
+      );
     });
   }
 
@@ -3166,9 +3574,17 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
     final projectCode = ref.read(selectedProjectKeyProvider);
     if (projectCode == null || projectCode.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('프로젝트를 먼저 선택해주세요')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n(
+              ko: '프로젝트를 먼저 선택해주세요',
+              en: 'Please select a project first',
+              ja: '先にプロジェクトを選択してください',
+            ),
+          ),
+        ),
+      );
       return;
     }
 
@@ -3185,19 +3601,39 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
       if (_lookupBan?.bannedUserId == userId) {
         setState(() {
           _lookupBan = null;
-          _lookupMessage = '제재를 해제했습니다';
+          _lookupMessage = context.l10n(
+            ko: '제재를 해제했습니다',
+            en: 'Ban removed',
+            ja: '制裁を解除しました',
+          );
         });
       }
       await _loadBans();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('커뮤니티 제재를 해제했어요')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n(
+              ko: '커뮤니티 제재를 해제했어요',
+              en: 'Community ban removed',
+              ja: 'コミュニティ制裁を解除しました',
+            ),
+          ),
+        ),
+      );
     } else {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('제재 해제에 실패했어요')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n(
+              ko: '제재 해제에 실패했어요',
+              en: 'Failed to remove ban',
+              ja: '制裁解除に失敗しました',
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -3233,11 +3669,18 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
             children: [
               Row(
                 children: [
-                  Text('커뮤니티 제재 관리', style: GBTTypography.titleMedium),
+                  Text(
+                    context.l10n(
+                      ko: '커뮤니티 제재 관리',
+                      en: 'Community moderation',
+                      ja: 'コミュニティ制裁管理',
+                    ),
+                    style: GBTTypography.titleMedium,
+                  ),
                   const Spacer(),
                   IconButton(
                     onPressed: _isProcessing ? null : _loadBans,
-                    tooltip: '새로고침',
+                    tooltip: context.l10n(ko: '새로고침', en: 'Refresh', ja: '更新'),
                     icon: const Icon(Icons.refresh),
                   ),
                 ],
@@ -3246,7 +3689,11 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
               TextField(
                 controller: _userIdController,
                 decoration: InputDecoration(
-                  hintText: '사용자 ID/닉네임/이메일로 제재 조회',
+                  hintText: context.l10n(
+                    ko: '사용자 ID/닉네임/이메일로 제재 조회',
+                    en: 'Search ban by user ID/nickname/email',
+                    ja: 'ユーザーID/ニックネーム/メールで制裁照会',
+                  ),
                   suffixIcon: _isLookupLoading
                       ? const Padding(
                           padding: EdgeInsets.all(10),
@@ -3278,21 +3725,30 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
                     ),
                     subtitle: Text(
                       _lookupBan!.expiresAt == null
-                          ? '무기한 제재'
-                          : '만료: ${_formatDateTime(_lookupBan!.expiresAt!)}',
+                          ? context.l10n(
+                              ko: '무기한 제재',
+                              en: 'Permanent ban',
+                              ja: '無期限制裁',
+                            )
+                          : '${context.l10n(ko: "만료", en: "Expires", ja: "期限")}: ${_formatDateTime(_lookupBan!.expiresAt!)}',
                       style: GBTTypography.labelSmall,
                     ),
                     trailing: TextButton(
                       onPressed: _isProcessing
                           ? null
                           : () => _unbanUser(_lookupBan!.bannedUserId),
-                      child: const Text('해제'),
+                      child: Text(
+                        context.l10n(ko: '해제', en: 'Unban', ja: '解除'),
+                      ),
                     ),
                   ),
                 ),
               ],
               const SizedBox(height: GBTSpacing.md),
-              Text('현재 제재 목록', style: GBTTypography.titleSmall),
+              Text(
+                context.l10n(ko: '현재 제재 목록', en: 'Current bans', ja: '現在の制裁一覧'),
+                style: GBTTypography.titleSmall,
+              ),
               const SizedBox(height: GBTSpacing.xs),
               TextField(
                 controller: _filterController,
@@ -3300,7 +3756,11 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
                   setState(() => _listQuery = value);
                 },
                 decoration: InputDecoration(
-                  hintText: '목록 필터 (이름/ID/사유)',
+                  hintText: context.l10n(
+                    ko: '목록 필터 (이름/ID/사유)',
+                    en: 'List filter (name/ID/reason)',
+                    ja: '一覧フィルタ (名前/ID/理由)',
+                  ),
                   isDense: true,
                   prefixIcon: const Icon(Icons.filter_list),
                   suffixIcon: _listQuery.isEmpty
@@ -3330,20 +3790,32 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
                         .map(
                           (option) => DropdownMenuItem(
                             value: option,
-                            child: Text(_banSortLabel(option)),
+                            child: Text(_banSortLabel(context, option)),
                           ),
                         )
                         .toList(),
                   ),
                   FilterChip(
-                    label: const Text('영구 제재만'),
+                    label: Text(
+                      context.l10n(
+                        ko: '영구 제재만',
+                        en: 'Permanent only',
+                        ja: '無期限のみ',
+                      ),
+                    ),
                     selected: _onlyPermanent,
                     onSelected: (selected) {
                       setState(() => _onlyPermanent = selected);
                     },
                   ),
                   FilterChip(
-                    label: const Text('만료 제외'),
+                    label: Text(
+                      context.l10n(
+                        ko: '만료 제외',
+                        en: 'Exclude expired',
+                        ja: '期限切れ除外',
+                      ),
+                    ),
                     selected: _hideExpired,
                     onSelected: (selected) {
                       setState(() => _hideExpired = selected);
@@ -3354,22 +3826,48 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  '표시 ${visibleBans.length} / 전체 ${_bans.length}',
+                  context.l10n(
+                    ko: '표시 ${visibleBans.length} / 전체 ${_bans.length}',
+                    en: 'Showing ${visibleBans.length} / Total ${_bans.length}',
+                    ja: '表示 ${visibleBans.length} / 全体 ${_bans.length}',
+                  ),
                   style: GBTTypography.labelSmall,
                 ),
               ),
               const SizedBox(height: GBTSpacing.xs),
               Expanded(
                 child: _isLoading
-                    ? const Center(
-                        child: GBTLoading(message: '제재 목록을 불러오는 중...'),
+                    ? Center(
+                        child: GBTLoading(
+                          message: context.l10n(
+                            ko: '제재 목록을 불러오는 중...',
+                            en: 'Loading ban list...',
+                            ja: '制裁一覧を読み込み中...',
+                          ),
+                        ),
                       )
                     : _errorMessage != null
                     ? Center(child: Text(_errorMessage!))
                     : _bans.isEmpty
-                    ? const Center(child: Text('현재 제재 중인 사용자가 없습니다'))
+                    ? Center(
+                        child: Text(
+                          context.l10n(
+                            ko: '현재 제재 중인 사용자가 없습니다',
+                            en: 'No users are currently banned',
+                            ja: '現在制裁中のユーザーはいません',
+                          ),
+                        ),
+                      )
                     : visibleBans.isEmpty
-                    ? const Center(child: Text('필터 조건에 맞는 제재가 없습니다'))
+                    ? Center(
+                        child: Text(
+                          context.l10n(
+                            ko: '필터 조건에 맞는 제재가 없습니다',
+                            en: 'No bans match filter conditions',
+                            ja: 'フィルタ条件に一致する制裁がありません',
+                          ),
+                        ),
+                      )
                     : ListView.separated(
                         itemCount: visibleBans.length,
                         separatorBuilder: (_, __) =>
@@ -3380,13 +3878,17 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
                           final subtitleParts = <String>[
                             'ID: ${ban.bannedUserId}',
                             if (ban.reason?.isNotEmpty == true)
-                              '사유: ${ban.reason!}',
+                              '${context.l10n(ko: "사유", en: "Reason", ja: "理由")}: ${ban.reason!}',
                             if (ban.bannedUserEmail?.isNotEmpty == true)
-                              '이메일: ${ban.bannedUserEmail!}',
+                              '${context.l10n(ko: "이메일", en: "Email", ja: "メール")}: ${ban.bannedUserEmail!}',
                             if (ban.expiresAt != null)
-                              '만료: ${_formatDateTime(ban.expiresAt!)}'
+                              '${context.l10n(ko: "만료", en: "Expires", ja: "期限")}: ${_formatDateTime(ban.expiresAt!)}'
                             else
-                              '무기한',
+                              context.l10n(
+                                ko: '무기한',
+                                en: 'Permanent',
+                                ja: '無期限',
+                              ),
                           ];
                           return ListTile(
                             shape: RoundedRectangleBorder(
@@ -3410,7 +3912,9 @@ class _CommunityBanSheetState extends ConsumerState<_CommunityBanSheet> {
                               onPressed: _isProcessing
                                   ? null
                                   : () => _unbanUser(ban.bannedUserId),
-                              child: const Text('해제'),
+                              child: Text(
+                                context.l10n(ko: '해제', en: 'Unban', ja: '解除'),
+                              ),
                             ),
                           );
                         },
@@ -3438,40 +3942,43 @@ String _resolveProjectName(List<Project> projects, String projectIdOrCode) {
   return projectIdOrCode;
 }
 
-String _reportStatusLabel(CommunityReportStatus status) {
+String _reportStatusLabel(BuildContext context, CommunityReportStatus status) {
   switch (status) {
     case CommunityReportStatus.open:
-      return '접수';
+      return context.l10n(ko: '접수', en: 'Open', ja: '受付');
     case CommunityReportStatus.inReview:
-      return '검토중';
+      return context.l10n(ko: '검토중', en: 'In review', ja: '確認中');
     case CommunityReportStatus.resolved:
-      return '처리완료';
+      return context.l10n(ko: '처리완료', en: 'Resolved', ja: '処理完了');
     case CommunityReportStatus.rejected:
-      return '반려';
+      return context.l10n(ko: '반려', en: 'Rejected', ja: '却下');
   }
 }
 
-String _reportPriorityLabel(CommunityReportPriority priority) {
+String _reportPriorityLabel(
+  BuildContext context,
+  CommunityReportPriority priority,
+) {
   switch (priority) {
     case CommunityReportPriority.low:
-      return '낮음';
+      return context.l10n(ko: '낮음', en: 'Low', ja: '低');
     case CommunityReportPriority.normal:
-      return '보통';
+      return context.l10n(ko: '보통', en: 'Normal', ja: '通常');
     case CommunityReportPriority.high:
-      return '높음';
+      return context.l10n(ko: '높음', en: 'High', ja: '高');
     case CommunityReportPriority.critical:
-      return '긴급';
+      return context.l10n(ko: '긴급', en: 'Critical', ja: '緊急');
   }
 }
 
-String _banSortLabel(CommunityBanSortOption option) {
+String _banSortLabel(BuildContext context, CommunityBanSortOption option) {
   switch (option) {
     case CommunityBanSortOption.newest:
-      return '최신순';
+      return context.l10n(ko: '최신순', en: 'Newest', ja: '新しい順');
     case CommunityBanSortOption.oldest:
-      return '오래된순';
+      return context.l10n(ko: '오래된순', en: 'Oldest', ja: '古い順');
     case CommunityBanSortOption.expiresSoon:
-      return '만료 임박순';
+      return context.l10n(ko: '만료 임박순', en: 'Expiring soon', ja: '期限が近い順');
   }
 }
 
@@ -3523,7 +4030,13 @@ class _Avatar extends StatelessWidget {
               width: radius * 2,
               height: radius * 2,
               fit: BoxFit.cover,
-              semanticLabel: semanticLabel ?? '프로필 사진',
+              semanticLabel:
+                  semanticLabel ??
+                  context.l10n(
+                    ko: '프로필 사진',
+                    en: 'Profile image',
+                    ja: 'プロフィール画像',
+                  ),
             ),
           );
 
@@ -3531,7 +4044,9 @@ class _Avatar extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: semanticLabel ?? '프로필 보기',
+      label:
+          semanticLabel ??
+          context.l10n(ko: '프로필 보기', en: 'View profile', ja: 'プロフィールを見る'),
       child: InkWell(
         onTap: onTap,
         customBorder: const CircleBorder(),

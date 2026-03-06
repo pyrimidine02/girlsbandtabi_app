@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/providers/core_providers.dart';
@@ -41,12 +42,19 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_handleTabChange);
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _handleTabChange() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   @override
@@ -54,6 +62,16 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final eventsState = ref.watch(liveEventsListControllerProvider);
     final selectedBandIds = ref.watch(selectedLiveBandIdsProvider);
+    final selectedYear = ref.watch(selectedLiveEventYearProvider);
+    final availableYears = eventsState.maybeWhen(
+      data: _sortedCompletedEventYears,
+      orElse: () => const <int>[],
+    );
+    final effectiveSelectedYear =
+        selectedYear != null && availableYears.contains(selectedYear)
+        ? selectedYear
+        : null;
+    final showYearFilter = _tabController.index == 1;
     final projectKey = ref.watch(selectedProjectKeyProvider);
     final projectId = ref.watch(selectedProjectIdProvider);
     final resolvedProjectKey = projectKey?.isNotEmpty == true
@@ -76,7 +94,7 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
           children: [
             const SizedBox(width: GBTSpacing.md),
             Text(
-              '라이브',
+              context.l10n(ko: '라이브', en: 'Live', ja: 'ライブ'),
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -107,9 +125,13 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
             labelStyle: GBTTypography.tabLabel,
             unselectedLabelStyle: GBTTypography.labelMedium,
             labelPadding: const EdgeInsets.symmetric(horizontal: GBTSpacing.sm),
-            tabs: const [
-              Tab(text: '예정'),
-              Tab(text: '완료'),
+            tabs: [
+              Tab(
+                text: context.l10n(ko: '예정', en: 'Upcoming', ja: '予定'),
+              ),
+              Tab(
+                text: context.l10n(ko: '완료', en: 'Done', ja: '完了'),
+              ),
             ],
           ),
         ),
@@ -139,6 +161,17 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
               }
             },
           ),
+          if (showYearFilter)
+            _YearChipFilterRow(
+              years: availableYears,
+              selectedYear: effectiveSelectedYear,
+              onSelectAll: () {
+                ref.read(selectedLiveEventYearProvider.notifier).state = null;
+              },
+              onSelectYear: (year) {
+                ref.read(selectedLiveEventYearProvider.notifier).state = year;
+              },
+            ),
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -146,6 +179,7 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                 _EventList(
                   isUpcoming: true,
                   state: eventsState,
+                  selectedYear: null,
                   onRefresh: () => ref
                       .read(liveEventsListControllerProvider.notifier)
                       .load(forceRefresh: true),
@@ -156,6 +190,7 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                 _EventList(
                   isUpcoming: false,
                   state: eventsState,
+                  selectedYear: effectiveSelectedYear,
                   onRefresh: () => ref
                       .read(liveEventsListControllerProvider.notifier)
                       .load(forceRefresh: true),
@@ -170,19 +205,61 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'live-calendar-fab',
-        onPressed: () => _showCalendar(eventsState),
-        tooltip: '캘린더로 라이브 이벤트 보기',
+        onPressed: () => _showCalendar(
+          eventsState,
+          selectedYear: showYearFilter ? effectiveSelectedYear : null,
+        ),
+        tooltip: context.l10n(
+          ko: '캘린더로 라이브 이벤트 보기',
+          en: 'View live events in calendar',
+          ja: 'カレンダーでライブイベントを見る',
+        ),
         child: const Icon(Icons.calendar_month_outlined),
       ),
     );
   }
 
-  void _showCalendar(AsyncValue<List<LiveEventSummary>> state) {
-    final events = state.maybeWhen(data: (items) => items, orElse: () => null);
+  void _showCalendar(
+    AsyncValue<List<LiveEventSummary>> state, {
+    int? selectedYear,
+  }) {
+    final loadedEvents = state.maybeWhen(
+      data: (items) => items,
+      orElse: () => null,
+    );
+    final events = selectedYear == null || loadedEvents == null
+        ? loadedEvents
+        : loadedEvents
+              .where(
+                (event) => event.showStartTime.toLocal().year == selectedYear,
+              )
+              .toList();
     if (events == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('라이브 정보를 불러오는 중입니다')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n(
+              ko: '라이브 정보를 불러오는 중입니다',
+              en: 'Loading live event information',
+              ja: 'ライブ情報を読み込み中です',
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+    if (events.isEmpty && selectedYear != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n(
+              ko: '$selectedYear년 라이브 이벤트가 없습니다',
+              en: 'No live events in $selectedYear',
+              ja: '$selectedYear年のライブイベントはありません',
+            ),
+          ),
+        ),
+      );
       return;
     }
 
@@ -244,11 +321,19 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            '캘린더',
+                            context.l10n(
+                              ko: '캘린더',
+                              en: 'Calendar',
+                              ja: 'カレンダー',
+                            ),
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           Text(
-                            '$dateLabel · ${filtered.length}개',
+                            context.l10n(
+                              ko: '$dateLabel · ${filtered.length}개',
+                              en: '$dateLabel · ${filtered.length}',
+                              ja: '$dateLabel ・ ${filtered.length}件',
+                            ),
                             style: Theme.of(context).textTheme.labelSmall,
                           ),
                         ],
@@ -288,10 +373,14 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                     const Divider(height: 1),
                     Expanded(
                       child: filtered.isEmpty
-                          ? const Center(
+                          ? Center(
                               child: GBTEmptyState(
                                 icon: Icons.event_busy,
-                                message: '해당 날짜에 라이브 이벤트가 없습니다',
+                                message: context.l10n(
+                                  ko: '해당 날짜에 라이브 이벤트가 없습니다',
+                                  en: 'No live events on this date',
+                                  ja: 'この日にライブイベントはありません',
+                                ),
                               ),
                             )
                           : ListView.builder(
@@ -339,12 +428,14 @@ class _EventList extends StatelessWidget {
   const _EventList({
     required this.isUpcoming,
     required this.state,
+    required this.selectedYear,
     required this.onRefresh,
     required this.onRetry,
   });
 
   final bool isUpcoming;
   final AsyncValue<List<LiveEventSummary>> state;
+  final int? selectedYear;
   final Future<void> Function() onRefresh;
   final VoidCallback onRetry;
 
@@ -368,7 +459,11 @@ class _EventList extends StatelessWidget {
         error: (error, _) {
           final message = error is Failure
               ? error.userMessage
-              : '라이브 이벤트를 불러오지 못했어요';
+              : context.l10n(
+                  ko: '라이브 이벤트를 불러오지 못했어요',
+                  en: 'Failed to load live events',
+                  ja: 'ライブイベントを読み込めませんでした',
+                );
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: GBTSpacing.paddingPage,
@@ -380,14 +475,22 @@ class _EventList extends StatelessWidget {
         },
         data: (events) {
           final filtered =
-              events.where((event) => event.isUpcoming == isUpcoming).toList()
-                ..sort((a, b) {
-                  final first = a.showStartTime;
-                  final second = b.showStartTime;
-                  return isUpcoming
-                      ? first.compareTo(second)
-                      : second.compareTo(first);
-                });
+              events.where((event) {
+                if (event.isUpcoming != isUpcoming) {
+                  return false;
+                }
+                if (selectedYear != null &&
+                    event.showStartTime.toLocal().year != selectedYear) {
+                  return false;
+                }
+                return true;
+              }).toList()..sort((a, b) {
+                final first = a.showStartTime;
+                final second = b.showStartTime;
+                return isUpcoming
+                    ? first.compareTo(second)
+                    : second.compareTo(first);
+              });
 
           if (filtered.isEmpty) {
             return ListView(
@@ -398,8 +501,28 @@ class _EventList extends StatelessWidget {
                 GBTEmptyState(
                   icon: isUpcoming ? Icons.event_available : Icons.event_busy,
                   message: isUpcoming
-                      ? '예정된 라이브 이벤트가 없습니다'
-                      : '완료된 라이브 이벤트가 없습니다',
+                      ? context.l10n(
+                          ko: selectedYear != null
+                              ? '$selectedYear년 예정된 라이브 이벤트가 없습니다'
+                              : '예정된 라이브 이벤트가 없습니다',
+                          en: selectedYear != null
+                              ? 'No upcoming live events in $selectedYear'
+                              : 'No upcoming live events',
+                          ja: selectedYear != null
+                              ? '$selectedYear年の予定ライブイベントはありません'
+                              : '予定されたライブイベントがありません',
+                        )
+                      : context.l10n(
+                          ko: selectedYear != null
+                              ? '$selectedYear년 완료된 라이브 이벤트가 없습니다'
+                              : '완료된 라이브 이벤트가 없습니다',
+                          en: selectedYear != null
+                              ? 'No finished live events in $selectedYear'
+                              : 'No finished live events',
+                          ja: selectedYear != null
+                              ? '$selectedYear年の終了ライブイベントはありません'
+                              : '終了したライブイベントがありません',
+                        ),
                 ),
               ],
             );
@@ -504,7 +627,7 @@ class _BandChipFilterRow extends StatelessWidget {
             ),
             children: [
               _BandChip(
-                label: '전체',
+                label: context.l10n(ko: '전체', en: 'All', ja: '全体'),
                 isSelected: selectedBandIds.isEmpty,
                 onTap: onSelectAll,
               ),
@@ -525,6 +648,57 @@ class _BandChipFilterRow extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// EN: Horizontal row for selecting event year.
+/// KO: 이벤트 연도 선택을 위한 가로 필터 행입니다.
+class _YearChipFilterRow extends StatelessWidget {
+  const _YearChipFilterRow({
+    required this.years,
+    required this.selectedYear,
+    required this.onSelectAll,
+    required this.onSelectYear,
+  });
+
+  final List<int> years;
+  final int? selectedYear;
+  final VoidCallback onSelectAll;
+  final ValueChanged<int> onSelectYear;
+
+  @override
+  Widget build(BuildContext context) {
+    if (years.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(
+          GBTSpacing.md,
+          GBTSpacing.none,
+          GBTSpacing.md,
+          GBTSpacing.xs2,
+        ),
+        children: [
+          _BandChip(
+            label: context.l10n(ko: '전체 연도', en: 'All years', ja: '全年度'),
+            isSelected: selectedYear == null,
+            onTap: onSelectAll,
+          ),
+          ...years.map((year) {
+            return Padding(
+              padding: const EdgeInsets.only(left: GBTSpacing.xs2),
+              child: _BandChip(
+                label: context.l10n(ko: '$year년', en: '$year', ja: '$year年'),
+                isSelected: selectedYear == year,
+                onTap: () => onSelectYear(year),
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 }
@@ -555,7 +729,8 @@ class _BandChip extends StatelessWidget {
     final borderColor = isSelected ? primaryColor : Colors.transparent;
 
     return Semantics(
-      label: '$label 밴드${isSelected ? ', 선택됨' : ''}',
+      label:
+          '$label ${context.l10n(ko: "밴드", en: "band", ja: "バンド")}${isSelected ? ', ${context.l10n(ko: "선택됨", en: "selected", ja: "選択済み")}' : ''}',
       button: true,
       selected: isSelected,
       child: GestureDetector(
@@ -591,6 +766,17 @@ bool _isSameDate(DateTime a, DateTime b) {
   return a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
+List<int> _sortedCompletedEventYears(List<LiveEventSummary> events) {
+  final years =
+      events
+          .where((event) => !event.isUpcoming)
+          .map((event) => event.showStartTime.toLocal().year)
+          .toSet()
+          .toList()
+        ..sort((a, b) => b.compareTo(a));
+  return years;
+}
+
 String _dateKey(DateTime date) {
   return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 }
@@ -616,7 +802,8 @@ class _EventCalendar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final monthLabel = DateFormat('yyyy년 M월').format(visibleMonth);
+    final localeTag = Localizations.localeOf(context).toLanguageTag();
+    final monthLabel = DateFormat.yMMMM(localeTag).format(visibleMonth);
     final canGoPrev = !_isSameMonth(visibleMonth, minMonth);
     final canGoNext = !_isSameMonth(visibleMonth, maxMonth);
     final daysInMonth = DateUtils.getDaysInMonth(
@@ -640,7 +827,11 @@ class _EventCalendar extends StatelessWidget {
           children: [
             IconButton(
               icon: const Icon(Icons.chevron_left),
-              tooltip: '이전 달',
+              tooltip: context.l10n(
+                ko: '이전 달',
+                en: 'Previous month',
+                ja: '前の月',
+              ),
               onPressed: canGoPrev
                   ? () {
                       final prevMonth = DateTime(
@@ -654,7 +845,7 @@ class _EventCalendar extends StatelessWidget {
             Text(monthLabel, style: Theme.of(context).textTheme.titleSmall),
             IconButton(
               icon: const Icon(Icons.chevron_right),
-              tooltip: '다음 달',
+              tooltip: context.l10n(ko: '다음 달', en: 'Next month', ja: '次の月'),
               onPressed: canGoNext
                   ? () {
                       final nextMonth = DateTime(
@@ -670,14 +861,14 @@ class _EventCalendar extends StatelessWidget {
         const SizedBox(height: GBTSpacing.xs),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: const [
-            _WeekdayLabel('일'),
-            _WeekdayLabel('월'),
-            _WeekdayLabel('화'),
-            _WeekdayLabel('수'),
-            _WeekdayLabel('목'),
-            _WeekdayLabel('금'),
-            _WeekdayLabel('토'),
+          children: [
+            _WeekdayLabel(context.l10n(ko: '일', en: 'S', ja: '日')),
+            _WeekdayLabel(context.l10n(ko: '월', en: 'M', ja: '月')),
+            _WeekdayLabel(context.l10n(ko: '화', en: 'T', ja: '火')),
+            _WeekdayLabel(context.l10n(ko: '수', en: 'W', ja: '水')),
+            _WeekdayLabel(context.l10n(ko: '목', en: 'T', ja: '木')),
+            _WeekdayLabel(context.l10n(ko: '금', en: 'F', ja: '金')),
+            _WeekdayLabel(context.l10n(ko: '토', en: 'S', ja: '土')),
           ],
         ),
         const SizedBox(height: GBTSpacing.xs),
@@ -757,9 +948,14 @@ class _CalendarDayCell extends StatelessWidget {
 
     // EN: Format date for accessibility label
     // KO: 접근성 라벨을 위한 날짜 포맷
-    final dateLabel = DateFormat('M월 d일').format(date);
-    final eventLabel = hasEvent ? ', 이벤트 있음' : '';
-    final selectedLabel = isSelected ? ', 선택됨' : '';
+    final localeTag = Localizations.localeOf(context).toLanguageTag();
+    final dateLabel = DateFormat.MMMd(localeTag).format(date);
+    final eventLabel = hasEvent
+        ? ', ${context.l10n(ko: "이벤트 있음", en: "has event", ja: "イベントあり")}'
+        : '';
+    final selectedLabel = isSelected
+        ? ', ${context.l10n(ko: "선택됨", en: "selected", ja: "選択済み")}'
+        : '';
 
     return Semantics(
       label: '$dateLabel$eventLabel$selectedLabel',

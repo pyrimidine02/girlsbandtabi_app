@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -31,7 +32,11 @@ class ProjectSelector extends ConsumerWidget {
       error: (error, _) {
         final message = error is Failure
             ? error.userMessage
-            : '프로젝트를 불러오지 못했어요';
+            : context.l10n(
+                ko: '프로젝트를 불러오지 못했어요',
+                en: 'Failed to load projects',
+                ja: 'プロジェクトを読み込めませんでした',
+              );
         return Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: GBTSpacing.pageHorizontal,
@@ -53,7 +58,7 @@ class ProjectSelector extends ConsumerWidget {
                 onPressed: () => ref
                     .read(projectsControllerProvider.notifier)
                     .load(forceRefresh: true),
-                child: const Text('다시 시도'),
+                child: Text(context.l10n(ko: '다시 시도', en: 'Retry', ja: '再試行')),
               ),
             ],
           ),
@@ -66,7 +71,11 @@ class ProjectSelector extends ConsumerWidget {
               horizontal: GBTSpacing.pageHorizontal,
             ),
             child: Text(
-              '등록된 프로젝트가 없습니다',
+              context.l10n(
+                ko: '등록된 프로젝트가 없습니다',
+                en: 'No projects available',
+                ja: '登録されたプロジェクトがありません',
+              ),
               style: GBTTypography.bodySmall.copyWith(
                 color: isDark
                     ? GBTColors.darkTextSecondary
@@ -103,7 +112,11 @@ class ProjectSelectorCompact extends ConsumerWidget {
       error: (error, _) {
         final message = error is Failure
             ? error.userMessage
-            : '프로젝트를 불러오지 못했어요';
+            : context.l10n(
+                ko: '프로젝트를 불러오지 못했어요',
+                en: 'Failed to load projects',
+                ja: 'プロジェクトを読み込めませんでした',
+              );
         return Text(
           message,
           style: GBTTypography.bodySmall.copyWith(
@@ -116,7 +129,11 @@ class ProjectSelectorCompact extends ConsumerWidget {
       data: (projects) {
         if (projects.isEmpty) {
           return Text(
-            '등록된 프로젝트가 없습니다',
+            context.l10n(
+              ko: '등록된 프로젝트가 없습니다',
+              en: 'No projects available',
+              ja: '登録されたプロジェクトがありません',
+            ),
             style: GBTTypography.bodySmall.copyWith(
               color: isDark
                   ? GBTColors.darkTextSecondary
@@ -235,7 +252,8 @@ class _ProjectPill extends StatelessWidget {
     }
 
     return Semantics(
-      label: '${project.name} 프로젝트${isSelected ? ', 선택됨' : ''}',
+      label:
+          '${project.name} ${context.l10n(ko: "프로젝트", en: "project", ja: "プロジェクト")}${isSelected ? ', ${context.l10n(ko: "선택됨", en: "selected", ja: "選択済み")}' : ''}',
       button: true,
       selected: isSelected,
       child: GBTPressable(

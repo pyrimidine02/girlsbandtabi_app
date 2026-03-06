@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../localization/locale_text.dart';
 import '../../theme/gbt_colors.dart';
 import '../../theme/gbt_spacing.dart';
 import '../../theme/gbt_typography.dart';
@@ -34,7 +35,7 @@ class GBTGreetingHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final greeting = _getGreeting();
+    final greeting = _getGreeting(context);
     final topPadding = MediaQuery.of(context).padding.top;
     final textScale = MediaQuery.textScalerOf(context).scale(1.0);
     final hasBackgroundImage =
@@ -219,16 +220,48 @@ class _FeaturedLiveChip extends StatelessWidget {
 
 /// EN: Returns greeting based on current hour
 /// KO: 현재 시간에 따른 인사말 반환
-_Greeting _getGreeting() {
+_Greeting _getGreeting(BuildContext context) {
   final hour = DateTime.now().hour;
   if (hour >= 6 && hour < 12) {
-    return const _Greeting(title: '좋은 아침이에요', subtitle: '오늘은 어떤 성지를 방문할까요?');
+    return _Greeting(
+      title: context.l10n(ko: '좋은 아침이에요', en: 'Good morning', ja: 'おはようございます'),
+      subtitle: context.l10n(
+        ko: '오늘은 어떤 성지를 방문할까요?',
+        en: 'Which sacred place will you visit today?',
+        ja: '今日はどの聖地を訪れますか？',
+      ),
+    );
   } else if (hour >= 12 && hour < 18) {
-    return const _Greeting(title: '좋은 오후예요', subtitle: '새로운 장소를 발견해 보세요');
+    return _Greeting(
+      title: context.l10n(ko: '좋은 오후예요', en: 'Good afternoon', ja: 'こんにちは'),
+      subtitle: context.l10n(
+        ko: '새로운 장소를 발견해 보세요',
+        en: 'Discover new places',
+        ja: '新しい場所を見つけてみましょう',
+      ),
+    );
   } else if (hour >= 18) {
-    return const _Greeting(title: '좋은 저녁이에요', subtitle: '오늘의 라이브를 확인해 보세요');
+    return _Greeting(
+      title: context.l10n(ko: '좋은 저녁이에요', en: 'Good evening', ja: 'こんばんは'),
+      subtitle: context.l10n(
+        ko: '오늘의 라이브를 확인해 보세요',
+        en: 'Check out today\'s live events',
+        ja: '今日のライブをチェックしましょう',
+      ),
+    );
   } else {
-    return const _Greeting(title: '아직 깨어 계시네요', subtitle: '밤에도 음악은 계속됩니다');
+    return _Greeting(
+      title: context.l10n(
+        ko: '아직 깨어 계시네요',
+        en: 'You\'re still awake',
+        ja: 'まだ起きているんですね',
+      ),
+      subtitle: context.l10n(
+        ko: '밤에도 음악은 계속됩니다',
+        en: 'Music continues through the night',
+        ja: '夜も音楽は続きます',
+      ),
+    );
   }
 }
 

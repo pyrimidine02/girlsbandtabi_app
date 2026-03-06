@@ -16,7 +16,10 @@ import '../../../../core/providers/core_providers.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/utils/image_url_extractor.dart';
+import '../../../../core/utils/media_url.dart';
 import '../../../../core/utils/result.dart';
+import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../application/feed_controller.dart';
 import '../../domain/entities/feed_entities.dart';
@@ -45,10 +48,12 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
   final _contentController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   final List<XFile> _images = [];
+  final List<String> _existingImageUrls = [];
   late final PostComposeAutosaveConfig _autosaveConfig;
   late final PostComposeAutosaveController _autosaveController;
   late final String _initialTitle;
   late final String _initialContent;
+  late final List<String> _initialImageUrls;
   bool _isSubmitting = false;
   String? _errorMessage;
 
@@ -59,6 +64,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
   bool get _isDirty {
     return _titleController.text.trim() != _initialTitle ||
         _contentController.text.trim() != _initialContent ||
+        !_sameImageList(_existingImageUrls, _initialImageUrls) ||
         _images.isNotEmpty;
   }
 
@@ -69,7 +75,11 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
         !_isSubmitting;
   }
 
-  int get _remainingImageSlots => _maxImageCount - _images.length;
+  int get _remainingImageSlots =>
+      (_maxImageCount - (_existingImageUrls.length + _images.length)).clamp(
+        0,
+        _maxImageCount,
+      );
 
   PostComposeAutosaveState get _autosaveState {
     return ref.read(postComposeAutosaveControllerProvider(_autosaveConfig));
@@ -83,7 +93,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     if (_contentController.text.trim().length >= 30) {
       steps += 1;
     }
-    if (_images.isNotEmpty) {
+    if (_existingImageUrls.isNotEmpty || _images.isNotEmpty) {
       steps += 1;
     }
     return steps / 3;
@@ -112,8 +122,18 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     _autosaveController = ref.read(
       postComposeAutosaveControllerProvider(_autosaveConfig).notifier,
     );
+    final rawContent = (widget.post.content ?? '').trim();
+    final extractedUrls = extractImageUrls(rawContent);
+    final mergedInitialUrls = _normalizeImageUrls([
+      ...widget.post.imageUrls,
+      ...extractedUrls,
+    ]);
     _initialTitle = widget.post.title.trim();
-    _initialContent = (widget.post.content ?? '').trim();
+    _initialContent = stripImageMarkdown(rawContent).trim();
+    _initialImageUrls = List.unmodifiable(mergedInitialUrls);
+    _existingImageUrls
+      ..clear()
+      ..addAll(_initialImageUrls);
     _titleController.text = _initialTitle;
     _contentController.text = _initialContent;
     _titleController.addListener(_onFormChanged);
@@ -171,7 +191,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
 
     final existingImagePaths = draft.imagePaths
         .where((path) => File(path).existsSync())
-        .take(_maxImageCount)
+        .take(_remainingImageSlots)
         .toList(growable: false);
 
     setState(() {
@@ -276,11 +296,18 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: GBTSpacing.paddingPage,
                   children: [
+                    const PostComposeIntroCard(
+                      title: '게시글을 수정해요',
+                      description: '본문에 이미지 URL은 숨기고, 첨부 이미지는 아래에서 관리할 수 있어요.',
+                      icon: Icons.edit_square,
+                    ),
+                    const SizedBox(height: GBTSpacing.md),
                     PostComposeStatusCard(
                       completionRatio: _completionRatio,
                       hasTitle: _titleController.text.trim().isNotEmpty,
                       hasContent: _contentController.text.trim().length >= 30,
-                      hasImage: _images.isNotEmpty,
+                      hasImage:
+                          _existingImageUrls.isNotEmpty || _images.isNotEmpty,
                     ),
                     const SizedBox(height: GBTSpacing.md),
                     const ProjectSelectorCompact(),
@@ -345,46 +372,20 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
                     ),
                     const SizedBox(height: GBTSpacing.md),
                     PostComposeImageSection(
-                      imageCount: _images.length,
+                      imageCount: _existingImageUrls.length + _images.length,
                       maxImageCount: _maxImageCount,
                       isSubmitting: _isSubmitting,
                       onPickImages: _pickImages,
-                      onClearAll: _images.isEmpty
+                      onClearAll: _existingImageUrls.isEmpty && _images.isEmpty
                           ? null
                           : () {
-                              setState(_images.clear);
+                              setState(() {
+                                _existingImageUrls.clear();
+                                _images.clear();
+                              });
                               _scheduleDraftSave();
                             },
-                      imageGrid: _images.isEmpty
-                          ? null
-                          : GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: _images.length,
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 3,
-                                    crossAxisSpacing: GBTSpacing.sm,
-                                    mainAxisSpacing: GBTSpacing.sm,
-                                    childAspectRatio: 1,
-                                  ),
-                              itemBuilder: (context, index) {
-                                final image = _images[index];
-                                return PostComposePickedImageTile(
-                                  imagePath: image.path,
-                                  filename: p.basename(image.path),
-                                  onPreview: () => _previewImage(image),
-                                  onRemove: _isSubmitting
-                                      ? null
-                                      : () {
-                                          setState(() {
-                                            _images.remove(image);
-                                          });
-                                          _scheduleDraftSave();
-                                        },
-                                );
-                              },
-                            ),
+                      imageGrid: _buildImageGrid(),
                     ),
                     if (_errorMessage != null) ...[
                       const SizedBox(height: GBTSpacing.md),
@@ -455,6 +456,102 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
             child: const Center(child: GBTLoading(message: '게시글을 수정하는 중...')),
           ),
       ],
+    );
+  }
+
+  Widget? _buildImageGrid() {
+    final totalCount = _existingImageUrls.length + _images.length;
+    if (totalCount == 0) {
+      return null;
+    }
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: totalCount,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: GBTSpacing.sm,
+        mainAxisSpacing: GBTSpacing.sm,
+        childAspectRatio: 1,
+      ),
+      itemBuilder: (context, index) {
+        if (index < _existingImageUrls.length) {
+          final imageUrl = _existingImageUrls[index];
+          return PostComposeRemoteImageTile(
+            imageUrl: imageUrl,
+            filename: _filenameFromUrl(imageUrl),
+            onPreview: () => _previewRemoteImage(imageUrl),
+            onRemove: _isSubmitting
+                ? null
+                : () {
+                    setState(() {
+                      _existingImageUrls.remove(imageUrl);
+                    });
+                    _scheduleDraftSave();
+                  },
+          );
+        }
+
+        final image = _images[index - _existingImageUrls.length];
+        return PostComposePickedImageTile(
+          imagePath: image.path,
+          filename: p.basename(image.path),
+          onPreview: () => _previewImage(image),
+          onRemove: _isSubmitting
+              ? null
+              : () {
+                  setState(() {
+                    _images.remove(image);
+                  });
+                  _scheduleDraftSave();
+                },
+        );
+      },
+    );
+  }
+
+  void _previewRemoteImage(String imageUrl) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.all(GBTSpacing.lg),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          child: Container(
+            color: Colors.black,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: InteractiveViewer(
+                    minScale: 1,
+                    maxScale: 4,
+                    child: GBTImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.contain,
+                      errorWidget: const Center(
+                        child: Text(
+                          '이미지를 표시할 수 없습니다',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: GBTSpacing.xs,
+                  top: GBTSpacing.xs,
+                  child: IconButton.filledTonal(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                    tooltip: '닫기',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -542,7 +639,14 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
         return;
       }
     }
-    final contentWithImages = appendImageMarkdownContent(content, imageUrls);
+    final mergedImageUrls = _normalizeImageUrls([
+      ..._existingImageUrls,
+      ...imageUrls,
+    ]);
+    final contentWithImages = appendImageMarkdownContent(
+      content,
+      mergedImageUrls,
+    );
 
     final repository = await ref.read(feedRepositoryProvider.future);
     final result = await repository.updatePost(
@@ -656,5 +760,42 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     }
 
     return uploadUrls;
+  }
+
+  String _filenameFromUrl(String url) {
+    final resolvedUrl = resolveMediaUrl(url);
+    final uri = Uri.tryParse(resolvedUrl);
+    if (uri == null) {
+      return 'image';
+    }
+    final segment = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : '';
+    return segment.isEmpty ? 'image' : segment;
+  }
+
+  List<String> _normalizeImageUrls(Iterable<String> rawUrls) {
+    final normalized = <String>[];
+    final seen = <String>{};
+
+    for (final rawUrl in rawUrls) {
+      final resolved = resolveMediaUrl(rawUrl.trim());
+      if (resolved.isEmpty) continue;
+      if (seen.add(resolved)) {
+        normalized.add(resolved);
+      }
+    }
+
+    return normalized;
+  }
+
+  bool _sameImageList(List<String> left, List<String> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var i = 0; i < left.length; i += 1) {
+      if (left[i] != right[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 }

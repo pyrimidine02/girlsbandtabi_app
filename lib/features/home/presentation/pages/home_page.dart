@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/accessibility/a11y_wrapper.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
@@ -64,12 +65,12 @@ class _HomePageState extends ConsumerState<HomePage> {
           GBTAppBarIconButton(
             icon: Icons.search,
             onPressed: () => context.push('/search'),
-            tooltip: '검색',
+            tooltip: context.l10n(ko: '검색', en: 'Search', ja: '検索'),
           ),
           GBTAppBarIconButton(
             icon: Icons.notifications_outlined,
             onPressed: () => context.push('/notifications'),
-            tooltip: '알림',
+            tooltip: context.l10n(ko: '알림', en: 'Notifications', ja: '通知'),
           ),
           GBTProfileAction(avatarUrl: avatarUrl),
         ],
@@ -178,7 +179,13 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildError(Object error) {
-    final message = error is Failure ? error.userMessage : '홈 정보를 불러오지 못했어요';
+    final message = error is Failure
+        ? error.userMessage
+        : context.l10n(
+            ko: '홈 정보를 불러오지 못했어요',
+            en: 'Failed to load home content',
+            ja: 'ホーム情報を読み込めませんでした',
+          );
     return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
@@ -252,10 +259,16 @@ class _HomePageState extends ConsumerState<HomePage> {
         // EN: Empty state
         // KO: 빈 상태
         if (summary.isEmpty)
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.only(top: GBTSpacing.xl),
-              child: GBTEmptyState(message: '표시할 홈 콘텐츠가 없습니다'),
+              padding: const EdgeInsets.only(top: GBTSpacing.xl),
+              child: GBTEmptyState(
+                message: context.l10n(
+                  ko: '표시할 홈 콘텐츠가 없습니다',
+                  en: 'No home content available',
+                  ja: '表示できるホームコンテンツがありません',
+                ),
+              ),
             ),
           ),
 
@@ -268,7 +281,11 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
           SliverToBoxAdapter(
             child: GBTCarouselSection(
-              title: '추천 장소',
+              title: context.l10n(
+                ko: '추천 장소',
+                en: 'Recommended Places',
+                ja: 'おすすめスポット',
+              ),
               itemCount: summary.recommendedPlaces.length,
               itemHeight: 220,
               onSeeAll: () => context.go('/places'),
@@ -277,7 +294,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                 return GBTPlaceCardCarousel(
                   placeId: place.id,
                   name: place.name,
-                  location: place.location ?? '방문 ${place.visitCount}회',
+                  location:
+                      place.location ??
+                      context.l10n(
+                        ko: '방문 ${place.visitCount}회',
+                        en: '${place.visitCount} visits',
+                        ja: '${place.visitCount}回訪問',
+                      ),
                   imageUrl: place.imageUrl,
                   onTap: () => context.goToPlaceDetail(place.id),
                 );
@@ -295,7 +318,11 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
           SliverToBoxAdapter(
             child: GBTCarouselSection(
-              title: '트렌딩 라이브',
+              title: context.l10n(
+                ko: '트렌딩 라이브',
+                en: 'Trending Live',
+                ja: 'トレンドライブ',
+              ),
               itemCount: summary.trendingLiveEvents.length,
               itemHeight: 220,
               onSeeAll: () => context.go('/live'),
@@ -322,7 +349,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
           SliverToBoxAdapter(
             child: _SectionHeader(
-              title: '최신 소식',
+              title: context.l10n(ko: '최신 소식', en: 'Latest News', ja: '最新ニュース'),
               onSeeAll: () => context.go('/info'),
             ),
           ),
@@ -417,7 +444,7 @@ class _ServiceHub extends StatelessWidget {
           children: [
             _ServiceHubItem(
               icon: Icons.place_outlined,
-              label: '장소',
+              label: context.l10n(ko: '장소', en: 'Places', ja: '場所'),
               color: GBTColors.accentTeal,
               onTap: onPlacesTap,
               showRightDivider: true,
@@ -425,7 +452,7 @@ class _ServiceHub extends StatelessWidget {
             ),
             _ServiceHubItem(
               icon: Icons.forum_outlined,
-              label: '게시판',
+              label: context.l10n(ko: '게시판', en: 'Board', ja: '掲示板'),
               color: GBTColors.primary,
               onTap: onCommunityTap,
               showRightDivider: true,
@@ -433,7 +460,7 @@ class _ServiceHub extends StatelessWidget {
             ),
             _ServiceHubItem(
               icon: Icons.auto_stories_outlined,
-              label: '정보',
+              label: context.l10n(ko: '정보', en: 'Info', ja: '情報'),
               color: GBTColors.accent,
               onTap: onInfoTap,
               showRightDivider: false,
@@ -474,7 +501,8 @@ class _ServiceHubItem extends StatelessWidget {
     return Expanded(
       child: Semantics(
         button: true,
-        label: '$label 바로가기',
+        label:
+            '$label ${context.l10n(ko: "바로가기", en: "shortcut", ja: "ショートカット")}',
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
@@ -554,12 +582,13 @@ class _SectionHeader extends StatelessWidget {
             ),
           ),
           Semantics(
-            label: '$title 전체보기',
+            label:
+                '$title ${context.l10n(ko: "전체 보기", en: "see all", ja: "すべて見る")}',
             button: true,
             child: TextButton(
               onPressed: onSeeAll,
               child: Text(
-                '전체보기',
+                context.l10n(ko: '전체 보기', en: 'See all', ja: 'すべて見る'),
                 style: GBTTypography.bodySmall.copyWith(
                   color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
                 ),
@@ -585,7 +614,11 @@ class _CompactNewsTile extends StatelessWidget {
 
     return Semantics(
       label: item.title,
-      hint: '탭하면 뉴스 상세로 이동합니다',
+      hint: context.l10n(
+        ko: '탭하면 뉴스 상세로 이동합니다',
+        en: 'Tap to open news details',
+        ja: 'タップしてニュース詳細へ移動',
+      ),
       button: true,
       child: InkWell(
         onTap: () => context.goToNewsDetail(item.id),
@@ -609,7 +642,8 @@ class _CompactNewsTile extends StatelessWidget {
                           width: 56,
                           height: 56,
                           fit: BoxFit.cover,
-                          semanticLabel: '${item.title} 뉴스 썸네일',
+                          semanticLabel:
+                              '${item.title} ${context.l10n(ko: "뉴스 썸네일", en: "news thumbnail", ja: "ニュースサムネイル")}',
                           useShimmer: false,
                         )
                       : Container(

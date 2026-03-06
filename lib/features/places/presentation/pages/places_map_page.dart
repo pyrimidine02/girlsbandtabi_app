@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
@@ -232,7 +233,11 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                                     const SizedBox(width: GBTSpacing.sm),
                                     Expanded(
                                       child: Text(
-                                        '장소, 지역 검색',
+                                        context.l10n(
+                                          ko: '장소, 지역 검색',
+                                          en: 'Search places, regions',
+                                          ja: '場所・地域検索',
+                                        ),
                                         style: GBTTypography.bodyMedium
                                             .copyWith(
                                               color: isDarkMode
@@ -250,7 +255,11 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                                             : GBTColors.textSecondary,
                                       ),
                                       onPressed: _refreshPlaces,
-                                      tooltip: '새로고침',
+                                      tooltip: context.l10n(
+                                        ko: '새로고침',
+                                        en: 'Refresh',
+                                        ja: '更新',
+                                      ),
                                       padding: EdgeInsets.zero,
                                       constraints: const BoxConstraints(
                                         minWidth: 36,
@@ -279,8 +288,8 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                         const SizedBox(width: GBTSpacing.xs),
                         _PlaceFilterChip(
                           label: selectedRegionCodes.isEmpty
-                              ? '지역'
-                              : '지역 · $selectedRegionLabel',
+                              ? context.l10n(ko: '지역', en: 'Region', ja: '地域')
+                              : '${context.l10n(ko: "지역", en: "Region", ja: "地域")} · $selectedRegionLabel',
                           isActive: selectedRegionCodes.isNotEmpty,
                           isDark: isDarkMode,
                           onTap: () => _showRegionFilter(selectedRegionCodes),
@@ -291,8 +300,8 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                         const SizedBox(width: GBTSpacing.xs),
                         _PlaceFilterChip(
                           label: selectedBandIds.isEmpty
-                              ? '밴드'
-                              : '밴드 · $selectedBandLabel',
+                              ? context.l10n(ko: '밴드', en: 'Band', ja: 'バンド')
+                              : '${context.l10n(ko: "밴드", en: "Band", ja: "バンド")} · $selectedBandLabel',
                           isActive: selectedBandIds.isNotEmpty,
                           isDark: isDarkMode,
                           onTap: () => _showBandFilter(selectedBandIds),
@@ -333,14 +342,22 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
               children: [
                 FloatingActionButton.small(
                   heroTag: 'fit-all',
-                  tooltip: '모든 장소 보기',
+                  tooltip: context.l10n(
+                    ko: '모든 장소 보기',
+                    en: 'Show all places',
+                    ja: 'すべての場所を見る',
+                  ),
                   onPressed: () => _fitToPlaces(places),
                   child: const Icon(Icons.zoom_out_map),
                 ),
                 const SizedBox(height: GBTSpacing.sm),
                 FloatingActionButton.small(
                   heroTag: 'location',
-                  tooltip: '내 위치로 이동',
+                  tooltip: context.l10n(
+                    ko: '내 위치로 이동',
+                    en: 'Go to my location',
+                    ja: '現在地へ移動',
+                  ),
                   onPressed: _centerOnCurrentLocation,
                   child: const Icon(Icons.my_location),
                 ),
@@ -521,7 +538,11 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
     } catch (error) {
       final message = error is Failure
           ? error.userMessage
-          : '현재 위치를 가져올 수 없습니다';
+          : context.l10n(
+              ko: '현재 위치를 가져올 수 없습니다',
+              en: 'Unable to get current location',
+              ja: '現在地を取得できません',
+            );
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -646,7 +667,15 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
         : projectId;
     if (resolvedProjectKey == null || resolvedProjectKey.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('프로젝트 선택 후 지역 필터를 사용할 수 있어요')),
+        SnackBar(
+          content: Text(
+            context.l10n(
+              ko: '프로젝트 선택 후 지역 필터를 사용할 수 있어요',
+              en: 'Select a project to use region filters',
+              ja: '地域フィルタはプロジェクト選択後に利用できます',
+            ),
+          ),
+        ),
       );
       return;
     }
@@ -810,7 +839,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
     List<String> selectedCodes,
   ) {
     if (selectedCodes.isEmpty) {
-      return '전체 지역';
+      return context.l10n(ko: '전체 지역', en: 'All regions', ja: '全地域');
     }
     return optionsState.maybeWhen(
       data: (options) {
@@ -828,14 +857,26 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
           }
         }
         if (names.isEmpty) {
-          return '지역 ${selectedCodes.length}개';
+          return context.l10n(
+            ko: '지역 ${selectedCodes.length}개',
+            en: '${selectedCodes.length} regions',
+            ja: '地域 ${selectedCodes.length}件',
+          );
         }
         if (names.length == 1) {
           return names.first;
         }
-        return '${names.first} 외 ${names.length - 1}';
+        return context.l10n(
+          ko: '${names.first} 외 ${names.length - 1}',
+          en: '${names.first} + ${names.length - 1} more',
+          ja: '${names.first} ほか ${names.length - 1}件',
+        );
       },
-      orElse: () => '지역 ${selectedCodes.length}개',
+      orElse: () => context.l10n(
+        ko: '지역 ${selectedCodes.length}개',
+        en: '${selectedCodes.length} regions',
+        ja: '地域 ${selectedCodes.length}件',
+      ),
     );
   }
 
@@ -844,7 +885,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
     List<String> selectedBandIds,
   ) {
     if (selectedBandIds.isEmpty) {
-      return '전체 밴드';
+      return context.l10n(ko: '전체 밴드', en: 'All bands', ja: '全バンド');
     }
 
     return unitsState.maybeWhen(
@@ -854,14 +895,26 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
             .map((unit) => unit.code.isNotEmpty ? unit.code : unit.displayName)
             .toList();
         if (names.isEmpty) {
-          return '밴드 ${selectedBandIds.length}개';
+          return context.l10n(
+            ko: '밴드 ${selectedBandIds.length}개',
+            en: '${selectedBandIds.length} bands',
+            ja: 'バンド ${selectedBandIds.length}件',
+          );
         }
         if (names.length == 1) {
           return names.first;
         }
-        return '${names.first} 외 ${names.length - 1}';
+        return context.l10n(
+          ko: '${names.first} 외 ${names.length - 1}',
+          en: '${names.first} + ${names.length - 1} more',
+          ja: '${names.first} ほか ${names.length - 1}件',
+        );
       },
-      orElse: () => '밴드 ${selectedBandIds.length}개',
+      orElse: () => context.l10n(
+        ko: '밴드 ${selectedBandIds.length}개',
+        en: '${selectedBandIds.length} bands',
+        ja: 'バンド ${selectedBandIds.length}件',
+      ),
     );
   }
 
@@ -913,7 +966,11 @@ class _PlacesSliverList extends StatelessWidget {
       error: (error, _) {
         final message = error is Failure
             ? error.userMessage
-            : '장소 정보를 불러오지 못했어요';
+            : context.l10n(
+                ko: '장소 정보를 불러오지 못했어요',
+                en: 'Failed to load place information',
+                ja: '場所情報を読み込めませんでした',
+              );
         return SliverToBoxAdapter(
           child: Padding(
             padding: GBTSpacing.paddingHorizontalMd,
@@ -937,14 +994,28 @@ class _PlacesSliverList extends StatelessWidget {
                   GBTEmptyState(
                     icon: Icons.place_outlined,
                     message: hasActiveFilters
-                        ? '선택한 조건에 맞는 장소가 없습니다'
-                        : '아직 등록된 장소가 없습니다',
+                        ? context.l10n(
+                            ko: '선택한 조건에 맞는 장소가 없습니다',
+                            en: 'No places match selected filters',
+                            ja: '選択した条件に一致する場所がありません',
+                          )
+                        : context.l10n(
+                            ko: '아직 등록된 장소가 없습니다',
+                            en: 'No places registered yet',
+                            ja: 'まだ登録された場所がありません',
+                          ),
                   ),
                   if (hasActiveFilters && onResetFilters != null) ...[
                     const SizedBox(height: GBTSpacing.md),
                     TextButton(
                       onPressed: onResetFilters,
-                      child: const Text('필터 초기화'),
+                      child: Text(
+                        context.l10n(
+                          ko: '필터 초기화',
+                          en: 'Reset filters',
+                          ja: 'フィルタ初期化',
+                        ),
+                      ),
                     ),
                   ],
                 ],
@@ -1051,7 +1122,13 @@ class _PlacesMapView extends StatelessWidget {
       return const SizedBox.shrink();
     }
     if (kIsWeb) {
-      return _MapFallback(message: '웹에서는 지도 기능을 지원하지 않습니다');
+      return _MapFallback(
+        message: context.l10n(
+          ko: '웹에서는 지도 기능을 지원하지 않습니다',
+          en: 'Map is not supported on web',
+          ja: 'Webでは地図機能をサポートしていません',
+        ),
+      );
     }
 
     final target = _initialTarget(places);
@@ -1275,20 +1352,42 @@ class _RegionFilterSheetState extends ConsumerState<_RegionFilterSheet> {
           loading: () => Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const _SheetTitleRow(title: '지역 선택'),
+              _SheetTitleRow(
+                title: context.l10n(
+                  ko: '지역 선택',
+                  en: 'Select regions',
+                  ja: '地域選択',
+                ),
+              ),
               const SizedBox(height: GBTSpacing.md),
-              const GBTLoading(message: '지역 정보를 불러오는 중...'),
+              GBTLoading(
+                message: context.l10n(
+                  ko: '지역 정보를 불러오는 중...',
+                  en: 'Loading region information...',
+                  ja: '地域情報を読み込み中...',
+                ),
+              ),
               const SizedBox(height: GBTSpacing.md),
             ],
           ),
           error: (error, _) {
             final message = error is Failure
                 ? error.userMessage
-                : '지역 정보를 불러오지 못했어요';
+                : context.l10n(
+                    ko: '지역 정보를 불러오지 못했어요',
+                    en: 'Failed to load region information',
+                    ja: '地域情報を読み込めませんでした',
+                  );
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const _SheetTitleRow(title: '지역 선택'),
+                _SheetTitleRow(
+                  title: context.l10n(
+                    ko: '지역 선택',
+                    en: 'Select regions',
+                    ja: '地域選択',
+                  ),
+                ),
                 const SizedBox(height: GBTSpacing.md),
                 Text(
                   message,
@@ -1301,7 +1400,9 @@ class _RegionFilterSheetState extends ConsumerState<_RegionFilterSheet> {
                   onPressed: () => ref
                       .read(placesRegionOptionsControllerProvider.notifier)
                       .load(forceRefresh: true),
-                  child: const Text('다시 시도'),
+                  child: Text(
+                    context.l10n(ko: '다시 시도', en: 'Retry', ja: '再試行'),
+                  ),
                 ),
               ],
             );
@@ -1311,10 +1412,20 @@ class _RegionFilterSheetState extends ConsumerState<_RegionFilterSheet> {
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const _SheetTitleRow(title: '지역 선택'),
+                  _SheetTitleRow(
+                    title: context.l10n(
+                      ko: '지역 선택',
+                      en: 'Select regions',
+                      ja: '地域選択',
+                    ),
+                  ),
                   const SizedBox(height: GBTSpacing.lg),
                   Text(
-                    '현재 프로젝트의 지역 정보가 없습니다',
+                    context.l10n(
+                      ko: '현재 프로젝트의 지역 정보가 없습니다',
+                      en: 'No region information for current project',
+                      ja: '現在のプロジェクトに地域情報がありません',
+                    ),
                     style: GBTTypography.bodyMedium.copyWith(
                       color: context.textSecondary,
                     ),
@@ -1342,11 +1453,21 @@ class _RegionFilterSheetState extends ConsumerState<_RegionFilterSheet> {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const _SheetTitleRow(title: '지역 선택'),
+                _SheetTitleRow(
+                  title: context.l10n(
+                    ko: '지역 선택',
+                    en: 'Select regions',
+                    ja: '地域選択',
+                  ),
+                ),
                 const SizedBox(height: GBTSpacing.md),
                 GBTSearchBar(
                   controller: _searchController,
-                  hint: '지역명 검색',
+                  hint: context.l10n(
+                    ko: '지역명 검색',
+                    en: 'Search region name',
+                    ja: '地域名検索',
+                  ),
                   onChanged: (val) => setState(() => _query = val),
                   onClear: () => setState(() {
                     _query = '';
@@ -1384,7 +1505,9 @@ class _RegionFilterSheetState extends ConsumerState<_RegionFilterSheet> {
                         onPressed: _draftCodes.isEmpty
                             ? null
                             : () => setState(() => _draftCodes.clear()),
-                        child: const Text('초기화'),
+                        child: Text(
+                          context.l10n(ko: '초기화', en: 'Reset', ja: 'リセット'),
+                        ),
                       ),
                     ),
                     const SizedBox(width: GBTSpacing.sm),
@@ -1396,8 +1519,16 @@ class _RegionFilterSheetState extends ConsumerState<_RegionFilterSheet> {
                         },
                         child: Text(
                           _draftCodes.isEmpty
-                              ? '전체 보기'
-                              : '적용 (${_draftCodes.length})',
+                              ? context.l10n(
+                                  ko: '전체 보기',
+                                  en: 'Show all',
+                                  ja: 'すべて表示',
+                                )
+                              : context.l10n(
+                                  ko: '적용 (${_draftCodes.length})',
+                                  en: 'Apply (${_draftCodes.length})',
+                                  ja: '適用 (${_draftCodes.length})',
+                                ),
                         ),
                       ),
                     ),
@@ -1426,8 +1557,13 @@ class _RegionOptionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final metadata = <String>[
-      '장소 ${option.placeCount}개',
-      if (option.hasChildren) '하위 포함',
+      context.l10n(
+        ko: '장소 ${option.placeCount}개',
+        en: '${option.placeCount} places',
+        ja: '場所 ${option.placeCount}件',
+      ),
+      if (option.hasChildren)
+        context.l10n(ko: '하위 포함', en: 'Includes subregions', ja: '下位含む'),
     ].join(' · ');
     final leftPadding = GBTSpacing.sm + math.min(option.level * 10.0, 30.0);
 
@@ -1535,7 +1671,11 @@ class _MapSearchSheetState extends State<_MapSearchSheet> {
           children: [
             GBTSearchBar(
               controller: _controller,
-              hint: '장소/유형/지역 검색',
+              hint: context.l10n(
+                ko: '장소/유형/지역 검색',
+                en: 'Search places/types/regions',
+                ja: '場所/タイプ/地域を検索',
+              ),
               autofocus: true,
               onChanged: (value) {
                 setState(() => _query = value);
@@ -1552,7 +1692,11 @@ class _MapSearchSheetState extends State<_MapSearchSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: GBTSpacing.md),
                 child: Text(
-                  '지역, 장소 이름, 장소 유형을 입력하세요',
+                  context.l10n(
+                    ko: '지역, 장소 이름, 장소 유형을 입력하세요',
+                    en: 'Enter a region, place name, or place type',
+                    ja: '地域、場所名、場所タイプを入力してください',
+                  ),
                   style: GBTTypography.bodyMedium.copyWith(
                     color: secondaryColor,
                   ),
@@ -1563,7 +1707,7 @@ class _MapSearchSheetState extends State<_MapSearchSheet> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    '지역',
+                    context.l10n(ko: '지역', en: 'Region', ja: '地域'),
                     style: GBTTypography.labelMedium.copyWith(
                       color: secondaryColor,
                     ),
@@ -1573,7 +1717,13 @@ class _MapSearchSheetState extends State<_MapSearchSheet> {
                 ...regionResults.map(
                   (option) => ListTile(
                     title: Text(option.name),
-                    subtitle: Text('장소 ${option.placeCount}개'),
+                    subtitle: Text(
+                      context.l10n(
+                        ko: '장소 ${option.placeCount}개',
+                        en: '${option.placeCount} places',
+                        ja: '場所 ${option.placeCount}件',
+                      ),
+                    ),
                     onTap: () {
                       widget.onSelectRegion(option);
                       Navigator.of(context).pop();
@@ -1586,7 +1736,7 @@ class _MapSearchSheetState extends State<_MapSearchSheet> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    '장소',
+                    context.l10n(ko: '장소', en: 'Places', ja: '場所'),
                     style: GBTTypography.labelMedium.copyWith(
                       color: secondaryColor,
                     ),
@@ -1608,7 +1758,11 @@ class _MapSearchSheetState extends State<_MapSearchSheet> {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: GBTSpacing.md),
                   child: Text(
-                    '검색 결과가 없습니다',
+                    context.l10n(
+                      ko: '검색 결과가 없습니다',
+                      en: 'No search results',
+                      ja: '検索結果がありません',
+                    ),
                     style: GBTTypography.bodyMedium.copyWith(
                       color: secondaryColor,
                     ),
@@ -1637,7 +1791,7 @@ class _MapCluster {
 
   bool get isCluster => places.length > 1;
 
-  String get title => isCluster ? '${places.length}곳' : places.first.name;
+  String get title => isCluster ? '${places.length}' : places.first.name;
 }
 
 List<_MapCluster> _clusterPlaces(List<PlaceSummary> places, double zoom) {
@@ -1913,14 +2067,14 @@ class _PlaceModeChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _ModeTab(
-            label: '주변',
+            label: context.l10n(ko: '주변', en: 'Nearby', ja: '周辺'),
             isSelected: listMode == PlaceListMode.nearby,
             isDark: isDark,
             onTap: () => onChanged(PlaceListMode.nearby),
             isLeft: true,
           ),
           _ModeTab(
-            label: '전체',
+            label: context.l10n(ko: '전체', en: 'All', ja: '全体'),
             isSelected: listMode == PlaceListMode.all,
             isDark: isDark,
             onTap: () => onChanged(PlaceListMode.all),
@@ -2046,7 +2200,11 @@ class _SheetStickyHeader extends SliverPersistentHeaderDelegate {
             child: Row(
               children: [
                 Text(
-                  '$placeCount개 장소',
+                  context.l10n(
+                    ko: '$placeCount개 장소',
+                    en: '$placeCount places',
+                    ja: '$placeCount件の場所',
+                  ),
                   style: GBTTypography.labelMedium.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -2056,7 +2214,11 @@ class _SheetStickyHeader extends SliverPersistentHeaderDelegate {
                   GestureDetector(
                     onTap: onResetFilters,
                     child: Text(
-                      '필터 초기화',
+                      context.l10n(
+                        ko: '필터 초기화',
+                        en: 'Reset filters',
+                        ja: 'フィルタ初期化',
+                      ),
                       style: GBTTypography.labelSmall.copyWith(
                         color: secondaryColor,
                       ),
@@ -2073,7 +2235,11 @@ class _SheetStickyHeader extends SliverPersistentHeaderDelegate {
                     color: secondaryColor,
                   ),
                   onPressed: onCollapse,
-                  tooltip: '목록 닫기',
+                  tooltip: context.l10n(
+                    ko: '목록 닫기',
+                    en: 'Collapse list',
+                    ja: 'リストを閉じる',
+                  ),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
                     minWidth: 40,
@@ -2116,15 +2282,18 @@ class _ProjectFilterChip extends ConsumerWidget {
 
     final label = projectsState.maybeWhen(
       data: (projects) {
-        if (projects.isEmpty) return '프로젝트';
+        if (projects.isEmpty) {
+          return context.l10n(ko: '프로젝트', en: 'Project', ja: 'プロジェクト');
+        }
         final selected = projects.cast<Project?>().firstWhere(
           (p) =>
               p?.code == selection.projectKey || p?.id == selection.projectKey,
           orElse: () => projects.first,
         );
-        return selected?.name ?? '프로젝트';
+        return selected?.name ??
+            context.l10n(ko: '프로젝트', en: 'Project', ja: 'プロジェクト');
       },
-      orElse: () => '프로젝트',
+      orElse: () => context.l10n(ko: '프로젝트', en: 'Project', ja: 'プロジェクト'),
     );
 
     final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
@@ -2228,21 +2397,43 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
         child: projectsState.when(
           loading: () => Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              _SheetTitleRow(title: '프로젝트 선택'),
-              SizedBox(height: GBTSpacing.md),
-              GBTLoading(message: '프로젝트를 불러오는 중...'),
-              SizedBox(height: GBTSpacing.md),
+            children: [
+              _SheetTitleRow(
+                title: context.l10n(
+                  ko: '프로젝트 선택',
+                  en: 'Select project',
+                  ja: 'プロジェクト選択',
+                ),
+              ),
+              const SizedBox(height: GBTSpacing.md),
+              GBTLoading(
+                message: context.l10n(
+                  ko: '프로젝트를 불러오는 중...',
+                  en: 'Loading projects...',
+                  ja: 'プロジェクトを読み込み中...',
+                ),
+              ),
+              const SizedBox(height: GBTSpacing.md),
             ],
           ),
           error: (error, _) {
             final message = error is Failure
                 ? error.userMessage
-                : '프로젝트를 불러오지 못했어요';
+                : context.l10n(
+                    ko: '프로젝트를 불러오지 못했어요',
+                    en: 'Failed to load projects',
+                    ja: 'プロジェクトを読み込めませんでした',
+                  );
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const _SheetTitleRow(title: '프로젝트 선택'),
+                _SheetTitleRow(
+                  title: context.l10n(
+                    ko: '프로젝트 선택',
+                    en: 'Select project',
+                    ja: 'プロジェクト選択',
+                  ),
+                ),
                 const SizedBox(height: GBTSpacing.md),
                 Text(
                   message,
@@ -2255,7 +2446,9 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
                   onPressed: () => ref
                       .read(projectsControllerProvider.notifier)
                       .load(forceRefresh: true),
-                  child: const Text('다시 시도'),
+                  child: Text(
+                    context.l10n(ko: '다시 시도', en: 'Retry', ja: '再試行'),
+                  ),
                 ),
               ],
             );
@@ -2265,10 +2458,20 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const _SheetTitleRow(title: '프로젝트 선택'),
+                  _SheetTitleRow(
+                    title: context.l10n(
+                      ko: '프로젝트 선택',
+                      en: 'Select project',
+                      ja: 'プロジェクト選択',
+                    ),
+                  ),
                   const SizedBox(height: GBTSpacing.lg),
                   Text(
-                    '등록된 프로젝트가 없습니다',
+                    context.l10n(
+                      ko: '등록된 프로젝트가 없습니다',
+                      en: 'No projects available',
+                      ja: '登録されたプロジェクトがありません',
+                    ),
                     style: GBTTypography.bodyMedium.copyWith(
                       color: context.textSecondary,
                     ),
@@ -2281,7 +2484,13 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const _SheetTitleRow(title: '프로젝트 선택'),
+                _SheetTitleRow(
+                  title: context.l10n(
+                    ko: '프로젝트 선택',
+                    en: 'Select project',
+                    ja: 'プロジェクト選択',
+                  ),
+                ),
                 const SizedBox(height: GBTSpacing.md),
                 Flexible(
                   child: ListView.builder(
@@ -2315,7 +2524,9 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
                     Expanded(
                       child: FilledButton(
                         onPressed: () => _apply(projects),
-                        child: const Text('적용'),
+                        child: Text(
+                          context.l10n(ko: '적용', en: 'Apply', ja: '適用'),
+                        ),
                       ),
                     ),
                   ],
@@ -2358,7 +2569,7 @@ class _SheetTitleRow extends StatelessWidget {
             minWidth: GBTSpacing.minTouchTarget,
             minHeight: GBTSpacing.minTouchTarget,
           ),
-          tooltip: '닫기',
+          tooltip: context.l10n(ko: '닫기', en: 'Close', ja: '閉じる'),
         ),
       ],
     );

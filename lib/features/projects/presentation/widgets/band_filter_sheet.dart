@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
@@ -73,11 +74,21 @@ class _BandFilterSheetState extends ConsumerState<_BandFilterSheet> {
       child: Padding(
         padding: const EdgeInsets.all(GBTSpacing.md),
         child: state.when(
-          loading: () => const GBTLoading(message: '밴드를 불러오는 중...'),
+          loading: () => GBTLoading(
+            message: context.l10n(
+              ko: '밴드를 불러오는 중...',
+              en: 'Loading bands...',
+              ja: 'バンドを読み込み中...',
+            ),
+          ),
           error: (error, _) {
             final message = error is Failure
                 ? error.userMessage
-                : '밴드를 불러오지 못했어요';
+                : context.l10n(
+                    ko: '밴드를 불러오지 못했어요',
+                    en: 'Failed to load bands',
+                    ja: 'バンドを読み込めませんでした',
+                  );
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -96,20 +107,33 @@ class _BandFilterSheetState extends ConsumerState<_BandFilterSheet> {
                         ).notifier,
                       )
                       .load(forceRefresh: true),
-                  child: const Text('다시 시도'),
+                  child: Text(
+                    context.l10n(ko: '다시 시도', en: 'Retry', ja: '再試行'),
+                  ),
                 ),
               ],
             );
           },
           data: (units) {
             if (units.isEmpty) {
-              return const Center(child: Text('밴드 정보가 없습니다'));
+              return Center(
+                child: Text(
+                  context.l10n(
+                    ko: '밴드 정보가 없습니다',
+                    en: 'No band information',
+                    ja: 'バンド情報がありません',
+                  ),
+                ),
+              );
             }
 
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('밴드 선택', style: GBTTypography.titleMedium),
+                Text(
+                  context.l10n(ko: '밴드 선택', en: 'Select bands', ja: 'バンド選択'),
+                  style: GBTTypography.titleMedium,
+                ),
                 const SizedBox(height: GBTSpacing.md),
                 Flexible(
                   child: ListView.builder(
@@ -156,7 +180,9 @@ class _BandFilterSheetState extends ConsumerState<_BandFilterSheet> {
                         onPressed: () {
                           setState(() => _selected.clear());
                         },
-                        child: const Text('초기화'),
+                        child: Text(
+                          context.l10n(ko: '초기화', en: 'Reset', ja: 'リセット'),
+                        ),
                       ),
                     ),
                     const SizedBox(width: GBTSpacing.sm),
@@ -166,7 +192,9 @@ class _BandFilterSheetState extends ConsumerState<_BandFilterSheet> {
                           widget.onApply(_selected.toList());
                           Navigator.of(context).pop();
                         },
-                        child: const Text('적용'),
+                        child: Text(
+                          context.l10n(ko: '적용', en: 'Apply', ja: '適用'),
+                        ),
                       ),
                     ),
                   ],

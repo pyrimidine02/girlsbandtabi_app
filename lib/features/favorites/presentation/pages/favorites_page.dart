@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
@@ -28,11 +29,11 @@ class FavoritesPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('즐겨찾기'),
+        title: Text(context.l10n(ko: '즐겨찾기', en: 'Favorites', ja: 'お気に入り')),
         actions: [
           GBTAppBarIconButton(
             icon: Icons.refresh,
-            tooltip: '새로고침',
+            tooltip: context.l10n(ko: '새로고침', en: 'Refresh', ja: '更新'),
             onPressed: () => ref
                 .read(favoritesControllerProvider.notifier)
                 .load(forceRefresh: true),
@@ -47,15 +48,25 @@ class FavoritesPage extends ConsumerWidget {
           loading: () => ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: GBTSpacing.paddingPage,
-            children: const [
-              SizedBox(height: GBTSpacing.sm),
-              GBTLoading(message: '즐겨찾기를 불러오는 중...'),
+            children: [
+              const SizedBox(height: GBTSpacing.sm),
+              GBTLoading(
+                message: context.l10n(
+                  ko: '즐겨찾기를 불러오는 중...',
+                  en: 'Loading favorites...',
+                  ja: 'お気に入りを読み込み中...',
+                ),
+              ),
             ],
           ),
           error: (error, _) {
             final message = error is Failure
                 ? error.userMessage
-                : '즐겨찾기를 불러오지 못했어요';
+                : context.l10n(
+                    ko: '즐겨찾기를 불러오지 못했어요',
+                    en: 'Failed to load favorites',
+                    ja: 'お気に入りを読み込めませんでした',
+                  );
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: GBTSpacing.paddingPage,
@@ -75,11 +86,15 @@ class FavoritesPage extends ConsumerWidget {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: GBTSpacing.paddingPage,
-                children: const [
-                  SizedBox(height: GBTSpacing.sm),
+                children: [
+                  const SizedBox(height: GBTSpacing.sm),
                   GBTEmptyState(
                     icon: Icons.favorite_border,
-                    message: '저장된 즐겨찾기가 없습니다.\n마음에 드는 장소나 이벤트를 저장해보세요.',
+                    message: context.l10n(
+                      ko: '저장된 즐겨찾기가 없습니다.\n마음에 드는 장소나 이벤트를 저장해보세요.',
+                      en: 'No saved favorites.\nSave places or events you like.',
+                      ja: '保存されたお気に入りがありません。\n気に入った場所やイベントを保存してください。',
+                    ),
                   ),
                 ],
               );
@@ -90,14 +105,20 @@ class FavoritesPage extends ConsumerWidget {
               child: Column(
                 children: [
                   const SizedBox(height: GBTSpacing.sm),
-                  const GBTSegmentedTabBar(
-                    margin: EdgeInsets.symmetric(horizontal: GBTSpacing.md),
+                  GBTSegmentedTabBar(
+                    margin: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
                     isScrollable: true,
                     tabs: [
-                      Tab(text: '전체'),
-                      Tab(text: '장소'),
-                      Tab(text: '이벤트'),
-                      Tab(text: '뉴스'),
+                      Tab(
+                        text: context.l10n(ko: '전체', en: 'All', ja: '全体'),
+                      ),
+                      Tab(
+                        text: context.l10n(ko: '장소', en: 'Places', ja: '場所'),
+                      ),
+                      Tab(
+                        text: context.l10n(ko: '이벤트', en: 'Events', ja: 'イベント'),
+                      ),
+                      Tab(text: context.l10n(ko: '뉴스', en: 'News', ja: 'ニュース')),
                     ],
                   ),
                   Expanded(
@@ -136,11 +157,15 @@ class _FavoritesList extends StatelessWidget {
     if (items.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(height: GBTSpacing.lg),
+        children: [
+          const SizedBox(height: GBTSpacing.lg),
           GBTEmptyState(
             icon: Icons.favorite_border,
-            message: '이 카테고리에 저장된 항목이 없습니다.',
+            message: context.l10n(
+              ko: '이 카테고리에 저장된 항목이 없습니다.',
+              en: 'No saved items in this category.',
+              ja: 'このカテゴリに保存された項目がありません。',
+            ),
           ),
         ],
       );
@@ -192,7 +217,8 @@ class _FavoriteCard extends StatelessWidget {
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
 
     return Semantics(
-      label: '즐겨찾기: ${item.title ?? '즐겨찾기 항목'}, ${_typeLabel(item.type)}',
+      label:
+          '${context.l10n(ko: "즐겨찾기", en: "Favorite", ja: "お気に入り")}: ${item.title ?? context.l10n(ko: "즐겨찾기 항목", en: "Favorite item", ja: "お気に入り項目")}, ${_typeLabel(context, item.type)}',
       button: true,
       child: Material(
         color: surfaceColor,
@@ -283,7 +309,8 @@ class _FavoriteThumbnail extends StatelessWidget {
           width: 72,
           height: 72,
           fit: BoxFit.cover,
-          semanticLabel: '${_typeLabel(type)} 이미지',
+          semanticLabel:
+              '${_typeLabel(context, type)} ${context.l10n(ko: "이미지", en: "image", ja: "画像")}',
         ),
       );
     }
@@ -330,7 +357,7 @@ class _TypeBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
       ),
       child: Text(
-        _typeLabel(type),
+        _typeLabel(context, type),
         style: GBTTypography.labelSmall.copyWith(
           color: color,
           fontWeight: FontWeight.w600,
@@ -344,13 +371,21 @@ List<FavoriteItem> _filter(List<FavoriteItem> items, FavoriteType type) {
   return items.where((item) => item.type == type).toList();
 }
 
-String _typeLabel(FavoriteType type) {
+String _typeLabel(BuildContext context, FavoriteType type) {
   return switch (type) {
-    FavoriteType.place => '장소',
-    FavoriteType.liveEvent => '이벤트',
-    FavoriteType.news => '뉴스',
-    FavoriteType.post => '커뮤니티',
-    FavoriteType.unknown => '기타',
+    FavoriteType.place => context.l10n(ko: '장소', en: 'Places', ja: '場所'),
+    FavoriteType.liveEvent => context.l10n(
+      ko: '이벤트',
+      en: 'Events',
+      ja: 'イベント',
+    ),
+    FavoriteType.news => context.l10n(ko: '뉴스', en: 'News', ja: 'ニュース'),
+    FavoriteType.post => context.l10n(
+      ko: '커뮤니티',
+      en: 'Community',
+      ja: 'コミュニティ',
+    ),
+    FavoriteType.unknown => context.l10n(ko: '기타', en: 'Other', ja: 'その他'),
   };
 }
 

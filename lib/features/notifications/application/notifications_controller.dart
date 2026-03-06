@@ -2,10 +2,16 @@
 /// KO: 알림 목록/읽음 처리를 위한 컨트롤러.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants/api_constants.dart';
 import '../../../core/error/failure.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
+import '../../../core/realtime/sse_client.dart';
+import '../../../core/storage/local_storage.dart';
 import '../../../core/utils/result.dart';
 import '../data/datasources/notifications_remote_data_source.dart';
 import '../data/repositories/notifications_repository_impl.dart';
@@ -15,12 +21,148 @@ import '../domain/repositories/notifications_repository.dart';
 class NotificationsController
     extends StateNotifier<AsyncValue<List<NotificationItem>>> {
   NotificationsController(this._ref) : super(const AsyncLoading()) {
+    _ref.listen<bool>(isAuthenticatedProvider, (_, isAuthenticated) {
+      if (!isAuthenticated) {
+        _resetNotificationSnapshot();
+        state = const AsyncData([]);
+        unawaited(stopRealtimeSync());
+        return;
+      }
+      if (_isRealtimeActive) {
+        unawaited(_connectRealtime());
+      }
+    });
     load();
   }
 
   final Ref _ref;
   bool _isBackgroundSyncing = false;
   DateTime? _lastBackgroundSyncAt;
+  SseConnection? _realtimeConnection;
+  StreamSubscription<SseEvent>? _realtimeSubscription;
+  Timer? _realtimeReconnectTimer;
+  Duration _reconnectDelay = const Duration(seconds: 2);
+  DateTime? _lastRealtimeRefreshAt;
+  bool _isRealtimeActive = false;
+  bool _isRealtimeConnected = false;
+  bool _hasSeededNotificationSnapshot = false;
+  final Set<String> _knownNotificationIds = <String>{};
+  bool _hasCheckedLocalPermission = false;
+  bool _canShowLocalAlerts = false;
+
+  /// EN: Start realtime notification sync via SSE with polling fallback.
+  /// KO: 폴링 폴백을 유지한 채 SSE 기반 실시간 알림 동기화를 시작합니다.
+  Future<void> startRealtimeSync() async {
+    if (_isRealtimeActive) return;
+    _isRealtimeActive = true;
+    await _connectRealtime();
+  }
+
+  /// EN: Stop realtime SSE sync and keep polling fallback only.
+  /// KO: SSE 실시간 동기화를 중지하고 폴링 폴백만 유지합니다.
+  Future<void> stopRealtimeSync() async {
+    _isRealtimeActive = false;
+    _realtimeReconnectTimer?.cancel();
+    _realtimeReconnectTimer = null;
+    _isRealtimeConnected = false;
+    await _disposeRealtimeConnection();
+  }
+
+  Future<void> _connectRealtime() async {
+    if (!_isRealtimeActive || _isRealtimeConnected) return;
+    if (!_ref.read(isAuthenticatedProvider)) return;
+    if (_realtimeConnection != null || _realtimeSubscription != null) return;
+
+    final sseClient = _ref.read(sseClientProvider);
+    try {
+      final connection = await sseClient.connect(
+        path: ApiEndpoints.notificationsStream,
+      );
+      _realtimeConnection = connection;
+      _isRealtimeConnected = true;
+      _reconnectDelay = const Duration(seconds: 2);
+
+      _realtimeSubscription = connection.events.listen(
+        _handleRealtimeEvent,
+        onError: (Object error, StackTrace stackTrace) {
+          AppLogger.warning(
+            '[Notifications] SSE error; fallback to polling',
+            tag: 'NotificationsController',
+          );
+          unawaited(_handleRealtimeDisconnect());
+        },
+        onDone: () {
+          unawaited(_handleRealtimeDisconnect());
+        },
+        cancelOnError: true,
+      );
+    } catch (error, stackTrace) {
+      AppLogger.debug(
+        '[Notifications] SSE connect failed; fallback to polling',
+        tag: 'NotificationsController',
+      );
+      AppLogger.error(
+        '[Notifications] SSE connect exception',
+        tag: 'NotificationsController',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _isRealtimeConnected = false;
+      _scheduleRealtimeReconnect();
+    }
+  }
+
+  void _handleRealtimeEvent(SseEvent event) {
+    if (!_isRealtimeActive) return;
+    if (!_isNotificationEvent(event)) return;
+
+    final now = DateTime.now();
+    if (_lastRealtimeRefreshAt != null &&
+        now.difference(_lastRealtimeRefreshAt!) <
+            const Duration(milliseconds: 900)) {
+      return;
+    }
+    _lastRealtimeRefreshAt = now;
+    unawaited(refreshInBackground(minInterval: Duration.zero));
+  }
+
+  bool _isNotificationEvent(SseEvent event) {
+    final rawType =
+        event.event ?? event.dataAsJson?['eventType']?.toString() ?? '';
+    if (rawType.isEmpty) {
+      return true;
+    }
+    final normalized = rawType.toLowerCase();
+    return normalized.contains('notification') ||
+        normalized.contains('notice') ||
+        normalized.contains('unread');
+  }
+
+  Future<void> _handleRealtimeDisconnect() async {
+    _isRealtimeConnected = false;
+    await _disposeRealtimeConnection();
+    _scheduleRealtimeReconnect();
+  }
+
+  void _scheduleRealtimeReconnect() {
+    if (!_isRealtimeActive) return;
+    _realtimeReconnectTimer?.cancel();
+    final delay = _reconnectDelay;
+    _realtimeReconnectTimer = Timer(delay, () {
+      unawaited(_connectRealtime());
+    });
+    final nextSeconds = (_reconnectDelay.inSeconds * 2).clamp(2, 60);
+    _reconnectDelay = Duration(seconds: nextSeconds);
+  }
+
+  Future<void> _disposeRealtimeConnection() async {
+    await _realtimeSubscription?.cancel();
+    _realtimeSubscription = null;
+    if (_realtimeConnection != null) {
+      await _realtimeConnection!.close();
+      _realtimeConnection = null;
+    }
+  }
 
   Future<void> load({bool forceRefresh = false}) async {
     final isAuthenticated = _ref.read(isAuthenticatedProvider);
@@ -36,6 +178,7 @@ class NotificationsController
     );
 
     if (result is Success<List<NotificationItem>>) {
+      await _captureNotificationDelta(result.data, allowLocalAlert: false);
       state = AsyncData(result.data);
     } else if (result is Err<List<NotificationItem>>) {
       state = AsyncError(result.failure, StackTrace.current);
@@ -45,6 +188,9 @@ class NotificationsController
   Future<void> refreshInBackground({
     Duration minInterval = const Duration(seconds: 40),
   }) async {
+    if (_isRealtimeConnected && minInterval > Duration.zero) {
+      return;
+    }
     final isAuthenticated = _ref.read(isAuthenticatedProvider);
     if (!isAuthenticated || _isBackgroundSyncing) {
       return;
@@ -63,6 +209,7 @@ class NotificationsController
       );
       final result = await repository.getNotifications(forceRefresh: true);
       if (result is Success<List<NotificationItem>>) {
+        await _captureNotificationDelta(result.data, allowLocalAlert: true);
         state = AsyncData(result.data);
       } else if (result is Err<List<NotificationItem>> &&
           state.valueOrNull == null) {
@@ -102,6 +249,77 @@ class NotificationsController
     }
     await load(forceRefresh: true);
   }
+
+  /// EN: Detect newly arrived unread notifications and raise local alerts.
+  /// KO: 새로 도착한 미읽음 알림을 감지해 로컬 알림을 발생시킵니다.
+  Future<void> _captureNotificationDelta(
+    List<NotificationItem> items, {
+    required bool allowLocalAlert,
+  }) async {
+    final currentIds = items.map((item) => item.id).toSet();
+
+    if (!_hasSeededNotificationSnapshot) {
+      _knownNotificationIds
+        ..clear()
+        ..addAll(currentIds);
+      _hasSeededNotificationSnapshot = true;
+      return;
+    }
+
+    final newlyArrivedUnread = items
+        .where(
+          (item) => !item.isRead && !_knownNotificationIds.contains(item.id),
+        )
+        .toList(growable: false);
+
+    _knownNotificationIds
+      ..clear()
+      ..addAll(currentIds);
+
+    if (!allowLocalAlert || newlyArrivedUnread.isEmpty) {
+      return;
+    }
+    if (!await _isPushEnabledByUserSetting()) {
+      return;
+    }
+    if (!await _ensureLocalPermission()) {
+      return;
+    }
+
+    final localNotifier = _ref.read(localNotificationsServiceProvider);
+    for (final item in newlyArrivedUnread.take(3)) {
+      await localNotifier.showNotificationItem(item);
+    }
+  }
+
+  void _resetNotificationSnapshot() {
+    _hasSeededNotificationSnapshot = false;
+    _knownNotificationIds.clear();
+    _lastBackgroundSyncAt = null;
+  }
+
+  Future<bool> _isPushEnabledByUserSetting() async {
+    final storage = await _ref.read(localStorageProvider.future);
+    return storage.getBool(LocalStorageKeys.notificationsEnabled) ?? true;
+  }
+
+  Future<bool> _ensureLocalPermission() async {
+    if (_hasCheckedLocalPermission) {
+      return _canShowLocalAlerts;
+    }
+    final localNotifier = _ref.read(localNotificationsServiceProvider);
+    _canShowLocalAlerts = await localNotifier.requestPermissions();
+    _hasCheckedLocalPermission = true;
+    return _canShowLocalAlerts;
+  }
+
+  @override
+  void dispose() {
+    _isRealtimeActive = false;
+    _realtimeReconnectTimer?.cancel();
+    unawaited(_disposeRealtimeConnection());
+    super.dispose();
+  }
 }
 
 /// EN: Notifications repository provider.
@@ -126,3 +344,23 @@ final notificationsControllerProvider =
     >((ref) {
       return NotificationsController(ref);
     });
+
+/// EN: Global bootstrap provider for realtime notification sync.
+/// KO: 실시간 알림 동기화를 전역에서 부트스트랩하는 프로바이더입니다.
+final notificationsRealtimeBootstrapProvider = Provider<void>((ref) {
+  ref.listen<AuthState>(authStateProvider, (_, next) {
+    final notifier = ref.read(notificationsControllerProvider.notifier);
+    if (next == AuthState.authenticated) {
+      unawaited(notifier.startRealtimeSync());
+    } else if (next == AuthState.unauthenticated) {
+      unawaited(notifier.stopRealtimeSync());
+    }
+  });
+
+  final notifier = ref.read(notificationsControllerProvider.notifier);
+  if (ref.read(isAuthenticatedProvider)) {
+    unawaited(notifier.startRealtimeSync());
+  } else {
+    unawaited(notifier.stopRealtimeSync());
+  }
+});

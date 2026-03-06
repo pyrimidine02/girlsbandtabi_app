@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
@@ -93,7 +94,11 @@ class _PlaceReviewSheetState extends ConsumerState<PlaceReviewSheet> {
                 ),
                 const SizedBox(width: GBTSpacing.sm),
                 Text(
-                  '방문 후기 작성',
+                  context.l10n(
+                    ko: '방문 후기 작성',
+                    en: 'Write visit review',
+                    ja: '訪問レビュー作成',
+                  ),
                   style: GBTTypography.titleMedium.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -110,11 +115,16 @@ class _PlaceReviewSheetState extends ConsumerState<PlaceReviewSheet> {
               maxLines: 6,
               enabled: !_isSubmitting,
               style: GBTTypography.bodyMedium.copyWith(
-                color:
-                    isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
+                color: isDark
+                    ? GBTColors.darkTextPrimary
+                    : GBTColors.textPrimary,
               ),
               decoration: InputDecoration(
-                hintText: '이 장소에 대한 후기를 남겨주세요...',
+                hintText: context.l10n(
+                  ko: '이 장소에 대한 후기를 남겨주세요...',
+                  en: 'Share your review for this place...',
+                  ja: 'この場所のレビューを残してください...',
+                ),
                 hintStyle: GBTTypography.bodyMedium.copyWith(
                   color: isDark
                       ? GBTColors.darkTextTertiary
@@ -150,7 +160,7 @@ class _PlaceReviewSheetState extends ConsumerState<PlaceReviewSheet> {
             Row(
               children: [
                 Text(
-                  '사진',
+                  context.l10n(ko: '사진', en: 'Photos', ja: '写真'),
                   style: GBTTypography.labelMedium.copyWith(
                     fontWeight: FontWeight.w600,
                     color: isDark
@@ -171,9 +181,11 @@ class _PlaceReviewSheetState extends ConsumerState<PlaceReviewSheet> {
                 if (_images.length < _maxImages)
                   TextButton.icon(
                     onPressed: _isSubmitting ? null : _pickImages,
-                    icon: const Icon(Icons.add_photo_alternate_rounded,
-                        size: 20),
-                    label: const Text('추가'),
+                    icon: const Icon(
+                      Icons.add_photo_alternate_rounded,
+                      size: 20,
+                    ),
+                    label: Text(context.l10n(ko: '추가', en: 'Add', ja: '追加')),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                         horizontal: GBTSpacing.sm,
@@ -220,8 +232,7 @@ class _PlaceReviewSheetState extends ConsumerState<PlaceReviewSheet> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.error_outline, size: 16,
-                        color: GBTColors.error),
+                    Icon(Icons.error_outline, size: 16, color: GBTColors.error),
                     const SizedBox(width: GBTSpacing.xs),
                     Expanded(
                       child: Text(
@@ -244,21 +255,29 @@ class _PlaceReviewSheetState extends ConsumerState<PlaceReviewSheet> {
                 children: [
                   if (_images.isNotEmpty) ...[
                     ClipRRect(
-                      borderRadius:
-                          BorderRadius.circular(GBTSpacing.radiusFull),
+                      borderRadius: BorderRadius.circular(
+                        GBTSpacing.radiusFull,
+                      ),
                       child: LinearProgressIndicator(
                         value: _uploadProgress,
                         minHeight: 4,
                         backgroundColor: isDark
                             ? GBTColors.darkSurfaceVariant
                             : GBTColors.surfaceVariant,
-                        color:
-                            isDark ? GBTColors.darkPrimary : GBTColors.primary,
+                        color: isDark
+                            ? GBTColors.darkPrimary
+                            : GBTColors.primary,
                       ),
                     ),
                     const SizedBox(height: GBTSpacing.sm),
                   ],
-                  const GBTLoading(message: '후기를 등록하는 중...'),
+                  GBTLoading(
+                    message: context.l10n(
+                      ko: '후기를 등록하는 중...',
+                      en: 'Submitting review...',
+                      ja: 'レビューを登録中...',
+                    ),
+                  ),
                 ],
               )
             else
@@ -269,11 +288,12 @@ class _PlaceReviewSheetState extends ConsumerState<PlaceReviewSheet> {
                   onPressed: canSubmit ? _submit : null,
                   style: FilledButton.styleFrom(
                     shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(GBTSpacing.radiusMd),
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
                     ),
                   ),
-                  child: const Text('후기 등록'),
+                  child: Text(
+                    context.l10n(ko: '후기 등록', en: 'Post review', ja: 'レビュー投稿'),
+                  ),
                 ),
               ),
 
@@ -327,7 +347,11 @@ class _PlaceReviewSheetState extends ConsumerState<PlaceReviewSheet> {
       _handleFailure(failure);
     } catch (_) {
       setState(() {
-        _errorMessage = '이미지 업로드에 실패했습니다.';
+        _errorMessage = context.l10n(
+          ko: '이미지 업로드에 실패했습니다.',
+          en: 'Image upload failed.',
+          ja: '画像アップロードに失敗しました。',
+        );
       });
     } finally {
       if (mounted) {
@@ -379,7 +403,11 @@ class _PlaceReviewSheetState extends ConsumerState<PlaceReviewSheet> {
   void _handleFailure(Failure failure) {
     setState(() {
       if (failure is AuthFailure && failure.code == '403') {
-        _errorMessage = '아직 준비중입니다.';
+        _errorMessage = context.l10n(
+          ko: '아직 준비중입니다.',
+          en: 'Coming soon.',
+          ja: '準備中です。',
+        );
       } else {
         _errorMessage = failure.userMessage;
       }
@@ -453,11 +481,7 @@ class _ImageThumbnail extends StatelessWidget {
                     color: Colors.black54,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.close,
-                    size: 14,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.close, size: 14, color: Colors.white),
                 ),
               ),
             ),
