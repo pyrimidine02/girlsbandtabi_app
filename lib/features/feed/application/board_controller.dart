@@ -16,9 +16,24 @@ import '../../../core/utils/result.dart';
 import '../domain/entities/feed_entities.dart';
 import 'feed_repository_provider.dart';
 
+const int _kBoardNavIndex = 3;
+
+bool _isBoardTabActive(Ref ref) {
+  return ref.read(currentNavIndexProvider) == _kBoardNavIndex;
+}
+
 class PostListController extends StateNotifier<AsyncValue<List<PostSummary>>> {
   PostListController(this._ref) : super(const AsyncLoading()) {
     _ref.listen<String?>(selectedProjectKeyProvider, (_, __) {
+      if (!_isBoardTabActive(_ref)) {
+        return;
+      }
+      load(forceRefresh: true);
+    });
+    _ref.listen<int>(currentNavIndexProvider, (previous, next) {
+      if (next != _kBoardNavIndex || next == previous) {
+        return;
+      }
       load(forceRefresh: true);
     });
   }
@@ -26,6 +41,9 @@ class PostListController extends StateNotifier<AsyncValue<List<PostSummary>>> {
   final Ref _ref;
 
   Future<void> load({bool forceRefresh = false}) async {
+    if (!_isBoardTabActive(_ref)) {
+      return;
+    }
     final projectKey = _ref.read(selectedProjectKeyProvider);
     if (projectKey == null || projectKey.isEmpty) {
       // EN: Wait for project selection before loading.
@@ -180,8 +198,23 @@ class CommunityFeedViewState {
 class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
   CommunityFeedController(this._ref) : super(const CommunityFeedViewState()) {
     _ref.listen<String?>(selectedProjectKeyProvider, (_, __) {
-      reload(forceRefresh: true);
+      if (!_isBoardTabActive(_ref)) {
+        return;
+      }
+      final requiresProjectSelection =
+          state.isSearching ||
+          state.mode == CommunityFeedMode.latest ||
+          state.mode == CommunityFeedMode.trending;
+      if (requiresProjectSelection) {
+        reload(forceRefresh: true);
+      }
       _loadSubscriptions(forceRefresh: true);
+    });
+    _ref.listen<int>(currentNavIndexProvider, (previous, next) {
+      if (next != _kBoardNavIndex || next == previous) {
+        return;
+      }
+      unawaited(_reloadForActiveBoard(forceRefresh: true));
     });
     _ref.listen<bool>(isAuthenticatedProvider, (_, isAuthenticated) {
       if (!isAuthenticated) {
@@ -207,8 +240,19 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
   bool _isRealtimeConnected = false;
 
   Future<void> initialize() async {
+    if (!_isBoardTabActive(_ref)) {
+      return;
+    }
     await _loadSubscriptions();
     await reload();
+  }
+
+  Future<void> _reloadForActiveBoard({bool forceRefresh = false}) async {
+    if (!_isBoardTabActive(_ref)) {
+      return;
+    }
+    await _loadSubscriptions(forceRefresh: forceRefresh);
+    await reload(forceRefresh: forceRefresh);
   }
 
   /// EN: Start realtime feed sync via SSE with polling fallback.
@@ -385,6 +429,9 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
   Future<void> refreshInBackground({
     Duration minInterval = const Duration(seconds: 35),
   }) async {
+    if (!_isBoardTabActive(_ref)) {
+      return;
+    }
     if (_isRealtimeConnected && minInterval > Duration.zero) {
       return;
     }
@@ -437,17 +484,28 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
         }
         return;
       }
+      if (_requiresAuthentication(state.mode) &&
+          !_ref.read(isAuthenticatedProvider)) {
+        if (state.posts.isEmpty) {
+          state = state.copyWith(
+            failure: const AuthFailure('Login required', code: 'auth_required'),
+          );
+        }
+        return;
+      }
 
       switch (state.mode) {
         case CommunityFeedMode.recommended:
-          final recommendedResult = await repository.getCommunityFeedByCursor(
-            cursor: null,
-            size: _pageSize,
-          );
+          final recommendedResult = await repository
+              .getCommunityRecommendedFeedByCursor(
+                cursor: null,
+                size: _pageSize,
+              );
           if (recommendedResult is Success<PostCursorPage>) {
             state = state.copyWith(
               posts: recommendedResult.data.items,
               searchSourcePosts: const [],
+              page: 0,
               hasMore: recommendedResult.data.hasNext,
               nextCursor: recommendedResult.data.nextCursor ?? '',
               clearFailure: true,
@@ -517,9 +575,13 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
   }
 
   Future<void> reload({bool forceRefresh = false}) async {
+    if (!_isBoardTabActive(_ref)) {
+      return;
+    }
     final projectKey = _ref.read(selectedProjectKeyProvider);
+    final isSearching = state.isSearching;
     final requiresProjectSelection =
-        state.isSearching ||
+        isSearching ||
         state.mode == CommunityFeedMode.latest ||
         state.mode == CommunityFeedMode.trending;
     if (requiresProjectSelection &&
@@ -538,6 +600,21 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
       );
       return;
     }
+    if (!isSearching &&
+        _requiresAuthentication(state.mode) &&
+        !_ref.read(isAuthenticatedProvider)) {
+      state = state.copyWith(
+        posts: const [],
+        searchSourcePosts: const [],
+        isInitialLoading: false,
+        isLoadingMore: false,
+        hasMore: false,
+        nextCursor: null,
+        page: 0,
+        failure: const AuthFailure('Login required', code: 'auth_required'),
+      );
+      return;
+    }
 
     state = state.copyWith(
       isInitialLoading: true,
@@ -551,7 +628,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
     );
 
     final repository = await _ref.read(feedRepositoryProvider.future);
-    if (state.isSearching) {
+    if (isSearching) {
       final result = await repository.searchPosts(
         projectCode: projectKey!,
         query: state.searchQuery,
@@ -587,7 +664,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
 
     switch (state.mode) {
       case CommunityFeedMode.recommended:
-        final result = await repository.getCommunityFeedByCursor(
+        final result = await repository.getCommunityRecommendedFeedByCursor(
           cursor: null,
           size: _pageSize,
         );
@@ -595,6 +672,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
           state = state.copyWith(
             posts: result.data.items,
             searchSourcePosts: const [],
+            page: 0,
             hasMore: result.data.hasNext,
             nextCursor: result.data.nextCursor ?? '',
             isInitialLoading: false,
@@ -605,6 +683,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
             posts: const [],
             searchSourcePosts: const [],
             hasMore: false,
+            page: 0,
             nextCursor: null,
             isInitialLoading: false,
             failure: result.failure,
@@ -691,6 +770,9 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
   }
 
   Future<void> loadMore() async {
+    if (!_isBoardTabActive(_ref)) {
+      return;
+    }
     if (state.isInitialLoading || state.isLoadingMore || !state.hasMore) return;
     if (state.isSearching) return;
 
@@ -700,6 +782,10 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
         state.mode == CommunityFeedMode.trending;
     if (requiresProjectSelection &&
         (projectKey == null || projectKey.isEmpty)) {
+      return;
+    }
+    if (_requiresAuthentication(state.mode) &&
+        !_ref.read(isAuthenticatedProvider)) {
       return;
     }
 
@@ -713,7 +799,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
           state = state.copyWith(isLoadingMore: false, hasMore: false);
           return;
         }
-        final result = await repository.getCommunityFeedByCursor(
+        final result = await repository.getCommunityRecommendedFeedByCursor(
           cursor: cursor,
           size: _pageSize,
         );
@@ -763,7 +849,15 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
     }
   }
 
+  bool _requiresAuthentication(CommunityFeedMode mode) {
+    return mode == CommunityFeedMode.recommended ||
+        mode == CommunityFeedMode.following;
+  }
+
   Future<void> _loadSubscriptions({bool forceRefresh = false}) async {
+    if (!_isBoardTabActive(_ref)) {
+      return;
+    }
     state = state.copyWith(isSubscriptionsLoading: true);
     final repository = await _ref.read(feedRepositoryProvider.future);
     final result = await repository.getCommunitySubscriptions(

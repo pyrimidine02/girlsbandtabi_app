@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/localization/locale_text.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
+import '../../../../core/theme/gbt_map_styles.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
@@ -692,7 +693,7 @@ class _MapSection extends StatelessWidget {
         : context.l10n(ko: '장소 위치', en: 'Place location', ja: '場所位置');
 
     if (isApple) {
-      return amaps.AppleMap(
+      final appleMap = amaps.AppleMap(
         initialCameraPosition: amaps.CameraPosition(
           target: amaps.LatLng(latitude, longitude),
           zoom: 16,
@@ -710,6 +711,17 @@ class _MapSection extends StatelessWidget {
           ),
         },
       );
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          appleMap,
+          IgnorePointer(
+            child: ColoredBox(
+              color: gbtAppleMapOverlayColorForDarkMode(isDark),
+            ),
+          ),
+        ],
+      );
     }
 
     return gmaps.GoogleMap(
@@ -723,7 +735,7 @@ class _MapSection extends StatelessWidget {
       zoomControlsEnabled: false,
       myLocationEnabled: false,
       myLocationButtonEnabled: false,
-      style: isDark ? _darkMapStyle : null,
+      style: gbtGoogleMapStyleForDarkMode(isDark),
       markers: {
         gmaps.Marker(
           markerId: const gmaps.MarkerId('visit_pin'),
@@ -954,25 +966,3 @@ class _MiniStatCard extends StatelessWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// EN: Dark map style for Google Maps
-// KO: Google Maps 다크 지도 스타일
-// ---------------------------------------------------------------------------
-
-const String _darkMapStyle = '''
-[
-  {"elementType":"geometry","stylers":[{"color":"#1f1f1f"}]},
-  {"elementType":"labels.icon","stylers":[{"visibility":"off"}]},
-  {"elementType":"labels.text.fill","stylers":[{"color":"#8a8a8a"}]},
-  {"elementType":"labels.text.stroke","stylers":[{"color":"#1f1f1f"}]},
-  {"featureType":"administrative","elementType":"geometry","stylers":[{"color":"#2f2f2f"}]},
-  {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#262626"}]},
-  {"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#1e2b20"}]},
-  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#2b2b2b"}]},
-  {"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#1a1a1a"}]},
-  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#3a3a3a"}]},
-  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#0f1b2a"}]},
-  {"featureType":"transit.station","elementType":"labels.text.fill","stylers":[{"color":"#8a8a8a"}]}
-]
-''';

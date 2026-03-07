@@ -1,10 +1,195 @@
 # TODO
 
+- Run QA for notification payload alignment v1.1.0 (2026-03-08):
+  - `notificationType + type` 동시 수신 시 `notificationType` 우선 처리 확인.
+  - `targetId + entityId` 동시 수신 시 `targetId` 우선 라우팅 확인.
+  - `deeplink/deepLink`와 `actionUrl` 동시 존재 시 딥링크 우선 이동 확인.
+  - `/community/posts/{postId}` 링크 탭 시 `/board/posts/{postId}`로 정상 이동 확인.
+  - 미지원 type 수신 시 크래시 없이 알림함 진입/잔류 처리 확인.
+
+- Backend confirm needed for notification publish request v1.0.0 (2026-03-08):
+  - `docs/api-spec/알림발행_백엔드요청서_v1.0.0.md` 기준으로 eventCode/카테고리 매핑 확정.
+  - `notificationId` 단일 멱등 키 정책(푸시/SSE/알림함 공통) 확정.
+  - 카테고리(`LIVE_EVENT`, `FAVORITE`, `COMMENT`) 필터링 위치/정책 확정.
+  - 운영 공지(`SYSTEM_NOTICE`) 우선순위 및 발행 빈도 정책 확정.
+
+- Run QA for ads `deliveryType=none` fallback visibility policy (2026-03-08):
+  - Home 슬롯에서 `/api/v1/ads/decision`이 `deliveryType=none`일 때도 로컬 폴백 카드가 노출되는지 확인.
+  - Board feed 슬롯에서 `deliveryType=none` 응답 시 빈 간격 대신 폴백 카드가 노출되는지 확인.
+  - `deliveryType=none` 경로에서는 `/api/v1/ads/events`가 불필요하게 전송되지 않는지 확인.
+  - 운영 정책상 `none=숨김`이 필요한 슬롯이 생기면 `DeliveryNoneStrategy.hide`로 개별 설정하는 가이드를 문서화.
+
+- Run QA for post compose topic/tag catalog options integration (2026-03-08):
+  - 작성/수정 진입 시 `GET /api/v1/community/posts/options`가 1회 호출되는지 확인.
+  - 옵션 API 성공 시 토픽/태그 선택 목록이 서버 카탈로그 기준으로 표시되는지 확인.
+  - 옵션 API 실패(예: 401/500) 시 토픽이 자유입력 모드로 폴백되고 작성이 막히지 않는지 확인.
+  - 태그 입력에서 중복 제거/최대 5개/항목당 16자 제한이 저장 payload에 반영되는지 확인.
+  - 작성/수정 제출 payload에 `topic`, `tags`가 optional 규칙대로 전송되는지 확인.
+
+- Run QA for unified-search global entry + reference-style discovery UI (2026-03-08):
+  - Home/Feed/Board/Places의 돋보기 아이콘(또는 검색 카드 탭)에서 모두 `/search`로 이동하는지 확인.
+  - Places 페이지 검색 카드에서 길게 누를 때 기존 지도 내 검색 시트가 열리는지 확인.
+  - 통합 검색 페이지 상단 레이아웃(뒤로가기 + 라운드 검색 입력창 + 범위 토글)이 레퍼런스 톤으로 표시되는지 확인.
+  - query empty 상태에서 `인기 통합 검색`, `인기 탐색 카테고리`, `검색 둘러보기` 섹션 노출 확인.
+  - query 입력 상태에서 기존 통합검색 결과 로드/탭 필터(`전체/장소/이벤트/뉴스`)가 정상 동작하는지 확인.
+  - 검색 결과 아이템 탭 시 상세 라우팅(장소/라이브/뉴스/게시글)이 정상 동작하는지 확인.
+
+- Run QA for live upcoming featured-card single-selection policy (2026-03-08):
+  - 예정 탭에서 당일 이벤트가 여러 개인 경우 피처드 카드가 1개만 노출되는지 확인.
+  - 피처드 대상이 현재 시각 기준 가장 가까운 당일 이벤트인지 확인.
+  - 당일 이벤트가 없는 경우 `SCHEDULED` 상태 이벤트 중 가장 가까운 항목이 피처드로 폴백되는지 확인.
+  - 피처드 제외 이벤트는 기존 `GBTEventCard`로 정상 렌더링되는지 확인.
+
+- Run QA for remote push notification-center delivery (2026-03-08):
+  - 포그라운드(iOS)에서 FCM 수신 시 시스템 알림(배너/알림센터)이 중복 없이 1회 표시되는지 확인.
+  - 포그라운드(Android)에서 FCM 수신 시 로컬 알림이 알림센터에 표시되는지 확인.
+  - 백그라운드/종료 상태에서 `notification` payload 메시지가 알림센터에 표시되는지 확인.
+  - 백그라운드 data-only 메시지 수신 시 로컬 브리지 알림이 표시되는지 확인(Android 중심).
+  - 알림 탭 시 라우팅 payload(`notificationId`, `deeplink`, `entityId`)가 정상 전달되는지 확인.
+  - iOS/Android Firebase 설정 파일 미구성 환경에서는 크래시 없이 push 경로만 비활성화되는지 확인.
+
+- Run QA for board top-bar simplification (2026-03-08):
+  - 피드 상단에 `추천/팔로잉` + 프로젝트 선택 알약만 노출되는지 확인.
+  - 기존 2차 칩 행의 `전체`가 제거되었는지 확인.
+  - 프로젝트 알약에서 프로젝트 선택 후 프로젝트 피드 목록으로 즉시 전환되는지 확인.
+  - `추천/팔로잉` 탭 전환 시 기존 커뮤니티 피드 로딩/무한스크롤이 정상 동작하는지 확인.
+
+- Run QA for feed reaction 404 normalization + conditional project pill (2026-03-08):
+  - 피드 상단에 `추천/팔로잉/프로젝트별`만 보이고 프로젝트 선택 알약은 `프로젝트별` 선택 시에만 노출되는지 확인.
+  - `추천/팔로잉` 피드에서 반응 상태 조회 URL이 UUID 경로(`/projects/{uuid}/posts/...`)로 호출되지 않는지 확인.
+  - mixed-project 피드 카드의 like/bookmark 상태 조회가 404 스팸 없이 정상 렌더링되는지 확인.
+  - 프로젝트 매핑 불가 edge case에서 앱이 네트워크 에러 스팸 없이 동작하는지 확인.
+  - `프로젝트별` 탭의 프로젝트 선택 알약이 기존보다 축소(dense)되어 가로 공간을 덜 차지하는지 확인.
+
+- Run QA for iOS camera compose crash fix (2026-03-08):
+  - iOS physical device에서 작성/수정 화면 카메라 아이콘 탭 시 앱 종료 없이 카메라가 열리는지 확인.
+  - iOS simulator(카메라 미지원)에서 카메라 아이콘 탭 시 크래시 없이 안내 문구(`이 기기에서는 카메라를 사용할 수 없어요.`)가 노출되는지 확인.
+  - 최초 카메라 접근 시 iOS 권한 팝업 문구가 정상 노출되는지 확인.
+
+- Run QA for page-scoped API trigger enforcement (2026-03-07):
+  - 프로젝트 전환 후 현재 탭이 아닌 페이지 API가 호출되지 않는지 확인(Home/Places/Live/Board/Info).
+  - 프로젝트 선택 직후 `GET /api/v1/projects/{project}/units` 중복 호출(동일 파라미터 2회)이 제거됐는지 확인.
+  - Board 비활성 상태에서 `GET /api/v1/community/subscriptions`와 feed reload/loadMore가 발생하지 않는지 확인.
+  - Board 재진입 시 필요한 피드/구독 데이터가 1회 정상 갱신되는지 확인.
+  - Info 탭에서 비활성 탭(뉴스/유닛)의 불필요 API 호출이 줄었는지 확인.
+
+- Run QA for compose bottom toolbar camera/gallery-only update (2026-03-07):
+  - 작성/수정 하단 툴바에 갤러리/카메라 아이콘만 노출되는지 확인.
+  - 갤러리 아이콘 탭 시 멀티 이미지 선택이 실제 동작하는지 확인.
+  - 카메라 아이콘 탭 시 카메라 캡처가 실제 동작하는지 확인.
+  - 권한 미허용/디바이스 제한 환경에서 실패 메시지 노출(`갤러리를 열지 못했어요`, `카메라를 열지 못했어요`) 확인.
+  - 최대 첨부 수(6장)와 중복 이미지 방지 메시지 동작 확인.
+- Run QA for compose audience-chip size + transparent input tuning (2026-03-07):
+  - 작성/수정 화면 상단 프로젝트 칩 높이/타이포가 축소된 상태로 자연스럽게 보이는지 확인.
+  - 제목/본문 입력 필드가 투명 fill 상태에서 포커스/커서/플레이스홀더 가독성이 유지되는지 확인.
+  - 다크 모드에서 축소된 칩 대비(테두리/텍스트/아이콘)와 터치 정확도 확인.
+- Run QA for audience-like project chip compose update (2026-03-07):
+  - 작성/수정 화면에서 제목/본문 입력 배경이 라이트는 흰색, 다크는 다크 서피스로 자동 전환되는지 확인.
+  - 아바타 오른쪽 상단 칩(`프로젝트`) 탭 시 바텀시트가 열리고 프로젝트 선택이 즉시 반영되는지 확인.
+  - 기존 본문 하단의 별도 프로젝트 선택 행이 제거되었는지 확인.
+  - 프로젝트 변경 후 게시글 작성/수정 저장 시 선택된 프로젝트로 정상 전송되는지 확인.
+  - 프로젝트 선택 바텀시트에서 현재 선택 항목 check 표시/재선택 no-op 동작 확인.
+- Run QA for single-tone compose editor + project picker rework (2026-03-07):
+  - 작성/수정 화면 배경이 단색(화이트)으로 통일되고 회색 구간 분리가 제거됐는지 확인.
+  - 제목 입력과 본문 입력 사이 연한 가로 구분선 노출/두께/대비 확인.
+  - 본문 플레이스홀더에 커뮤니티 준수 문구가 표시되고 입력 시작 시 사라지는지 확인.
+  - 프로젝트 선택 UI가 기존 가로 pill 스크롤이 아닌 단일 드롭다운 방식으로 동작하는지 확인.
+  - 프로젝트 선택 바텀시트에서 선택 시 현재 프로젝트가 즉시 반영되고 관련 데이터가 정상 갱신되는지 확인.
+- Run QA for immersive post compose editor update (2026-03-07):
+  - `/board/posts/new`, `/board/posts/:postId/edit`에서 shell 하단 네비게이션이 노출되지 않는지 확인.
+  - 작성/수정 화면 진입 직후 키보드가 자동으로 열리는지 확인.
+  - 제목 입력 폰트가 이전 대비 커졌는지(`titleLarge`) 라이트/다크 모드에서 확인.
+  - 제목 힌트가 `제목을 입력해주세요`로 반영됐는지 확인.
+  - 제목 아래 커뮤니티 준수 안내 문구가 표시되는지 확인.
+  - 프로젝트 선택 영역이 별도 회색 박스 없이 단색 입력 화면에 자연스럽게 표시되는지 확인.
+- Run QA for post compose copy-trim + selector integration update (2026-03-07):
+  - 작성/수정 화면 하단 툴바에서 공개 안내 문구가 제거되고 아이콘 행만 남는지 확인.
+  - 제목 플레이스홀더가 `(선택) 헤드라인을 입력해 주세요`로 반영되고,
+    본문 플레이스홀더 문구(`무슨 일이 일어나고 있나요?`)가 제거되었는지 확인.
+  - 프로젝트 선택 영역이 별도 박스 느낌 없이 입력 영역 톤과 자연스럽게 연결되어 보이는지 확인.
+  - 라이트/다크 모드 전환 시 프로젝트 선택 영역 배경 대비와 텍스트 가독성이 유지되는지 확인.
+- Run QA for post compose timeline-like redesign (2026-03-07):
+  - 작성/수정 화면 AppBar의 `취소 / 임시 보관함 / 게시(수정)하기` 동작 및 비활성 상태를 확인.
+  - 입력 레이아웃(아바타 + 제목 + 본문)이 키보드 표시/회전 상태에서 깨지지 않는지 확인.
+  - 이미지 가로 스트립 미리보기/삭제/확대 보기 동작을 작성/수정 모두에서 확인.
+  - 하단 툴바(공개 안내 문구 + 아이콘 행)가 노치/홈인디케이터 영역과 겹치지 않는지 확인.
+  - 임시저장 복구/삭제 플로우가 `임시 보관함`에서 정상 동작하는지 확인.
+- Run QA for board feed timeline-like redesign (2026-03-07):
+  - 피드 섹션 상단 커스텀 헤더(타이틀/아이콘/탭/토픽칩)가 iOS/Android 모두에서 레이아웃 깨짐 없이 표시되는지 확인.
+  - `추천/팔로잉/뉴스/콘텐츠` 탭 전환 시 모드 매핑(`recommended/following/latest/project`)이 의도대로 동작하는지 확인.
+  - 구독 프로젝트 칩 탭 시 프로젝트 선택 동기화 + `콘텐츠` 탭 전환이 정상인지 확인.
+  - 피드 카드 타임라인 레이아웃(작성자행/본문 5줄 미리보기/더보기/액션행)에서 탭 타깃/가독성/오버플로우 이슈가 없는지 확인.
+  - 본문이 5줄을 넘을 때만 `더보기` 버튼이 노출되고 탭 시 상세로 이동하는지 확인.
+  - 본문이 5줄 이하인 카드에서는 `더보기`가 노출되지 않는지 확인.
+  - 이미지가 있을 때 트위터형 와이드 배치(넓은 비율 + 라운드 경계)로 표시되는지 확인.
+  - 앱바 제거된 피드 섹션에서 상태바/노치 안전영역 겹침이 없는지 확인.
+- Run UI QA for board sub-nav pill restyle (2026-03-07):
+  - 게시판 진입 시 하단 서브 내비게이션이 플로팅 pill 형태로 렌더링되는지 확인.
+  - 라이트/다크 모드 전환 시 배경/텍스트/선택 색상이 기존 앱 테마 토큰과 일관되게 바뀌는지 확인.
+  - iOS에서 연속 곡률(continuous corner)로 보여지는지, Android에서 과도한 곡률 왜곡 없이 자연스럽게 보이는지 확인.
+  - back 원형 버튼 터치 영역/햅틱/동작(`이전 위치 복귀`) 정상 확인.
+  - `피드/발견/여행후기` 선택 상태 대비(밝기)와 탭 전환 가시성 확인.
+  - iPhone notch 기기/Android gesture nav 환경에서 하단 safe-area 겹침 없이 표시되는지 확인.
+- Run QA for recommended-feed endpoint switch (2026-03-07):
+  - `추천` 탭 첫 진입/새로고침/무한스크롤에서
+    `GET /api/v1/community/feed/recommended/cursor` 호출 여부 확인.
+  - `추천` 탭에서 응답 `200 + data>0`일 때 카드가 즉시 렌더링되는지 확인.
+  - `추천` 탭에서 `hasMore/nextCursor` 판정이 응답 필드 기준으로 정상 동작하는지 확인.
+  - 삭제된 엔드포인트(`/community/feed/cursor`)가 더 이상 호출되지 않는지 확인.
+- Run QA for mixed-project feed reaction 400 hotfix (2026-03-07):
+  - `추천/팔로잉` 피드에서 다른 프로젝트 글이 포함된 카드에 대해
+    `GET /projects/{project}/posts/{postId}/like|bookmark`가 `400` 없이
+    `200`으로 응답하는지 확인.
+  - 동일 시나리오에서 좋아요/북마크 토글(`POST/DELETE`)이 정상 반영되는지 확인.
+  - 게시글 상세(`/board/posts/:postId`) 진입 시에도 반응 상태 조회/토글이
+    글 소속 프로젝트 기준으로 호출되는지 확인.
+  - 이전 오류 문구(`Post does not belong to project`)가 로그에서 재발하지 않는지 확인.
+- Run QA for notifications SSE reconnect throttle/cooldown (2026-03-07):
+  - `/api/v1/notifications/stream`가 `401/403`일 때 즉시 재연결 루프 없이 약 5분 쿨다운 후 재시도되는지 확인.
+  - `/api/v1/notifications/stream`가 `400/404`일 때 약 10분 쿨다운 후 재시도되는지 확인.
+  - 서버 down(`connection refused`) 시 지수 백오프 + 지터로 재시도 간격이 점진 증가하는지 확인.
+  - 동일 원인 SSE 오류가 2분 내 반복될 때 중복 에러 로그가 억제되는지 확인.
+  - SSE 실패 상태에서도 알림 폴링 동작/알림 목록 렌더링이 정상 유지되는지 확인.
+- Run QA for map theme forced-sync (2026-03-07):
+  - 앱 테마가 `라이트`일 때 iOS/Android 모두 지도(장소 지도/방문 상세/여행후기 생성·상세)가 라이트 톤으로 표시되는지 확인.
+  - 앱 테마가 `다크`일 때 iOS AppleMap/Android GoogleMap 모두 다크 톤으로 표시되는지 확인.
+  - OS 시스템 테마를 앱 테마와 반대로 둬도 지도는 앱 테마를 따르는지 확인.
+  - 지도 줌/이동/마커 터치 시 오버레이로 인한 입력 차단이 없는지 확인.
+- Configure Firebase project files for real remote push delivery (2026-03-07):
+  - add `android/app/google-services.json`
+  - add `ios/Runner/GoogleService-Info.plist`
+  - verify iOS Runner target has Push Notifications capability + valid APNs entitlement/profile
+  - verify Android Firebase sender/project linkage for current package id (`org.pyrimidines.girlsbandtabi_app`)
+- Run end-to-end remote push QA on physical devices (2026-03-07):
+  - login -> permission grant -> backend `POST /api/v1/notifications/devices` registration 확인
+  - token refresh path (`PATCH /api/v1/notifications/devices/{deviceId}/token`) 확인
+  - foreground FCM 수신 시 로컬 배너 노출/탭 라우팅 확인
+  - background/terminated FCM 알림 탭 시 앱 라우팅 확인
+  - logout/푸시OFF 후 device deactivate 동작 확인
+- Run startup resilience QA for Firebase-missing environments (2026-03-07):
+  - when `google-services.json` / `GoogleService-Info.plist` are absent, app must boot without `[core/no-app]` crash.
+  - verify remote push bootstrap logs warning and disables push paths gracefully.
+- Run regression QA for runtime hotfixes (2026-03-07):
+  - ads tracking 이벤트에서 `decisionId` 없을 때 더 이상 `POST /api/v1/ads/events 400`가 발생하지 않는지 확인
+  - 프로젝트 전환/빠른 이동 반복 시 `ProjectUnitsController after dispose` 예외가 재발하지 않는지 확인
+- Run design QA for post-create/profile-edit consistency update (2026-03-07):
+  - `게시글 작성` 화면의 섹션 헤더/카드 톤이 `프로필 수정` 화면과 시각적으로 일관적인지 확인.
+  - AppBar `등록` 액션의 활성/비활성 조건이 입력 유효성 + 제출중 상태와 정확히 일치하는지 확인.
+  - 사진 섹션의 borderless embed(`useCardChrome=false`)가 이중 테두리 없이 정상 렌더링되는지 확인.
+  - 프로젝트 섹션에서 `현재 프로젝트: <slug>` 보조 문구가 제거되었는지 확인.
+  - 게시글 업로드 성공 후 `feed_post_create_draft_v1` 임시저장 데이터가 재생성되지 않고 삭제 상태로 유지되는지 확인.
 - Run QA for home project-gate loading guard (2026-03-07):
   - `GET /api/v1/projects`가 5xx일 때 홈이 무한 스피너가 아니라 에러/재시도 상태를 노출하는지 확인.
   - 에러 상태에서 `다시 시도` 시 프로젝트 목록 재조회 + 홈 재조회가 함께 트리거되는지 확인.
   - 프로젝트 목록이 복구되면 첫 프로젝트 자동 선택 후 홈 콘텐츠가 정상 진입되는지 확인.
   - 프로젝트 목록이 비어있는 환경에서 명시적 빈 상태 메시지가 표시되는지 확인.
+- Run QA for home service-hub removal (2026-03-07):
+  - 홈 중앙 `장소/게시판/정보` 3버튼이 완전히 제거되었는지 확인.
+  - 제거 이후 hero/project-selector/sponsored-slot 간 간격과 스크롤 리듬이 어색하지 않은지 확인.
+- Run QA for notification toggle resilience + login permission prompt (2026-03-07):
+  - 알림 설정에서 `push ON -> OFF` 전환 시 서버 디바이스 해제 호출 실패 상황에서도 UI가 저장 실패 스낵바를 띄우지 않고 OFF 상태를 유지하는지 확인.
+  - 로그인 직후(권한 미허용 상태) OS 알림 권한 요청이 노출되는지 iOS/Android에서 확인.
+  - 로그인 직후(앱 내 알림 설정이 OFF 상태) 권한 요청이 뜨지 않는지 확인.
 - Run QA for backend-alignment patch (2026-03-07):
   - 로그인 `429` 응답에서 대기시간 안내 문구(`N초 후 재시도`)가 노출되는지 확인.
   - 로그인 `409` 충돌 응답이 전용 문구로 표시되는지 확인.
@@ -15,22 +200,37 @@
   - 장소 가이드 first-page 호출이 `guides/high-priority?limit=20` 우선이며, 미지원 환경에서 `/guides?page&size` 폴백이 정상 동작하는지 확인.
 - Run QA for following-tab dedicated cursor endpoint split (2026-03-07):
   - `팔로잉` 탭에서 `GET /api/v1/community/feed/following/cursor` 호출 여부 확인.
-  - `추천` 탭은 기존 `GET /api/v1/community/feed/cursor` 유지되는지 확인.
-  - 백엔드 미배포 구간에서 `404` 발생 시 앱 폴백(`community/feed/cursor`)이 실제로 작동하는지 확인.
+  - `추천` 탭은 `GET /api/v1/community/feed/recommended/cursor`를 사용하는지 확인.
+  - `팔로잉/추천` 탭에서 삭제 경로(`/community/feed/cursor`) 호출이 없는지 확인.
   - 팔로우 계정이 글을 작성한 케이스에서 응답 `items` 및 UI 리스트 건수 일치 여부 확인.
   - 팔로우 계정이 없는 케이스에서 빈 상태 문구/페이징 처리(`hasNext/nextCursor`) 확인.
+- Run QA for recommended-feed cursor migration (2026-03-07):
+  - `추천` 탭 첫 진입 시 cursor 없이 `GET /api/v1/community/feed/recommended/cursor?size=20` 호출 여부 확인.
+  - 다음 페이지 요청 시 응답 `nextCursor` 값을 그대로 재전달하는지 확인.
+  - `추천` 탭 무한스크롤 시 `nextCursor` 기반으로 다음 데이터가 정상 append 되는지 확인.
+  - `추천/팔로잉` 탭에서 `400`(잘못된 커서) 응답 시 오류 상태가 노출되는지 확인.
+  - `추천/팔로잉` 탭에서 `401` 응답 시 로그인 유도 메시지/플로우가 노출되는지 확인.
+  - 프로젝트 선택 변경 시 `추천/팔로잉` 모드에서 불필요한 재요청이 발생하지 않는지 확인.
 - Backend rollout follow-up:
-  - production `GET /api/v1/community/feed/following/cursor` is currently `404` (probe date: 2026-03-07).
-  - remove temporary client-side `404 -> community/feed/cursor` fallback after backend deployment is confirmed.
+  - verify live environment contracts for
+    `GET /api/v1/community/feed/recommended/cursor` and
+    `GET /api/v1/community/feed/following/cursor` (items/nextCursor/hasNext)
+    against at least one real follower graph account.
 
 - Run QA for settings quick-action navigation blank-screen fix (2026-03-07):
   - `/settings` -> `즐겨찾기/방문기록/통계` 진입 후 카드 탭 시 상세 화면이 정상 렌더링되는지 확인.
   - overlay 화면에서 `장소/라이브/뉴스/게시글` 상세로 이동 시 빈 화면 없이 라우팅되는지 확인.
-  - iOS/Android에서 뒤로가기 동작(overlay -> shell 전환 후 back stack 기대치) 확인.
+  - 동일 상세 재진입 케이스(`settings -> favorites -> same place detail`)에서
+    `duplicated page key`/`GlobalKey used multiple times` 예외가 재발하지 않는지 확인.
+  - iOS/Android에서 상세 뒤로가기 시 원래 overlay 리스트(`/favorites`/`/visits`/`/visit-stats`)로 정확히 복귀하는지 확인.
 - Run QA for profile-entry consistency and user-profile redesign (2026-03-07):
   - post detail author area: avatar tap -> profile navigation, and no standalone `프로필 보기` button.
   - compact follow CTA readability/tap accuracy on small-width devices.
   - user profile header layout validation (`cover/avatar/name/bio/actions/stats`) in light/dark mode and dynamic text scaling.
+  - settings 페이지 프로필 카드 상단 탭 시 내 프로필(`/users/{me}`)로 이동하는지 확인.
+  - 내 프로필에서 팔로워/팔로잉 수가 `-`가 아닌 실제 값(또는 목록 길이 기반 값)으로 표시되는지 확인.
+  - 내 프로필 `작성한 글/작성한 댓글` 중 한쪽 API 실패 시 다른 탭 데이터가 유지 표시되는지 확인.
+  - 내 프로필 `작성한 글/작성한 댓글` 탭에서 프로필 헤더+목록이 함께 스크롤되는지(내부 박스 스크롤 아님) 확인.
 - Run QA for notification toggle/push-action routing contract (2026-03-07):
   - `pushEnabled=false`에서 하위 카테고리 토글 비활성/회색 처리 확인 및 재활성 시 기존 선택 유지 확인.
   - `POST_CREATED` 알림 탭(로컬 알림/인박스) 시 게시글 상세(`/board/posts/:postId`) 이동 확인.
@@ -211,7 +411,8 @@
 - Confirm `PostSummaryDto`/`PostDetailDto` field mapping + `projectCode` usage with backend response and adjust parsing keys if needed.
 - Confirm `UserProfileDto` and `NotificationSettingsDto` mappings with backend response and adjust parsing keys if needed.
 - Confirm avatar upload flow (presigned + confirm URL) is accepted by `PATCH /api/v1/users/me`.
-- Confirm `/api/v1/search` query parameter name (`query` vs `q`) and simplify once confirmed.
+- Remove temporary popular-keyword fallback list after production discovery APIs are confirmed stable across environments.
+- Decide whether discovery category API failure should keep current "section hide + retry" policy or switch to explicit empty-state card.
 - Decide when to remove legacy compatibility query params (`swLat/neLat/...`, `radiusKm`, `page/size`) after backend contract freeze.
 - Confirm whether feed endpoints will standardize on `pageable` only, then drop dual-query fallback (`page`,`size` + `pageable`).
 - Reduce or remove verbose network body logging once verification 400s are resolved.
@@ -249,3 +450,5 @@
 - Run on-device QA for Stage 9 flows (search/verification/favorites/notifications/projects/uploads) and record findings.
 - Continue i18n rollout for remaining pages still using hardcoded Korean strings (admin/account-tools/notification-settings/travel-review mock screens) with the same `ko/en/ja` runtime locale behavior.
 - Add widget tests to guard locale switching and key board/live/project localized strings against regressions.
+- Confirm backend contract for community post `topic`/`tags` fields (create/update/read) and remove temporary optional compatibility fallback once API schema is finalized.
+- Run on-device QA for compose topic/tag UX (bottom-sheet selection, duplicate guard, max-count guard, draft restore, and publish/update payload verification) on iOS/Android.

@@ -168,15 +168,13 @@ class FeedRepositoryImpl implements FeedRepository {
   }
 
   @override
-  Future<Result<PostCursorPage>> getCommunityFeedByCursor({
+  Future<Result<PostCursorPage>> getCommunityRecommendedFeedByCursor({
     String? cursor,
     int size = 20,
   }) async {
     try {
-      final result = await _remoteDataSource.fetchCommunityFeedByCursor(
-        cursor: cursor,
-        size: size,
-      );
+      final result = await _remoteDataSource
+          .fetchCommunityRecommendedFeedByCursor(cursor: cursor, size: size);
 
       if (result is Success<PostCursorPageDto>) {
         return Result.success(PostCursorPage.fromDto(result.data));
@@ -187,8 +185,41 @@ class FeedRepositoryImpl implements FeedRepository {
 
       return Result.failure(
         const UnknownFailure(
-          'Unknown community feed cursor result',
-          code: 'unknown_community_feed_cursor',
+          'Unknown community recommended feed cursor result',
+          code: 'unknown_community_recommended_feed_cursor',
+        ),
+      );
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  @override
+  Future<Result<List<PostSummary>>> getCommunityRecommendedFeed({
+    int page = 0,
+    int size = 20,
+    String sort = 'createdAt,desc',
+  }) async {
+    try {
+      final result = await _remoteDataSource.fetchCommunityRecommendedFeed(
+        page: page,
+        size: size,
+        sort: sort,
+      );
+
+      if (result is Success<List<PostSummaryDto>>) {
+        final entities = result.data.map(PostSummary.fromDto).toList();
+        return Result.success(entities);
+      }
+      if (result is Err<List<PostSummaryDto>>) {
+        return Result.failure(result.failure);
+      }
+
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown community recommended feed result',
+          code: 'unknown_community_recommended_feed',
         ),
       );
     } catch (e, stackTrace) {
@@ -203,18 +234,8 @@ class FeedRepositoryImpl implements FeedRepository {
     int size = 20,
   }) async {
     try {
-      var result = await _remoteDataSource.fetchCommunityFollowingFeedByCursor(
-        cursor: cursor,
-        size: size,
-      );
-      if (result is Err<PostCursorPageDto> &&
-          result.failure is NotFoundFailure &&
-          result.failure.code == '404') {
-        result = await _remoteDataSource.fetchCommunityFeedByCursor(
-          cursor: cursor,
-          size: size,
-        );
-      }
+      final result = await _remoteDataSource
+          .fetchCommunityFollowingFeedByCursor(cursor: cursor, size: size);
 
       if (result is Success<PostCursorPageDto>) {
         return Result.success(PostCursorPage.fromDto(result.data));
@@ -403,12 +424,16 @@ class FeedRepositoryImpl implements FeedRepository {
     required String title,
     required String content,
     List<String> imageUploadIds = const [],
+    String? topic,
+    List<String> tags = const [],
   }) async {
     try {
       final request = PostCreateRequestDto(
         title: title,
         content: content,
         imageUploadIds: imageUploadIds,
+        topic: topic,
+        tags: tags,
       );
       final result = await _remoteDataSource.createPost(
         projectCode: projectCode,
@@ -436,17 +461,51 @@ class FeedRepositoryImpl implements FeedRepository {
   }
 
   @override
+  Future<Result<PostComposeOptions>> getPostComposeOptions({
+    bool forceRefresh = false,
+  }) async {
+    final policy = forceRefresh
+        ? CachePolicy.networkFirst
+        : CachePolicy.cacheFirst;
+
+    try {
+      final cacheResult = await _cacheManager.resolve<PostComposeOptionsDto>(
+        key: _postComposeOptionsCacheKey(),
+        policy: policy,
+        ttl: const Duration(minutes: 5),
+        fetcher: _fetchPostComposeOptions,
+        toJson: (dto) => dto.toJson(),
+        fromJson: (json) => PostComposeOptionsDto.fromJson(json),
+      );
+
+      return Result.success(PostComposeOptions.fromDto(cacheResult.data));
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  @override
   Future<Result<PostDetail>> updatePost({
     required String projectCode,
     required String postId,
     required String title,
     required String content,
+    String? topic,
+    List<String> tags = const [],
   }) async {
     try {
+      final trimmedTopic = topic?.trim();
       final result = await _remoteDataSource.updatePost(
         projectCode: projectCode,
         postId: postId,
-        request: {'title': title, 'content': content},
+        request: {
+          'title': title,
+          'content': content,
+          if (trimmedTopic != null && trimmedTopic.isNotEmpty)
+            'topic': trimmedTopic,
+          if (tags.isNotEmpty) 'tags': tags,
+        },
       );
 
       if (result is Success<PostDetailDto>) {
@@ -1079,6 +1138,22 @@ class FeedRepositoryImpl implements FeedRepository {
     );
   }
 
+  Future<PostComposeOptionsDto> _fetchPostComposeOptions() async {
+    final result = await _remoteDataSource.fetchPostComposeOptions();
+
+    if (result is Success<PostComposeOptionsDto>) {
+      return result.data;
+    }
+    if (result is Err<PostComposeOptionsDto>) {
+      throw result.failure;
+    }
+
+    throw const UnknownFailure(
+      'Unknown post compose options result',
+      code: 'unknown_post_compose_options',
+    );
+  }
+
   Future<List<PostSummaryDto>> _fetchPostsByAuthor(
     String projectCode,
     String userId,
@@ -1233,5 +1308,9 @@ class FeedRepositoryImpl implements FeedRepository {
 
   String _communitySubscriptionsCacheKey(int page, int size) {
     return 'community_subscriptions:p$page:s$size';
+  }
+
+  String _postComposeOptionsCacheKey() {
+    return 'post_compose_options';
   }
 }

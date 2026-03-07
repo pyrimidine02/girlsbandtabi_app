@@ -5,6 +5,7 @@
     
     <!-- Background location permission (optional, for background location access) -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     
     <application
         android:label="걸즈밴드타비"
@@ -40,6 +41,9 @@
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-3940256099942544~3347511713" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="gbt_notifications_high" />
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

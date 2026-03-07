@@ -72,7 +72,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         actions: [
           GBTAppBarIconButton(
             icon: Icons.search,
-            onPressed: () => context.push('/search'),
+            onPressed: () => context.goToSearch(),
             tooltip: context.l10n(ko: '검색', en: 'Search', ja: '検索'),
           ),
           GBTAppBarIconButton(
@@ -291,25 +291,6 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ),
 
-        // 3. Service hub — compact 3-column quick access row (Naver-style)
-        // EN: Surface all three core services at a glance.
-        // KO: 세 핵심 서비스를 한눈에 — 커뮤니티/장소/정보 빠른 진입.
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              GBTSpacing.pageHorizontal,
-              GBTSpacing.lg,
-              GBTSpacing.pageHorizontal,
-              0,
-            ),
-            child: _ServiceHub(
-              onCommunityTap: () => context.go('/board'),
-              onPlacesTap: () => context.go('/places'),
-              onInfoTap: () => context.go('/info'),
-            ),
-          ),
-        ),
-
         // EN: Single native sponsored slot on home to keep exposure light.
         // KO: 노출 부담을 줄이기 위해 홈에는 네이티브 스폰서 슬롯 1개만 배치.
         SliverToBoxAdapter(
@@ -487,6 +468,7 @@ class _HomeSponsoredSlot extends StatelessWidget {
     return HybridSponsoredSlot(
       request: const AdSlotRequest(placement: AdSlotPlacement.homePrimary),
       noDecisionStrategy: NoDecisionStrategy.house,
+      deliveryNoneStrategy: DeliveryNoneStrategy.fallback,
       fallback: SponsoredFallbackContent(
         badgeLabel: context.l10n(ko: '광고', en: 'AD', ja: '広告'),
         sponsorLabel: context.l10n(
@@ -514,145 +496,6 @@ class _HomeSponsoredSlot extends StatelessWidget {
         onTap: onTap,
       ),
       margin: const EdgeInsets.symmetric(horizontal: GBTSpacing.pageHorizontal),
-    );
-  }
-}
-
-/// EN: Service hub — 3-column quick access row for community / places / info.
-///     Surfaces the app's three core pillars on the home screen (Naver-style).
-/// KO: 서비스 허브 — 커뮤니티/장소/정보로 이동하는 3열 빠른 진입 행.
-///     홈 화면에서 앱의 세 핵심 서비스를 바로 보여줍니다 (네이버 스타일).
-class _ServiceHub extends StatelessWidget {
-  const _ServiceHub({
-    required this.onCommunityTap,
-    required this.onPlacesTap,
-    required this.onInfoTap,
-  });
-
-  final VoidCallback onCommunityTap;
-  final VoidCallback onPlacesTap;
-  final VoidCallback onInfoTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? GBTColors.darkSurface : GBTColors.surface;
-    final border = isDark
-        ? GBTColors.darkSurfaceVariant
-        : const Color(0xFFEEEEEE);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        border: Border.all(color: border),
-      ),
-      child: IntrinsicHeight(
-        child: Row(
-          children: [
-            _ServiceHubItem(
-              icon: Icons.place_outlined,
-              label: context.l10n(ko: '장소', en: 'Places', ja: '場所'),
-              color: GBTColors.accentTeal,
-              onTap: onPlacesTap,
-              showRightDivider: true,
-              isDark: isDark,
-            ),
-            _ServiceHubItem(
-              icon: Icons.forum_outlined,
-              label: context.l10n(ko: '게시판', en: 'Board', ja: '掲示板'),
-              color: GBTColors.primary,
-              onTap: onCommunityTap,
-              showRightDivider: true,
-              isDark: isDark,
-            ),
-            _ServiceHubItem(
-              icon: Icons.auto_stories_outlined,
-              label: context.l10n(ko: '정보', en: 'Info', ja: '情報'),
-              color: GBTColors.accent,
-              onTap: onInfoTap,
-              showRightDivider: false,
-              isDark: isDark,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// EN: Individual item in the service hub row.
-/// KO: 서비스 허브 행의 개별 아이템.
-class _ServiceHubItem extends StatelessWidget {
-  const _ServiceHubItem({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-    required this.showRightDivider,
-    required this.isDark,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-  final bool showRightDivider;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    final dividerColor = isDark
-        ? GBTColors.darkSurfaceVariant
-        : const Color(0xFFEEEEEE);
-
-    return Expanded(
-      child: Semantics(
-        button: true,
-        label:
-            '$label ${context.l10n(ko: "바로가기", en: "shortcut", ja: "ショートカット")}',
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: GBTSpacing.md),
-            decoration: showRightDivider
-                ? BoxDecoration(
-                    border: Border(right: BorderSide(color: dividerColor)),
-                  )
-                : null,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // EN: Icon in a tinted circle — Naver service icon style.
-                // KO: 틴트 원 안의 아이콘 — 네이버 서비스 아이콘 스타일.
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: isDark ? 0.20 : 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, size: 22, color: color),
-                ),
-                const SizedBox(height: GBTSpacing.xs),
-                Text(
-                  label,
-                  style: GBTTypography.labelSmall.copyWith(
-                    color: isDark
-                        ? GBTColors.darkTextPrimary
-                        : GBTColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

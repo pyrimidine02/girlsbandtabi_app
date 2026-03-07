@@ -16,18 +16,33 @@ import '../data/repositories/home_repository_impl.dart';
 // KO: 로드 실패 시 최대 추가 재시도 횟수.
 const int _kMaxRetries = 2;
 const Duration _kFailureCooldown = Duration(seconds: 8);
+const int _kHomeNavIndex = 0;
 
 class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
   HomeController(this._ref) : super(const AsyncLoading()) {
     _ref.listen<String?>(selectedProjectKeyProvider, (_, __) {
       // EN: Use cache on project switch — no forced network round-trip.
       // KO: 프로젝트 전환 시 캐시 사용 — 강제 네트워크 호출 없음.
+      if (!_isHomeTabActive()) {
+        return;
+      }
       load();
     });
     _ref.listen<List<String>>(selectedUnitIdsProvider, (_, __) {
       // EN: Re-fetch summary when unit filters change.
       // KO: 유닛 필터가 변경되면 홈 요약을 다시 조회합니다.
+      if (!_isHomeTabActive()) {
+        return;
+      }
       load();
+    });
+    _ref.listen<int>(currentNavIndexProvider, (previous, next) {
+      if (next != _kHomeNavIndex || next == previous) {
+        return;
+      }
+      // EN: Refresh when entering Home branch to avoid stale/offscreen-only updates.
+      // KO: 홈 브랜치 진입 시 새로고침해 오프스크린 상태 변경으로 인한 stale 데이터를 방지합니다.
+      load(forceRefresh: true);
     });
   }
 
@@ -36,6 +51,10 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
   String? _lastRequestKey;
   DateTime? _lastFailureAt;
   bool _isLoading = false;
+
+  bool _isHomeTabActive() {
+    return _ref.read(currentNavIndexProvider) == _kHomeNavIndex;
+  }
 
   Future<void> load({bool forceRefresh = false}) async {
     final selectedProjectKey = _ref.read(selectedProjectKeyProvider);

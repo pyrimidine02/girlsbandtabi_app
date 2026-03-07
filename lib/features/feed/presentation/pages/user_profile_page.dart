@@ -21,6 +21,7 @@ import '../../../settings/application/settings_controller.dart';
 import '../../../settings/domain/entities/user_profile.dart';
 import '../../application/community_moderation_controller.dart';
 import '../../application/user_follow_controller.dart';
+import '../../application/user_follow_list_controller.dart';
 import '../../application/user_activity_controller.dart';
 import '../../domain/entities/community_moderation.dart';
 import '../../domain/entities/feed_entities.dart';
@@ -81,8 +82,24 @@ class UserProfilePage extends ConsumerWidget {
       data: (status) => status.following,
       orElse: () => false,
     );
-    final followerCount = followStatus?.targetFollowerCount;
-    final followingCount = followStatus?.targetFollowingCount;
+    final followersState = isAuthenticated
+        ? ref.watch(userFollowersProvider(userId))
+        : const AsyncValue<List<UserFollowSummary>>.data([]);
+    final followingState = isAuthenticated
+        ? ref.watch(userFollowingProvider(userId))
+        : const AsyncValue<List<UserFollowSummary>>.data([]);
+    final followerCountFromList = followersState.maybeWhen(
+      data: (value) => value.length,
+      orElse: () => null,
+    );
+    final followingCountFromList = followingState.maybeWhen(
+      data: (value) => value.length,
+      orElse: () => null,
+    );
+    final followerCount =
+        followStatus?.targetFollowerCount ?? followerCountFromList;
+    final followingCount =
+        followStatus?.targetFollowingCount ?? followingCountFromList;
     final isBlockedProfile =
         blockStatus?.blockedByMe == true ||
         blockStatus?.blockedMe == true ||
@@ -225,6 +242,18 @@ class UserProfilePage extends ConsumerWidget {
         ],
       );
     }
+    Widget buildProfileHeader() => _ProfileHeader(
+      coverUrl: coverUrl,
+      avatarUrl: avatarUrl,
+      displayName: displayName,
+      bioLabel: bioLabel,
+      summaryLabel: profile?.summaryLabel,
+      followerCount: followerCount,
+      followingCount: followingCount,
+      onOpenFollowers: () => context.goToUserFollowers(userId),
+      onOpenFollowing: () => context.goToUserFollowing(userId),
+      action: headerAction,
+    );
 
     return DefaultTabController(
       length: 2,
@@ -253,33 +282,41 @@ class UserProfilePage extends ConsumerWidget {
         ),
         body: Column(
           children: [
-            _ProfileHeader(
-              coverUrl: coverUrl,
-              avatarUrl: avatarUrl,
-              displayName: displayName,
-              bioLabel: bioLabel,
-              summaryLabel: profile?.summaryLabel,
-              followerCount: followerCount,
-              followingCount: followingCount,
-              onOpenFollowers: () => context.goToUserFollowers(userId),
-              onOpenFollowing: () => context.goToUserFollowing(userId),
-              action: headerAction,
-            ),
-            const Divider(height: 1),
             Expanded(
               child: isBlockedProfile && !isMyProfile
-                  ? _BlockedProfileState(
-                      blockedByMe: blockStatus?.blockedByMe == true,
-                      blockedMe: blockStatus?.blockedMe == true,
-                      blockedByAdmin: blockStatus?.blockedByAdmin == true,
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      children: [
+                        buildProfileHeader(),
+                        const Divider(height: 1),
+                        _BlockedProfileState(
+                          blockedByMe: blockStatus?.blockedByMe == true,
+                          blockedMe: blockStatus?.blockedMe == true,
+                          blockedByAdmin: blockStatus?.blockedByAdmin == true,
+                        ),
+                      ],
                     )
                   : activityState.when(
-                      loading: () => GBTLoading(
-                        message: context.l10n(
-                          ko: '활동을 불러오는 중...',
-                          en: 'Loading activity...',
-                          ja: 'アクティビティを読み込み中...',
+                      loading: () => ListView(
+                        physics: const AlwaysScrollableScrollPhysics(
+                          parent: BouncingScrollPhysics(),
                         ),
+                        children: [
+                          buildProfileHeader(),
+                          const Divider(height: 1),
+                          Padding(
+                            padding: GBTSpacing.paddingPage,
+                            child: GBTLoading(
+                              message: context.l10n(
+                                ko: '활동을 불러오는 중...',
+                                en: 'Loading activity...',
+                                ja: 'アクティビティを読み込み中...',
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       error: (error, _) {
                         final message = error is Failure
@@ -289,22 +326,35 @@ class UserProfilePage extends ConsumerWidget {
                                 en: 'Failed to load activity',
                                 ja: 'アクティビティを読み込めませんでした',
                               );
-                        return GBTErrorState(
-                          message: message,
-                          onRetry: () {
-                            ref
-                                .read(
-                                  userActivityControllerProvider(
-                                    userId,
-                                  ).notifier,
-                                )
-                                .load(forceRefresh: true);
-                          },
+                        return ListView(
+                          physics: const AlwaysScrollableScrollPhysics(
+                            parent: BouncingScrollPhysics(),
+                          ),
+                          children: [
+                            buildProfileHeader(),
+                            const Divider(height: 1),
+                            Padding(
+                              padding: GBTSpacing.paddingPage,
+                              child: GBTErrorState(
+                                message: message,
+                                onRetry: () {
+                                  ref
+                                      .read(
+                                        userActivityControllerProvider(
+                                          userId,
+                                        ).notifier,
+                                      )
+                                      .load(forceRefresh: true);
+                                },
+                              ),
+                            ),
+                          ],
                         );
                       },
                       data: (activity) => TabBarView(
                         children: [
                           _PostsTab(
+                            headerBuilder: buildProfileHeader,
                             posts: activity.posts,
                             onRefresh: () => ref
                                 .read(
@@ -315,6 +365,7 @@ class UserProfilePage extends ConsumerWidget {
                                 .load(forceRefresh: true),
                           ),
                           _CommentsTab(
+                            headerBuilder: buildProfileHeader,
                             comments: activity.comments,
                             onRefresh: () => ref
                                 .read(
@@ -721,19 +772,28 @@ class _ConnectionStatTile extends StatelessWidget {
 /// EN: Posts tab showing user's authored posts.
 /// KO: 사용자가 작성한 게시글을 보여주는 탭.
 class _PostsTab extends StatelessWidget {
-  const _PostsTab({required this.posts, required this.onRefresh});
+  const _PostsTab({
+    required this.headerBuilder,
+    required this.posts,
+    required this.onRefresh,
+  });
 
+  final Widget Function() headerBuilder;
   final List<PostSummary> posts;
   final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    if (posts.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: onRefresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        children: [
+          headerBuilder(),
+          const Divider(height: 1),
+          if (posts.isEmpty) ...[
             const SizedBox(height: 80),
             GBTEmptyState(
               message: context.l10n(
@@ -742,74 +802,85 @@ class _PostsTab extends StatelessWidget {
                 ja: '投稿がありません',
               ),
             ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView.separated(
-        padding: GBTSpacing.paddingPage,
-        itemCount: posts.length,
-        separatorBuilder: (_, __) => const SizedBox(height: GBTSpacing.sm),
-        itemBuilder: (context, index) {
-          final post = posts[index];
-          final isDark = Theme.of(context).brightness == Brightness.dark;
-          final tertiaryColor = isDark
-              ? GBTColors.darkTextTertiary
-              : GBTColors.textTertiary;
-          final surfaceColor = isDark
-              ? GBTColors.darkSurface
-              : GBTColors.surface;
-
-          return InkWell(
-            borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
-            onTap: () => context.goToPostDetail(post.id),
-            child: Ink(
-              padding: const EdgeInsets.all(GBTSpacing.sm),
-              decoration: BoxDecoration(
-                color: surfaceColor,
-                borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
-                border: Border.all(
-                  color: isDark ? GBTColors.darkBorder : GBTColors.border,
-                ),
-              ),
+          ] else
+            Padding(
+              padding: GBTSpacing.paddingPage,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    post.title,
-                    style: GBTTypography.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (post.content != null &&
-                      post.content!.trim().isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      post.content!.trim(),
-                      style: GBTTypography.bodySmall.copyWith(
-                        color: tertiaryColor,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                  for (var i = 0; i < posts.length; i++) ...[
+                    if (i > 0) const SizedBox(height: GBTSpacing.sm),
+                    Builder(
+                      builder: (context) {
+                        final post = posts[i];
+                        final isDark =
+                            Theme.of(context).brightness == Brightness.dark;
+                        final tertiaryColor = isDark
+                            ? GBTColors.darkTextTertiary
+                            : GBTColors.textTertiary;
+                        final surfaceColor = isDark
+                            ? GBTColors.darkSurface
+                            : GBTColors.surface;
+
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(
+                            GBTSpacing.radiusLg,
+                          ),
+                          onTap: () => context.goToPostDetail(post.id),
+                          child: Ink(
+                            padding: const EdgeInsets.all(GBTSpacing.sm),
+                            decoration: BoxDecoration(
+                              color: surfaceColor,
+                              borderRadius: BorderRadius.circular(
+                                GBTSpacing.radiusLg,
+                              ),
+                              border: Border.all(
+                                color: isDark
+                                    ? GBTColors.darkBorder
+                                    : GBTColors.border,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  post.title,
+                                  style: GBTTypography.bodyMedium.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (post.content != null &&
+                                    post.content!.trim().isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    post.content!.trim(),
+                                    style: GBTTypography.bodySmall.copyWith(
+                                      color: tertiaryColor,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                                const SizedBox(height: 8),
+                                Text(
+                                  post.timeAgoLabel,
+                                  style: GBTTypography.labelSmall.copyWith(
+                                    color: tertiaryColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
-                  const SizedBox(height: 8),
-                  Text(
-                    post.timeAgoLabel,
-                    style: GBTTypography.labelSmall.copyWith(
-                      color: tertiaryColor,
-                    ),
-                  ),
                 ],
               ),
             ),
-          );
-        },
+        ],
       ),
     );
   }
@@ -818,19 +889,28 @@ class _PostsTab extends StatelessWidget {
 /// EN: Comments tab showing user's authored comments.
 /// KO: 사용자가 작성한 댓글을 보여주는 탭.
 class _CommentsTab extends StatelessWidget {
-  const _CommentsTab({required this.comments, required this.onRefresh});
+  const _CommentsTab({
+    required this.headerBuilder,
+    required this.comments,
+    required this.onRefresh,
+  });
 
+  final Widget Function() headerBuilder;
   final List<PostComment> comments;
   final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    if (comments.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: onRefresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        children: [
+          headerBuilder(),
+          const Divider(height: 1),
+          if (comments.isEmpty) ...[
             const SizedBox(height: 80),
             GBTEmptyState(
               message: context.l10n(
@@ -839,60 +919,71 @@ class _CommentsTab extends StatelessWidget {
                 ja: 'コメントがありません',
               ),
             ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView.separated(
-        padding: GBTSpacing.paddingPage,
-        itemCount: comments.length,
-        separatorBuilder: (_, __) => const SizedBox(height: GBTSpacing.sm),
-        itemBuilder: (context, index) {
-          final comment = comments[index];
-          final isDark = Theme.of(context).brightness == Brightness.dark;
-          final tertiaryColor = isDark
-              ? GBTColors.darkTextTertiary
-              : GBTColors.textTertiary;
-          final surfaceColor = isDark
-              ? GBTColors.darkSurface
-              : GBTColors.surface;
-
-          return InkWell(
-            borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
-            onTap: () => context.goToPostDetail(comment.postId),
-            child: Ink(
-              padding: const EdgeInsets.all(GBTSpacing.sm),
-              decoration: BoxDecoration(
-                color: surfaceColor,
-                borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
-                border: Border.all(
-                  color: isDark ? GBTColors.darkBorder : GBTColors.border,
-                ),
-              ),
+          ] else
+            Padding(
+              padding: GBTSpacing.paddingPage,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    comment.content,
-                    style: GBTTypography.bodyMedium,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    comment.timeAgoLabel,
-                    style: GBTTypography.labelSmall.copyWith(
-                      color: tertiaryColor,
+                  for (var i = 0; i < comments.length; i++) ...[
+                    if (i > 0) const SizedBox(height: GBTSpacing.sm),
+                    Builder(
+                      builder: (context) {
+                        final comment = comments[i];
+                        final isDark =
+                            Theme.of(context).brightness == Brightness.dark;
+                        final tertiaryColor = isDark
+                            ? GBTColors.darkTextTertiary
+                            : GBTColors.textTertiary;
+                        final surfaceColor = isDark
+                            ? GBTColors.darkSurface
+                            : GBTColors.surface;
+
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(
+                            GBTSpacing.radiusLg,
+                          ),
+                          onTap: () => context.goToPostDetail(comment.postId),
+                          child: Ink(
+                            padding: const EdgeInsets.all(GBTSpacing.sm),
+                            decoration: BoxDecoration(
+                              color: surfaceColor,
+                              borderRadius: BorderRadius.circular(
+                                GBTSpacing.radiusLg,
+                              ),
+                              border: Border.all(
+                                color: isDark
+                                    ? GBTColors.darkBorder
+                                    : GBTColors.border,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  comment.content,
+                                  style: GBTTypography.bodyMedium,
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  comment.timeAgoLabel,
+                                  style: GBTTypography.labelSmall.copyWith(
+                                    color: tertiaryColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
-          );
-        },
+        ],
       ),
     );
   }

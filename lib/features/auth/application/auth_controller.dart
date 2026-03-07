@@ -2,6 +2,8 @@
 /// KO: 인증 플로우를 처리하는 인증 컨트롤러.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cache/cache_manager.dart';
@@ -136,6 +138,26 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
       );
     }
 
+    // EN: Best-effort remote push deactivation before clearing auth tokens.
+    // KO: 인증 토큰 제거 전에 원격 푸시 등록 해제를 best-effort로 수행합니다.
+    try {
+      final remotePushService = _ref.read(remotePushServiceProvider);
+      await remotePushService.deactivateCurrentDevice();
+      await remotePushService.setAuthenticated(false);
+    } catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to deactivate remote push registration on logout',
+        data: e,
+        tag: 'AuthController',
+      );
+      AppLogger.error(
+        'Remote push deactivation error on logout',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'AuthController',
+      );
+    }
+
     // EN: 1. Clear all cached data (gbt_cache namespace in SharedPreferences).
     // KO: 1. 모든 캐시 데이터 삭제 (SharedPreferences의 gbt_cache 네임스페이스).
     await _clearAppCaches();
@@ -177,6 +199,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
       await _clearAppCaches();
       _authStateNotifier.setAuthenticated();
       state = const AsyncData(null);
+      unawaited(_requestNotificationPermissionOnLogin());
       return const Result.success(null);
     }
 
@@ -193,6 +216,39 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     return Result.failure(
       const UnknownFailure('Unknown auth result', code: 'unknown_auth_result'),
     );
+  }
+
+  /// EN: Prompt runtime notification permission after successful login.
+  /// KO: 로그인 성공 직후 런타임 알림 권한을 요청합니다.
+  Future<void> _requestNotificationPermissionOnLogin() async {
+    try {
+      final localStorage = await _localStorageFuture;
+      final pushEnabled =
+          localStorage.getBool(LocalStorageKeys.notificationsEnabled) ?? true;
+      if (!pushEnabled) {
+        return;
+      }
+      final remotePushService = _ref.read(remotePushServiceProvider);
+      await remotePushService.initialize();
+      await remotePushService.setAuthenticated(true);
+      await remotePushService.requestPermission();
+      await remotePushService.syncRegistration();
+
+      final localNotifier = _ref.read(localNotificationsServiceProvider);
+      await localNotifier.requestPermissions();
+    } catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to request notification permission after login',
+        data: e,
+        tag: 'AuthController',
+      );
+      AppLogger.error(
+        'Notification permission request error',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'AuthController',
+      );
+    }
   }
 
   /// EN: Clear app cache namespace on auth transitions.
@@ -243,6 +299,9 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
         localStorage.remove(LocalStorageKeys.recentSearches),
         localStorage.remove(LocalStorageKeys.lastSyncTime),
         localStorage.remove(LocalStorageKeys.cachedHomeData),
+        localStorage.remove(LocalStorageKeys.notificationDeviceId),
+        localStorage.remove(LocalStorageKeys.notificationDeviceIdLegacy),
+        localStorage.remove(LocalStorageKeys.notificationPushToken),
         localStorage.remove(LocalStorageKeys.userConsents),
         localStorage.remove(LocalStorageKeys.autoTranslationEnabled),
         localStorage.remove(LocalStorageKeys.privacyRequestHistory),

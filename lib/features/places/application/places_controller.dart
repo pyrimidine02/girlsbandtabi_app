@@ -17,19 +17,43 @@ import '../domain/entities/place_guide_entities.dart';
 import '../domain/entities/place_region_entities.dart';
 import '../domain/repositories/places_repository.dart';
 
+const int _kPlacesNavIndex = 1;
+
+bool _isPlacesTabActive(Ref ref) {
+  return ref.read(currentNavIndexProvider) == _kPlacesNavIndex;
+}
+
 class PlacesListController
     extends StateNotifier<AsyncValue<List<PlaceSummary>>> {
   PlacesListController(this._ref) : super(const AsyncLoading()) {
     _ref.listen<String?>(selectedProjectKeyProvider, (_, __) {
+      if (!_isPlacesTabActive(_ref)) {
+        return;
+      }
       load(forceRefresh: true);
     });
     _ref.listen<List<String>>(selectedPlaceRegionCodesProvider, (_, __) {
+      if (!_isPlacesTabActive(_ref)) {
+        return;
+      }
       load(forceRefresh: true);
     });
     _ref.listen<List<String>>(selectedPlaceBandIdsProvider, (_, __) {
+      if (!_isPlacesTabActive(_ref)) {
+        return;
+      }
       load(forceRefresh: true);
     });
     _ref.listen<PlaceListMode>(placeListModeProvider, (_, __) {
+      if (!_isPlacesTabActive(_ref)) {
+        return;
+      }
+      load(forceRefresh: true);
+    });
+    _ref.listen<int>(currentNavIndexProvider, (previous, next) {
+      if (next != _kPlacesNavIndex || next == previous) {
+        return;
+      }
       load(forceRefresh: true);
     });
   }
@@ -37,6 +61,9 @@ class PlacesListController
   final Ref _ref;
 
   Future<void> load({bool forceRefresh = false}) async {
+    if (!_isPlacesTabActive(_ref)) {
+      return;
+    }
     final projectKey = _ref.read(selectedProjectKeyProvider);
     final projectId = _ref.read(selectedProjectIdProvider);
     if (projectKey == null || projectKey.isEmpty) {
@@ -127,9 +154,21 @@ class PlacesRegionOptionsController
     extends StateNotifier<AsyncValue<RegionFilterOptions>> {
   PlacesRegionOptionsController(this._ref) : super(const AsyncLoading()) {
     _ref.listen<String?>(selectedProjectKeyProvider, (_, __) {
+      if (!_isPlacesTabActive(_ref)) {
+        return;
+      }
       load(forceRefresh: true);
     });
     _ref.listen<String?>(selectedProjectIdProvider, (_, __) {
+      if (!_isPlacesTabActive(_ref)) {
+        return;
+      }
+      load(forceRefresh: true);
+    });
+    _ref.listen<int>(currentNavIndexProvider, (previous, next) {
+      if (next != _kPlacesNavIndex || next == previous) {
+        return;
+      }
       load(forceRefresh: true);
     });
   }
@@ -137,6 +176,9 @@ class PlacesRegionOptionsController
   final Ref _ref;
 
   Future<void> load({bool forceRefresh = false}) async {
+    if (!_isPlacesTabActive(_ref)) {
+      return;
+    }
     final projectKey = _ref.read(selectedProjectKeyProvider);
     final projectId = _ref.read(selectedProjectIdProvider);
     if (projectKey == null || projectKey.isEmpty) {
@@ -189,12 +231,12 @@ class PlacesRegionOptionsController
 class PlaceDetailController extends StateNotifier<AsyncValue<PlaceDetail>> {
   PlaceDetailController(this._ref, this.placeId) : super(const AsyncLoading()) {
     _ref.listen<String?>(selectedProjectKeyProvider, (_, __) {
-      if (mounted) {
+      if (mounted && _isPlacesTabActive(_ref)) {
         load(forceRefresh: true);
       }
     });
     _ref.listen<String?>(selectedProjectIdProvider, (_, __) {
-      if (mounted) {
+      if (mounted && _isPlacesTabActive(_ref)) {
         load(forceRefresh: true);
       }
     });
@@ -204,6 +246,9 @@ class PlaceDetailController extends StateNotifier<AsyncValue<PlaceDetail>> {
   final String placeId;
 
   Future<void> load({bool forceRefresh = false}) async {
+    if (!_isPlacesTabActive(_ref)) {
+      return;
+    }
     final resolvedProjectKey = await _resolveProjectKey();
     if (resolvedProjectKey == null || resolvedProjectKey.isEmpty) {
       // EN: Surface explicit error instead of leaving the detail page in

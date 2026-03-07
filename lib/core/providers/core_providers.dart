@@ -14,6 +14,7 @@ import '../network/api_client.dart';
 import '../analytics/analytics_service.dart';
 import '../location/location_service.dart';
 import '../notifications/local_notifications_service.dart';
+import '../notifications/remote_push_service.dart';
 import '../realtime/sse_client.dart';
 import '../security/secure_storage.dart';
 import '../storage/local_storage.dart';
@@ -81,6 +82,54 @@ final localNotificationTapEventsProvider =
       final service = ref.watch(localNotificationsServiceProvider);
       return service.tapEvents;
     });
+
+/// EN: Remote push service provider.
+/// KO: 원격 푸시 서비스 프로바이더입니다.
+final remotePushServiceProvider = Provider<RemotePushService>((ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  final localStorageFuture = ref.watch(localStorageProvider.future);
+  final localNotificationsService = ref.watch(
+    localNotificationsServiceProvider,
+  );
+  final service = RemotePushService(
+    apiClient: apiClient,
+    localStorageFuture: localStorageFuture,
+    localNotificationsService: localNotificationsService,
+  );
+  ref.onDispose(service.dispose);
+  return service;
+});
+
+/// EN: Stream provider for remote-push open tap events.
+/// KO: 원격 푸시 오픈 탭 이벤트 스트림 프로바이더입니다.
+final remotePushTapEventsProvider = StreamProvider<LocalNotificationTapEvent>((
+  ref,
+) {
+  final service = ref.watch(remotePushServiceProvider);
+  return service.tapEvents;
+});
+
+/// EN: Global bootstrap provider for remote push setup + auth-bound sync.
+/// KO: 원격 푸시 초기화 + 인증 상태 동기화를 위한 전역 부트스트랩 프로바이더입니다.
+final remotePushBootstrapProvider = Provider<void>((ref) {
+  final service = ref.watch(remotePushServiceProvider);
+  unawaited(service.initialize());
+
+  ref.listen<AuthState>(authStateProvider, (_, next) {
+    switch (next) {
+      case AuthState.authenticated:
+        unawaited(service.setAuthenticated(true));
+      case AuthState.unauthenticated:
+        unawaited(service.setAuthenticated(false));
+      case AuthState.initial:
+        break;
+    }
+  });
+
+  if (ref.read(isAuthenticatedProvider)) {
+    unawaited(service.setAuthenticated(true));
+  }
+});
 
 /// EN: Analytics service provider.
 /// KO: 분석 서비스 프로바이더.

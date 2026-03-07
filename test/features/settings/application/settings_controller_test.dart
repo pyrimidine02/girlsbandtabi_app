@@ -76,7 +76,7 @@ void main() {
     });
 
     test(
-      'returns failure only for real deactivation errors and keeps OFF',
+      'keeps OFF and succeeds even when device deactivation fails',
       () async {
         SharedPreferences.setMockInitialValues({
           LocalStorageKeys.notificationDeviceId: 'ios-456',
@@ -111,7 +111,7 @@ void main() {
         await notifier.load(forceRefresh: true);
         final result = await notifier.updateSettings(offSettings);
 
-        expect(result, isA<Err<NotificationSettings>>());
+        expect(result, isA<Success<NotificationSettings>>());
         expect(repository.deactivateCalls, 1);
         expect(
           container

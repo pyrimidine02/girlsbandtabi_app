@@ -38,11 +38,19 @@ class LocalNotificationTapEvent {
               decoded['notificationId']?.toString() ??
               decoded['id']?.toString() ??
               '',
-          type: decoded['type']?.toString(),
-          deeplink: decoded['deeplink']?.toString(),
+          type:
+              decoded['notificationType']?.toString() ??
+              decoded['type']?.toString(),
+          deeplink:
+              decoded['deeplink']?.toString() ??
+              decoded['deepLink']?.toString(),
           actionUrl: decoded['actionUrl']?.toString(),
-          entityId: decoded['entityId']?.toString(),
-          projectCode: decoded['projectCode']?.toString(),
+          entityId:
+              decoded['targetId']?.toString() ??
+              decoded['entityId']?.toString(),
+          projectCode:
+              decoded['projectCode']?.toString() ??
+              decoded['projectId']?.toString(),
         );
       }
     } catch (_) {
@@ -226,15 +234,24 @@ class LocalNotificationsService {
     final normalizedType = normalizeNotificationType(item.type);
     return jsonEncode({
       'notificationId': item.id,
-      if (normalizedType.isNotEmpty) 'type': normalizedType,
-      if (item.deeplink != null && item.deeplink!.isNotEmpty)
+      if (normalizedType.isNotEmpty) ...{
+        'type': normalizedType,
+        'notificationType': normalizedType,
+      },
+      if (item.deeplink != null && item.deeplink!.isNotEmpty) ...{
         'deeplink': item.deeplink,
+        'deepLink': item.deeplink,
+      },
       if (item.actionUrl != null && item.actionUrl!.isNotEmpty)
         'actionUrl': item.actionUrl,
-      if (item.entityId != null && item.entityId!.isNotEmpty)
+      if (item.entityId != null && item.entityId!.isNotEmpty) ...{
         'entityId': item.entityId,
-      if (item.projectCode != null && item.projectCode!.isNotEmpty)
+        'targetId': item.entityId,
+      },
+      if (item.projectCode != null && item.projectCode!.isNotEmpty) ...{
         'projectCode': item.projectCode,
+        'projectId': item.projectCode,
+      },
     });
   }
 

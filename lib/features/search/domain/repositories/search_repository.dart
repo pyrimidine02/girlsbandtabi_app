@@ -8,11 +8,21 @@ import '../entities/search_entities.dart';
 abstract class SearchRepository {
   Future<Result<List<SearchItem>>> search({
     required String query,
-    String? projectId,
-    List<String> unitIds = const [],
     List<String> types = const [],
     int page = 0,
     int size = 20,
     bool forceRefresh = false,
   });
+
+  Future<Result<SearchPopularDiscovery>> getPopularDiscovery({
+    int limit = 10,
+    bool forceRefresh = false,
+  });
+
+  Future<Result<SearchCategoryDiscovery>> getCategoryDiscovery({
+    int limit = 10,
+    bool forceRefresh = false,
+  });
+
+  void cancelInFlightSearch();
 }

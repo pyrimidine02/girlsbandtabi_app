@@ -8,6 +8,7 @@ import 'package:apple_maps_flutter/apple_maps_flutter.dart' as amaps;
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 
 import '../../../../core/theme/gbt_colors.dart';
+import '../../../../core/theme/gbt_map_styles.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
@@ -20,17 +21,19 @@ class TravelReviewCreatePage extends ConsumerStatefulWidget {
   const TravelReviewCreatePage({super.key});
 
   @override
-  ConsumerState<TravelReviewCreatePage> createState() => _TravelReviewCreatePageState();
+  ConsumerState<TravelReviewCreatePage> createState() =>
+      _TravelReviewCreatePageState();
 }
 
-class _TravelReviewCreatePageState extends ConsumerState<TravelReviewCreatePage> {
+class _TravelReviewCreatePageState
+    extends ConsumerState<TravelReviewCreatePage> {
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
-  
+
   // EN: Selected places for the review
   // KO: 후기에 선택된 장소들
   final List<PlaceSummary> _selectedPlaces = [];
-  
+
   bool _isSubmitting = false;
 
   bool get _isAppleMap => !kIsWeb && Platform.isIOS;
@@ -67,23 +70,30 @@ class _TravelReviewCreatePageState extends ConsumerState<TravelReviewCreatePage>
   }
 
   void _submit() {
-    if (_titleController.text.trim().isEmpty || _contentController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('제목과 내용을 입력해주세요')));
+    if (_titleController.text.trim().isEmpty ||
+        _contentController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('제목과 내용을 입력해주세요')));
       return;
     }
     if (_selectedPlaces.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('최소 1개 이상의 장소를 추가해주세요')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('최소 1개 이상의 장소를 추가해주세요')));
       return;
     }
 
     setState(() => _isSubmitting = true);
-    
+
     // EN: Mock submission delay
     // KO: 제출 지연 모의
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('여행 후기가 등록되었습니다.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('여행 후기가 등록되었습니다.')));
         context.pop();
       }
     });
@@ -92,6 +102,7 @@ class _TravelReviewCreatePageState extends ConsumerState<TravelReviewCreatePage>
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -107,9 +118,7 @@ class _TravelReviewCreatePageState extends ConsumerState<TravelReviewCreatePage>
         children: [
           CustomScrollView(
             slivers: [
-              SliverToBoxAdapter(
-                child: _buildMapSection(colorScheme),
-              ),
+              SliverToBoxAdapter(child: _buildMapSection(colorScheme, isDark)),
               SliverPadding(
                 padding: GBTSpacing.paddingPage,
                 sliver: SliverList(
@@ -153,7 +162,10 @@ class _TravelReviewCreatePageState extends ConsumerState<TravelReviewCreatePage>
                   final place = _selectedPlaces[index];
                   return Container(
                     key: ValueKey(place.id),
-                    margin: const EdgeInsets.symmetric(horizontal: GBTSpacing.md, vertical: GBTSpacing.xs),
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: GBTSpacing.md,
+                      vertical: GBTSpacing.xs,
+                    ),
                     decoration: BoxDecoration(
                       color: colorScheme.surfaceContainerHighest.withAlpha(100),
                       borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
@@ -162,10 +174,25 @@ class _TravelReviewCreatePageState extends ConsumerState<TravelReviewCreatePage>
                       leading: CircleAvatar(
                         radius: 14,
                         backgroundColor: colorScheme.primary,
-                        child: Text('${index + 1}', style: TextStyle(color: colorScheme.onPrimary, fontSize: 12, fontWeight: FontWeight.bold)),
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color: colorScheme.onPrimary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                      title: Text(place.name, style: GBTTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
-                      subtitle: Text(place.address, style: GBTTypography.bodySmall),
+                      title: Text(
+                        place.name,
+                        style: GBTTypography.bodyMedium.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: Text(
+                        place.address,
+                        style: GBTTypography.bodySmall,
+                      ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -193,7 +220,7 @@ class _TravelReviewCreatePageState extends ConsumerState<TravelReviewCreatePage>
     );
   }
 
-  Widget _buildMapSection(ColorScheme colorScheme) {
+  Widget _buildMapSection(ColorScheme colorScheme, bool isDark) {
     if (_selectedPlaces.isEmpty) {
       return Container(
         height: 200,
@@ -202,9 +229,18 @@ class _TravelReviewCreatePageState extends ConsumerState<TravelReviewCreatePage>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.map_outlined, size: 48, color: colorScheme.onSurfaceVariant.withAlpha(150)),
+              Icon(
+                Icons.map_outlined,
+                size: 48,
+                color: colorScheme.onSurfaceVariant.withAlpha(150),
+              ),
               const SizedBox(height: GBTSpacing.sm),
-              Text('장소를 추가하면 지도에 경로가 표시됩니다.', style: GBTTypography.bodyMedium.copyWith(color: colorScheme.onSurfaceVariant)),
+              Text(
+                '장소를 추가하면 지도에 경로가 표시됩니다.',
+                style: GBTTypography.bodyMedium.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
             ],
           ),
         ),
@@ -214,7 +250,9 @@ class _TravelReviewCreatePageState extends ConsumerState<TravelReviewCreatePage>
     if (_isAppleMap) {
       final amaps.Polyline polyline = amaps.Polyline(
         polylineId: amaps.PolylineId('route'),
-        points: _selectedPlaces.map((p) => amaps.LatLng(p.latitude, p.longitude)).toList(),
+        points: _selectedPlaces
+            .map((p) => amaps.LatLng(p.latitude, p.longitude))
+            .toList(),
         color: colorScheme.primary,
         width: 4,
         jointType: amaps.JointType.round,
@@ -232,21 +270,37 @@ class _TravelReviewCreatePageState extends ConsumerState<TravelReviewCreatePage>
         );
       }
 
-      return SizedBox(
+      final appleMap = SizedBox(
         height: 250,
         child: amaps.AppleMap(
           initialCameraPosition: amaps.CameraPosition(
-            target: amaps.LatLng(_selectedPlaces.first.latitude, _selectedPlaces.first.longitude),
+            target: amaps.LatLng(
+              _selectedPlaces.first.latitude,
+              _selectedPlaces.first.longitude,
+            ),
             zoom: 12,
           ),
           polylines: {polyline},
           annotations: markers,
         ),
       );
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          appleMap,
+          IgnorePointer(
+            child: ColoredBox(
+              color: gbtAppleMapOverlayColorForDarkMode(isDark),
+            ),
+          ),
+        ],
+      );
     } else {
       final gmaps.Polyline polyline = gmaps.Polyline(
         polylineId: const gmaps.PolylineId('route'),
-        points: _selectedPlaces.map((p) => gmaps.LatLng(p.latitude, p.longitude)).toList(),
+        points: _selectedPlaces
+            .map((p) => gmaps.LatLng(p.latitude, p.longitude))
+            .toList(),
         color: colorScheme.primary,
         width: 4,
         jointType: gmaps.JointType.round,
@@ -268,9 +322,13 @@ class _TravelReviewCreatePageState extends ConsumerState<TravelReviewCreatePage>
         height: 250,
         child: gmaps.GoogleMap(
           initialCameraPosition: gmaps.CameraPosition(
-            target: gmaps.LatLng(_selectedPlaces.first.latitude, _selectedPlaces.first.longitude),
+            target: gmaps.LatLng(
+              _selectedPlaces.first.latitude,
+              _selectedPlaces.first.longitude,
+            ),
             zoom: 12,
           ),
+          style: gbtGoogleMapStyleForDarkMode(isDark),
           polylines: {polyline},
           markers: markers,
         ),
@@ -301,10 +359,7 @@ class _TravelReviewCreatePageState extends ConsumerState<TravelReviewCreatePage>
 // KO: 장소 선택 바텀시트 — placesListControllerProvider 기반 검색 + 목록.
 // ================================================
 class _PlacePickerSheet extends ConsumerStatefulWidget {
-  const _PlacePickerSheet({
-    required this.selectedIds,
-    required this.onAdd,
-  });
+  const _PlacePickerSheet({required this.selectedIds, required this.onAdd});
 
   final Set<String> selectedIds;
   final ValueChanged<PlaceSummary> onAdd;
@@ -340,8 +395,9 @@ class _PlacePickerSheetState extends ConsumerState<_PlacePickerSheet> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final placesAsync = ref.watch(placesListControllerProvider);
     final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
-    final tertiaryColor =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
 
     return DraggableScrollableSheet(
@@ -523,9 +579,7 @@ class _PlacePickerItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final contentColor = isDark
-        ? (isAdded
-            ? GBTColors.darkTextTertiary
-            : GBTColors.darkTextPrimary)
+        ? (isAdded ? GBTColors.darkTextTertiary : GBTColors.darkTextPrimary)
         : (isAdded ? GBTColors.textTertiary : GBTColors.textPrimary);
 
     return InkWell(
@@ -621,8 +675,9 @@ class _PlacePickerItem extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: primaryColor.withValues(alpha: 0.1),
-                      borderRadius:
-                          BorderRadius.circular(GBTSpacing.radiusFull),
+                      borderRadius: BorderRadius.circular(
+                        GBTSpacing.radiusFull,
+                      ),
                     ),
                     child: Text(
                       '추가',

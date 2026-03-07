@@ -25,6 +25,8 @@ class PostComposeDraft {
     required this.imagePaths,
     required this.savedAt,
     this.projectCode,
+    this.topic,
+    this.tags = const [],
   });
 
   final String title;
@@ -32,11 +34,17 @@ class PostComposeDraft {
   final List<String> imagePaths;
   final DateTime savedAt;
   final String? projectCode;
+  final String? topic;
+  final List<String> tags;
 
   /// EN: Returns true when draft has no meaningful user input.
   /// KO: 사용자 입력이 실질적으로 비어있으면 true를 반환합니다.
   bool get isEmpty {
-    return title.trim().isEmpty && content.trim().isEmpty && imagePaths.isEmpty;
+    return title.trim().isEmpty &&
+        content.trim().isEmpty &&
+        imagePaths.isEmpty &&
+        (topic == null || topic!.trim().isEmpty) &&
+        tags.isEmpty;
   }
 
   /// EN: Serializes draft data for local storage.
@@ -48,6 +56,8 @@ class PostComposeDraft {
       'imagePaths': imagePaths,
       'savedAt': savedAt.toIso8601String(),
       'projectCode': projectCode,
+      'topic': topic,
+      'tags': tags,
     };
   }
 
@@ -70,6 +80,15 @@ class PostComposeDraft {
     final projectCode = projectCodeRaw is String && projectCodeRaw.isNotEmpty
         ? projectCodeRaw
         : null;
+    final topicRaw = json['topic'];
+    final topic = topicRaw is String && topicRaw.trim().isNotEmpty
+        ? topicRaw.trim()
+        : null;
+    final tags = (json['tags'] as List<dynamic>? ?? const [])
+        .whereType<String>()
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toList(growable: false);
 
     return PostComposeDraft(
       title: title,
@@ -77,6 +96,8 @@ class PostComposeDraft {
       imagePaths: imagePaths,
       savedAt: savedAt,
       projectCode: projectCode,
+      topic: topic,
+      tags: tags,
     );
   }
 }

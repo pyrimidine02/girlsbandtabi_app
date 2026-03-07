@@ -68,13 +68,19 @@ class AdsRepositoryImpl implements AdsRepository {
     String? decisionId,
     String? campaignId,
   }) {
+    final normalizedDecisionId = decisionId?.trim();
+    if (normalizedDecisionId == null || normalizedDecisionId.isEmpty) {
+      // EN: Backend requires decisionId for event ingestion.
+      // KO: 백엔드 이벤트 수집은 decisionId를 필수로 요구합니다.
+      return Future.value(const Result<void>.success(null));
+    }
     return _remoteDataSource.trackEvent(
       AdEventRequestDto(
         eventType: eventType.apiKey,
         slot: request.placement.apiKey,
         ordinal: request.ordinal,
         projectKey: request.projectKey,
-        decisionId: decisionId,
+        decisionId: normalizedDecisionId,
         campaignId: campaignId,
       ),
     );

@@ -58,11 +58,14 @@ class NotificationsController
   SseConnection? _realtimeConnection;
   StreamSubscription<SseEvent>? _realtimeSubscription;
   Timer? _realtimeReconnectTimer;
-  Duration _reconnectDelay = const Duration(seconds: 1);
+  Duration _reconnectDelay = const Duration(seconds: 2);
   DateTime? _lastRealtimeRefreshAt;
   bool _isRealtimeActive = false;
   bool _isRealtimeConnected = false;
   final Random _random = Random();
+  DateTime? _reconnectBlockedUntil;
+  String? _lastReconnectFailureSignature;
+  DateTime? _lastReconnectFailureLoggedAt;
   bool _hasSeededNotificationSnapshot = false;
   final Set<String> _knownNotificationIds = <String>{};
   final Map<String, _NotificationNavigationHint> _navigationHintsById =
@@ -85,6 +88,10 @@ class NotificationsController
     _realtimeReconnectTimer?.cancel();
     _realtimeReconnectTimer = null;
     _isRealtimeConnected = false;
+    _reconnectBlockedUntil = null;
+    _lastReconnectFailureSignature = null;
+    _lastReconnectFailureLoggedAt = null;
+    _reconnectDelay = const Duration(seconds: 2);
     await _disposeRealtimeConnection();
   }
 
@@ -92,6 +99,18 @@ class NotificationsController
     if (!_isRealtimeActive || _isRealtimeConnected) return;
     if (!_ref.read(isAuthenticatedProvider)) return;
     if (_realtimeConnection != null || _realtimeSubscription != null) return;
+    final blockedUntil = _reconnectBlockedUntil;
+    if (blockedUntil != null) {
+      final now = DateTime.now();
+      if (now.isBefore(blockedUntil)) {
+        _scheduleRealtimeReconnect(
+          delayOverride: blockedUntil.difference(now),
+          freezeBackoff: true,
+        );
+        return;
+      }
+      _reconnectBlockedUntil = null;
+    }
 
     final sseClient = _ref.read(sseClientProvider);
     try {
@@ -100,7 +119,9 @@ class NotificationsController
       );
       _realtimeConnection = connection;
       _isRealtimeConnected = true;
-      _reconnectDelay = const Duration(seconds: 1);
+      _reconnectDelay = const Duration(seconds: 2);
+      _lastReconnectFailureSignature = null;
+      _lastReconnectFailureLoggedAt = null;
 
       _realtimeSubscription = connection.events.listen(
         _handleRealtimeEvent,
@@ -117,17 +138,35 @@ class NotificationsController
         cancelOnError: true,
       );
     } catch (error, stackTrace) {
-      AppLogger.debug(
-        '[Notifications] SSE connect failed; fallback to polling',
-        tag: 'NotificationsController',
-      );
-      AppLogger.error(
-        '[Notifications] SSE connect exception',
-        tag: 'NotificationsController',
-        error: error,
-        stackTrace: stackTrace,
-      );
+      final classification = _classifyReconnectError(error);
+      final shouldLog = _shouldLogReconnectFailure(classification.signature);
+      if (shouldLog) {
+        AppLogger.debug(
+          '[Notifications] SSE connect failed; fallback to polling',
+          tag: 'NotificationsController',
+        );
+        AppLogger.error(
+          '[Notifications] SSE connect exception',
+          tag: 'NotificationsController',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
       _isRealtimeConnected = false;
+      if (classification.retryCooldown != null) {
+        // EN: Pause retries after client-side/auth stream failures to avoid
+        // noisy reconnect loops and battery/network waste.
+        // KO: 인증/클라이언트 오류에서는 재연결 루프를 잠시 멈춰
+        // 배터리/네트워크 낭비와 로그 폭주를 줄입니다.
+        _reconnectBlockedUntil = DateTime.now().add(
+          classification.retryCooldown!,
+        );
+        _scheduleRealtimeReconnect(
+          delayOverride: classification.retryCooldown,
+          freezeBackoff: true,
+        );
+        return;
+      }
       _scheduleRealtimeReconnect();
     }
   }
@@ -165,19 +204,88 @@ class NotificationsController
     _scheduleRealtimeReconnect();
   }
 
-  void _scheduleRealtimeReconnect() {
+  void _scheduleRealtimeReconnect({
+    Duration? delayOverride,
+    bool freezeBackoff = false,
+  }) {
     if (!_isRealtimeActive) return;
     _realtimeReconnectTimer?.cancel();
-    final baseDelay = _reconnectDelay;
-    // EN: Add small jitter to avoid reconnect stampedes across clients.
-    // KO: 클라이언트 동시 재연결 폭주를 줄이기 위해 작은 지터를 추가합니다.
-    final jitterMs = _random.nextInt(250);
+    final baseDelay = delayOverride ?? _reconnectDelay;
+    // EN: Add bounded jitter to prevent synchronized reconnect spikes.
+    // KO: 동시 재연결 스파이크를 줄이기 위해 제한된 지터를 추가합니다.
+    final jitterUpperBound = min(
+      1200,
+      max(150, (baseDelay.inMilliseconds * 0.15).round()),
+    );
+    final jitterMs = _random.nextInt(jitterUpperBound + 1);
     final delay = baseDelay + Duration(milliseconds: jitterMs);
     _realtimeReconnectTimer = Timer(delay, () {
       unawaited(_connectRealtime());
     });
-    final nextSeconds = (_reconnectDelay.inSeconds * 2).clamp(1, 8);
-    _reconnectDelay = Duration(seconds: nextSeconds);
+    if (delayOverride == null && !freezeBackoff) {
+      final nextSeconds = (_reconnectDelay.inSeconds * 2).clamp(2, 120);
+      _reconnectDelay = Duration(seconds: nextSeconds);
+    }
+  }
+
+  bool _shouldLogReconnectFailure(String signature) {
+    final now = DateTime.now();
+    if (_lastReconnectFailureSignature != signature) {
+      _lastReconnectFailureSignature = signature;
+      _lastReconnectFailureLoggedAt = now;
+      return true;
+    }
+    final lastLoggedAt = _lastReconnectFailureLoggedAt;
+    if (lastLoggedAt == null ||
+        now.difference(lastLoggedAt) >= const Duration(minutes: 2)) {
+      _lastReconnectFailureLoggedAt = now;
+      return true;
+    }
+    return false;
+  }
+
+  _ReconnectErrorClassification _classifyReconnectError(Object error) {
+    final raw = error.toString().toLowerCase();
+    if (raw.contains('http 401') || raw.contains('http 403')) {
+      return const _ReconnectErrorClassification(
+        retryCooldown: Duration(minutes: 5),
+        signature: 'auth_unauthorized',
+      );
+    }
+    if (raw.contains('http 400')) {
+      return const _ReconnectErrorClassification(
+        retryCooldown: Duration(minutes: 10),
+        signature: 'client_bad_request',
+      );
+    }
+    if (raw.contains('http 404')) {
+      return const _ReconnectErrorClassification(
+        retryCooldown: Duration(minutes: 10),
+        signature: 'stream_not_found',
+      );
+    }
+    if (raw.contains('connection refused')) {
+      return const _ReconnectErrorClassification(
+        retryCooldown: null,
+        signature: 'connection_refused',
+      );
+    }
+    if (raw.contains('connection closed before full header was received')) {
+      return const _ReconnectErrorClassification(
+        retryCooldown: null,
+        signature: 'connection_closed_early',
+      );
+    }
+    if (raw.contains('socketexception')) {
+      return const _ReconnectErrorClassification(
+        retryCooldown: null,
+        signature: 'socket_exception',
+      );
+    }
+    return const _ReconnectErrorClassification(
+      retryCooldown: null,
+      signature: 'unknown',
+    );
   }
 
   Future<void> _disposeRealtimeConnection() async {
@@ -358,6 +466,7 @@ class NotificationsController
 
     final notificationId =
         payload['notificationId']?.toString() ??
+        payload['targetId']?.toString() ??
         payload['entityId']?.toString() ??
         event.id;
     if (notificationId == null || notificationId.isEmpty) {
@@ -406,6 +515,16 @@ class NotificationsController
     unawaited(_disposeRealtimeConnection());
     super.dispose();
   }
+}
+
+class _ReconnectErrorClassification {
+  const _ReconnectErrorClassification({
+    required this.retryCooldown,
+    required this.signature,
+  });
+
+  final Duration? retryCooldown;
+  final String signature;
 }
 
 /// EN: Notifications repository provider.

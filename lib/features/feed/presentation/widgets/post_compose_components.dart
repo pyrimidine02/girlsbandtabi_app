@@ -26,6 +26,470 @@ String appendImageMarkdownContent(String content, List<String> urls) {
   return buffer.toString().trim();
 }
 
+/// EN: Default topic options for community post compose.
+/// KO: 커뮤니티 글 작성에 사용하는 기본 토픽 옵션입니다.
+const List<String> kPostTopicOptions = <String>[
+  '일상',
+  '정보',
+  '질문',
+  '후기',
+  '공연',
+  '굿즈',
+];
+
+/// EN: Suggested tags shown in the compose tag picker.
+/// KO: 작성 화면 태그 선택기에 표시되는 추천 태그입니다.
+const List<String> kPostTagSuggestions = <String>[
+  '라이브',
+  '성지',
+  '세트리스트',
+  '티켓',
+  '굿즈',
+  '밴드',
+  '사진',
+  '질문',
+];
+
+/// EN: Maximum allowed tag count in compose metadata.
+/// KO: 작성 메타데이터에서 허용하는 최대 태그 개수입니다.
+const int kPostMaxTagCount = 5;
+
+/// EN: Normalizes user-entered tag text into API-friendly token.
+/// KO: 사용자 입력 태그를 API 전송 가능한 토큰으로 정규화합니다.
+String normalizePostTag(String rawTag) {
+  final withoutHash = rawTag.trim().replaceFirst(RegExp(r'^#+'), '');
+  final compact = withoutHash.replaceAll(RegExp(r'\s+'), '');
+  return compact.trim();
+}
+
+/// EN: Sanitizes tags with normalization, dedupe and max length/count rules.
+/// KO: 태그를 정규화/중복제거/길이·개수 제한 규칙으로 정제합니다.
+List<String> sanitizePostTags(
+  Iterable<String> rawTags, {
+  int maxCount = kPostMaxTagCount,
+  int maxLength = 16,
+}) {
+  final seen = <String>{};
+  final sanitized = <String>[];
+  for (final rawTag in rawTags) {
+    final normalized = normalizePostTag(rawTag);
+    if (normalized.isEmpty || normalized.length > maxLength) {
+      continue;
+    }
+    final key = normalized.toLowerCase();
+    if (seen.add(key)) {
+      sanitized.add(normalized);
+    }
+    if (sanitized.length >= maxCount) {
+      break;
+    }
+  }
+  return sanitized;
+}
+
+/// EN: Compact selector row for topic/tag metadata in compose forms.
+/// KO: 작성 폼에서 토픽/태그 메타데이터를 선택하는 컴팩트 행입니다.
+class PostTopicTagSelector extends StatelessWidget {
+  const PostTopicTagSelector({
+    super.key,
+    required this.selectedTopic,
+    required this.selectedTags,
+    required this.onTapTopic,
+    required this.onTapAddTag,
+    required this.onRemoveTag,
+  });
+
+  final String? selectedTopic;
+  final List<String> selectedTags;
+  final VoidCallback? onTapTopic;
+  final VoidCallback? onTapAddTag;
+  final ValueChanged<String>? onRemoveTag;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Wrap(
+      spacing: GBTSpacing.xs,
+      runSpacing: GBTSpacing.xs,
+      children: [
+        ActionChip(
+          onPressed: onTapTopic,
+          avatar: const Icon(Icons.topic_outlined, size: 16),
+          label: Text(selectedTopic ?? '토픽 선택'),
+          side: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.75),
+          ),
+          backgroundColor: colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.45,
+          ),
+          labelStyle: GBTTypography.labelMedium.copyWith(
+            color: colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        ...selectedTags.map(
+          (tag) => InputChip(
+            label: Text('#$tag'),
+            onDeleted: onRemoveTag == null ? null : () => onRemoveTag!(tag),
+            side: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.75),
+            ),
+            backgroundColor: colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.32,
+            ),
+            labelStyle: GBTTypography.labelSmall.copyWith(
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+            deleteIconColor: colorScheme.onSurfaceVariant,
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+        ActionChip(
+          onPressed: onTapAddTag,
+          avatar: const Icon(Icons.add, size: 16),
+          label: const Text('태그'),
+          side: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.75),
+          ),
+          backgroundColor: colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.3,
+          ),
+          labelStyle: GBTTypography.labelMedium.copyWith(
+            color: colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// EN: Shows a modal topic picker; returns `''` when user clears selection.
+/// KO: 모달 토픽 선택기를 표시하며, 선택 해제 시 `''`를 반환합니다.
+Future<String?> showPostTopicPickerSheet(
+  BuildContext context, {
+  required String? selectedTopic,
+  List<String> options = kPostTopicOptions,
+}) {
+  return showModalBottomSheet<String>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) {
+      final colorScheme = Theme.of(sheetContext).colorScheme;
+      final currentValue = selectedTopic?.trim() ?? '';
+      return SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(
+                '토픽 선택',
+                style: GBTTypography.titleMedium.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              subtitle: Text(
+                '게시글 주제를 하나 선택하세요',
+                style: GBTTypography.bodySmall.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  _PostTopicOptionTile(
+                    label: '선택 안 함',
+                    isSelected: currentValue.isEmpty,
+                    onTap: () => Navigator.of(sheetContext).pop(''),
+                  ),
+                  ...options.map(
+                    (topic) => _PostTopicOptionTile(
+                      label: topic,
+                      isSelected: currentValue == topic,
+                      onTap: () => Navigator.of(sheetContext).pop(topic),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+/// EN: Shows a fallback text input sheet for custom topic entry.
+/// KO: 커스텀 토픽 자유입력을 위한 폴백 시트를 표시합니다.
+Future<String?> showPostTopicInputSheet(
+  BuildContext context, {
+  required String? initialTopic,
+  int maxLength = 30,
+}) async {
+  final controller = TextEditingController(text: initialTopic ?? '');
+  String? errorText;
+
+  final result = await showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetContext) {
+      final colorScheme = Theme.of(sheetContext).colorScheme;
+      return StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          Future<void> submit() async {
+            final value = controller.text.trim();
+            if (value.length > maxLength) {
+              setSheetState(() {
+                errorText = '토픽은 최대 $maxLength자까지 입력할 수 있어요';
+              });
+              return;
+            }
+            Navigator.of(sheetContext).pop(value);
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  GBTSpacing.md,
+                  GBTSpacing.xs,
+                  GBTSpacing.md,
+                  GBTSpacing.md,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '토픽 직접 입력',
+                      style: GBTTypography.titleMedium.copyWith(
+                        color: colorScheme.onSurface,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: GBTSpacing.xs),
+                    TextField(
+                      controller: controller,
+                      autofocus: true,
+                      maxLength: maxLength,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => submit(),
+                      decoration: InputDecoration(
+                        hintText: '예) 정보, 질문',
+                        counterText: '',
+                        errorText: errorText,
+                      ),
+                    ),
+                    const SizedBox(height: GBTSpacing.md),
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(''),
+                          child: const Text('선택 안 함'),
+                        ),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          child: const Text('취소'),
+                        ),
+                        const SizedBox(width: GBTSpacing.xs),
+                        FilledButton(
+                          onPressed: submit,
+                          child: const Text('저장'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+
+  controller.dispose();
+  return result;
+}
+
+/// EN: Shows a modal tag picker and returns a normalized tag token.
+/// KO: 모달 태그 선택기를 표시하고 정규화된 태그 토큰을 반환합니다.
+Future<String?> showPostTagPickerSheet(
+  BuildContext context, {
+  required List<String> selectedTags,
+  List<String> suggestions = kPostTagSuggestions,
+  int maxLength = 16,
+}) async {
+  final controller = TextEditingController();
+  String? errorText;
+
+  bool alreadySelected(String normalizedTag) {
+    return selectedTags.any(
+      (tag) => tag.toLowerCase() == normalizedTag.toLowerCase(),
+    );
+  }
+
+  final result = await showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetContext) {
+      final colorScheme = Theme.of(sheetContext).colorScheme;
+      return StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          void setError(String message) {
+            setSheetState(() {
+              errorText = message;
+            });
+          }
+
+          Future<void> submitCustomTag() async {
+            final normalizedTag = normalizePostTag(controller.text);
+            if (normalizedTag.isEmpty) {
+              setError('태그를 입력해주세요');
+              return;
+            }
+            if (normalizedTag.length > maxLength) {
+              setError('태그는 최대 $maxLength자까지 입력할 수 있어요');
+              return;
+            }
+            if (alreadySelected(normalizedTag)) {
+              setError('이미 선택된 태그입니다');
+              return;
+            }
+            Navigator.of(sheetContext).pop(normalizedTag);
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+            ),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    GBTSpacing.md,
+                    GBTSpacing.xs,
+                    GBTSpacing.md,
+                    GBTSpacing.md,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '태그 추가',
+                        style: GBTTypography.titleMedium.copyWith(
+                          color: colorScheme.onSurface,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: GBTSpacing.xs),
+                      TextField(
+                        controller: controller,
+                        autofocus: true,
+                        maxLength: maxLength,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => submitCustomTag(),
+                        decoration: InputDecoration(
+                          hintText: '예) 라이브, 세트리스트',
+                          counterText: '',
+                          errorText: errorText,
+                        ),
+                      ),
+                      if (suggestions.isNotEmpty) ...[
+                        const SizedBox(height: GBTSpacing.sm),
+                        Text(
+                          '추천 태그',
+                          style: GBTTypography.labelMedium.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: GBTSpacing.xs),
+                        Wrap(
+                          spacing: GBTSpacing.xs,
+                          runSpacing: GBTSpacing.xs,
+                          children: suggestions
+                              .map((tag) {
+                                final normalizedTag = normalizePostTag(tag);
+                                final disabled = alreadySelected(normalizedTag);
+                                return ActionChip(
+                                  onPressed: disabled
+                                      ? null
+                                      : () => Navigator.of(
+                                          sheetContext,
+                                        ).pop(normalizedTag),
+                                  label: Text('#$normalizedTag'),
+                                );
+                              })
+                              .toList(growable: false),
+                        ),
+                      ],
+                      const SizedBox(height: GBTSpacing.md),
+                      Row(
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.of(sheetContext).pop(),
+                            child: const Text('취소'),
+                          ),
+                          const Spacer(),
+                          FilledButton(
+                            onPressed: submitCustomTag,
+                            child: const Text('추가'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+
+  controller.dispose();
+  return result;
+}
+
+class _PostTopicOptionTile extends StatelessWidget {
+  const _PostTopicOptionTile({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return ListTile(
+      onTap: onTap,
+      title: Text(label),
+      trailing: Icon(
+        isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+        color: isSelected ? colorScheme.primary : colorScheme.outline,
+      ),
+    );
+  }
+}
+
 /// EN: Intro card for compose pages.
 /// KO: 작성/수정 페이지 상단 소개 카드입니다.
 class PostComposeIntroCard extends StatelessWidget {
@@ -336,6 +800,7 @@ class PostComposeImageSection extends StatelessWidget {
     required this.onPickImages,
     required this.onClearAll,
     required this.imageGrid,
+    this.useCardChrome = true,
   });
 
   final int imageCount;
@@ -344,17 +809,13 @@ class PostComposeImageSection extends StatelessWidget {
   final VoidCallback onPickImages;
   final VoidCallback? onClearAll;
   final Widget? imageGrid;
+  final bool useCardChrome;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
+    final content = Padding(
       padding: const EdgeInsets.all(GBTSpacing.md),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -428,6 +889,18 @@ class PostComposeImageSection extends StatelessWidget {
           ],
         ],
       ),
+    );
+
+    if (!useCardChrome) {
+      return content;
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: content,
     );
   }
 }

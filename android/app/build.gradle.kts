@@ -84,3 +84,9 @@ dependencies {
 flutter {
     source = "../.."
 }
+
+// EN: Apply Google Services plugin only when firebase config file exists.
+// KO: Firebase 설정 파일이 있을 때만 Google Services 플러그인을 적용합니다.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}

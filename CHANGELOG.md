@@ -1,6 +1,488 @@
 # Changelog
 
+## 2026-03-08
+- **NOTIFICATION PAYLOAD ALIGNMENT REQUEST V1.1.0 IMPLEMENTATION**:
+  - Aligned notification parsing/navigation to payload contract v1.1.0.
+  - Updated notification routing policy:
+    - always prefer `deeplink/deepLink` before `actionUrl` for destination resolve.
+    - added `/community/posts/{postId}` -> `/board/posts/{postId}` normalization.
+    - expanded post-scoped fallback types (`COMMENT_*`, `POST_LIKED`, etc.) to
+      resolve post detail from `targetId/entityId` when direct link is absent.
+  - Updated DTO/tap payload compatibility:
+    - `notificationType` now preferred over `type` when both are present.
+    - `targetId` now preferred over `entityId` when both are present.
+    - local payload encoding/decoding now carries both alias keys:
+      `type+notificationType`, `deeplink+deepLink`,
+      `entityId+targetId`, `projectCode+projectId`.
+  - Updated background push local-bridge payload to include alias keys and
+    `priority`.
+  - Validation:
+    - `flutter test test/features/notifications/domain/notification_navigation_test.dart test/features/notifications/data/notification_dto_test.dart`
+    - `flutter analyze lib/features/notifications/domain/entities/notification_navigation.dart lib/features/notifications/data/dto/notification_dto.dart lib/core/notifications/local_notifications_service.dart lib/core/notifications/remote_push_service.dart lib/features/notifications/application/notifications_controller.dart test/features/notifications/domain/notification_navigation_test.dart test/features/notifications/data/notification_dto_test.dart`
+- **NOTIFICATION PUBLISH BACKEND REQUEST DOC V1.0.0**:
+  - Added backend request document for notification publishing policy and
+    payload contract:
+    - `docs/api-spec/알림발행_백엔드요청서_v1.0.0.md`
+  - Documented:
+    - app-supported categories (`LIVE_EVENT`, `FAVORITE`, `COMMENT`)
+    - push/SSE payload key compatibility and deeplink routing paths
+    - recommended event scenarios + message templates
+    - idempotency and notifications-list consistency requirements
+- **ADS SLOT NONE-DELIVERY FALLBACK VISIBILITY HOTFIX**:
+  - Added `DeliveryNoneStrategy` to `HybridSponsoredSlot` so
+    `deliveryType=none` handling can be configured per slot.
+  - Kept default behavior as hidden (`hide`) for contract compatibility.
+  - Applied `fallback` strategy on Home and Board feed sponsored slots to avoid
+    blank gaps when backend temporarily returns `none`.
+  - Ensured local fallback render path does not emit ad event tracking for
+    explicit `none` decisions (no `decisionId` usage in fallback path).
+  - Validation:
+    - `flutter analyze lib/features/ads/presentation/widgets/hybrid_sponsored_slot.dart lib/features/home/presentation/pages/home_page.dart lib/features/feed/presentation/pages/board_page.dart`
+    - `flutter test test/features/ads/data/ad_slot_decision_dto_test.dart test/features/ads/data/ads_repository_impl_test.dart`
+- **SEARCH GLOBAL API REQUEST V1.1.0 IMPLEMENTATION (DISCOVERY + CANCEL TOKEN)**:
+  - Applied `/api/v1/search` global-contract alignment:
+    - removed `projectId`, `unitIds` from client search query parameters.
+    - retained `q/types/page/size` only, with `size` clamped to `1..50`.
+  - Added search discovery API integration:
+    - `GET /api/v1/search/discovery/popular?limit=10`
+    - `GET /api/v1/search/discovery/categories?limit=10`
+    - new DTO/domain mapping for `updatedAt`, keywords, categories, counts.
+  - Added in-flight request cancellation on search typing:
+    - wired Dio `CancelToken` through `ApiClient.get(...)`.
+    - previous search request is canceled before issuing the next one.
+    - stale/canceled responses are ignored by request-id guard.
+  - Updated search home UI data source:
+    - popular keywords now prefer backend discovery data with fallback keywords.
+    - category section now renders backend category labels/counts and hides
+      gracefully on category discovery failure.
+    - `updatedAt` is converted to local time and rendered as `오늘 HH:mm 기준`,
+      parse failure falls back to `방금 기준`.
+  - Updated API endpoint catalog/contract checks for discovery endpoints.
+  - Validation:
+    - `flutter analyze lib/features/search lib/core/constants/api_constants.dart lib/core/constants/api_v3_endpoints_catalog.dart lib/core/network/api_client.dart test/core/constants/api_endpoints_contract_test.dart test/features/search/data/search_discovery_dto_test.dart`
+    - `flutter test test/features/search/data/search_item_dto_test.dart test/features/search/data/search_discovery_dto_test.dart test/core/constants/api_endpoints_contract_test.dart`
+- **UNIFIED SEARCH GLOBAL-ONLY SCOPE + DISCOVERY SIGNAL CLEANUP**:
+  - Removed project-scope toggle UI from `SearchPage` and fixed behavior to
+    always execute global unified search.
+  - Updated `SearchController` to stop sending project/unit scope from client
+    for search requests (query-only global direction).
+  - Removed percentage momentum labels from popular-search rank rows in the
+    search discovery surface.
+  - Validation:
+    - `flutter analyze lib/features/search/presentation/pages/search_page.dart lib/features/search/application/search_controller.dart`
+- **POST COMPOSE TOPIC/TAG CATALOG OPTIONS API INTEGRATION**:
+  - Integrated compose taxonomy options API contract:
+    - added `GET /api/v1/community/posts/options` endpoint wiring in
+      `FeedRemoteDataSource` / `FeedRepository`.
+    - added compose taxonomy DTO/domain models for topics/tags catalogs.
+  - Applied 5-minute cached load for compose options through repository cache.
+  - Updated post create/edit UI to use runtime-loaded catalogs:
+    - topic picker uses API topics when available.
+    - tag picker uses API tag suggestions.
+  - Added fallback behavior when options API fails:
+    - topic switches to free-text input sheet.
+    - tags remain addable via free input flow.
+  - Added tag payload hardening before submit:
+    - normalize + de-duplicate + max-count/max-length sanitize.
+  - Validation:
+    - `flutter test test/features/feed/data/post_dto_test.dart test/features/feed/presentation/post_compose_components_test.dart`
+    - `flutter test test/features/feed/application/post_compose_autosave_controller_test.dart test/features/feed/application/post_compose_draft_store_test.dart`
+    - `flutter analyze lib/features/feed/presentation/pages/post_create_page.dart lib/features/feed/presentation/pages/post_edit_page.dart lib/features/feed/presentation/widgets/post_compose_components.dart lib/features/feed/data/dto/post_dto.dart lib/features/feed/data/datasources/feed_remote_data_source.dart lib/features/feed/data/repositories/feed_repository_impl.dart lib/features/feed/domain/entities/feed_entities.dart lib/features/feed/domain/repositories/feed_repository.dart`
+- **UNIFIED SEARCH ENTRY + REFERENCE-STYLE DISCOVERY UI**:
+  - Standardized global search entry behavior:
+    - search icons on Home/Feed/Board now route to `/search` unified search page.
+    - Places top search card tap now routes to unified search
+      (map-local search kept on long-press for compatibility).
+  - Rebuilt `SearchPage` top structure to reference-style layout:
+    - back button + large rounded query field
+    - compact scope pills (`현재 프로젝트` / `전체 검색`)
+    - tag/chip-first discovery surface when query is empty.
+  - Added empty-query discovery sections tailored for GirlsBandTabi:
+    - popular unified keywords (ranked rows)
+    - popular explore categories (ranked quick actions)
+    - horizontal explore-topic chips.
+  - Existing unified search API flow and result tab filtering are preserved for
+    non-empty queries.
+  - Validation:
+    - `flutter analyze lib/features/search/presentation/pages/search_page.dart lib/features/home/presentation/pages/home_page.dart lib/features/feed/presentation/pages/board_page.dart lib/features/places/presentation/pages/places_map_page.dart`
+- **LIVE UPCOMING FEATURED CARD SELECTION (TODAY NEAREST ONLY)**:
+  - Updated upcoming live list highlight policy to show only one featured card.
+  - When there are live events on the same day, selects the nearest scheduled
+    event from current time and renders it as `GBTFeaturedEventCard`.
+  - If there is no same-day event, falls back to nearest `SCHEDULED` status event.
+  - Prevents multiple oversized featured cards when many `D-day` events exist.
+  - Validation:
+    - `flutter analyze lib/features/live_events/presentation/pages/live_events_page.dart`
+- **REMOTE PUSH LIFECYCLE DELIVERY (NOTIFICATION CENTER)**:
+  - Enabled iOS foreground system notification presentation
+    (`alert/sound/badge = true`) so push messages are visible in Notification Center
+    while app is running.
+  - Added Firebase background-message local-notification bridge for data-only
+    payloads:
+    - initializes plugin in background isolate
+    - creates/uses high-importance channel `gbt_notifications_high`
+    - shows local notification with routing payload
+  - Added duplicate-guard for iOS foreground:
+    - skip local re-show when iOS is already presenting remote notification.
+  - Expanded push title/body payload parsing fallback for both platforms:
+    - title: `title` / `notificationTitle` / `subject`
+    - body: `body` / `message` / `content`
+    - improves notification-center visibility resilience when provider payload
+      key names vary.
+  - Added Android manifest metadata:
+    - `com.google.firebase.messaging.default_notification_channel_id=gbt_notifications_high`
+  - Validation:
+    - `flutter analyze lib/core/notifications/remote_push_service.dart lib/core/providers/core_providers.dart lib/main.dart lib/app.dart`
+- **BOARD FEED TOP BAR SIMPLIFICATION (RECOMMENDED/FOLLOWING + PROJECT PILL)**:
+  - Simplified feed top controls to:
+    - `추천` mode pill
+    - `팔로잉` mode pill
+    - compose-style project selector pill (`ProjectAudienceSelectorCompact`)
+  - Removed the secondary topic row including `전체` chip.
+  - Wired project selector pill selection to open project feed list directly.
+  - Extended `ProjectAudienceSelectorCompact` with optional
+    `onProjectSelected` callback so feed can react to selection events.
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/board_page.dart lib/features/projects/presentation/widgets/project_selector.dart`
+- **BOARD FEED TOP BAR REFINEMENT + REACTION PROJECT-CODE NORMALIZATION**:
+  - Updated top control flow to:
+    - `추천`
+    - `팔로잉`
+    - `프로젝트별` 버튼
+    - project selector pill is shown only when `프로젝트별` is selected.
+  - Fixed mixed-feed reaction path resolution:
+    - normalize `PostReactionTarget.projectCodeOverride` from UUID projectId
+      to slug projectCode via loaded project list.
+    - when only UUID is available and no mapping exists, skip invalid UUID path
+      instead of issuing guaranteed 404 reaction requests.
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/board_page.dart lib/features/feed/application/reaction_controller.dart lib/features/projects/presentation/widgets/project_selector.dart`
+- **BOARD PROJECT PILL DENSITY TUNING**:
+  - Reduced project selector pill size next to `프로젝트별` on board top bar:
+    - enabled dense mode (`height 28`, smaller icon/text/arrow, narrower max width).
+  - Kept compose screen project pill size unchanged.
+  - Validation:
+    - `flutter analyze lib/features/projects/presentation/widgets/project_selector.dart lib/features/feed/presentation/pages/board_page.dart`
+- **IOS CAMERA COMPOSER CRASH FIX (PERMISSION + SOURCE SUPPORT GUARD)**:
+  - Added missing iOS privacy key in Runner plist:
+    - `NSCameraUsageDescription`
+  - Added runtime camera-source support checks before invoking camera picker on
+    both post create/edit pages.
+  - When camera source is unavailable (e.g. unsupported simulator/device),
+    show graceful message instead of attempting camera launch.
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/post_create_page.dart lib/features/feed/presentation/pages/post_edit_page.dart`
+- **POST COMPOSE TOPIC/TAG SELECTION + REQUEST PAYLOAD EXTENSION**:
+  - Added topic/tag selector row to post create/edit pages:
+    - topic single-select bottom sheet
+    - tag add/remove UI with suggestion chips and duplicate/max-count guard.
+  - Extended compose draft/autosave payload:
+    - persist `topic` and `tags` alongside title/content/images.
+    - restore topic/tag state when recovering local drafts.
+  - Extended community post create/update request payloads:
+    - optional `topic`
+    - optional `tags`
+  - Extended post summary/detail parsing to read optional `topic`/`tags` from
+    API responses when available.
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/post_create_page.dart lib/features/feed/presentation/pages/post_edit_page.dart lib/features/feed/presentation/widgets/post_compose_components.dart lib/features/feed/application/post_compose_autosave_controller.dart lib/features/feed/application/post_compose_draft_store.dart lib/features/feed/data/dto/post_comment_dto.dart lib/features/feed/data/dto/post_dto.dart lib/features/feed/domain/entities/feed_entities.dart lib/features/feed/data/repositories/feed_repository_impl.dart lib/features/feed/domain/repositories/feed_repository.dart test/features/feed/data/post_comment_dto_test.dart test/features/feed/data/post_dto_test.dart test/features/feed/application/post_compose_draft_store_test.dart test/features/feed/application/post_compose_autosave_controller_test.dart`
+    - `flutter test test/features/feed/data/post_comment_dto_test.dart test/features/feed/data/post_dto_test.dart test/features/feed/application/post_compose_draft_store_test.dart test/features/feed/application/post_compose_autosave_controller_test.dart`
+
 ## 2026-03-07
+- **PAGE-SCOPED API TRIGGER ENFORCEMENT (PROJECT SWITCH FAN-OUT REDUCTION)**:
+  - Enforced page-active guards for project-change reloads:
+    - Home(`index=0`), Places(`index=1`), Live(`index=2`),
+      Board(`index=3`), Info/News(`index=4`).
+  - Added re-entry refresh hooks on tab activation (`currentNavIndex` listener)
+    so hidden-state changes are synchronized only when users return to the page.
+  - Removed explicit duplicate units prefetch on project selection:
+    - `project_selector.dart` `_selectProject(...)`
+    - `places_map_page.dart` project picker apply handler.
+  - Limited offscreen units watching by gating unit provider subscription with
+    active-tab checks in Places/Live pages.
+  - Added board feed background guard so subscriptions/reload/loadMore/polling
+    do not run when Board tab is not active.
+  - Info page tabs now watch News/Units providers only while each tab is active
+    to reduce non-visible tab calls.
+  - Validation:
+    - `flutter analyze` (targeted files): no compile errors, 1 pre-existing
+      info-level warning at `places_map_page.dart:542`
+- **POST COMPOSE UI (BOTTOM TOOLBAR CAMERA/GALLERY ONLY + REAL CAMERA ACTION)**:
+  - Simplified create/edit bottom toolbar to keep only:
+    - gallery icon
+    - camera icon
+  - Removed extra composer actions from bottom toolbar (`GIF`, list, count, clear-all).
+  - Added dedicated picker flows:
+    - gallery icon -> multi-image picker
+    - camera icon -> camera capture (`ImageSource.camera`)
+  - Kept existing image limit/dedup/validation logic with shared append handler.
+  - Added graceful failure messages when gallery/camera open fails.
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/post_create_page.dart lib/features/feed/presentation/pages/post_edit_page.dart`
+- **POST COMPOSE UI (AUDIENCE CHIP SIZE + TRANSPARENT INPUT AREA TUNING)**:
+  - Reduced audience-style project chip size for compose screens:
+    - chip height `38 -> 32`
+    - icon/text/arrow sizes and padding scaled down accordingly.
+  - Made title/content input fields explicitly transparent (`fillColor: transparent`)
+    while keeping borderless editor style.
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/post_create_page.dart lib/features/feed/presentation/pages/post_edit_page.dart lib/features/projects/presentation/widgets/project_selector.dart`
+- **POST COMPOSE UI (AUDIENCE-LIKE PROJECT CHIP + THEME-SURFACE ALIGNMENT)**:
+  - Updated create/edit editor surface to follow theme surface:
+    - light mode: plain white compose canvas
+    - dark mode: dark compose canvas (theme surface).
+  - Kept title/body on one plain surface and retained subtle horizontal divider
+    between headline and body fields.
+  - Moved project selector to the reference-like chip position near avatar/title
+    (replacing the former audience-chip concept area).
+  - Added new selector component:
+    - `ProjectAudienceSelectorCompact`
+    - tap opens bottom-sheet project picker and immediately applies selection.
+  - Removed in-body standalone project selector row from create/edit.
+  - Validation:
+    - `flutter analyze lib/features/projects/presentation/widgets/project_selector.dart lib/features/feed/presentation/pages/post_create_page.dart lib/features/feed/presentation/pages/post_edit_page.dart lib/shared/main_scaffold.dart`
+- **POST COMPOSE UI (SINGLE-TONE EDITOR + PROJECT PICKER REWORK)**:
+  - Unified post create/edit editor surfaces to single-tone white canvas.
+  - Added subtle horizontal divider between headline and body inputs.
+  - Moved community guideline text to content placeholder copy.
+  - Reworked compose project selection from horizontal pill strip to
+    single dropdown-style selector with bottom-sheet project list.
+  - Applied headline emphasis update:
+    - larger headline typography + darker explicit text color
+    - hint copy kept as `제목을 입력해주세요`.
+  - Validation:
+    - `flutter analyze lib/features/projects/presentation/widgets/project_selector.dart lib/features/feed/presentation/pages/post_create_page.dart lib/features/feed/presentation/pages/post_edit_page.dart lib/shared/main_scaffold.dart`
+- **POST COMPOSE UI (IMMERSIVE EDITOR MODE + COPY UPDATE)**:
+  - Hid shell bottom navigation on post compose routes:
+    - `/board/posts/new`
+    - `/board/posts/:postId/edit`
+  - Enabled immediate keyboard entry on create/edit by applying autofocus to
+    the headline input.
+  - Increased headline input visual emphasis:
+    - `titleMedium` -> `titleLarge` with bold weight.
+  - Updated compose copy per latest request:
+    - headline hint -> `제목을 입력해주세요`
+    - removed gray selector background container (single-tone compose surface)
+    - added compact community guideline text under headline input.
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/post_create_page.dart lib/features/feed/presentation/pages/post_edit_page.dart lib/shared/main_scaffold.dart`
+- **COMMUNITY FEED (RECOMMENDED/FOLLOWING CURSOR MIGRATION)**:
+  - Removed deleted endpoint usage: `GET /api/v1/community/feed/cursor`.
+  - Added and wired recommended cursor endpoint:
+    `GET /api/v1/community/feed/recommended/cursor`.
+  - Updated `추천` 탭 infinite-scroll flow to cursor contract:
+    first request without cursor, then pass response `nextCursor` 그대로 전달.
+  - Removed `팔로잉` 탭의 legacy `404 -> /community/feed/cursor` fallback.
+  - Synced endpoint catalog/contract tests to new paths.
+  - Validation:
+    - `flutter analyze lib/features/feed/application/board_controller.dart lib/features/feed/data/datasources/feed_remote_data_source.dart lib/features/feed/data/repositories/feed_repository_impl.dart lib/features/feed/domain/repositories/feed_repository.dart lib/core/constants/api_constants.dart lib/core/constants/api_v3_endpoints_catalog.dart test/core/constants/api_endpoints_contract_test.dart`
+    - `flutter test test/core/constants/api_endpoints_contract_test.dart`
+- **POST COMPOSE UI (COPY TRIM + PROJECT SELECTOR BLEND REFINEMENT)**:
+  - Removed bottom visibility helper copy (`모든 사람이 댓글을 달 수 있습니다`) from both create/edit composer footers.
+  - Trimmed placeholder copy to avoid direct clone-like wording:
+    - title hint `제목` -> `(선택) 헤드라인을 입력해 주세요`
+    - removed content hint `무슨 일이 일어나고 있나요?` for a cleaner canvas.
+  - Blended project selection into composer flow by replacing framed selector box
+    with a softer rounded surface container that matches the timeline-style body.
+  - Kept existing submit, autosave, recovery, upload, and routing behavior unchanged.
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/post_create_page.dart lib/features/feed/presentation/pages/post_edit_page.dart`
+- **POST COMPOSE UI (CREATE/EDIT TIMELINE-LIKE REDESIGN)**:
+  - Redesigned both post create/edit screens to a timeline-like composer style
+    inspired by the provided mobile reference.
+  - Updated app bar actions:
+    - left `취소`
+    - center/right `임시 보관함`
+    - pill primary CTA (`게시하기` / `수정하기`)
+  - Replaced section-card form with lightweight inline compose layout:
+    - avatar + title input + large content input (`무슨 일이 일어나고 있나요?`)
+    - horizontal image strip previews with inline remove actions
+    - compact project selector row retained for project-scoped posting.
+  - Added bottom compose toolbar + visibility hint row:
+    - `모든 사람이 댓글을 달 수 있습니다`
+    - icon row for media actions and attachment count.
+  - Existing autosave/recovery, image upload, and submit business logic remain unchanged.
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/post_create_page.dart lib/features/feed/presentation/pages/post_edit_page.dart`
+- **BOARD/FEED UI (TIMELINE-LIKE REDESIGN, COLOR TOKENS PRESERVED)**:
+  - Applied feed-screen structural redesign to resemble the provided reference
+    without changing global light/dark color tokens.
+  - `BoardPage` feed section now uses a custom hero header (title,
+    search+menu icons, segmented top tabs, horizontal topic chips).
+  - Removed side metric text next to the `피드` title.
+  - Top tabs expanded to `추천 / 팔로잉 / 뉴스 / 콘텐츠`:
+    - `추천` -> `recommended`
+    - `팔로잉` -> `following`
+    - `뉴스` -> `latest`
+    - `콘텐츠` -> project-scoped posts
+  - Topic chips now include `전체` + subscription project chips; selecting a
+    project chip syncs project selection and switches to `콘텐츠` tab.
+  - Feed post card layout changed from bordered rounded card to timeline block:
+    - stronger author/meta row
+    - reduced top meta title size and kept post title bold
+    - body preview shown up to 5 lines
+    - `더보기` button shown only when content exceeds 5 lines
+    - `더보기` tap routes to post detail
+    - optional full-width media preview with Twitter-like wide placement
+    - action row retained (like/comment/bookmark) with existing behavior.
+  - Feed section moved to custom in-body header layout (section 0 app bar removed).
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/board_page.dart`
+- **BOARD/SUB-NAV CHROME (PILL STYLE RESTYLE)**:
+  - Restyled board-only sub navigation (`back + feed/discover/travel reviews`)
+    to a floating pill form factor matching the requested dark glass reference.
+  - Aligned colors to app theme tokens per mode:
+    - light: `surface/appBackground/border/textSecondary/primary`
+    - dark: `darkSurface/darkSurfaceVariant/darkBorder/darkTextSecondary/darkPrimary`
+  - Applied iPhone-style continuous corner curvature on iOS using
+    `ContinuousRectangleBorder` + `ShapeBorderClipper`, with iOS-specific
+    corner radius (`38`) and Android fallback radius (`34`).
+  - Updated visual tokens in `MainScaffold` board sub-nav:
+    - full rounded corners (not top-only)
+    - darker glass gradient with soft border
+    - stronger drop shadow
+    - circular emphasized back button
+    - brighter selected icon/label and muted unselected state
+  - Behavior/routing remains unchanged (`/board`, `/board/discover`,
+    `/board/travel-reviews-tab`).
+  - Validation:
+    - `flutter analyze lib/shared/main_scaffold.dart`
+- **COMMUNITY/RECOMMENDED FEED (ENDPOINT SWITCH TO RECOMMENDED)**:
+  - Switched board `추천` mode source to
+    `GET /api/v1/community/feed/recommended` (page-based).
+  - Updated `CommunityFeedController` recommended-mode reload/refresh/load-more
+    to use repository `getCommunityRecommendedFeed(page, size)`.
+  - `추천` 모드 페이징 상태는 `page`와 `items.length >= size` 기준으로 유지하며,
+    cursor(`nextCursor`)는 사용하지 않도록 정리.
+  - Validation:
+    - `flutter analyze lib/features/feed/application/board_controller.dart`
+- **COMMUNITY/REACTIONS (MIXED-PROJECT 400 HOTFIX)**:
+  - Fixed board/community reaction requests that were always using
+    `selectedProjectKey` for `like/bookmark` status/toggle APIs.
+  - Root cause:
+    - `추천/팔로잉` 피드는 프로젝트가 섞인 게시글을 포함할 수 있는데,
+      카드/상세의 반응 컨트롤러가 게시글 소속 프로젝트 대신
+      현재 선택 프로젝트로 경로를 만들고 있었다.
+    - 결과적으로 타 프로젝트 글에 대해
+      `Post does not belong to project` (`400`)가 반복 발생했다.
+  - Applied changes:
+    - introduced `PostReactionTarget(postId, projectCodeOverride)` context.
+    - board card reaction providers now pass each post’s `projectId` as
+      route context.
+    - post detail reaction providers now bind to loaded post context
+      (`post.projectId`) before calling like/bookmark APIs.
+  - Effect:
+    - removes repeated `400` reaction errors for mixed-project feed cards.
+    - keeps request count/rebuild scope unchanged (no performance regression).
+  - Validation:
+    - `flutter analyze lib/features/feed/application/reaction_controller.dart lib/features/feed/presentation/pages/board_page.dart lib/features/feed/presentation/pages/post_detail_page.dart`
+- **NOTIFICATIONS/SSE (CLIENT-ERROR COOLDOWN + RECONNECT THROTTLE HOTFIX)**:
+  - Hardened `NotificationsController` realtime reconnect loop to prevent
+    log/network churn when `/api/v1/notifications/stream` is unstable.
+  - Added reconnect cooldown policy by error class:
+    - `401/403` -> 5 minute cooldown
+    - `400/404` -> 10 minute cooldown
+  - Kept exponential backoff + jitter for transient network failures
+    (`connection refused`, early close), with higher cap to reduce wakeups.
+  - Suppressed duplicate reconnect exception logs (same error signature)
+    within a 2-minute window to prevent log spam.
+  - Effect:
+    - avoids tight SSE retry loops under auth/contract failures
+    - reduces background CPU/network churn while preserving polling fallback.
+- **PROFILE/SETTINGS UX (MY PROFILE ENTRY + COUNT/ACTIVITY RESILIENCE)**:
+  - Settings profile card top area (above the edit button) now navigates to my profile page (`/users/{me}`).
+  - User profile follower/following counts now fall back to list-length providers when follow-status count fields are absent.
+  - User activity loading (`작성한 글`/`작성한 댓글`) now keeps partial success:
+    - posts/comments are fetched in parallel
+    - error state is shown only when both fail
+    - one side success still renders available tab data.
+  - User profile `작성한 글/작성한 댓글` tabs now use full-page scrolling (header + list scroll together), instead of fixed header + inner list-only scrolling.
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/user_profile_page.dart lib/features/feed/application/user_activity_controller.dart lib/features/settings/presentation/pages/settings_page.dart`
+- **MAP/THEME (APP-THEME FORCED SYNC)**:
+  - Forced map rendering to follow app theme mode (light/dark), not platform/system map auto-theme.
+  - Added shared map-style module:
+    - `lib/core/theme/gbt_map_styles.dart`
+    - explicit Google Maps light/dark style payloads.
+  - Applied to all map surfaces:
+    - places map page
+    - visit detail map
+    - travel review create/detail maps.
+  - Apple Maps theme sync:
+    - added app-theme-based overlay tint on AppleMap for both light/dark to avoid system-theme drift.
+  - Validation:
+    - `dart analyze lib/core/theme/gbt_map_styles.dart lib/features/places/presentation/pages/places_map_page.dart lib/features/visits/presentation/pages/visit_detail_page.dart lib/features/feed/presentation/pages/travel_review_create_page.dart lib/features/feed/presentation/pages/travel_review_detail_page.dart`
+- **COMMUNITY/RECOMMENDED FEED (404 NOISE HOTFIX)**:
+  - Switched board `추천` mode data source from page endpoint (`GET /api/v1/community/feed/recommended`) to cursor endpoint (`GET /api/v1/community/feed/cursor`).
+  - Updated `CommunityFeedController` recommended-mode reload/load-more/background-refresh flow to cursor pagination (`nextCursor/hasNext`) for consistency with following mode.
+  - Effect:
+    - removes repeated 404 error-state escalation when recommended endpoint is not deployed.
+    - prevents board from showing transient "problem occurred" UI solely due missing legacy route.
+  - Validation:
+    - `flutter analyze lib/features/feed/application/board_controller.dart`
+- **PUSH/REMOTE (FCM/APNs PIPELINE WIRED)**:
+  - Added Firebase remote push integration (`firebase_core`, `firebase_messaging`) with app-scope bootstrap.
+  - Fixed startup crash when Firebase config files are absent:
+    - `RemotePushService` no longer touches `FirebaseMessaging.instance` before Firebase initialization.
+    - App now degrades gracefully (remote push disabled) instead of throwing `[core/no-app]`.
+  - Added `RemotePushService`:
+    - Firebase initialization with safe fallback when config files are missing
+    - permission request
+    - backend device registration sync (`POST /api/v1/notifications/devices`)
+    - token refresh sync (`PATCH /api/v1/notifications/devices/{deviceId}/token`)
+    - logout deactivation cleanup (`DELETE /api/v1/notifications/devices/{deviceId}`)
+    - push-open tap event stream -> existing notification routing
+    - foreground push -> local notification bridge for in-app banner/tap routing
+  - Main/app wiring:
+    - background handler registration in `main.dart`
+    - global bootstrap + remote tap listeners in app scope
+  - Platform wiring:
+    - Android: applied `com.google.gms.google-services` plugin + `POST_NOTIFICATIONS` permission
+    - iOS: enabled `UIBackgroundModes` remote-notification
+  - Backend payload verification (2026-03-07, local docker):
+    - `POST /api/v1/notifications/devices` requires `platform/provider/deviceId/pushToken`
+    - `PATCH /api/v1/notifications/devices/{deviceId}/token` requires `pushToken`
+- **ADS/TRACKING (400 HOTFIX)**:
+  - Fixed `POST /api/v1/ads/events` 400 due to missing `decisionId`.
+  - Added guard to skip event call when `decisionId` is unavailable (house/network fallback rendering before decision resolve).
+- **PROJECTS/STATE-NOTIFIER (DISPOSE SAFETY)**:
+  - Added `mounted` guards in `ProjectsController.load` and `ProjectUnitsController.load` to prevent `Tried to use ... after dispose` crashes during async completion.
+- **FEED/UI (POST-CREATE ↔ PROFILE-EDIT ALIGNMENT)**:
+  - Updated `PostCreatePage` visual structure to match `ProfileEditPage` style language:
+    - section labels + rounded section cards (`프로젝트`, `기본 정보`, `사진`)
+    - reduced top chrome density (removed intro/progress-heavy blocks)
+    - inline basic-info inputs with iOS-settings style spacing.
+  - Moved post-submit primary action to AppBar text CTA (`등록`) for parity with profile edit save affordance.
+  - Added `PostComposeImageSection.useCardChrome` option and used borderless mode in create page to avoid double-card borders.
+  - Removed inline selected-project slug hint from create page project section (`현재 프로젝트: <slug>`) to reduce duplicate metadata noise.
+  - Fixed post-create autosave lifecycle:
+    - successful submit now hard-clears saved draft and skips dispose-time re-save
+    - draft-status text is surfaced near the top section to keep autosave feedback visible.
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/post_create_page.dart lib/features/feed/presentation/widgets/post_compose_components.dart`
+    - `flutter test test/features/feed/application/post_compose_autosave_controller_test.dart`
+    - `flutter test test/features/feed/presentation/pages/post_compose_autosave_integration_test.dart`
+- **HOME/UI (SERVICE-HUB REMOVAL)**:
+  - Removed the home center quick-access service hub (`장소/게시판/정보`) from `HomePage`.
+  - Home content flow now proceeds directly from hero + project selector to sponsored slot/content sections.
+  - Validation:
+    - `dart analyze lib/features/home/presentation/pages/home_page.dart`
+- **NOTIFICATIONS/SETTINGS (TOGGLE ERROR RESILIENCE)**:
+  - Updated `NotificationSettingsController` OFF flow so device-deactivation failure no longer surfaces as settings-save failure when the settings API update already succeeded.
+  - Device deactivation is now handled as best-effort follow-up with warning logs; push OFF state remains applied.
+  - Added/updated controller tests to assert OFF toggle still succeeds when deactivation call fails.
+  - Live API verification (2026-03-07, local docker backend):
+    - `GET /api/v1/notifications/settings` → `200`
+    - `PUT /api/v1/notifications/settings` (push OFF) → `200`
+    - `DELETE /api/v1/notifications/devices/{deviceId}` sample call → `200`
+  - Validation:
+    - `dart analyze lib/features/settings/application/settings_controller.dart test/features/settings/application/settings_controller_test.dart`
+    - `flutter test test/features/settings/application/settings_controller_test.dart`
+- **AUTH/NOTIFICATIONS (LOGIN PERMISSION PROMPT)**:
+  - Added post-login notification-permission request hook in `AuthController` (non-blocking).
+  - Permission prompt runs only when local push preference is enabled (default true if unset).
+  - Validation:
+    - `dart analyze lib/features/auth/application/auth_controller.dart`
 - **HOME/PROJECT-GATE (INFINITE LOADING GUARD)**:
   - Fixed home-screen infinite loading when project bootstrap fails (`GET /api/v1/projects` 5xx) and no `selectedProjectKey` is set.
   - `HomePage` now gates home rendering by project selection state:
@@ -41,10 +523,35 @@
   - Validation:
     - `dart analyze lib/core/constants/api_constants.dart lib/core/constants/api_v3_endpoints_catalog.dart lib/features/feed/data/datasources/feed_remote_data_source.dart lib/features/feed/domain/repositories/feed_repository.dart lib/features/feed/data/repositories/feed_repository_impl.dart lib/features/feed/application/board_controller.dart`
     - `flutter test test/core/constants/api_endpoints_contract_test.dart`
+- **COMMUNITY/RECOMMENDED-FEED (GLOBAL ENDPOINT SWITCH)**:
+  - Switched mobile `추천` feed source to global endpoint:
+    - from project-scoped/legacy feed paths
+    - to `GET /api/v1/community/feed/recommended?page={n}&size={m}&sort=createdAt,desc`
+  - Removed project selection dependency from recommended reload trigger:
+    - project change no longer forces reload while mode is `추천/팔로잉`.
+  - Refactored `추천` mode paging to explicit page-based flow in controller/repository:
+    - `getCommunityRecommendedFeed(page,size,sort)` is used directly.
+    - `hasMore` is derived from page-size fill (`items.length >= size`).
+    - legacy `getCommunityFeedByCursor` path is no longer used by `추천` mode.
+  - Updated endpoint contracts:
+    - `ApiEndpoints.communityRecommendedFeed`
+    - v3 endpoint catalog + contract test coverage.
+  - Validation:
+    - `dart analyze lib/core/constants/api_constants.dart lib/core/constants/api_v3_endpoints_catalog.dart lib/features/feed/data/datasources/feed_remote_data_source.dart lib/features/feed/data/repositories/feed_repository_impl.dart lib/features/feed/domain/repositories/feed_repository.dart lib/features/feed/application/board_controller.dart test/core/constants/api_endpoints_contract_test.dart`
+    - `flutter test test/core/constants/api_endpoints_contract_test.dart`
 - **ROUTING/SETTINGS-QUICK-ACTION (BLANK DETAIL FIX)**:
   - Stabilized cross-stack navigation from top-level overlay screens (`/settings`, `/favorites`, `/visits`, `/visit-stats`, `/notifications`, `/search`) into shell-detail routes.
   - Updated `AppRouterExtension` to use `go(...)` instead of `pushNamed(...)` when moving from overlay context to shell routes (`place/live/news/post detail`) to prevent nested shell stack rendering as blank pages.
   - Updated favorites card navigation to route through `AppRouterExtension` (`goToPlaceDetail/goToLiveDetail/goToNewsDetail/goToPostDetail`) for consistent behavior.
+  - Added same-target stack guard in shell navigation resolution:
+    - when target detail route is already present and current context can pop, navigation now forces `go(...)` (or no-op) instead of `pushNamed(...)`.
+    - prevents duplicated page keys / duplicated root navigator key assertions (`!keyReservation.contains(key)`, `GlobalKey ... used multiple times`) seen in `/settings -> /favorites -> /places/:id` flows.
+  - Added dedicated overlay detail routes to preserve overlay back-stack UX:
+    - `/overlay/places/:placeId`
+    - `/overlay/live/:eventId`
+    - `/overlay/info/news/:newsId`
+    - `/overlay/board/posts/:postId`
+  - Overlay context (`/settings`, `/favorites`, `/visits`, `/visit-stats`, `/notifications`, `/search`) now opens details via these overlay routes so back returns to the originating overlay screen (favorites/visits/stats) instead of jumping branches.
   - Validation:
     - `flutter analyze lib/core/router/app_router.dart lib/features/favorites/presentation/pages/favorites_page.dart`
     - `flutter test test/features/favorites test/features/visits`

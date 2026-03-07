@@ -94,10 +94,6 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     final commentsState = ref.watch(
       postCommentsControllerProvider(widget.postId),
     );
-    final likeState = ref.watch(postLikeControllerProvider(widget.postId));
-    final bookmarkState = ref.watch(
-      postBookmarkControllerProvider(widget.postId),
-    );
     final isAuthenticated = ref.watch(isAuthenticatedProvider);
     final profileState = ref.watch(userProfileControllerProvider);
     final currentUserId = profileState.maybeWhen(
@@ -112,6 +108,26 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       data: (post) => post,
       orElse: () => null,
     );
+    final likeState = currentPost == null
+        ? const AsyncLoading<PostLikeStatus>()
+        : ref.watch(
+            postLikeControllerProvider(
+              PostReactionTarget(
+                postId: currentPost.id,
+                projectCodeOverride: currentPost.projectId,
+              ),
+            ),
+          );
+    final bookmarkState = currentPost == null
+        ? const AsyncLoading<PostBookmarkStatus>()
+        : ref.watch(
+            postBookmarkControllerProvider(
+              PostReactionTarget(
+                postId: currentPost.id,
+                projectCodeOverride: currentPost.projectId,
+              ),
+            ),
+          );
     final canManagePost =
         currentPost != null && currentUserId == currentPost.authorId;
     final blockStatusState =
@@ -222,16 +238,24 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
           commentController: _commentController,
           commentFocusNode: _commentFocusNode,
           onToggleLike: () async {
+            final reactionTarget = PostReactionTarget(
+              postId: post.id,
+              projectCodeOverride: post.projectId,
+            );
             final result = await ref
-                .read(postLikeControllerProvider(post.id).notifier)
+                .read(postLikeControllerProvider(reactionTarget).notifier)
                 .toggleLike();
             if (result is Err<PostLikeStatus> && context.mounted) {
               _showSnackBar(context, '좋아요/좋아요 취소를 반영하지 못했어요');
             }
           },
           onToggleBookmark: () async {
+            final reactionTarget = PostReactionTarget(
+              postId: post.id,
+              projectCodeOverride: post.projectId,
+            );
             final result = await ref
-                .read(postBookmarkControllerProvider(post.id).notifier)
+                .read(postBookmarkControllerProvider(reactionTarget).notifier)
                 .toggleBookmark();
             if (result is Err<PostBookmarkStatus> && context.mounted) {
               _showSnackBar(context, '북마크를 반영하지 못했어요');
@@ -932,82 +956,74 @@ class _PostDetailContent extends StatelessWidget {
                               children: [
                                 Row(
                                   children: [
-                                    Flexible(
-                                      child: Text(
-                                        authorLabel,
-                                        style: GBTTypography.labelLarge
-                                            .copyWith(
-                                              fontWeight: FontWeight.w700,
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              authorLabel,
+                                              style: GBTTypography.labelLarge
+                                                  .copyWith(
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(width: GBTSpacing.xs),
+                                          Flexible(
+                                            child: Text(
+                                              '· ${post.timeAgoLabel}'
+                                              '${post.updatedAt != null && post.updatedAt!.isAfter(post.createdAt) ? ' · 수정됨' : ''}',
+                                              style: GBTTypography.labelSmall
+                                                  .copyWith(
+                                                    color: tertiaryColor,
+                                                  ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    const SizedBox(width: GBTSpacing.xs),
-                                    Text(
-                                      '· ${post.timeAgoLabel}',
-                                      style: GBTTypography.labelSmall.copyWith(
-                                        color: tertiaryColor,
-                                      ),
-                                    ),
-                                    if (post.updatedAt != null &&
-                                        post.updatedAt!.isAfter(
-                                          post.createdAt,
-                                        )) ...[
+                                    if (!isOwnPost && isAuthenticated) ...[
                                       const SizedBox(width: GBTSpacing.xs),
-                                      Text(
-                                        '수정됨',
-                                        style: GBTTypography.labelSmall
-                                            .copyWith(color: tertiaryColor),
+                                      SizedBox(
+                                        height: 27,
+                                        child: FilledButton.tonal(
+                                          onPressed:
+                                              (isFollowLoading ||
+                                                  isAuthorBlocked)
+                                              ? null
+                                              : onToggleFollowAuthor,
+                                          style: FilledButton.styleFrom(
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                            tapTargetSize: MaterialTapTargetSize
+                                                .shrinkWrap,
+                                            shape: const StadiumBorder(),
+                                            minimumSize: const Size(0, 27),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            isAuthorBlocked
+                                                ? '차단됨'
+                                                : (followStatus?.following ??
+                                                      false)
+                                                ? '팔로잉'
+                                                : '팔로우',
+                                            style: GBTTypography.labelSmall
+                                                .copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ],
                                 ),
-                                if (!isOwnPost && isAuthenticated)
-                                  Padding(
-                                    padding: const EdgeInsets.only(
-                                      top: GBTSpacing.xs,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        SizedBox(
-                                          height: 27,
-                                          child: FilledButton.tonal(
-                                            onPressed:
-                                                (isFollowLoading ||
-                                                    isAuthorBlocked)
-                                                ? null
-                                                : onToggleFollowAuthor,
-                                            style: FilledButton.styleFrom(
-                                              visualDensity:
-                                                  VisualDensity.compact,
-                                              tapTargetSize:
-                                                  MaterialTapTargetSize
-                                                      .shrinkWrap,
-                                              shape: const StadiumBorder(),
-                                              minimumSize: const Size(0, 27),
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                  ),
-                                            ),
-                                            child: Text(
-                                              isAuthorBlocked
-                                                  ? '차단됨'
-                                                  : (followStatus?.following ??
-                                                        false)
-                                                  ? '팔로잉'
-                                                  : '팔로우',
-                                              style: GBTTypography.labelSmall
-                                                  .copyWith(
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
                                 const SizedBox(height: 2),
                                 Text(
                                   post.title,

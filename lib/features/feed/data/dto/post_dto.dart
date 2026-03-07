@@ -117,6 +117,69 @@ class ProjectSubscriptionSummaryDto {
   }
 }
 
+/// EN: Taxonomy option item DTO for post compose.
+/// KO: 게시글 작성용 분류 옵션 항목 DTO입니다.
+class PostTaxonomyOptionDto {
+  const PostTaxonomyOptionDto({
+    required this.id,
+    required this.name,
+    this.sortOrder,
+  });
+
+  final String id;
+  final String name;
+  final int? sortOrder;
+
+  factory PostTaxonomyOptionDto.fromJson(Map<String, dynamic> json) {
+    return PostTaxonomyOptionDto(
+      id: json['id'] as String? ?? '',
+      name: (json['name'] as String? ?? '').trim(),
+      sortOrder: _intOrNull(json['sortOrder'] ?? json['sort_order']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      if (sortOrder != null) 'sortOrder': sortOrder,
+    };
+  }
+}
+
+/// EN: Taxonomy options DTO used by compose/edit screens.
+/// KO: 작성/수정 화면에서 사용하는 분류 옵션 DTO입니다.
+class PostComposeOptionsDto {
+  const PostComposeOptionsDto({this.topics = const [], this.tags = const []});
+
+  final List<PostTaxonomyOptionDto> topics;
+  final List<PostTaxonomyOptionDto> tags;
+
+  factory PostComposeOptionsDto.fromJson(Map<String, dynamic> json) {
+    List<PostTaxonomyOptionDto> decodeOptions(dynamic raw) {
+      if (raw is! List) {
+        return const <PostTaxonomyOptionDto>[];
+      }
+      return raw
+          .whereType<Map<String, dynamic>>()
+          .map(PostTaxonomyOptionDto.fromJson)
+          .toList(growable: false);
+    }
+
+    return PostComposeOptionsDto(
+      topics: decodeOptions(json['topics']),
+      tags: decodeOptions(json['tags']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'topics': topics.map((option) => option.toJson()).toList(growable: false),
+      'tags': tags.map((option) => option.toJson()).toList(growable: false),
+    };
+  }
+}
+
 class PostSummaryDto {
   const PostSummaryDto({
     required this.id,
@@ -125,7 +188,9 @@ class PostSummaryDto {
     required this.title,
     required this.createdAt,
     this.imageUrls = const [],
+    this.tags = const [],
     this.content,
+    this.topic,
     this.thumbnailUrl,
     this.authorName,
     this.authorAvatarUrl,
@@ -140,7 +205,9 @@ class PostSummaryDto {
   final String title;
   final DateTime createdAt;
   final List<String> imageUrls;
+  final List<String> tags;
   final String? content;
+  final String? topic;
   final String? thumbnailUrl;
   final String? authorName;
   final String? authorAvatarUrl;
@@ -214,7 +281,20 @@ class PostSummaryDto {
       title: json['title'] as String? ?? '',
       createdAt: _dateTime(json['createdAt']),
       imageUrls: imageUrls,
+      tags: _stringList(
+        json['tags'] ??
+            json['tagNames'] ??
+            json['tag_names'] ??
+            json['hashtags'] ??
+            json['hashTags'],
+      ),
       content: resolvedContent,
+      topic: _firstNonEmptyString([
+        json['topic'],
+        json['topicName'],
+        json['topic_name'],
+        json['category'],
+      ]),
       thumbnailUrl: resolvedThumbnail,
       authorName: resolvedAuthorName,
       authorAvatarUrl: resolvedAvatarUrl,
@@ -245,7 +325,9 @@ class PostSummaryDto {
       'title': title,
       'createdAt': createdAt.toIso8601String(),
       if (imageUrls.isNotEmpty) 'imageUrls': imageUrls,
+      if (tags.isNotEmpty) 'tags': tags,
       if (content != null) 'content': content,
+      if (topic != null) 'topic': topic,
       if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
       if (authorName != null) 'authorName': authorName,
       if (authorAvatarUrl != null) 'authorAvatarUrl': authorAvatarUrl,
@@ -264,7 +346,9 @@ class PostDetailDto {
     required this.title,
     required this.createdAt,
     required this.imageUrls,
+    this.tags = const [],
     this.content,
+    this.topic,
     this.updatedAt,
     this.authorName,
     this.authorAvatarUrl,
@@ -278,7 +362,9 @@ class PostDetailDto {
   final String authorId;
   final String title;
   final List<String> imageUrls;
+  final List<String> tags;
   final String? content;
+  final String? topic;
   final DateTime createdAt;
   final DateTime? updatedAt;
   final String? authorName;
@@ -316,6 +402,19 @@ class PostDetailDto {
       createdAt: _dateTime(json['createdAt']),
       updatedAt: _dateTimeOrNull(json['updatedAt']),
       imageUrls: _imageUrls(json['images'] ?? json['imageUrls']),
+      tags: _stringList(
+        json['tags'] ??
+            json['tagNames'] ??
+            json['tag_names'] ??
+            json['hashtags'] ??
+            json['hashTags'],
+      ),
+      topic: _firstNonEmptyString([
+        json['topic'],
+        json['topicName'],
+        json['topic_name'],
+        json['category'],
+      ]),
       authorName: resolvedAuthorName,
       authorAvatarUrl: resolvedAvatarUrl,
       commentCount:
@@ -347,6 +446,8 @@ class PostDetailDto {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       if (imageUrls.isNotEmpty) 'imageUrls': imageUrls,
+      if (tags.isNotEmpty) 'tags': tags,
+      if (topic != null) 'topic': topic,
       if (authorName != null) 'authorName': authorName,
       if (authorAvatarUrl != null) 'authorAvatarUrl': authorAvatarUrl,
       if (commentCount != null) 'commentCount': commentCount,
@@ -428,6 +529,17 @@ int? _intOrNull(dynamic value) {
   if (value is num) return value.toInt();
   if (value is String) return int.tryParse(value);
   return null;
+}
+
+List<String> _stringList(dynamic raw) {
+  if (raw is! List) {
+    return const [];
+  }
+  return raw
+      .whereType<String>()
+      .map((value) => value.trim())
+      .where((value) => value.isNotEmpty)
+      .toList(growable: false);
 }
 
 String? _firstNonEmptyString(List<dynamic> values) {

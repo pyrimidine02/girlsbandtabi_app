@@ -18,6 +18,19 @@ void main() {
     expect(json['mentionedUserIds'], isA<List<dynamic>>());
   });
 
+  test('PostCreateRequestDto includes topic and tags when selected', () {
+    const dto = PostCreateRequestDto(
+      title: '제목',
+      content: '본문',
+      topic: '정보',
+      tags: ['라이브', '굿즈'],
+    );
+
+    final json = dto.toJson();
+    expect(json['topic'], '정보');
+    expect(json['tags'], ['라이브', '굿즈']);
+  });
+
   test(
     'PostCommentCreateRequestDto includes parentCommentId when provided',
     () {
