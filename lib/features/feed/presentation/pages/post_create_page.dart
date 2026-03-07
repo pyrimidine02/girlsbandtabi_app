@@ -17,11 +17,14 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/utils/media_url.dart';
 import '../../../../core/utils/result.dart';
+import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../application/feed_controller.dart';
 import '../../domain/entities/feed_entities.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
+import '../../../settings/application/settings_controller.dart';
 import '../../../uploads/application/uploads_controller.dart';
 import '../../../uploads/domain/entities/upload_entity.dart';
 import '../../../uploads/utils/webp_image_converter.dart';
@@ -46,15 +49,23 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
   final _contentController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   final List<XFile> _images = [];
+  final List<String> _selectedTags = [];
+  final List<String> _topicOptions = [...kPostTopicOptions];
+  final List<String> _tagSuggestions = [...kPostTagSuggestions];
   late final PostComposeAutosaveConfig _autosaveConfig;
   late final PostComposeAutosaveController _autosaveController;
   bool _isSubmitting = false;
+  bool _skipDraftSaveOnDispose = false;
+  bool _taxonomyLoadFailed = false;
   String? _errorMessage;
+  String? _selectedTopic;
 
   bool get _hasDraft {
     return _titleController.text.trim().isNotEmpty ||
         _contentController.text.trim().isNotEmpty ||
-        _images.isNotEmpty;
+        _images.isNotEmpty ||
+        (_selectedTopic != null && _selectedTopic!.trim().isNotEmpty) ||
+        _selectedTags.isNotEmpty;
   }
 
   bool get _canSubmit {
@@ -69,33 +80,6 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     return ref.read(postComposeAutosaveControllerProvider(_autosaveConfig));
   }
 
-  double get _completionRatio {
-    var steps = 0;
-    if (_titleController.text.trim().isNotEmpty) {
-      steps += 1;
-    }
-    if (_contentController.text.trim().length >= 30) {
-      steps += 1;
-    }
-    if (_images.isNotEmpty) {
-      steps += 1;
-    }
-    return steps / 3;
-  }
-
-  String get _submitButtonLabel {
-    if (_canSubmit) {
-      return '게시글 등록';
-    }
-    if (_titleController.text.trim().isEmpty) {
-      return '제목을 입력해주세요';
-    }
-    if (_contentController.text.trim().isEmpty) {
-      return '내용을 입력해주세요';
-    }
-    return '등록 중...';
-  }
-
   @override
   void initState() {
     super.initState();
@@ -108,28 +92,36 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     _titleController.addListener(_onFormChanged);
     _contentController.addListener(_onFormChanged);
     unawaited(_autosaveController.loadRecoverableDraft());
+    unawaited(_loadPostComposeOptions());
   }
 
   @override
   void dispose() {
-    if (!_isSubmitting) {
-      unawaited(
-        _autosaveController.saveSnapshot(
-          title: _titleController.text,
-          content: _contentController.text,
-          imagePaths: _images
-              .map((image) => image.path)
-              .toList(growable: false),
-          hasData: _hasDraft,
-          silent: true,
-        ),
-      );
+    if (!_isSubmitting && !_skipDraftSaveOnDispose) {
+      unawaited(_saveDraftOnDisposeSafely());
     }
     _titleController.removeListener(_onFormChanged);
     _contentController.removeListener(_onFormChanged);
     _titleController.dispose();
     _contentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveDraftOnDisposeSafely() async {
+    try {
+      await _autosaveController.saveSnapshot(
+        title: _titleController.text,
+        content: _contentController.text,
+        imagePaths: _images.map((image) => image.path).toList(growable: false),
+        topic: _selectedTopic,
+        tags: _selectedTags,
+        hasData: _hasDraft,
+        silent: true,
+      );
+    } on StateError {
+      // EN: Ignore dispose-order races (e.g. tests disposing ProviderContainer first).
+      // KO: dispose 순서 경합(예: 테스트에서 ProviderContainer 선해제)은 무시합니다.
+    }
   }
 
   void _onFormChanged() {
@@ -148,6 +140,8 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
       title: _titleController.text,
       content: _contentController.text,
       imagePaths: _images.map((image) => image.path).toList(growable: false),
+      topic: _selectedTopic,
+      tags: _selectedTags,
       hasData: _hasDraft,
     );
   }
@@ -169,6 +163,10 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
       _images
         ..clear()
         ..addAll(existingImagePaths.map((path) => XFile(path)));
+      _selectedTopic = draft.topic;
+      _selectedTags
+        ..clear()
+        ..addAll(sanitizePostTags(draft.tags));
     });
     _autosaveController.consumeRecoverableDraft(message: '임시 저장 글을 복구했어요');
 
@@ -219,9 +217,119 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  List<String> _normalizeOptionNames(List<PostTaxonomyOption> options) {
+    final seen = <String>{};
+    final normalized = <String>[];
+    for (final option in options) {
+      final value = option.name.trim();
+      if (value.isEmpty) {
+        continue;
+      }
+      final key = value.toLowerCase();
+      if (seen.add(key)) {
+        normalized.add(value);
+      }
+    }
+    return normalized;
+  }
+
+  Future<void> _loadPostComposeOptions({bool forceRefresh = false}) async {
+    if (!ref.read(isAuthenticatedProvider)) {
+      return;
+    }
+
+    final repository = await ref.read(feedRepositoryProvider.future);
+    final result = await repository.getPostComposeOptions(
+      forceRefresh: forceRefresh,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    switch (result) {
+      case Success<PostComposeOptions>(:final data):
+        final topics = _normalizeOptionNames(data.topics);
+        final tags = _normalizeOptionNames(data.tags);
+        setState(() {
+          _topicOptions
+            ..clear()
+            ..addAll(topics);
+          _tagSuggestions
+            ..clear()
+            ..addAll(tags);
+          _taxonomyLoadFailed = false;
+        });
+      case Err<PostComposeOptions>():
+        setState(() {
+          _taxonomyLoadFailed = true;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          _showMessage('토픽 목록을 불러오지 못해 자유입력 모드로 전환했어요.');
+        });
+    }
+  }
+
+  Future<void> _handleCancelPressed() async {
+    if (_isSubmitting) return;
+    final shouldPop = await _handleWillPop();
+    if (!mounted || !shouldPop) return;
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _openDraftShelf(PostComposeAutosaveState autosaveState) async {
+    final recoverableDraft = autosaveState.recoverableDraft;
+    if (recoverableDraft == null) {
+      _showMessage('복구 가능한 임시 저장 글이 없습니다.');
+      return;
+    }
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.restore),
+                title: const Text('임시 저장 글 복구'),
+                subtitle: Text(
+                  '${recoverableDraft.savedAt.toLocal()}',
+                  style: GBTTypography.labelSmall,
+                ),
+                onTap: () => Navigator.of(sheetContext).pop('restore'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('임시 저장 글 삭제'),
+                onTap: () => Navigator.of(sheetContext).pop('discard'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!mounted || action == null) return;
+    if (action == 'restore') {
+      _restoreDraft();
+      return;
+    }
+    if (action == 'discard') {
+      await _discardRecoverableDraft();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isAuthenticated = ref.watch(isAuthenticatedProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+    final autosaveState = ref.watch(
+      postComposeAutosaveControllerProvider(_autosaveConfig),
+    );
 
     return PopScope<Object?>(
       canPop: !_isSubmitting && !_hasDraft,
@@ -236,22 +344,71 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
         Navigator.of(this.context).pop(result);
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('글 작성')),
+        backgroundColor: colorScheme.surface,
+        appBar: AppBar(
+          backgroundColor: colorScheme.surface,
+          foregroundColor: colorScheme.onSurface,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          titleSpacing: 0,
+          leadingWidth: 76,
+          leading: TextButton(
+            onPressed: _isSubmitting ? null : _handleCancelPressed,
+            child: Text(
+              '취소',
+              style: GBTTypography.bodyLarge.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: _isSubmitting
+                  ? null
+                  : () => _openDraftShelf(autosaveState),
+              child: Text(
+                '임시 보관함',
+                style: GBTTypography.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: GBTSpacing.xs),
+            Padding(
+              padding: const EdgeInsets.only(right: GBTSpacing.sm),
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GBTSpacing.md + 2,
+                  ),
+                ),
+                onPressed: _canSubmit ? () => _submit(context) : null,
+                child: Text(
+                  _isSubmitting ? '게시 중' : '게시하기',
+                  style: GBTTypography.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
         body: isAuthenticated
-            ? _buildForm(context)
+            ? _buildForm(context, autosaveState: autosaveState)
             : const PostComposeLoginRequiredMessage(),
       ),
     );
   }
 
-  Widget _buildForm(BuildContext context) {
-    // EN: Use theme-aware colors for improved dark mode readability.
-    // KO: 다크 모드 가독성을 위해 테마 기반 색상을 사용합니다.
+  Widget _buildForm(
+    BuildContext context, {
+    required PostComposeAutosaveState autosaveState,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
-    final projectCode = ref.watch(selectedProjectKeyProvider);
-    final autosaveState = ref.watch(
-      postComposeAutosaveControllerProvider(_autosaveConfig),
-    );
+    final dividerColor = colorScheme.outlineVariant.withValues(alpha: 0.72);
+    final profile = ref.watch(userProfileControllerProvider).valueOrNull;
 
     return Stack(
       children: [
@@ -263,26 +420,14 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                 child: ListView(
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: GBTSpacing.paddingPage,
+                  padding: const EdgeInsets.fromLTRB(
+                    GBTSpacing.md,
+                    GBTSpacing.sm,
+                    GBTSpacing.md,
+                    GBTSpacing.md,
+                  ),
                   children: [
-                    const PostComposeIntroCard(
-                      title: '게시글을 작성해요',
-                      description: '핵심 정보와 사진을 함께 올리면 피드에서 더 잘 보여요.',
-                      icon: Icons.edit_note_outlined,
-                    ),
-                    const SizedBox(height: GBTSpacing.md),
-                    PostComposeStatusCard(
-                      completionRatio: _completionRatio,
-                      hasTitle: _titleController.text.trim().isNotEmpty,
-                      hasContent: _contentController.text.trim().length >= 30,
-                      hasImage: _images.isNotEmpty,
-                    ),
-                    const SizedBox(height: GBTSpacing.md),
-                    const ProjectSelectorCompact(),
-                    const SizedBox(height: GBTSpacing.md),
-                    PostComposeProjectBadge(projectCode: projectCode),
                     if (autosaveState.recoverableDraft != null) ...[
-                      const SizedBox(height: GBTSpacing.md),
                       PostComposeDraftRecoveryBanner(
                         savedAt: autosaveState.recoverableDraft!.savedAt,
                         projectCode:
@@ -290,99 +435,140 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                         onRestore: _restoreDraft,
                         onDiscard: _discardRecoverableDraft,
                       ),
+                      const SizedBox(height: GBTSpacing.sm),
                     ],
-                    const SizedBox(height: GBTSpacing.lg),
-                    TextField(
-                      controller: _titleController,
-                      maxLength: _maxTitleLength,
-                      maxLines: 1,
-                      textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(
-                        labelText: '제목',
-                        hintText: '예: 도쿄 성지순례 후기',
-                        helperText: '핵심 요약 위주로 작성하면 잘 보여요.',
-                        prefixIcon: const Icon(Icons.title),
-                        filled: true,
-                        fillColor: colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.35),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(
-                            GBTSpacing.radiusMd,
-                          ),
+                    if (autosaveState.autosaveMessage != null) ...[
+                      Text(
+                        autosaveState.autosaveMessage!,
+                        style: GBTTypography.labelSmall.copyWith(
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: GBTSpacing.sm),
-                    TextField(
-                      controller: _contentController,
-                      maxLength: _maxContentLength,
-                      minLines: 8,
-                      maxLines: 14,
-                      textInputAction: TextInputAction.newline,
-                      decoration: InputDecoration(
-                        labelText: '내용',
-                        hintText: '방문 팁, 이동 경로, 주의사항을 함께 남겨주세요.',
-                        helperText: '30자 이상 작성하면 내용 전달력이 좋아집니다.',
-                        alignLabelWithHint: true,
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.only(bottom: 76),
-                          child: Icon(Icons.notes_outlined),
-                        ),
-                        filled: true,
-                        fillColor: colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.35),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(
-                            GBTSpacing.radiusMd,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: GBTSpacing.md),
-                    PostComposeImageSection(
-                      imageCount: _images.length,
-                      maxImageCount: _maxImageCount,
-                      isSubmitting: _isSubmitting,
-                      onPickImages: _pickImages,
-                      onClearAll: _images.isEmpty
-                          ? null
-                          : () {
-                              setState(_images.clear);
-                              _scheduleDraftSave();
-                            },
-                      imageGrid: _images.isEmpty
-                          ? null
-                          : GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: _images.length,
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 3,
-                                    crossAxisSpacing: GBTSpacing.sm,
-                                    mainAxisSpacing: GBTSpacing.sm,
-                                    childAspectRatio: 1,
+                      const SizedBox(height: GBTSpacing.sm),
+                    ],
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _ComposerAvatar(url: profile?.avatarUrl),
+                        const SizedBox(width: GBTSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(
+                                height: 32,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: ProjectAudienceSelectorCompact(),
+                                ),
+                              ),
+                              const SizedBox(height: GBTSpacing.xs),
+                              PostTopicTagSelector(
+                                selectedTopic: _selectedTopic,
+                                selectedTags: _selectedTags,
+                                onTapTopic: _isSubmitting
+                                    ? null
+                                    : _handleTopicTap,
+                                onTapAddTag: _isSubmitting
+                                    ? null
+                                    : _handleTagAddTap,
+                                onRemoveTag: _isSubmitting ? null : _removeTag,
+                              ),
+                              const SizedBox(height: GBTSpacing.xs),
+                              TextField(
+                                controller: _titleController,
+                                autofocus: true,
+                                maxLength: _maxTitleLength,
+                                maxLines: 1,
+                                textInputAction: TextInputAction.next,
+                                style: GBTTypography.titleLarge.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: colorScheme.onSurface,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: '제목을 입력해주세요',
+                                  counterText: '',
+                                  filled: true,
+                                  fillColor: Colors.transparent,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  hintStyle: GBTTypography.titleLarge.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: colorScheme.onSurfaceVariant,
                                   ),
-                              itemBuilder: (context, index) {
-                                final image = _images[index];
-                                return PostComposePickedImageTile(
-                                  imagePath: image.path,
-                                  filename: p.basename(image.path),
-                                  onPreview: () => _previewImage(image),
-                                  onRemove: _isSubmitting
-                                      ? null
-                                      : () {
-                                          setState(() {
-                                            _images.remove(image);
-                                          });
-                                          _scheduleDraftSave();
-                                        },
-                                );
-                              },
-                            ),
+                                ),
+                              ),
+                              Divider(
+                                height: GBTSpacing.sm + 6,
+                                thickness: 0.8,
+                                color: dividerColor,
+                              ),
+                              TextField(
+                                controller: _contentController,
+                                maxLength: _maxContentLength,
+                                maxLines: null,
+                                minLines: 8,
+                                textInputAction: TextInputAction.newline,
+                                style: GBTTypography.headlineLarge.copyWith(
+                                  fontWeight: FontWeight.w400,
+                                  height: 1.3,
+                                  color: colorScheme.onSurface,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText:
+                                      '커뮤니티 이용규칙을 지켜주세요.\n'
+                                      '광고, 비방, 도배성 글은 제재될 수 있어요.',
+                                  hintStyle: GBTTypography.bodyMedium.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                    height: 1.45,
+                                  ),
+                                  counterText: '',
+                                  filled: true,
+                                  fillColor: Colors.transparent,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
+                    if (_images.isNotEmpty) ...[
+                      const SizedBox(height: GBTSpacing.sm),
+                      SizedBox(
+                        height: 92,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _images.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: GBTSpacing.sm),
+                          itemBuilder: (context, index) {
+                            final image = _images[index];
+                            return _ComposerLocalImageTile(
+                              imagePath: image.path,
+                              onPreview: () => _previewImage(image),
+                              onRemove: _isSubmitting
+                                  ? null
+                                  : () {
+                                      setState(() {
+                                        _images.removeAt(index);
+                                      });
+                                      _scheduleDraftSave();
+                                    },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                     if (_errorMessage != null) ...[
-                      const SizedBox(height: GBTSpacing.md),
+                      const SizedBox(height: GBTSpacing.sm),
                       Semantics(
                         liveRegion: true,
                         child: Container(
@@ -403,41 +589,41 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: GBTSpacing.xl),
+                    const SizedBox(height: GBTSpacing.lg),
                   ],
                 ),
               ),
               SafeArea(
                 top: false,
-                child: Padding(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: isDark
+                            ? GBTColors.darkBorderSubtle
+                            : GBTColors.border,
+                        width: 0.8,
+                      ),
+                    ),
+                  ),
                   padding: const EdgeInsets.fromLTRB(
                     GBTSpacing.md,
-                    GBTSpacing.sm,
+                    GBTSpacing.xs,
                     GBTSpacing.md,
-                    GBTSpacing.sm,
+                    GBTSpacing.xs,
                   ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (autosaveState.autosaveMessage != null) ...[
-                          Text(
-                            autosaveState.autosaveMessage!,
-                            style: GBTTypography.labelSmall.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: GBTSpacing.xs),
-                        ],
-                        FilledButton.icon(
-                          onPressed: _canSubmit ? () => _submit(context) : null,
-                          icon: const Icon(Icons.send),
-                          label: Text(_submitButtonLabel),
-                        ),
-                      ],
-                    ),
+                  child: Row(
+                    children: [
+                      _ComposerToolbarIconButton(
+                        icon: Icons.image_outlined,
+                        onTap: _isSubmitting ? null : _pickFromGallery,
+                      ),
+                      const SizedBox(width: GBTSpacing.xs),
+                      _ComposerToolbarIconButton(
+                        icon: Icons.camera_alt_outlined,
+                        onTap: _isSubmitting ? null : _pickFromCamera,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -497,6 +683,65 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     );
   }
 
+  Future<void> _handleTopicTap() async {
+    // ignore: use_build_context_synchronously
+    final selected = (_taxonomyLoadFailed || _topicOptions.isEmpty)
+        ? await showPostTopicInputSheet(context, initialTopic: _selectedTopic)
+        : await showPostTopicPickerSheet(
+            context,
+            selectedTopic: _selectedTopic,
+            options: _topicOptions,
+          );
+    if (!mounted || selected == null) {
+      return;
+    }
+    final normalized = selected.trim().isEmpty ? null : selected.trim();
+    if (normalized == _selectedTopic) {
+      return;
+    }
+    setState(() {
+      _selectedTopic = normalized;
+    });
+    _scheduleDraftSave();
+  }
+
+  Future<void> _handleTagAddTap() async {
+    if (_selectedTags.length >= kPostMaxTagCount) {
+      _showMessage('태그는 최대 $kPostMaxTagCount개까지 추가할 수 있어요.');
+      return;
+    }
+    final selected = await showPostTagPickerSheet(
+      context,
+      selectedTags: _selectedTags,
+      suggestions: _tagSuggestions,
+    );
+    if (!mounted || selected == null) {
+      return;
+    }
+    final normalized = normalizePostTag(selected);
+    if (normalized.isEmpty) {
+      return;
+    }
+    final exists = _selectedTags.any(
+      (tag) => tag.toLowerCase() == normalized.toLowerCase(),
+    );
+    if (exists) {
+      _showMessage('이미 선택된 태그예요.');
+      return;
+    }
+    setState(() {
+      _selectedTags.add(normalized);
+    });
+    _scheduleDraftSave();
+  }
+
+  void _removeTag(String tag) {
+    setState(() {
+      _selectedTags.remove(tag);
+    });
+    _scheduleDraftSave();
+  }
+
   Future<void> _submit(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
@@ -545,11 +790,14 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     final contentWithImages = appendImageMarkdownContent(content, imageUrls);
 
     final repository = await ref.read(feedRepositoryProvider.future);
+    final normalizedTags = sanitizePostTags(_selectedTags);
     final result = await repository.createPost(
       projectCode: projectCode,
       title: title,
       content: contentWithImages,
       imageUploadIds: imageUploadIds,
+      topic: _selectedTopic,
+      tags: normalizedTags,
     );
 
     if (!mounted) {
@@ -561,6 +809,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
           .read(postListControllerProvider.notifier)
           .load(forceRefresh: true);
       await _autosaveController.clearSavedDraft(silent: true);
+      _skipDraftSaveOnDispose = true;
       if (!mounted) {
         return;
       }
@@ -568,6 +817,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
         AppRoutes.postDetail,
         pathParameters: {'postId': data.id},
       );
+      return;
     } else if (result case Err<PostDetail>(:final failure)) {
       messenger.showSnackBar(SnackBar(content: Text(failure.userMessage)));
     }
@@ -578,22 +828,65 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     setState(() => _isSubmitting = false);
   }
 
-  Future<void> _pickImages() async {
+  Future<void> _pickFromGallery() async {
     if (_remainingImageSlots <= 0) {
       _showMessage('이미지는 최대 $_maxImageCount장까지 첨부할 수 있어요.');
       return;
     }
 
-    final picked = await _picker.pickMultiImage(
-      maxHeight: 2160,
-      maxWidth: 2160,
-      imageQuality: 92,
-    );
+    try {
+      final picked = await _picker.pickMultiImage(
+        maxHeight: 2160,
+        maxWidth: 2160,
+        imageQuality: 92,
+      );
 
-    if (picked.isEmpty || !mounted) {
+      if (picked.isEmpty || !mounted) {
+        return;
+      }
+
+      _appendPickedImages(picked);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      _showMessage('갤러리를 열지 못했어요.');
+    }
+  }
+
+  Future<void> _pickFromCamera() async {
+    if (_remainingImageSlots <= 0) {
+      _showMessage('이미지는 최대 $_maxImageCount장까지 첨부할 수 있어요.');
       return;
     }
 
+    if (!_picker.supportsImageSource(ImageSource.camera)) {
+      _showMessage('이 기기에서는 카메라를 사용할 수 없어요.');
+      return;
+    }
+
+    try {
+      final picked = await _picker.pickImage(
+        source: ImageSource.camera,
+        maxHeight: 2160,
+        maxWidth: 2160,
+        imageQuality: 92,
+      );
+
+      if (picked == null || !mounted) {
+        return;
+      }
+
+      _appendPickedImages([picked]);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      _showMessage('카메라를 열지 못했어요.');
+    }
+  }
+
+  void _appendPickedImages(List<XFile> picked) {
     final existingPaths = _images.map((image) => image.path).toSet();
     final uniquePicked = <XFile>[];
     for (final image in picked) {
@@ -649,5 +942,150 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     }
 
     return uploads;
+  }
+}
+
+/// EN: Composer avatar shown at the beginning of create/edit text area.
+/// KO: 작성/수정 입력 영역 시작점에 표시되는 작성자 아바타입니다.
+class _ComposerAvatar extends StatelessWidget {
+  const _ComposerAvatar({required this.url});
+
+  final String? url;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final resolvedUrl = (url == null || url!.isEmpty)
+        ? null
+        : resolveMediaUrl(url!);
+    return ClipOval(
+      child: SizedBox(
+        width: 40,
+        height: 40,
+        child: resolvedUrl == null
+            ? DecoratedBox(
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? GBTColors.darkSurfaceVariant
+                      : GBTColors.surfaceVariant,
+                ),
+                child: Icon(
+                  Icons.person,
+                  color: isDark
+                      ? GBTColors.darkTextSecondary
+                      : GBTColors.textSecondary,
+                ),
+              )
+            : GBTImage(imageUrl: resolvedUrl, fit: BoxFit.cover),
+      ),
+    );
+  }
+}
+
+/// EN: Compact icon button used in the composer toolbar.
+/// KO: 작성 툴바에서 사용하는 컴팩트 아이콘 버튼입니다.
+class _ComposerToolbarIconButton extends StatelessWidget {
+  const _ComposerToolbarIconButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+
+    return SizedBox(
+      width: 34,
+      height: 34,
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        splashRadius: 18,
+        onPressed: onTap,
+        icon: Icon(
+          icon,
+          size: 22,
+          color: iconColor.withValues(alpha: onTap == null ? 0.42 : 1),
+        ),
+      ),
+    );
+  }
+}
+
+/// EN: Horizontal local-image preview tile for compose timeline style.
+/// KO: 타임라인 스타일 작성 화면의 가로형 로컬 이미지 미리보기 타일입니다.
+class _ComposerLocalImageTile extends StatelessWidget {
+  const _ComposerLocalImageTile({
+    required this.imagePath,
+    required this.onPreview,
+    this.onRemove,
+  });
+
+  final String imagePath;
+  final VoidCallback onPreview;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return SizedBox(
+      width: 92,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onPreview,
+                borderRadius: BorderRadius.circular(10),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.file(
+                    File(imagePath),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? GBTColors.darkSurfaceVariant
+                            : GBTColors.surfaceVariant,
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: isDark
+                              ? GBTColors.darkTextTertiary
+                              : GBTColors.textTertiary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (onRemove != null)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: IconButton.filled(
+                  padding: EdgeInsets.zero,
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withValues(alpha: 0.56),
+                  ),
+                  onPressed: onRemove,
+                  icon: const Icon(Icons.close, size: 14),
+                  color: Colors.white,
+                  tooltip: '삭제',
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }

@@ -54,6 +54,18 @@ enum NoDecisionStrategy {
   networkThenHouse,
 }
 
+/// EN: Rendering strategy when backend explicitly returns deliveryType=none.
+/// KO: 백엔드가 deliveryType=none을 명시적으로 반환했을 때의 렌더링 전략입니다.
+enum DeliveryNoneStrategy {
+  /// EN: Keep slot hidden as instructed by backend.
+  /// KO: 백엔드 지시대로 슬롯을 숨깁니다.
+  hide,
+
+  /// EN: Render local fallback card to avoid empty UI gaps.
+  /// KO: UI 공백 방지를 위해 로컬 폴백 카드를 렌더링합니다.
+  fallback,
+}
+
 /// EN: Hybrid slot that can render:
 /// EN: 1) backend house campaign,
 /// EN: 2) backend-selected network ad,
@@ -68,12 +80,14 @@ class HybridSponsoredSlot extends ConsumerStatefulWidget {
     required this.request,
     required this.fallback,
     this.noDecisionStrategy = NoDecisionStrategy.house,
+    this.deliveryNoneStrategy = DeliveryNoneStrategy.hide,
     this.margin,
   });
 
   final AdSlotRequest request;
   final SponsoredFallbackContent fallback;
   final NoDecisionStrategy noDecisionStrategy;
+  final DeliveryNoneStrategy deliveryNoneStrategy;
   final EdgeInsetsGeometry? margin;
 
   @override
@@ -100,7 +114,16 @@ class _HybridSponsoredSlotState extends ConsumerState<HybridSponsoredSlot> {
     final decision = decisionAsync.valueOrNull;
 
     if (decision?.deliveryType == AdDeliveryType.none) {
-      return const SizedBox.shrink();
+      if (widget.deliveryNoneStrategy == DeliveryNoneStrategy.hide) {
+        return const SizedBox.shrink();
+      }
+      // EN: Use local fallback copy for explicit "none" responses.
+      // KO: 명시적 "none" 응답에서는 로컬 폴백 문구를 사용합니다.
+      return _buildHouseCard(
+        context: context,
+        decision: null,
+        request: effectiveRequest,
+      );
     }
 
     final networkAdUnitId = _resolveNetworkAdUnitId(decision);
@@ -110,6 +133,7 @@ class _HybridSponsoredSlotState extends ConsumerState<HybridSponsoredSlot> {
             widget.noDecisionStrategy == NoDecisionStrategy.networkThenHouse);
 
     if (shouldPreferNetwork && networkAdUnitId != null) {
+      final decisionId = decision?.decisionId?.trim();
       return _AdMobNativeSlotCard(
         adUnitId: networkAdUnitId,
         fallbackBuilder: () => _buildHouseCard(
@@ -117,18 +141,28 @@ class _HybridSponsoredSlotState extends ConsumerState<HybridSponsoredSlot> {
           decision: decision,
           request: effectiveRequest,
         ),
-        onImpression: () => _trackEvent(
-          AdEventType.impression,
-          request: effectiveRequest,
-          decisionId: decision?.decisionId,
-          campaignId: decision?.campaignId,
-        ),
-        onClick: () => _trackEvent(
-          AdEventType.click,
-          request: effectiveRequest,
-          decisionId: decision?.decisionId,
-          campaignId: decision?.campaignId,
-        ),
+        onImpression: () {
+          if (decisionId == null || decisionId.isEmpty) {
+            return;
+          }
+          _trackEvent(
+            AdEventType.impression,
+            request: effectiveRequest,
+            decisionId: decisionId,
+            campaignId: decision?.campaignId,
+          );
+        },
+        onClick: () {
+          if (decisionId == null || decisionId.isEmpty) {
+            return;
+          }
+          _trackEvent(
+            AdEventType.click,
+            request: effectiveRequest,
+            decisionId: decisionId,
+            campaignId: decision?.campaignId,
+          );
+        },
       );
     }
 
@@ -161,14 +195,17 @@ class _HybridSponsoredSlotState extends ConsumerState<HybridSponsoredSlot> {
         ? house!.ctaLabel!.trim()
         : widget.fallback.ctaLabel;
 
-    if (!_houseImpressionTracked) {
+    final decisionId = decision?.decisionId?.trim();
+    if (!_houseImpressionTracked &&
+        decisionId != null &&
+        decisionId.isNotEmpty) {
       _houseImpressionTracked = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _trackEvent(
           AdEventType.impression,
           request: request,
-          decisionId: decision?.decisionId,
+          decisionId: decisionId,
           campaignId: decision?.campaignId,
         );
       });
@@ -186,12 +223,14 @@ class _HybridSponsoredSlotState extends ConsumerState<HybridSponsoredSlot> {
           widget.margin ??
           const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       onTap: () {
-        _trackEvent(
-          AdEventType.click,
-          request: request,
-          decisionId: decision?.decisionId,
-          campaignId: decision?.campaignId,
-        );
+        if (decisionId != null && decisionId.isNotEmpty) {
+          _trackEvent(
+            AdEventType.click,
+            request: request,
+            decisionId: decisionId,
+            campaignId: decision?.campaignId,
+          );
+        }
         _handleHouseTap(context, house);
       },
     );

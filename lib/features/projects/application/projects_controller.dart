@@ -22,9 +22,18 @@ class ProjectsController extends StateNotifier<AsyncValue<List<Project>>> {
   final Ref _ref;
 
   Future<void> load({bool forceRefresh = false}) async {
+    if (!mounted) {
+      return;
+    }
     state = const AsyncLoading();
     final repository = await _ref.read(projectsRepositoryProvider.future);
+    if (!mounted) {
+      return;
+    }
     final result = await repository.getProjects(forceRefresh: forceRefresh);
+    if (!mounted) {
+      return;
+    }
 
     if (result is Success<List<Project>>) {
       state = AsyncData(result.data);
@@ -44,12 +53,21 @@ class ProjectUnitsController extends StateNotifier<AsyncValue<List<Unit>>> {
   final String projectKey;
 
   Future<void> load({bool forceRefresh = false}) async {
+    if (!mounted) {
+      return;
+    }
     state = const AsyncLoading();
     final repository = await _ref.read(projectsRepositoryProvider.future);
+    if (!mounted) {
+      return;
+    }
     final result = await repository.getUnits(
       projectId: projectKey,
       forceRefresh: forceRefresh,
     );
+    if (!mounted) {
+      return;
+    }
 
     if (result is Success<List<Unit>>) {
       state = AsyncData(result.data);

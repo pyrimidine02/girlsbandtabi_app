@@ -7,22 +7,97 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
+import '../../projects/application/projects_controller.dart';
 import '../domain/entities/feed_entities.dart';
 import 'feed_repository_provider.dart';
+
+final RegExp _uuidPattern = RegExp(
+  r'^[0-9a-fA-F]{8}-'
+  r'[0-9a-fA-F]{4}-'
+  r'[0-9a-fA-F]{4}-'
+  r'[0-9a-fA-F]{4}-'
+  r'[0-9a-fA-F]{12}$',
+);
+
+/// EN: Resolve feed reaction project reference(id/code) into project code.
+/// KO: 피드 반응용 프로젝트 참조값(id/code)을 프로젝트 코드로 해석합니다.
+String? _normalizeProjectCode(Ref ref, String? rawReference) {
+  final reference = rawReference?.trim() ?? '';
+  if (reference.isEmpty) {
+    return null;
+  }
+
+  final projects = ref.read(projectsControllerProvider).valueOrNull;
+  if (projects != null) {
+    for (final project in projects) {
+      if (project.code == reference || project.id == reference) {
+        return project.code.isNotEmpty ? project.code : project.id;
+      }
+    }
+  }
+
+  final selectedProjectId = ref.read(selectedProjectIdProvider);
+  final selectedProjectKey = ref.read(selectedProjectKeyProvider);
+  if (selectedProjectId != null &&
+      selectedProjectId == reference &&
+      selectedProjectKey != null &&
+      selectedProjectKey.isNotEmpty) {
+    return selectedProjectKey;
+  }
+
+  if (_uuidPattern.hasMatch(reference)) {
+    return null;
+  }
+
+  return reference;
+}
+
+String? _resolveReactionProjectCode(Ref ref, PostReactionTarget target) {
+  final override = _normalizeProjectCode(ref, target.projectCodeOverride);
+  if (override != null && override.isNotEmpty) {
+    return override;
+  }
+
+  final selectedProjectKey = ref.read(selectedProjectKeyProvider);
+  if (selectedProjectKey == null || selectedProjectKey.isEmpty) {
+    return null;
+  }
+  return selectedProjectKey;
+}
+
+/// EN: Identifies a post reaction request context.
+/// KO: 게시글 반응 요청 컨텍스트를 식별합니다.
+class PostReactionTarget {
+  const PostReactionTarget({required this.postId, this.projectCodeOverride});
+
+  final String postId;
+  final String? projectCodeOverride;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is PostReactionTarget &&
+            other.postId == postId &&
+            other.projectCodeOverride == projectCodeOverride;
+  }
+
+  @override
+  int get hashCode => Object.hash(postId, projectCodeOverride);
+}
 
 /// EN: Post like status controller provider.
 /// KO: 게시글 좋아요 상태 컨트롤러 프로바이더.
 class PostLikeController extends StateNotifier<AsyncValue<PostLikeStatus>> {
-  PostLikeController(this._ref, this.postId) : super(const AsyncLoading()) {
+  PostLikeController(this._ref, this.target) : super(const AsyncLoading()) {
     load();
   }
 
   final Ref _ref;
-  final String postId;
+  final PostReactionTarget target;
 
   Future<void> load() async {
-    final projectKey = _ref.read(selectedProjectKeyProvider);
-    if (projectKey == null || projectKey.isEmpty) {
+    final projectCode = _resolveReactionProjectCode(_ref, target);
+    if (projectCode == null || projectCode.isEmpty) {
       state = AsyncError(
         const AuthFailure(
           'Project selection required',
@@ -36,8 +111,8 @@ class PostLikeController extends StateNotifier<AsyncValue<PostLikeStatus>> {
     state = const AsyncLoading();
     final repository = await _ref.read(feedRepositoryProvider.future);
     final result = await repository.getPostLikeStatus(
-      projectCode: projectKey,
-      postId: postId,
+      projectCode: projectCode,
+      postId: target.postId,
     );
 
     if (result is Success<PostLikeStatus>) {
@@ -48,8 +123,8 @@ class PostLikeController extends StateNotifier<AsyncValue<PostLikeStatus>> {
   }
 
   Future<Result<PostLikeStatus>> toggleLike() async {
-    final projectKey = _ref.read(selectedProjectKeyProvider);
-    if (projectKey == null || projectKey.isEmpty) {
+    final projectCode = _resolveReactionProjectCode(_ref, target);
+    if (projectCode == null || projectCode.isEmpty) {
       const failure = AuthFailure(
         'Project selection required',
         code: 'project_required',
@@ -62,15 +137,21 @@ class PostLikeController extends StateNotifier<AsyncValue<PostLikeStatus>> {
     final repository = await _ref.read(feedRepositoryProvider.future);
     final isUnlikeFlow = current?.isLiked == true;
     Result<PostLikeStatus> result = isUnlikeFlow
-        ? await repository.unlikePost(projectCode: projectKey, postId: postId)
-        : await repository.likePost(projectCode: projectKey, postId: postId);
+        ? await repository.unlikePost(
+            projectCode: projectCode,
+            postId: target.postId,
+          )
+        : await repository.likePost(
+            projectCode: projectCode,
+            postId: target.postId,
+          );
 
     if (isUnlikeFlow && result is Err<PostLikeStatus>) {
       final selectedProjectId = _ref.read(selectedProjectIdProvider);
       final shouldRetryWithProjectId =
           selectedProjectId != null &&
           selectedProjectId.isNotEmpty &&
-          selectedProjectId != projectKey &&
+          selectedProjectId != projectCode &&
           result.failure is ServerFailure &&
           result.failure.code == '500';
 
@@ -81,7 +162,7 @@ class PostLikeController extends StateNotifier<AsyncValue<PostLikeStatus>> {
       if (shouldRetryWithProjectId) {
         result = await repository.unlikePost(
           projectCode: selectedProjectId,
-          postId: postId,
+          postId: target.postId,
         );
       }
     }
@@ -106,16 +187,16 @@ class PostLikeController extends StateNotifier<AsyncValue<PostLikeStatus>> {
 /// KO: 게시글 북마크 상태 컨트롤러 프로바이더.
 class PostBookmarkController
     extends StateNotifier<AsyncValue<PostBookmarkStatus>> {
-  PostBookmarkController(this._ref, this.postId) : super(const AsyncLoading()) {
+  PostBookmarkController(this._ref, this.target) : super(const AsyncLoading()) {
     load();
   }
 
   final Ref _ref;
-  final String postId;
+  final PostReactionTarget target;
 
   Future<void> load() async {
-    final projectKey = _ref.read(selectedProjectKeyProvider);
-    if (projectKey == null || projectKey.isEmpty) {
+    final projectCode = _resolveReactionProjectCode(_ref, target);
+    if (projectCode == null || projectCode.isEmpty) {
       state = AsyncError(
         const AuthFailure(
           'Project selection required',
@@ -129,8 +210,8 @@ class PostBookmarkController
     state = const AsyncLoading();
     final repository = await _ref.read(feedRepositoryProvider.future);
     final result = await repository.getPostBookmarkStatus(
-      projectCode: projectKey,
-      postId: postId,
+      projectCode: projectCode,
+      postId: target.postId,
     );
 
     if (result is Success<PostBookmarkStatus>) {
@@ -141,8 +222,8 @@ class PostBookmarkController
   }
 
   Future<Result<PostBookmarkStatus>> toggleBookmark() async {
-    final projectKey = _ref.read(selectedProjectKeyProvider);
-    if (projectKey == null || projectKey.isEmpty) {
+    final projectCode = _resolveReactionProjectCode(_ref, target);
+    if (projectCode == null || projectCode.isEmpty) {
       const failure = AuthFailure(
         'Project selection required',
         code: 'project_required',
@@ -156,12 +237,12 @@ class PostBookmarkController
 
     final result = current?.isBookmarked == true
         ? await repository.unbookmarkPost(
-            projectCode: projectKey,
-            postId: postId,
+            projectCode: projectCode,
+            postId: target.postId,
           )
         : await repository.bookmarkPost(
-            projectCode: projectKey,
-            postId: postId,
+            projectCode: projectCode,
+            postId: target.postId,
           );
 
     if (result is Success<PostBookmarkStatus>) {
@@ -177,19 +258,19 @@ class PostBookmarkController
 /// EN: Post like controller provider.
 /// KO: 게시글 좋아요 컨트롤러 프로바이더.
 final postLikeControllerProvider = StateNotifierProvider.autoDispose
-    .family<PostLikeController, AsyncValue<PostLikeStatus>, String>((
-      ref,
-      postId,
-    ) {
-      return PostLikeController(ref, postId);
-    });
+    .family<PostLikeController, AsyncValue<PostLikeStatus>, PostReactionTarget>(
+      (ref, target) {
+        return PostLikeController(ref, target);
+      },
+    );
 
 /// EN: Post bookmark controller provider.
 /// KO: 게시글 북마크 컨트롤러 프로바이더.
 final postBookmarkControllerProvider = StateNotifierProvider.autoDispose
-    .family<PostBookmarkController, AsyncValue<PostBookmarkStatus>, String>((
-      ref,
-      postId,
-    ) {
-      return PostBookmarkController(ref, postId);
+    .family<
+      PostBookmarkController,
+      AsyncValue<PostBookmarkStatus>,
+      PostReactionTarget
+    >((ref, target) {
+      return PostBookmarkController(ref, target);
     });

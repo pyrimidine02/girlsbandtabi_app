@@ -83,6 +83,10 @@ class ApiEndpoints {
   // ============================================================
   static const String homeSummary = '$apiVersion/home/summary';
   static const String search = '$apiVersion/search';
+  static const String searchDiscoveryPopular =
+      '$apiVersion/search/discovery/popular';
+  static const String searchDiscoveryCategories =
+      '$apiVersion/search/discovery/categories';
   static const String adsDecision = '$apiVersion/ads/decision';
   static const String adsEvents = '$apiVersion/ads/events';
 
@@ -308,9 +312,14 @@ class ApiEndpoints {
 
   // EN: Community subscription endpoints.
   // KO: 커뮤니티 구독 엔드포인트.
-  static const String communityFeedCursor = '$apiVersion/community/feed/cursor';
+  static const String communityRecommendedFeed =
+      '$apiVersion/community/feed/recommended';
+  static const String communityRecommendedFeedCursor =
+      '$apiVersion/community/feed/recommended/cursor';
   static const String communityFollowingFeedCursor =
       '$apiVersion/community/feed/following/cursor';
+  static const String communityPostOptions =
+      '$apiVersion/community/posts/options';
   static const String communityEventsStream =
       '$apiVersion/community/events/stream';
   static const String communitySubscriptions =

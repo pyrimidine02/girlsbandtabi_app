@@ -9,9 +9,24 @@ import '../../../core/utils/result.dart';
 import '../domain/entities/feed_entities.dart';
 import 'feed_repository_provider.dart';
 
+const int _kInfoNavIndex = 4;
+
+bool _isInfoTabActive(Ref ref) {
+  return ref.read(currentNavIndexProvider) == _kInfoNavIndex;
+}
+
 class NewsListController extends StateNotifier<AsyncValue<List<NewsSummary>>> {
   NewsListController(this._ref) : super(const AsyncLoading()) {
     _ref.listen<String?>(selectedProjectKeyProvider, (_, __) {
+      if (!_isInfoTabActive(_ref)) {
+        return;
+      }
+      load(forceRefresh: true);
+    });
+    _ref.listen<int>(currentNavIndexProvider, (previous, next) {
+      if (next != _kInfoNavIndex || next == previous) {
+        return;
+      }
       load(forceRefresh: true);
     });
   }
@@ -19,6 +34,9 @@ class NewsListController extends StateNotifier<AsyncValue<List<NewsSummary>>> {
   final Ref _ref;
 
   Future<void> load({bool forceRefresh = false}) async {
+    if (!_isInfoTabActive(_ref)) {
+      return;
+    }
     final projectKey = _ref.read(selectedProjectKeyProvider);
     if (projectKey == null || projectKey.isEmpty) {
       // EN: Wait for project selection before loading.
@@ -76,9 +94,10 @@ class NewsDetailController extends StateNotifier<AsyncValue<NewsDetail>> {
 /// EN: News list controller provider.
 /// KO: 뉴스 리스트 컨트롤러 프로바이더.
 final newsListControllerProvider =
-    StateNotifierProvider<NewsListController, AsyncValue<List<NewsSummary>>>((
-      ref,
-    ) {
+    StateNotifierProvider.autoDispose<
+      NewsListController,
+      AsyncValue<List<NewsSummary>>
+    >((ref) {
       return NewsListController(ref)..load();
     });
 

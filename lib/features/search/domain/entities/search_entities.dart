@@ -4,6 +4,7 @@ library;
 
 import 'package:intl/intl.dart';
 
+import '../../data/dto/search_discovery_dto.dart';
 import '../../data/dto/search_item_dto.dart';
 
 enum SearchItemType { place, liveEvent, news, post, unit, project, unknown }
@@ -37,7 +38,12 @@ class SearchItem {
     final id = _string(item, ['id', 'itemId', 'targetId']) ?? '';
     final title = _string(item, ['title', 'name', 'headline']) ?? '검색 결과';
     final subtitle = _string(item, ['subtitle', 'summary', 'description']);
-    final imageUrl = _string(item, ['imageUrl', 'thumbnailUrl', 'image']);
+    final imageUrl = _string(item, [
+      'imageUrl',
+      'thumbnailUrl',
+      'bannerUrl',
+      'image',
+    ]);
     final category = _string(item, ['category', 'tag', 'group']) ?? dto.type;
     final publishedAt = _dateTime(item, ['publishedAt', 'createdAt', 'date']);
 
@@ -55,7 +61,9 @@ class SearchItem {
 
 SearchItemType _mapType(String? raw) {
   final value = raw?.toLowerCase() ?? '';
-  if (value.contains('place') || value.contains('location')) {
+  if (value == 'places' ||
+      value.contains('place') ||
+      value.contains('location')) {
     return SearchItemType.place;
   }
   if (value.contains('live') || value.contains('event')) {
@@ -74,6 +82,73 @@ SearchItemType _mapType(String? raw) {
     return SearchItemType.project;
   }
   return SearchItemType.unknown;
+}
+
+class SearchPopularKeyword {
+  const SearchPopularKeyword({required this.keyword, required this.score});
+
+  final String keyword;
+  final num score;
+
+  factory SearchPopularKeyword.fromDto(SearchPopularKeywordDto dto) {
+    return SearchPopularKeyword(keyword: dto.keyword, score: dto.score);
+  }
+}
+
+class SearchPopularDiscovery {
+  const SearchPopularDiscovery({
+    required this.updatedAt,
+    required this.popularKeywords,
+  });
+
+  final DateTime? updatedAt;
+  final List<SearchPopularKeyword> popularKeywords;
+
+  factory SearchPopularDiscovery.fromDto(SearchPopularDiscoveryDto dto) {
+    return SearchPopularDiscovery(
+      updatedAt: dto.updatedAt,
+      popularKeywords: dto.popularKeywords
+          .map(SearchPopularKeyword.fromDto)
+          .toList(),
+    );
+  }
+}
+
+class SearchDiscoveryCategory {
+  const SearchDiscoveryCategory({
+    required this.code,
+    required this.label,
+    required this.contentCount,
+  });
+
+  final String code;
+  final String label;
+  final int contentCount;
+
+  factory SearchDiscoveryCategory.fromDto(SearchDiscoveryCategoryDto dto) {
+    return SearchDiscoveryCategory(
+      code: dto.code,
+      label: dto.label,
+      contentCount: dto.contentCount,
+    );
+  }
+}
+
+class SearchCategoryDiscovery {
+  const SearchCategoryDiscovery({
+    required this.updatedAt,
+    required this.categories,
+  });
+
+  final DateTime? updatedAt;
+  final List<SearchDiscoveryCategory> categories;
+
+  factory SearchCategoryDiscovery.fromDto(SearchCategoryDiscoveryDto dto) {
+    return SearchCategoryDiscovery(
+      updatedAt: dto.updatedAt,
+      categories: dto.categories.map(SearchDiscoveryCategory.fromDto).toList(),
+    );
+  }
 }
 
 String? _string(Map<String, dynamic> json, List<String> keys) {

@@ -91,6 +91,8 @@ class PostComposeAutosaveController
     required String content,
     required List<String> imagePaths,
     required bool hasData,
+    String? topic,
+    List<String> tags = const [],
   }) {
     _debounce?.cancel();
     _debounce = Timer(_debounceDuration, () {
@@ -100,6 +102,8 @@ class PostComposeAutosaveController
           content: content,
           imagePaths: imagePaths,
           hasData: hasData,
+          topic: topic,
+          tags: tags,
         ),
       );
     });
@@ -110,16 +114,25 @@ class PostComposeAutosaveController
     required String content,
     required List<String> imagePaths,
     required bool hasData,
+    String? topic,
+    List<String> tags = const [],
     bool silent = false,
   }) async {
     final normalizedImagePaths = imagePaths
         .where((path) => path.trim().isNotEmpty)
         .toList(growable: false);
+    final normalizedTopic = topic?.trim();
+    final normalizedTags = tags
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toList(growable: false);
     final effectiveHasData =
         hasData ||
         title.trim().isNotEmpty ||
         content.trim().isNotEmpty ||
-        normalizedImagePaths.isNotEmpty;
+        normalizedImagePaths.isNotEmpty ||
+        (normalizedTopic != null && normalizedTopic.isNotEmpty) ||
+        normalizedTags.isNotEmpty;
 
     final store = await _readStore();
     if (!effectiveHasData) {
@@ -136,6 +149,8 @@ class PostComposeAutosaveController
       imagePaths: normalizedImagePaths,
       savedAt: DateTime.now(),
       projectCode: _ref.read(selectedProjectKeyProvider),
+      topic: normalizedTopic,
+      tags: normalizedTags,
     );
     await store.write(_config.storageKey, draft);
     if (!silent && mounted) {

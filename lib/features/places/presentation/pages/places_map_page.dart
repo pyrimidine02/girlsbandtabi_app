@@ -17,6 +17,7 @@ import '../../../../core/localization/locale_text.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
+import '../../../../core/theme/gbt_map_styles.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
@@ -126,7 +127,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
     final resolvedProjectKey = projectKey?.isNotEmpty == true
         ? projectKey!
         : (projectId ?? '');
-    final unitsState = resolvedProjectKey.isNotEmpty
+    final unitsState = isTabActive && resolvedProjectKey.isNotEmpty
         ? ref.watch(projectUnitsControllerProvider(resolvedProjectKey))
         : const AsyncValue<List<Unit>>.data([]);
     final selectedRegionLabel = _resolveRegionLabel(
@@ -212,7 +213,10 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                               GBTSpacing.radiusMd,
                             ),
                             child: InkWell(
-                              onTap: () =>
+                              onTap: context.goToSearch,
+                              // EN: Keep legacy map-local search on long press.
+                              // KO: 길게 누르면 기존 지도 내 검색을 유지합니다.
+                              onLongPress: () =>
                                   _showMapSearch(places, regionOptionsState),
                               borderRadius: BorderRadius.circular(
                                 GBTSpacing.radiusMd,
@@ -234,9 +238,9 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
                                     Expanded(
                                       child: Text(
                                         context.l10n(
-                                          ko: '장소, 지역 검색',
-                                          en: 'Search places, regions',
-                                          ja: '場所・地域検索',
+                                          ko: '통합 검색',
+                                          en: 'Unified search',
+                                          ja: '統合検索',
                                         ),
                                         style: GBTTypography.bodyMedium
                                             .copyWith(
@@ -1134,7 +1138,7 @@ class _PlacesMapView extends StatelessWidget {
     final target = _initialTarget(places);
     final clusters = _clusterPlaces(places, zoom);
     if (defaultTargetPlatform == TargetPlatform.iOS) {
-      return amaps.AppleMap(
+      final appleMap = amaps.AppleMap(
         initialCameraPosition: amaps.CameraPosition(
           target: amaps.LatLng(target.latitude, target.longitude),
           zoom: 12,
@@ -1151,6 +1155,17 @@ class _PlacesMapView extends StatelessWidget {
         annotations: _buildAppleAnnotations(clusters, onPlaceTap, onClusterTap),
         padding: EdgeInsets.only(bottom: bottomPadding),
       );
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          appleMap,
+          IgnorePointer(
+            child: ColoredBox(
+              color: gbtAppleMapOverlayColorForDarkMode(isDarkMode),
+            ),
+          ),
+        ],
+      );
     }
 
     return gmaps.GoogleMap(
@@ -1165,7 +1180,7 @@ class _PlacesMapView extends StatelessWidget {
       myLocationButtonEnabled: false,
       compassEnabled: true,
       zoomControlsEnabled: false,
-      style: isDarkMode ? _darkMapStyle : null,
+      style: gbtGoogleMapStyleForDarkMode(isDarkMode),
       markers: _buildGoogleMarkers(clusters, onPlaceTap, onClusterTap),
       padding: EdgeInsets.only(bottom: bottomPadding),
     );
@@ -1240,23 +1255,6 @@ class _PlacesMapView extends StatelessWidget {
         .toSet();
   }
 }
-
-const String _darkMapStyle = '''
-[
-  {"elementType":"geometry","stylers":[{"color":"#1f1f1f"}]},
-  {"elementType":"labels.icon","stylers":[{"visibility":"off"}]},
-  {"elementType":"labels.text.fill","stylers":[{"color":"#8a8a8a"}]},
-  {"elementType":"labels.text.stroke","stylers":[{"color":"#1f1f1f"}]},
-  {"featureType":"administrative","elementType":"geometry","stylers":[{"color":"#2f2f2f"}]},
-  {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#262626"}]},
-  {"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#1e2b20"}]},
-  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#2b2b2b"}]},
-  {"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#1a1a1a"}]},
-  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#3a3a3a"}]},
-  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#0f1b2a"}]},
-  {"featureType":"transit.station","elementType":"labels.text.fill","stylers":[{"color":"#8a8a8a"}]}
-]
-''';
 
 class _MapFallback extends StatelessWidget {
   const _MapFallback({required this.message});
@@ -2381,9 +2379,6 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
     ref
         .read(projectSelectionControllerProvider.notifier)
         .selectProject(key, projectId: project.id);
-    ref
-        .read(projectUnitsControllerProvider(key).notifier)
-        .load(forceRefresh: true);
     Navigator.of(context).pop();
   }
 

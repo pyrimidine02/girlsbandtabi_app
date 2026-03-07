@@ -15,19 +15,36 @@ import '../domain/repositories/live_events_repository.dart';
 // EN: Max number of additional retries on load failure (total attempts = 1 + _kMaxRetries).
 // KO: 로드 실패 시 최대 추가 재시도 횟수 (총 시도 = 1 + _kMaxRetries).
 const int _kMaxRetries = 2;
+const int _kLiveNavIndex = 2;
 
 class LiveEventsListController
     extends StateNotifier<AsyncValue<List<LiveEventSummary>>> {
   LiveEventsListController(this._ref) : super(const AsyncLoading()) {
     _ref.listen<String?>(selectedProjectKeyProvider, (_, __) {
+      if (!_isLiveTabActive()) {
+        return;
+      }
       load(forceRefresh: true);
     });
     _ref.listen<List<String>>(selectedLiveBandIdsProvider, (_, __) {
+      if (!_isLiveTabActive()) {
+        return;
+      }
+      load(forceRefresh: true);
+    });
+    _ref.listen<int>(currentNavIndexProvider, (previous, next) {
+      if (next != _kLiveNavIndex || next == previous) {
+        return;
+      }
       load(forceRefresh: true);
     });
   }
 
   final Ref _ref;
+
+  bool _isLiveTabActive() {
+    return _ref.read(currentNavIndexProvider) == _kLiveNavIndex;
+  }
 
   Future<void> load({bool forceRefresh = false}) async {
     final projectKey = _ref.read(selectedProjectKeyProvider);

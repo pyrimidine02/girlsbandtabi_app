@@ -54,6 +54,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     final currentPath = currentUri.path;
     final currentLocation = currentUri.toString();
     final isBoardBranch = currentIndex == 3;
+    final isPostComposeRoute = _isPostComposeRoute(currentPath);
     if (!isBoardBranch) {
       _lastNonBoardLocation = currentLocation;
     }
@@ -92,7 +93,9 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       },
       child: Scaffold(
         body: widget.navigationShell,
-        bottomNavigationBar: isBoardBranch
+        bottomNavigationBar: isPostComposeRoute
+            ? null
+            : isBoardBranch
             ? _BoardSubBottomNav(
                 section: _resolveBoardSection(currentPath),
                 onBackTap: () {
@@ -148,6 +151,13 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
               ),
       ),
     );
+  }
+
+  bool _isPostComposeRoute(String path) {
+    if (path == '/board/posts/new') {
+      return true;
+    }
+    return RegExp(r'^/board/posts/[^/]+/edit$').hasMatch(path);
   }
 
   _BoardSubSection _resolveBoardSection(String path) {
@@ -215,101 +225,130 @@ class _BoardSubBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
-    final inactiveColor = isDark
-        ? Colors.white.withValues(alpha: 0.45)
-        : Colors.black.withValues(alpha: 0.38);
+    final isIos = defaultTargetPlatform == TargetPlatform.iOS;
+    final navCornerRadius = isIos ? 38.0 : 34.0;
+    final navShape = ContinuousRectangleBorder(
+      borderRadius: BorderRadius.circular(navCornerRadius),
+    );
+    final selectedColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final unselectedColor = isDark
+        ? GBTColors.darkTextSecondary.withValues(alpha: 0.82)
+        : GBTColors.textSecondary.withValues(alpha: 0.82);
+    final gradientColors = isDark
+        ? [
+            GBTColors.darkSurface.withValues(alpha: 0.95),
+            GBTColors.darkSurfaceVariant.withValues(alpha: 0.95),
+          ]
+        : [
+            GBTColors.surface.withValues(alpha: 0.95),
+            GBTColors.appBackground.withValues(alpha: 0.95),
+          ];
+    final borderColor = isDark
+        ? GBTColors.darkBorder.withValues(alpha: 0.72)
+        : GBTColors.border.withValues(alpha: 0.82);
+    final backButtonColor = isDark
+        ? GBTColors.darkSurfaceElevated.withValues(alpha: 0.78)
+        : GBTColors.surfaceVariant.withValues(alpha: 0.90);
+    final backIconColor = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
 
-    const radius = Radius.circular(40);
-    const borderRadius = BorderRadius.vertical(top: radius);
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: borderRadius,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.14),
-            blurRadius: 36,
-            offset: const Offset(0, -8),
-            spreadRadius: -6,
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: borderRadius,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isDark
-                  ? const Color(0xFF0A0A0A).withValues(alpha: 0.60)
-                  : Colors.white.withValues(alpha: 0.76),
-              border: Border(
-                top: BorderSide(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.09)
-                      : Colors.white.withValues(alpha: 0.60),
-                  width: 0.5,
-                ),
-              ),
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      child: Container(
+        height: GBTSpacing.bottomNavHeight + 8,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(navCornerRadius),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.36 : 0.16),
+              blurRadius: isDark ? 30 : 24,
+              offset: const Offset(0, 10),
+              spreadRadius: -8,
             ),
-            child: SafeArea(
-              top: false,
-              child: SizedBox(
-                height: GBTSpacing.bottomNavHeight,
-                child: Row(
-                  children: [
-                    Semantics(
+          ],
+        ),
+        child: ClipPath(
+          // EN: iOS-like continuous corner profile for the board sub-nav pill.
+          // KO: 게시판 서브 내비게이션 pill에 iOS 스타일의 연속 곡률을 적용합니다.
+          clipper: ShapeBorderClipper(shape: navShape),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: gradientColors,
+                ),
+                border: Border.all(color: borderColor, width: 0.8),
+                borderRadius: BorderRadius.circular(navCornerRadius),
+              ),
+              child: Row(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8, right: 4),
+                    child: Semantics(
                       button: true,
                       label: context.l10n(
                         ko: '이전 화면으로 돌아가기',
                         en: 'Go back to previous screen',
                         ja: '前の画面に戻る',
                       ),
-                      child: InkWell(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          onBackTap();
-                        },
-                        child: const SizedBox(
-                          width: 54,
-                          child: Center(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkResponse(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            onBackTap();
+                          },
+                          radius: 28,
+                          child: Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: backButtonColor,
+                            ),
                             child: Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              size: 19,
+                              Icons.arrow_back_rounded,
+                              size: 30,
+                              color: backIconColor,
                             ),
                           ),
                         ),
                       ),
                     ),
-                    Expanded(
-                      child: Row(
-                        children: _BoardSubSection.values.map((value) {
-                          final isSelected = value == section;
-                          final iconColor = isSelected
-                              ? primaryColor
-                              : inactiveColor;
-                          final labelColor = isSelected
-                              ? primaryColor
-                              : inactiveColor;
-                          return Expanded(
-                            child: Semantics(
-                              button: true,
-                              selected: isSelected,
-                              label:
-                                  '${value.label(context)} ${context.l10n(ko: '탭', en: 'tab', ja: 'タブ')}',
-                              hint: isSelected
-                                  ? context.l10n(
-                                      ko: '현재 선택됨',
-                                      en: 'Currently selected',
-                                      ja: '現在選択中',
-                                    )
-                                  : context.l10n(
-                                      ko: '탭하면 이동합니다',
-                                      en: 'Tap to switch',
-                                      ja: 'タップして切り替え',
-                                    ),
+                  ),
+                  Expanded(
+                    child: Row(
+                      children: _BoardSubSection.values.map((value) {
+                        final isSelected = value == section;
+                        final itemColor = isSelected
+                            ? selectedColor
+                            : unselectedColor;
+                        return Expanded(
+                          child: Semantics(
+                            button: true,
+                            selected: isSelected,
+                            label:
+                                '${value.label(context)} ${context.l10n(ko: '탭', en: 'tab', ja: 'タブ')}',
+                            hint: isSelected
+                                ? context.l10n(
+                                    ko: '현재 선택됨',
+                                    en: 'Currently selected',
+                                    ja: '現在選択中',
+                                  )
+                                : context.l10n(
+                                    ko: '탭하면 이동합니다',
+                                    en: 'Tap to switch',
+                                    ja: 'タップして切り替え',
+                                  ),
+                            child: Material(
+                              color: Colors.transparent,
                               child: InkWell(
+                                borderRadius: BorderRadius.circular(20),
                                 onTap: () {
                                   HapticFeedback.selectionClick();
                                   onSectionChanged(value);
@@ -319,6 +358,10 @@ class _BoardSubBottomNav extends StatelessWidget {
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 180),
                                   curve: Curves.easeOutCubic,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 6,
+                                  ),
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
@@ -331,11 +374,11 @@ class _BoardSubBottomNav extends StatelessWidget {
                                           key: ValueKey(
                                             '${value.name}-$isSelected',
                                           ),
-                                          color: iconColor,
+                                          color: itemColor,
                                           size: isSelected ? 24 : 22,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 3),
                                       Text(
                                         value.label(context),
                                         maxLines: 1,
@@ -344,11 +387,11 @@ class _BoardSubBottomNav extends StatelessWidget {
                                             .textTheme
                                             .labelSmall
                                             ?.copyWith(
-                                              color: labelColor,
+                                              color: itemColor,
                                               fontWeight: isSelected
                                                   ? FontWeight.w700
                                                   : FontWeight.w500,
-                                              fontSize: 10,
+                                              fontSize: 10.5,
                                             ),
                                       ),
                                     ],
@@ -356,12 +399,12 @@ class _BoardSubBottomNav extends StatelessWidget {
                                 ),
                               ),
                             ),
-                          );
-                        }).toList(),
-                      ),
+                          ),
+                        );
+                      }).toList(),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

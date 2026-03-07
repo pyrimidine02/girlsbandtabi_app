@@ -31,10 +31,25 @@ class GBTApp extends ConsumerWidget {
     // EN: Keep notification realtime sync alive at app scope.
     // KO: 앱 전역에서 알림 실시간 동기화를 유지합니다.
     ref.watch(notificationsRealtimeBootstrapProvider);
+    // EN: Keep remote push registration/tap handling alive at app scope.
+    // KO: 앱 전역에서 원격 푸시 등록/탭 처리를 유지합니다.
+    ref.watch(remotePushBootstrapProvider);
 
     final router = ref.watch(appRouterProvider);
     ref.listen<AsyncValue<LocalNotificationTapEvent>>(
       localNotificationTapEventsProvider,
+      (_, next) {
+        next.whenData(
+          (tapEvent) => _handleLocalNotificationTap(
+            ref: ref,
+            router: router,
+            tapEvent: tapEvent,
+          ),
+        );
+      },
+    );
+    ref.listen<AsyncValue<LocalNotificationTapEvent>>(
+      remotePushTapEventsProvider,
       (_, next) {
         next.whenData(
           (tapEvent) => _handleLocalNotificationTap(

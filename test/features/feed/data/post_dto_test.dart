@@ -22,6 +22,22 @@ void main() {
     expect(dto.moderationStatus, 'QUARANTINED');
   });
 
+  test('PostSummaryDto parses topic and tags', () {
+    final json = {
+      'id': 'post-topic-1',
+      'projectId': 'proj-1',
+      'authorId': 'user-1',
+      'title': '토픽/태그 테스트',
+      'createdAt': '2026-03-08T00:00:00Z',
+      'topic': '정보',
+      'tags': ['라이브', '굿즈'],
+    };
+
+    final dto = PostSummaryDto.fromJson(json);
+    expect(dto.topic, '정보');
+    expect(dto.tags, ['라이브', '굿즈']);
+  });
+
   test('PostSummaryDto parses alternate thumbnail keys from project feed', () {
     final json = {
       'id': 'post-alt-1',
@@ -127,5 +143,24 @@ void main() {
     expect(dto.projectCode, 'bangdream');
     expect(dto.projectName, 'BanG Dream');
     expect(dto.subscribedAt, isNotNull);
+  });
+
+  test('PostComposeOptionsDto parses topic/tag catalogs', () {
+    final json = {
+      'topics': [
+        {'id': 'topic-1', 'name': '정보', 'sortOrder': 10},
+      ],
+      'tags': [
+        {'id': 'tag-1', 'name': '라이브', 'sortOrder': 20},
+      ],
+    };
+
+    final dto = PostComposeOptionsDto.fromJson(json);
+    expect(dto.topics, hasLength(1));
+    expect(dto.tags, hasLength(1));
+    expect(dto.topics.first.id, 'topic-1');
+    expect(dto.topics.first.name, '정보');
+    expect(dto.tags.first.id, 'tag-1');
+    expect(dto.tags.first.name, '라이브');
   });
 }

@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/legal_policy_constants.dart';
 import '../../../../core/localization/locale_text.dart';
 import '../../../../core/providers/core_providers.dart';
+import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
@@ -84,6 +85,11 @@ class SettingsPage extends ConsumerWidget {
               profileState: profileState,
               onLoginTap: () => context.push('/login'),
               onEditTap: () => context.push('/settings/profile'),
+              onProfileTap: () {
+                final profile = profileState?.valueOrNull;
+                if (profile == null) return;
+                context.goToUserProfile(profile.id);
+              },
               onRetry: () => ref
                   .read(userProfileControllerProvider.notifier)
                   .load(forceRefresh: true),
@@ -451,6 +457,7 @@ class _ProfileCard extends StatelessWidget {
     required this.profileState,
     required this.onLoginTap,
     required this.onEditTap,
+    required this.onProfileTap,
     required this.onRetry,
   });
 
@@ -458,6 +465,7 @@ class _ProfileCard extends StatelessWidget {
   final AsyncValue<UserProfile?>? profileState;
   final VoidCallback onLoginTap;
   final VoidCallback onEditTap;
+  final VoidCallback onProfileTap;
   final VoidCallback onRetry;
 
   @override
@@ -660,55 +668,64 @@ class _ProfileCard extends StatelessWidget {
                 children: [
                   // EN: Avatar + name row
                   // KO: 아바타 + 이름 행
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      GBTSpacing.md,
-                      GBTSpacing.md,
-                      GBTSpacing.md,
-                      GBTSpacing.sm,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _ProfileAvatar(avatarUrl: profile.avatarUrl),
-                        const SizedBox(width: GBTSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                profile.displayName,
-                                style: GBTTypography.titleMedium.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: textPrimary,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (profile.summaryLabel.isNotEmpty) ...[
-                                const SizedBox(height: 2),
-                                Text(
-                                  profile.summaryLabel,
-                                  style: GBTTypography.bodySmall.copyWith(
-                                    color: textSecondary,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                              const SizedBox(height: 2),
-                              Text(
-                                maskEmail(profile.email),
-                                style: GBTTypography.labelSmall.copyWith(
-                                  color: textTertiary,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onProfileTap,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(GBTSpacing.radiusLg),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          GBTSpacing.md,
+                          GBTSpacing.md,
+                          GBTSpacing.md,
+                          GBTSpacing.sm,
                         ),
-                      ],
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _ProfileAvatar(avatarUrl: profile.avatarUrl),
+                            const SizedBox(width: GBTSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    profile.displayName,
+                                    style: GBTTypography.titleMedium.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: textPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (profile.summaryLabel.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      profile.summaryLabel,
+                                      style: GBTTypography.bodySmall.copyWith(
+                                        color: textSecondary,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    maskEmail(profile.email),
+                                    style: GBTTypography.labelSmall.copyWith(
+                                      color: textTertiary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                   // EN: Edit shortcut button — subtle tinted footer, no harsh divider

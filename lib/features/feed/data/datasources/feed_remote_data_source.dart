@@ -31,6 +31,14 @@ class FeedRemoteDataSource {
     };
   }
 
+  Map<String, dynamic> _recommendedFeedQuery({
+    required int page,
+    required int size,
+    required String sort,
+  }) {
+    return {'page': page, 'size': size, 'sort': sort};
+  }
+
   /// EN: Fetch paginated news for a project.
   /// KO: 프로젝트의 페이지네이션된 뉴스를 조회합니다.
   Future<Result<List<NewsSummaryDto>>> fetchNews({
@@ -85,18 +93,36 @@ class FeedRemoteDataSource {
     );
   }
 
-  /// EN: Fetch integrated community feed by cursor.
-  /// KO: 통합 커뮤니티 피드를 커서 기반으로 조회합니다.
-  Future<Result<PostCursorPageDto>> fetchCommunityFeedByCursor({
+  /// EN: Fetch global recommended community feed by cursor.
+  /// KO: 전역 추천 커뮤니티 피드를 커서 기반으로 조회합니다.
+  Future<Result<PostCursorPageDto>> fetchCommunityRecommendedFeedByCursor({
     String? cursor,
     int size = ApiPagination.defaultSize,
   }) {
     return _apiClient.get<PostCursorPageDto>(
-      ApiEndpoints.communityFeedCursor,
+      ApiEndpoints.communityRecommendedFeedCursor,
       queryParameters: _cursorQuery(cursor: cursor, size: size),
       fromJson: (json) => PostCursorPageDto.fromJson(
         json is Map<String, dynamic> ? json : const <String, dynamic>{},
       ),
+    );
+  }
+
+  /// EN: Fetch global recommended community feed by page.
+  /// KO: 전역 추천 커뮤니티 피드를 페이지 기반으로 조회합니다.
+  Future<Result<List<PostSummaryDto>>> fetchCommunityRecommendedFeed({
+    int page = ApiPagination.defaultPage,
+    int size = ApiPagination.defaultSize,
+    String sort = 'createdAt,desc',
+  }) {
+    return _apiClient.get<List<PostSummaryDto>>(
+      ApiEndpoints.communityRecommendedFeed,
+      queryParameters: _recommendedFeedQuery(
+        page: page,
+        size: size,
+        sort: sort,
+      ),
+      fromJson: (json) => _decodeList(json, PostSummaryDto.fromJson),
     );
   }
 
@@ -187,6 +213,17 @@ class FeedRemoteDataSource {
       queryParameters: _pageableQuery(page: page, size: size),
       fromJson: (json) =>
           _decodeList(json, ProjectSubscriptionSummaryDto.fromJson),
+    );
+  }
+
+  /// EN: Fetch compose topic/tag options for community posts.
+  /// KO: 커뮤니티 게시글 작성용 토픽/태그 옵션을 조회합니다.
+  Future<Result<PostComposeOptionsDto>> fetchPostComposeOptions() {
+    return _apiClient.get<PostComposeOptionsDto>(
+      ApiEndpoints.communityPostOptions,
+      fromJson: (json) => PostComposeOptionsDto.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
     );
   }
 

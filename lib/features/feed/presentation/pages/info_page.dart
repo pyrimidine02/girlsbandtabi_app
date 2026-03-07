@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/localization/locale_text.dart';
+import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_decorations.dart';
@@ -84,6 +85,8 @@ class _InfoPageState extends ConsumerState<InfoPage>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currentNavIndex = ref.watch(currentNavIndexProvider);
+    final isInfoTabActive = currentNavIndex == NavIndex.info;
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
     final bgColor = isDark ? GBTColors.darkSurface : GBTColors.surface;
     final avatarUrl = ref
@@ -206,7 +209,11 @@ class _InfoPageState extends ConsumerState<InfoPage>
         onRefresh: _refreshCurrentTab,
         child: TabBarView(
           controller: _tabController,
-          children: const [_NewsTab(), _UnitsTab(), _SongsTab()],
+          children: [
+            _NewsTab(isActive: isInfoTabActive && _tabController.index == 0),
+            _UnitsTab(isActive: isInfoTabActive && _tabController.index == 1),
+            const _SongsTab(),
+          ],
         ),
       ),
     );
@@ -219,10 +226,15 @@ class _InfoPageState extends ConsumerState<InfoPage>
 // ===========================================================================
 
 class _NewsTab extends ConsumerWidget {
-  const _NewsTab();
+  const _NewsTab({required this.isActive});
+
+  final bool isActive;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (!isActive) {
+      return const SizedBox.shrink();
+    }
     final newsState = ref.watch(newsListControllerProvider);
 
     return newsState.when(
@@ -732,10 +744,15 @@ class _NewsTabSkeleton extends StatelessWidget {
 // ===========================================================================
 
 class _UnitsTab extends ConsumerWidget {
-  const _UnitsTab();
+  const _UnitsTab({required this.isActive});
+
+  final bool isActive;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (!isActive) {
+      return const SizedBox.shrink();
+    }
     final selection = ref.watch(projectSelectionControllerProvider);
     final projectKey = selection.projectKey;
 

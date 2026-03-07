@@ -9,6 +9,7 @@ import '../../../../core/utils/result.dart';
 import '../../domain/entities/search_entities.dart';
 import '../../domain/repositories/search_repository.dart';
 import '../datasources/search_remote_data_source.dart';
+import '../dto/search_discovery_dto.dart';
 import '../dto/search_item_dto.dart';
 
 class SearchRepositoryImpl implements SearchRepository {
@@ -24,8 +25,6 @@ class SearchRepositoryImpl implements SearchRepository {
   @override
   Future<Result<List<SearchItem>>> search({
     required String query,
-    String? projectId,
-    List<String> unitIds = const [],
     List<String> types = const [],
     int page = 0,
     int size = 20,
@@ -33,8 +32,6 @@ class SearchRepositoryImpl implements SearchRepository {
   }) async {
     final cacheKey = _cacheKey(
       query: query,
-      projectId: projectId,
-      unitIds: unitIds,
       types: types,
       page: page,
       size: size,
@@ -50,14 +47,8 @@ class SearchRepositoryImpl implements SearchRepository {
         key: cacheKey,
         policy: policy,
         ttl: const Duration(minutes: 5),
-        fetcher: () => _fetchSearch(
-          query: query,
-          projectId: projectId,
-          unitIds: unitIds,
-          types: types,
-          page: page,
-          size: size,
-        ),
+        fetcher: () =>
+            _fetchSearch(query: query, types: types, page: page, size: size),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {
           final items = json['items'];
@@ -83,16 +74,12 @@ class SearchRepositoryImpl implements SearchRepository {
 
   Future<List<SearchItemDto>> _fetchSearch({
     required String query,
-    String? projectId,
-    List<String> unitIds = const [],
     List<String> types = const [],
     int page = 0,
     int size = 20,
   }) async {
     final result = await _remoteDataSource.search(
       query: query,
-      projectId: projectId,
-      unitIds: unitIds,
       types: types,
       page: page,
       size: size,
@@ -108,26 +95,118 @@ class SearchRepositoryImpl implements SearchRepository {
     throw const UnknownFailure('Unknown search result', code: 'unknown_search');
   }
 
+  @override
+  Future<Result<SearchPopularDiscovery>> getPopularDiscovery({
+    int limit = 10,
+    bool forceRefresh = false,
+  }) async {
+    final cacheKey = 'search:discovery:popular:${limit.clamp(1, 20)}';
+    final policy = forceRefresh
+        ? CachePolicy.networkFirst
+        : CachePolicy.staleWhileRevalidate;
+
+    try {
+      final cacheResult = await _cacheManager
+          .resolve<SearchPopularDiscoveryDto>(
+            key: cacheKey,
+            policy: policy,
+            ttl: const Duration(minutes: 3),
+            fetcher: () async {
+              final result = await _remoteDataSource.fetchPopularDiscovery(
+                limit: limit,
+              );
+              if (result is Success<SearchPopularDiscoveryDto>) {
+                return result.data;
+              }
+              if (result is Err<SearchPopularDiscoveryDto>) {
+                throw result.failure;
+              }
+              throw const UnknownFailure(
+                'Unknown popular discovery result',
+                code: 'unknown_search_discovery_popular',
+              );
+            },
+            toJson: (dto) => {
+              'updatedAt': dto.updatedAt?.toUtc().toIso8601String(),
+              'popularKeywords': dto.popularKeywords
+                  .map((item) => {'keyword': item.keyword, 'score': item.score})
+                  .toList(),
+            },
+            fromJson: SearchPopularDiscoveryDto.fromJson,
+          );
+      return Result.success(SearchPopularDiscovery.fromDto(cacheResult.data));
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<SearchCategoryDiscovery>> getCategoryDiscovery({
+    int limit = 10,
+    bool forceRefresh = false,
+  }) async {
+    final cacheKey = 'search:discovery:categories:${limit.clamp(1, 20)}';
+    final policy = forceRefresh
+        ? CachePolicy.networkFirst
+        : CachePolicy.staleWhileRevalidate;
+
+    try {
+      final cacheResult = await _cacheManager
+          .resolve<SearchCategoryDiscoveryDto>(
+            key: cacheKey,
+            policy: policy,
+            ttl: const Duration(minutes: 3),
+            fetcher: () async {
+              final result = await _remoteDataSource.fetchCategoryDiscovery(
+                limit: limit,
+              );
+              if (result is Success<SearchCategoryDiscoveryDto>) {
+                return result.data;
+              }
+              if (result is Err<SearchCategoryDiscoveryDto>) {
+                throw result.failure;
+              }
+              throw const UnknownFailure(
+                'Unknown category discovery result',
+                code: 'unknown_search_discovery_categories',
+              );
+            },
+            toJson: (dto) => {
+              'updatedAt': dto.updatedAt?.toUtc().toIso8601String(),
+              'categories': dto.categories
+                  .map(
+                    (item) => {
+                      'code': item.code,
+                      'label': item.label,
+                      'contentCount': item.contentCount,
+                    },
+                  )
+                  .toList(),
+            },
+            fromJson: SearchCategoryDiscoveryDto.fromJson,
+          );
+      return Result.success(SearchCategoryDiscovery.fromDto(cacheResult.data));
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  void cancelInFlightSearch() {
+    _remoteDataSource.cancelInFlightSearch();
+  }
+
   String _cacheKey({
     required String query,
-    String? projectId,
-    List<String> unitIds = const [],
     List<String> types = const [],
     int page = 0,
     int size = 20,
   }) {
     final normalizedQuery = query.trim().toLowerCase();
-    final normalizedProjectId = projectId?.trim().toLowerCase() ?? '';
-    final normalizedUnitIds = List<String>.from(unitIds)
-      ..removeWhere((unitId) => unitId.trim().isEmpty)
-      ..sort();
     final normalizedTypes = List<String>.from(types)
       ..removeWhere((type) => type.trim().isEmpty)
       ..sort();
-    final unitKey = normalizedUnitIds.isEmpty
-        ? 'all'
-        : normalizedUnitIds.join(',');
     final typeKey = normalizedTypes.isEmpty ? 'all' : normalizedTypes.join(',');
-    return 'search:$normalizedQuery:$normalizedProjectId:$unitKey:$typeKey:$page:$size';
+    return 'search:$normalizedQuery:$typeKey:$page:$size';
   }
 }

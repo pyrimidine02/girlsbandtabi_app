@@ -112,6 +112,8 @@ class PostCreateRequestDto {
     this.imageUploadIds = const [],
     this.conversationControl = 'EVERYONE',
     this.mentionedUserIds = const [],
+    this.topic,
+    this.tags = const [],
   });
 
   final String title;
@@ -123,6 +125,8 @@ class PostCreateRequestDto {
   final List<String> imageUploadIds;
   final String conversationControl;
   final List<String> mentionedUserIds;
+  final String? topic;
+  final List<String> tags;
 
   Map<String, dynamic> toJson() {
     return {
@@ -131,6 +135,8 @@ class PostCreateRequestDto {
       if (imageUploadIds.isNotEmpty) 'imageUploadIds': imageUploadIds,
       'conversationControl': conversationControl,
       'mentionedUserIds': mentionedUserIds,
+      if (topic != null && topic!.trim().isNotEmpty) 'topic': topic,
+      if (tags.isNotEmpty) 'tags': tags,
     };
   }
 }

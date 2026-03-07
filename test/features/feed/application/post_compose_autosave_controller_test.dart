@@ -20,6 +20,8 @@ void main() {
           imagePaths: const ['/tmp/sample.jpg'],
           savedAt: DateTime.parse('2026-03-05T16:00:00.000Z'),
           projectCode: 'girls-band-cry',
+          topic: '정보',
+          tags: const ['라이브'],
         ),
       );
 
@@ -42,6 +44,8 @@ void main() {
       expect(state.recoverableDraft, isNotNull);
       expect(state.recoverableDraft!.title, '임시 제목');
       expect(state.recoverableDraft!.content, '임시 내용');
+      expect(state.recoverableDraft!.topic, '정보');
+      expect(state.recoverableDraft!.tags, ['라이브']);
     });
 
     test('saves snapshot and updates autosave message', () async {
@@ -60,6 +64,8 @@ void main() {
         title: '새 제목',
         content: '새 내용',
         imagePaths: const ['/tmp/new.jpg'],
+        topic: '후기',
+        tags: const ['굿즈', '라이브'],
         hasData: true,
       );
 
@@ -74,6 +80,8 @@ void main() {
       expect(saved, isNotNull);
       expect(saved!.title, '새 제목');
       expect(saved.projectCode, 'girls-band-cry');
+      expect(saved.topic, '후기');
+      expect(saved.tags, ['굿즈', '라이브']);
     });
 
     test('deletes snapshot when payload becomes empty', () async {
@@ -125,6 +133,8 @@ void main() {
         title: '디바운스 제목',
         content: '디바운스 내용',
         imagePaths: const ['/tmp/debounce.jpg'],
+        topic: '일상',
+        tags: const ['밴드'],
         hasData: true,
       );
 
@@ -133,6 +143,8 @@ void main() {
 
       expect(saved, isNotNull);
       expect(saved!.title, '디바운스 제목');
+      expect(saved.topic, '일상');
+      expect(saved.tags, ['밴드']);
     });
 
     test('consumeRecoverableDraft clears banner state', () async {

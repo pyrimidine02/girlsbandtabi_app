@@ -41,7 +41,14 @@ class UserActivityController extends StateNotifier<AsyncValue<UserActivity>> {
     state = const AsyncLoading();
     final repository = await _ref.read(feedRepositoryProvider.future);
 
-    final postsResult = await repository.getPostsByAuthor(
+    final postsFuture = repository.getPostsByAuthor(
+      projectCode: projectKey,
+      userId: userId,
+      page: 0,
+      size: 50,
+      forceRefresh: forceRefresh,
+    );
+    final commentsFuture = repository.getCommentsByAuthor(
       projectCode: projectKey,
       userId: userId,
       page: 0,
@@ -49,7 +56,14 @@ class UserActivityController extends StateNotifier<AsyncValue<UserActivity>> {
       forceRefresh: forceRefresh,
     );
 
-    if (postsResult is Err<List<PostSummary>>) {
+    final results = await Future.wait([postsFuture, commentsFuture]);
+    final postsResult = results[0] as Result<List<PostSummary>>;
+    final commentsResult = results[1] as Result<List<PostComment>>;
+
+    // EN: Surface error only when both requests fail.
+    // KO: 두 요청이 모두 실패한 경우에만 오류 상태로 표시합니다.
+    if (postsResult is Err<List<PostSummary>> &&
+        commentsResult is Err<List<PostComment>>) {
       state = AsyncError(postsResult.failure, StackTrace.current);
       return;
     }
@@ -57,15 +71,6 @@ class UserActivityController extends StateNotifier<AsyncValue<UserActivity>> {
     final posts = postsResult is Success<List<PostSummary>>
         ? postsResult.data
         : <PostSummary>[];
-
-    final commentsResult = await repository.getCommentsByAuthor(
-      projectCode: projectKey,
-      userId: userId,
-      page: 0,
-      size: 50,
-      forceRefresh: forceRefresh,
-    );
-
     final comments = commentsResult is Success<List<PostComment>>
         ? commentsResult.data
         : <PostComment>[];

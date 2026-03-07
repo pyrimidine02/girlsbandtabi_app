@@ -84,7 +84,9 @@ class PostSummary {
     required this.title,
     required this.createdAt,
     this.imageUrls = const [],
+    this.tags = const [],
     this.content,
+    this.topic,
     this.thumbnailUrl,
     this.authorName,
     this.authorAvatarUrl,
@@ -99,7 +101,9 @@ class PostSummary {
   final String title;
   final DateTime createdAt;
   final List<String> imageUrls;
+  final List<String> tags;
   final String? content;
+  final String? topic;
   final String? thumbnailUrl;
   final String? authorName;
   final String? authorAvatarUrl;
@@ -117,7 +121,9 @@ class PostSummary {
       title: dto.title,
       createdAt: dto.createdAt,
       imageUrls: dto.imageUrls,
+      tags: dto.tags,
       content: dto.content,
+      topic: dto.topic,
       thumbnailUrl: dto.thumbnailUrl,
       authorName: dto.authorName,
       authorAvatarUrl: dto.authorAvatarUrl,
@@ -138,7 +144,9 @@ class PostDetail {
     required this.title,
     required this.createdAt,
     this.imageUrls = const [],
+    this.tags = const [],
     this.content,
+    this.topic,
     this.updatedAt,
     this.authorName,
     this.authorAvatarUrl,
@@ -153,7 +161,9 @@ class PostDetail {
   final String title;
   final DateTime createdAt;
   final List<String> imageUrls;
+  final List<String> tags;
   final String? content;
+  final String? topic;
   final DateTime? updatedAt;
   final String? authorName;
   final String? authorAvatarUrl;
@@ -171,7 +181,9 @@ class PostDetail {
       title: dto.title,
       createdAt: dto.createdAt,
       imageUrls: dto.imageUrls,
+      tags: dto.tags,
       content: dto.content,
+      topic: dto.topic,
       updatedAt: dto.updatedAt,
       authorName: dto.authorName,
       authorAvatarUrl: dto.authorAvatarUrl,
@@ -269,6 +281,46 @@ class PostBookmarkStatus {
       postId: dto.postId,
       isBookmarked: dto.isBookmarked,
       bookmarkedAt: dto.bookmarkedAt,
+    );
+  }
+}
+
+/// EN: Single topic/tag option item for compose metadata.
+/// KO: 작성 메타데이터에서 사용하는 단일 토픽/태그 옵션 항목입니다.
+class PostTaxonomyOption {
+  const PostTaxonomyOption({
+    required this.id,
+    required this.name,
+    this.sortOrder,
+  });
+
+  final String id;
+  final String name;
+  final int? sortOrder;
+
+  factory PostTaxonomyOption.fromDto(PostTaxonomyOptionDto dto) {
+    return PostTaxonomyOption(
+      id: dto.id,
+      name: dto.name,
+      sortOrder: dto.sortOrder,
+    );
+  }
+}
+
+/// EN: Topic/tag option payload for compose and edit pages.
+/// KO: 작성/수정 페이지에서 사용하는 토픽/태그 옵션 페이로드입니다.
+class PostComposeOptions {
+  const PostComposeOptions({this.topics = const [], this.tags = const []});
+
+  final List<PostTaxonomyOption> topics;
+  final List<PostTaxonomyOption> tags;
+
+  factory PostComposeOptions.fromDto(PostComposeOptionsDto dto) {
+    return PostComposeOptions(
+      topics: dto.topics
+          .map(PostTaxonomyOption.fromDto)
+          .toList(growable: false),
+      tags: dto.tags.map(PostTaxonomyOption.fromDto).toList(growable: false),
     );
   }
 }

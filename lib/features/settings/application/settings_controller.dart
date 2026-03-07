@@ -5,6 +5,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/error/failure.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/storage/local_storage.dart';
 import '../../../core/utils/result.dart';
@@ -143,8 +144,6 @@ class NotificationSettingsController
     // KO: Optimistic 업데이트 — 토글이 즉각 반응하도록 변경을 즉시 적용합니다.
     // KO: 실패 시 이전 상태로 복원하여 UI 일관성을 유지합니다.
     final previousState = state;
-    final previousPushEnabled = previousState.valueOrNull?.pushEnabled ?? true;
-    final shouldDeactivateDevice = previousPushEnabled && !settings.pushEnabled;
     state = AsyncData(settings);
     await _persistPushEnabled(settings.pushEnabled);
 
@@ -156,10 +155,18 @@ class NotificationSettingsController
     if (result is Success<NotificationSettings>) {
       await _persistPushEnabled(result.data.pushEnabled);
       state = AsyncData(result.data);
-      if (shouldDeactivateDevice && !result.data.pushEnabled) {
+      if (!result.data.pushEnabled) {
         final deactivateResult = await _deactivateDeviceRegistration();
         if (deactivateResult is Err<void>) {
-          return Result.failure(deactivateResult.failure);
+          // EN: Settings update already succeeded; keep OFF state and log
+          //     deactivation failure for follow-up without showing save error.
+          // KO: 설정 업데이트는 이미 성공했으므로 OFF 상태는 유지하고,
+          //     디바이스 해제 실패는 저장 실패로 처리하지 않고 로그만 남깁니다.
+          AppLogger.warning(
+            'Notification device deactivation failed after push OFF update',
+            data: deactivateResult.failure,
+            tag: 'NotificationSettingsController',
+          );
         }
       }
     } else if (result is Err<NotificationSettings>) {
@@ -197,6 +204,7 @@ class NotificationSettingsController
       await Future.wait([
         storage.remove(LocalStorageKeys.notificationDeviceId),
         storage.remove(LocalStorageKeys.notificationDeviceIdLegacy),
+        storage.remove(LocalStorageKeys.notificationPushToken),
       ]);
       return const Result.success(null);
     }

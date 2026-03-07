@@ -52,4 +52,25 @@ void main() {
     expect(dto.entityId, 'entity-1');
     expect(dto.projectCode, 'girls-band-cry');
   });
+
+  test(
+    'NotificationItemDto prioritizes notificationType and targetId when both exist',
+    () {
+      final json = {
+        'id': 'noti-3',
+        'title': '댓글 알림',
+        'body': '답글이 달렸어요',
+        'createdAt': '2026-03-08T00:00:00Z',
+        'read': false,
+        'type': 'FOLLOWING_POST',
+        'notificationType': 'COMMENT_REPLY_CREATED',
+        'entityId': 'entity-fallback',
+        'targetId': 'target-priority',
+      };
+
+      final dto = NotificationItemDto.fromJson(json);
+      expect(dto.type, 'COMMENT_REPLY_CREATED');
+      expect(dto.entityId, 'target-priority');
+    },
+  );
 }

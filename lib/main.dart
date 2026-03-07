@@ -13,6 +13,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'app.dart';
 import 'core/config/app_config.dart';
 import 'core/logging/app_logger.dart';
+import 'core/notifications/remote_push_service.dart';
 import 'core/providers/core_providers.dart';
 
 Future<void> main() async {
@@ -63,6 +64,10 @@ Future<void> main() async {
   // EN: Create provider container for pre-initialization
   // KO: 사전 초기화를 위한 프로바이더 컨테이너 생성
   final container = ProviderContainer();
+
+  // EN: Register Firebase Messaging background handler before runApp.
+  // KO: runApp 이전에 Firebase Messaging 백그라운드 핸들러를 등록합니다.
+  registerRemotePushBackgroundHandler();
 
   // EN: Run the app with Riverpod
   // KO: Riverpod과 함께 앱 실행

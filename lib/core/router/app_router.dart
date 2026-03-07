@@ -101,14 +101,18 @@ class AppRoutes {
   static const String travelReviewTab = 'travel-review-tab';
   static const String places = 'places';
   static const String placeDetail = 'place-detail';
+  static const String overlayPlaceDetail = 'overlay-place-detail';
   static const String live = 'live';
   static const String liveDetail = 'live-detail';
+  static const String overlayLiveDetail = 'overlay-live-detail';
   static const String board = 'board';
   static const String info = 'info';
   static const String newsDetail = 'news-detail';
+  static const String overlayNewsDetail = 'overlay-news-detail';
   static const String unitDetail = 'unit-detail';
   static const String memberDetail = 'member-detail';
   static const String postDetail = 'post-detail';
+  static const String overlayPostDetail = 'overlay-post-detail';
   static const String postCreate = 'post-create';
   static const String travelReviewCreate = 'travelReviewCreate';
   static const String travelReviewDetail = 'travelReviewDetail';
@@ -540,6 +544,55 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const FavoritesPage(),
       ),
 
+      // EN: Overlay detail routes used when opening details from overlay stacks
+      // EN: (settings/favorites/visits/stats/notifications/search).
+      // KO: 오버레이 스택(설정/즐겨찾기/방문/통계/알림/검색)에서 상세를 열 때
+      // KO: 기존 오버레이 스택을 유지하기 위한 전용 상세 라우트입니다.
+      GoRoute(
+        path: '/overlay/places/:placeId',
+        name: AppRoutes.overlayPlaceDetail,
+        pageBuilder: (context, state) {
+          final placeId = state.pathParameters['placeId']!;
+          return _buildAdaptiveDetailPage(
+            key: state.pageKey,
+            child: PlaceDetailPage(placeId: placeId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/overlay/live/:eventId',
+        name: AppRoutes.overlayLiveDetail,
+        pageBuilder: (context, state) {
+          final eventId = state.pathParameters['eventId']!;
+          return _buildAdaptiveDetailPage(
+            key: state.pageKey,
+            child: LiveEventDetailPage(eventId: eventId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/overlay/info/news/:newsId',
+        name: AppRoutes.overlayNewsDetail,
+        pageBuilder: (context, state) {
+          final newsId = state.pathParameters['newsId']!;
+          return _buildAdaptiveDetailPage(
+            key: state.pageKey,
+            child: NewsDetailPage(newsId: newsId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/overlay/board/posts/:postId',
+        name: AppRoutes.overlayPostDetail,
+        pageBuilder: (context, state) {
+          final postId = state.pathParameters['postId']!;
+          return _buildAdaptiveDetailPage(
+            key: state.pageKey,
+            child: PostDetailPage(postId: postId),
+          );
+        },
+      ),
+
       // EN: Visit routes (top-level overlays to avoid duplicate key with /settings)
       // KO: 방문 라우트 (중복 key 방지를 위해 /settings 외부의 최상위 오버레이)
       GoRoute(
@@ -652,71 +705,143 @@ class _InvalidNavigationPage extends StatelessWidget {
   }
 }
 
+enum _ShellNavigationAction { push, go, none }
+
 /// EN: Extension for navigation helpers
 /// KO: 네비게이션 헬퍼 확장
 extension AppRouterExtension on BuildContext {
-  bool _shouldUseGoForShellNavigation(String targetPath) {
-    final currentPath = GoRouter.of(
+  bool _isOverlayPath(String path) {
+    return path.startsWith('/settings') ||
+        path.startsWith('/favorites') ||
+        path.startsWith('/visits') ||
+        path.startsWith('/visit-stats') ||
+        path.startsWith('/notifications') ||
+        path.startsWith('/search') ||
+        path.startsWith('/overlay');
+  }
+
+  String _resolveCurrentPathFromContext() {
+    try {
+      return GoRouterState.of(this).uri.path;
+    } catch (_) {
+      return GoRouter.of(this).routeInformationProvider.value.uri.path;
+    }
+  }
+
+  bool _isInOverlayContext() {
+    final contextPath = _resolveCurrentPathFromContext();
+    final routerPath = GoRouter.of(
       this,
     ).routeInformationProvider.value.uri.path;
-    if (currentPath == targetPath) {
-      return false;
+    return _isOverlayPath(contextPath) || _isOverlayPath(routerPath);
+  }
+
+  _ShellNavigationAction _resolveShellNavigationAction(String targetPath) {
+    final contextPath = _resolveCurrentPathFromContext();
+    final routerPath = GoRouter.of(
+      this,
+    ).routeInformationProvider.value.uri.path;
+    final isSameTarget = contextPath == targetPath || routerPath == targetPath;
+    final shouldUseGo =
+        _isOverlayPath(contextPath) ||
+        _isOverlayPath(routerPath) ||
+        // EN: If target already exists in stack and this route can pop,
+        // EN: prefer `go` to avoid pushing a duplicated page key.
+        // KO: 타겟이 이미 스택에 있고 현재 라우트에서 pop 가능하면
+        // KO: 중복 페이지 key push를 피하기 위해 `go`를 우선합니다.
+        (isSameTarget && canPop());
+    if (shouldUseGo) {
+      return _ShellNavigationAction.go;
+    }
+    if (isSameTarget) {
+      return _ShellNavigationAction.none;
     }
     // EN: Replace route from top-level overlays to shell branches to avoid
     // EN: stacking a second shell navigator that can render as a blank page.
     // KO: 최상위 오버레이에서 쉘 브랜치로 이동할 때 두 번째 쉘 네비게이터가
     // KO: 중첩되어 빈 화면으로 보이는 문제를 막기 위해 교체 이동(go)을 사용합니다.
-    return currentPath.startsWith('/settings') ||
-        currentPath.startsWith('/favorites') ||
-        currentPath.startsWith('/visits') ||
-        currentPath.startsWith('/visit-stats') ||
-        currentPath.startsWith('/notifications') ||
-        currentPath.startsWith('/search');
+    return _ShellNavigationAction.push;
   }
 
   /// EN: Navigate to place detail
   /// KO: 장소 상세로 이동
   void goToPlaceDetail(String placeId) {
+    if (_isInOverlayContext()) {
+      pushNamed(
+        AppRoutes.overlayPlaceDetail,
+        pathParameters: {'placeId': placeId},
+      );
+      return;
+    }
     final router = GoRouter.of(this);
     final targetPath = router.namedLocation(
       AppRoutes.placeDetail,
       pathParameters: {'placeId': placeId},
     );
-    if (_shouldUseGoForShellNavigation(targetPath)) {
-      go(targetPath);
-      return;
+    switch (_resolveShellNavigationAction(targetPath)) {
+      case _ShellNavigationAction.go:
+        go(targetPath);
+        return;
+      case _ShellNavigationAction.none:
+        return;
+      case _ShellNavigationAction.push:
+        pushNamed(AppRoutes.placeDetail, pathParameters: {'placeId': placeId});
+        return;
     }
-    pushNamed(AppRoutes.placeDetail, pathParameters: {'placeId': placeId});
   }
 
   /// EN: Navigate to live event detail
   /// KO: 라이브 이벤트 상세로 이동
   void goToLiveDetail(String eventId) {
+    if (_isInOverlayContext()) {
+      pushNamed(
+        AppRoutes.overlayLiveDetail,
+        pathParameters: {'eventId': eventId},
+      );
+      return;
+    }
     final router = GoRouter.of(this);
     final targetPath = router.namedLocation(
       AppRoutes.liveDetail,
       pathParameters: {'eventId': eventId},
     );
-    if (_shouldUseGoForShellNavigation(targetPath)) {
-      go(targetPath);
-      return;
+    switch (_resolveShellNavigationAction(targetPath)) {
+      case _ShellNavigationAction.go:
+        go(targetPath);
+        return;
+      case _ShellNavigationAction.none:
+        return;
+      case _ShellNavigationAction.push:
+        pushNamed(AppRoutes.liveDetail, pathParameters: {'eventId': eventId});
+        return;
     }
-    pushNamed(AppRoutes.liveDetail, pathParameters: {'eventId': eventId});
   }
 
   /// EN: Navigate to news detail
   /// KO: 뉴스 상세로 이동
   void goToNewsDetail(String newsId) {
+    if (_isInOverlayContext()) {
+      pushNamed(
+        AppRoutes.overlayNewsDetail,
+        pathParameters: {'newsId': newsId},
+      );
+      return;
+    }
     final router = GoRouter.of(this);
     final targetPath = router.namedLocation(
       AppRoutes.newsDetail,
       pathParameters: {'newsId': newsId},
     );
-    if (_shouldUseGoForShellNavigation(targetPath)) {
-      go(targetPath);
-      return;
+    switch (_resolveShellNavigationAction(targetPath)) {
+      case _ShellNavigationAction.go:
+        go(targetPath);
+        return;
+      case _ShellNavigationAction.none:
+        return;
+      case _ShellNavigationAction.push:
+        pushNamed(AppRoutes.newsDetail, pathParameters: {'newsId': newsId});
+        return;
     }
-    pushNamed(AppRoutes.newsDetail, pathParameters: {'newsId': newsId});
   }
 
   /// EN: Navigate to unit detail page.
@@ -748,18 +873,43 @@ extension AppRouterExtension on BuildContext {
   /// EN: Navigate to post detail
   /// KO: 게시글 상세로 이동
   void goToPostDetail(String postId) {
+    if (_isInOverlayContext()) {
+      final router = GoRouter.of(this);
+      final targetPath = router.namedLocation(
+        AppRoutes.overlayPostDetail,
+        pathParameters: {'postId': postId},
+      );
+      final now = DateTime.now();
+      final lastAt = _lastPostDetailNavigationAt;
+      final currentPath = router.routeInformationProvider.value.uri.path;
+      if (currentPath == targetPath) {
+        return;
+      }
+      if (lastAt != null &&
+          _lastPostDetailNavigationPath == targetPath &&
+          now.difference(lastAt).inMilliseconds < 700) {
+        return;
+      }
+      _lastPostDetailNavigationAt = now;
+      _lastPostDetailNavigationPath = targetPath;
+      pushNamed(
+        AppRoutes.overlayPostDetail,
+        pathParameters: {'postId': postId},
+      );
+      return;
+    }
     final router = GoRouter.of(this);
     final targetPath = router.namedLocation(
       AppRoutes.postDetail,
       pathParameters: {'postId': postId},
     );
-    final currentPath = router.routeInformationProvider.value.uri.path;
+    final navigationAction = _resolveShellNavigationAction(targetPath);
     final now = DateTime.now();
     final lastAt = _lastPostDetailNavigationAt;
 
     // EN: Prevent duplicate pushes caused by rapid multi-tap on the same item.
     // KO: 동일 아이템 연속 탭으로 인한 중복 push를 방지합니다.
-    if (currentPath == targetPath) {
+    if (navigationAction == _ShellNavigationAction.none) {
       return;
     }
     if (lastAt != null &&
@@ -770,11 +920,16 @@ extension AppRouterExtension on BuildContext {
 
     _lastPostDetailNavigationAt = now;
     _lastPostDetailNavigationPath = targetPath;
-    if (_shouldUseGoForShellNavigation(targetPath)) {
-      go(targetPath);
-      return;
+    switch (navigationAction) {
+      case _ShellNavigationAction.go:
+        go(targetPath);
+        return;
+      case _ShellNavigationAction.none:
+        return;
+      case _ShellNavigationAction.push:
+        pushNamed(AppRoutes.postDetail, pathParameters: {'postId': postId});
+        return;
     }
-    pushNamed(AppRoutes.postDetail, pathParameters: {'postId': postId});
   }
 
   /// EN: Navigate to post creation.

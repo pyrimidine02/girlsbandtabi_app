@@ -74,10 +74,12 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
     final showYearFilter = _tabController.index == 1;
     final projectKey = ref.watch(selectedProjectKeyProvider);
     final projectId = ref.watch(selectedProjectIdProvider);
+    final currentNavIndex = ref.watch(currentNavIndexProvider);
+    final isTabActive = currentNavIndex == NavIndex.live;
     final resolvedProjectKey = projectKey?.isNotEmpty == true
         ? projectKey!
         : (projectId ?? '');
-    final unitsState = resolvedProjectKey.isNotEmpty
+    final unitsState = isTabActive && resolvedProjectKey.isNotEmpty
         ? ref.watch(projectUnitsControllerProvider(resolvedProjectKey))
         : const AsyncValue<List<Unit>>.data([]);
     final avatarUrl = ref
@@ -528,8 +530,71 @@ class _EventList extends StatelessWidget {
             );
           }
 
-          // EN: Render today/live events as featured cards, rest as list cards
-          // KO: 오늘/LIVE 이벤트는 피처드 카드로, 나머지는 일반 카드로 표시
+          // EN: In upcoming tab, feature only one event:
+          // EN: the nearest upcoming event among today's events.
+          // EN: Fallback to the nearest SCHEDULED-status event if there is no today event.
+          // KO: 예정 탭에서는 피처드 카드를 1개만 노출합니다:
+          // KO: 당일 이벤트 중 현재 시각 기준 가장 가까운 예정 이벤트를 강조합니다.
+          // KO: 당일 이벤트가 없으면 SCHEDULED 상태 이벤트 중 가장 가까운 항목을 대체 강조합니다.
+          String? featuredEventId;
+          if (isUpcoming) {
+            final now = DateTime.now();
+            final todayCandidates =
+                filtered.where((event) {
+                  final local = event.showStartTime.toLocal();
+                  return local.year == now.year &&
+                      local.month == now.month &&
+                      local.day == now.day;
+                }).toList()..sort((a, b) {
+                  final deltaA = a.showStartTime
+                      .toLocal()
+                      .difference(now)
+                      .abs();
+                  final deltaB = b.showStartTime
+                      .toLocal()
+                      .difference(now)
+                      .abs();
+                  return deltaA.compareTo(deltaB);
+                });
+            if (todayCandidates.isNotEmpty) {
+              featuredEventId = todayCandidates.first.id;
+            } else {
+              final todayDate = DateTime(now.year, now.month, now.day);
+              final scheduledCandidates =
+                  filtered
+                      .where(
+                        (event) =>
+                            event.statusLabel.toLowerCase() == 'scheduled',
+                      )
+                      .toList()
+                    ..sort((a, b) {
+                      final localA = a.showStartTime.toLocal();
+                      final localB = b.showStartTime.toLocal();
+                      final dateA = DateTime(
+                        localA.year,
+                        localA.month,
+                        localA.day,
+                      );
+                      final dateB = DateTime(
+                        localB.year,
+                        localB.month,
+                        localB.day,
+                      );
+                      final dayDiffA = dateA.difference(todayDate).inDays.abs();
+                      final dayDiffB = dateB.difference(todayDate).inDays.abs();
+                      if (dayDiffA != dayDiffB) {
+                        return dayDiffA.compareTo(dayDiffB);
+                      }
+                      final timeDiffA = localA.difference(now).abs();
+                      final timeDiffB = localB.difference(now).abs();
+                      return timeDiffA.compareTo(timeDiffB);
+                    });
+              if (scheduledCandidates.isNotEmpty) {
+                featuredEventId = scheduledCandidates.first.id;
+              }
+            }
+          }
+
           return ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(
@@ -542,14 +607,14 @@ class _EventList extends StatelessWidget {
             itemBuilder: (context, index) {
               final event = filtered[index];
               final isLive = event.statusLabel.toLowerCase() == 'live';
-              final isTodayEvent = event.dDayLabel == 'D-day';
+              final isFeatured = isUpcoming && featuredEventId == event.id;
               final timeStr = DateFormat(
                 'HH:mm',
               ).format(event.showStartTime.toLocal());
 
-              // EN: Featured card for live or today events (upcoming tab only)
-              // KO: 업커밍 탭에서 LIVE·오늘 이벤트는 피처드 카드로 강조
-              if (isUpcoming && (isLive || isTodayEvent)) {
+              // EN: Featured card is rendered only for selected single event.
+              // KO: 피처드 카드는 선정된 단일 이벤트에만 렌더링합니다.
+              if (isFeatured) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: GBTSpacing.md),
                   child: GBTFeaturedEventCard(

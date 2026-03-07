@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/error/failure.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
 import '../data/datasources/search_remote_data_source.dart';
@@ -15,39 +16,39 @@ class SearchController extends StateNotifier<AsyncValue<List<SearchItem>>> {
   SearchController(this._ref) : super(const AsyncData([]));
 
   final Ref _ref;
+  int _activeRequestId = 0;
 
   Future<void> search(
     String query, {
     bool forceRefresh = false,
-    bool scopedToCurrentProject = true,
     List<String> types = const [],
   }) async {
+    final requestId = ++_activeRequestId;
+    final repository = await _ref.read(searchRepositoryProvider.future);
     final trimmed = query.trim();
     if (trimmed.isEmpty) {
+      repository.cancelInFlightSearch();
       state = const AsyncData([]);
       return;
     }
 
     state = const AsyncLoading();
-    final repository = await _ref.read(searchRepositoryProvider.future);
-    final projectId = scopedToCurrentProject
-        ? (_ref.read(selectedProjectKeyProvider) ??
-              _ref.read(selectedProjectIdProvider))
-        : null;
-    final unitIds = scopedToCurrentProject
-        ? _ref.read(selectedUnitIdsProvider)
-        : const <String>[];
+    repository.cancelInFlightSearch();
     final result = await repository.search(
       query: trimmed,
-      projectId: projectId,
-      unitIds: unitIds,
       types: types,
       forceRefresh: forceRefresh,
     );
+    if (requestId != _activeRequestId) {
+      return;
+    }
 
     if (result is Success<List<SearchItem>>) {
       state = AsyncData(result.data);
     } else if (result is Err<List<SearchItem>>) {
+      if (result.failure.code == 'cancelled') {
+        return;
+      }
       state = AsyncError(result.failure, StackTrace.current);
     }
   }
@@ -109,4 +110,40 @@ final searchControllerProvider =
 final searchHistoryControllerProvider =
     StateNotifierProvider<SearchHistoryController, List<String>>((ref) {
       return SearchHistoryController(ref);
+    });
+
+/// EN: Popular search keyword discovery provider.
+/// KO: 인기 검색어 디스커버리 프로바이더.
+final searchPopularDiscoveryProvider = FutureProvider.autoDispose
+    .family<SearchPopularDiscovery, int>((ref, limit) async {
+      final repository = await ref.watch(searchRepositoryProvider.future);
+      final result = await repository.getPopularDiscovery(limit: limit);
+      if (result is Success<SearchPopularDiscovery>) {
+        return result.data;
+      }
+      if (result is Err<SearchPopularDiscovery>) {
+        throw result.failure;
+      }
+      throw const UnknownFailure(
+        'Unknown popular discovery provider state',
+        code: 'unknown_popular_discovery_provider',
+      );
+    });
+
+/// EN: Discovery category provider.
+/// KO: 디스커버리 카테고리 프로바이더.
+final searchCategoryDiscoveryProvider = FutureProvider.autoDispose
+    .family<SearchCategoryDiscovery, int>((ref, limit) async {
+      final repository = await ref.watch(searchRepositoryProvider.future);
+      final result = await repository.getCategoryDiscovery(limit: limit);
+      if (result is Success<SearchCategoryDiscovery>) {
+        return result.data;
+      }
+      if (result is Err<SearchCategoryDiscovery>) {
+        throw result.failure;
+      }
+      throw const UnknownFailure(
+        'Unknown category discovery provider state',
+        code: 'unknown_category_discovery_provider',
+      );
     });

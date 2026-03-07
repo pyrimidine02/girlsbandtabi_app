@@ -6,17 +6,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/localization/locale_text.dart';
-import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
-import '../../../../core/widgets/inputs/gbt_search_bar.dart';
 import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../application/search_controller.dart';
 import '../../domain/entities/search_entities.dart';
@@ -35,11 +34,13 @@ class SearchPage extends ConsumerStatefulWidget {
 }
 
 class _SearchPageState extends ConsumerState<SearchPage> {
+  static const int _discoveryLimit = 10;
+
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
   Timer? _debounce;
   String _query = '';
-  bool _scopedToCurrentProject = true;
+  bool _hasShownDiscoveryFailureToast = false;
 
   @override
   void initState() {
@@ -48,9 +49,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       _searchController.text = widget.initialQuery!;
       _query = widget.initialQuery!;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref
-            .read(searchControllerProvider.notifier)
-            .search(_query, scopedToCurrentProject: _scopedToCurrentProject);
+        ref.read(searchControllerProvider.notifier).search(_query);
       });
     }
     _focusNode.requestFocus();
@@ -72,9 +71,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       return;
     }
     _debounce = Timer(const Duration(milliseconds: 300), () {
-      ref
-          .read(searchControllerProvider.notifier)
-          .search(value, scopedToCurrentProject: _scopedToCurrentProject);
+      ref.read(searchControllerProvider.notifier).search(value);
     });
   }
 
@@ -86,241 +83,188 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   Future<void> _onRefresh() async {
     final trimmed = _query.trim();
-    if (trimmed.isEmpty) return;
+    if (trimmed.isEmpty) {
+      await Future.wait([
+        ref.refresh(searchPopularDiscoveryProvider(_discoveryLimit).future),
+        ref.refresh(searchCategoryDiscoveryProvider(_discoveryLimit).future),
+      ]);
+      return;
+    }
     await ref
         .read(searchControllerProvider.notifier)
-        .search(
-          trimmed,
-          forceRefresh: true,
-          scopedToCurrentProject: _scopedToCurrentProject,
-        );
+        .search(trimmed, forceRefresh: true);
   }
-
-  void _toggleProjectScope(bool enabled) {
-    if (_scopedToCurrentProject == enabled) return;
-    setState(() => _scopedToCurrentProject = enabled);
-    final trimmed = _query.trim();
-    if (trimmed.isEmpty) return;
-    unawaited(
-      ref
-          .read(searchControllerProvider.notifier)
-          .search(trimmed, forceRefresh: true, scopedToCurrentProject: enabled),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final history = ref.watch(searchHistoryControllerProvider);
-    final resultsState = ref.watch(searchControllerProvider);
-    final selectedProjectKey = ref.watch(selectedProjectKeyProvider);
-    final selectedProjectId = ref.watch(selectedProjectIdProvider);
-    final projectScopeLabel = selectedProjectKey?.isNotEmpty == true
-        ? selectedProjectKey!
-        : (selectedProjectId?.isNotEmpty == true ? selectedProjectId! : null);
-
-    return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 0,
-        // EN: Search bar fills available AppBar title space with right margin.
-        // KO: 검색바가 우측 여백과 함께 AppBar 타이틀 영역을 채움.
-        title: Padding(
-          padding: const EdgeInsets.only(right: GBTSpacing.md),
-          child: GBTSearchBar(
-            controller: _searchController,
-            focusNode: _focusNode,
-            hint: context.l10n(
-              ko: '장소, 이벤트, 밴드 검색...',
-              en: 'Search places, events, bands...',
-              ja: '場所、イベント、バンドを検索...',
-            ),
-            autofocus: true,
-            onChanged: _onQueryChanged,
-            onSubmitted: _onSubmit,
-            onClear: () => _onQueryChanged(''),
-          ),
-        ),
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // EN: Compact scope toggle — two pill buttons (Naver/Twitter style)
-          // KO: 컴팩트 스코프 토글 — 두 개의 필 버튼 (네이버/트위터 스타일)
-          _ScopeToggleRow(
-            scopedToCurrentProject: _scopedToCurrentProject,
-            projectScopeLabel: projectScopeLabel,
-            onChanged: _toggleProjectScope,
-          ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _onRefresh,
-              child: _query.isEmpty
-                  ? _RecentSearches(
-                      items: history,
-                      onSelect: (value) {
-                        _searchController.text = value;
-                        _onQueryChanged(value);
-                        _onSubmit(value);
-                      },
-                      onRemove: (value) => ref
-                          .read(searchHistoryControllerProvider.notifier)
-                          .removeSearch(value),
-                      onClear: () => ref
-                          .read(searchHistoryControllerProvider.notifier)
-                          .clear(),
-                    )
-                  : _SearchResults(
-                      query: _query,
-                      state: resultsState,
-                      scopedToCurrentProject: _scopedToCurrentProject,
-                      projectScopeLabel: projectScopeLabel,
-                      onRetry: () => ref
-                          .read(searchControllerProvider.notifier)
-                          .search(
-                            _query,
-                            forceRefresh: true,
-                            scopedToCurrentProject: _scopedToCurrentProject,
-                          ),
-                    ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ============================================================
-// EN: Scope Toggle Row — compact pill pair (현재 프로젝트 / 전체)
-// KO: 스코프 토글 행 — 컴팩트 필 쌍
-// ============================================================
-
-class _ScopeToggleRow extends StatelessWidget {
-  const _ScopeToggleRow({
-    required this.scopedToCurrentProject,
-    required this.projectScopeLabel,
-    required this.onChanged,
-  });
-
-  final bool scopedToCurrentProject;
-  final String? projectScopeLabel;
-  final ValueChanged<bool> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final history = ref.watch(searchHistoryControllerProvider);
+    final resultsState = ref.watch(searchControllerProvider);
+    final shouldShowDiscovery = _query.isEmpty;
+    final popularState = shouldShowDiscovery
+        ? ref.watch(searchPopularDiscoveryProvider(_discoveryLimit))
+        : null;
+    final categoryState = shouldShowDiscovery
+        ? ref.watch(searchCategoryDiscoveryProvider(_discoveryLimit))
+        : null;
+    if (shouldShowDiscovery && popularState != null && categoryState != null) {
+      _showDiscoveryFailureToastIfNeeded(popularState, categoryState);
+    }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        GBTSpacing.md,
-        GBTSpacing.sm,
-        GBTSpacing.md,
-        GBTSpacing.xs,
-      ),
-      child: Row(
-        children: [
-          _ScopePill(
-            label: projectScopeLabel ??
-                context.l10n(
-                  ko: '현재 프로젝트',
-                  en: 'Current project',
-                  ja: '現在のプロジェクト',
-                ),
-            isSelected: scopedToCurrentProject,
-            onTap: () => onChanged(true),
-            primaryColor: primaryColor,
-            isDark: isDark,
-          ),
-          const SizedBox(width: GBTSpacing.xs),
-          _ScopePill(
-            label: context.l10n(
-              ko: '전체 검색',
-              en: 'Search all',
-              ja: '全体検索',
-            ),
-            isSelected: !scopedToCurrentProject,
-            onTap: () => onChanged(false),
-            primaryColor: primaryColor,
-            isDark: isDark,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ScopePill extends StatelessWidget {
-  const _ScopePill({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-    required this.primaryColor,
-    required this.isDark,
-  });
-
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final Color primaryColor;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: isSelected,
-      label:
-          '$label ${context.l10n(ko: "검색 범위", en: "search scope", ja: "検索範囲")} ${isSelected ? context.l10n(ko: "선택됨", en: "selected", ja: "選択済み") : ''}',
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? primaryColor.withValues(alpha: 0.10)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
-            border: Border.all(
-              color: isSelected
-                  ? primaryColor
-                  : (isDark ? GBTColors.darkBorder : GBTColors.border),
-              width: isSelected ? 1.5 : 1,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isSelected) ...[
-                Icon(
-                  Icons.check_circle_rounded,
-                  size: 13,
-                  color: primaryColor,
-                ),
-                const SizedBox(width: 4),
-              ],
-              Flexible(
-                child: Text(
-                  label,
-                  style: GBTTypography.labelSmall.copyWith(
-                    color: isSelected
-                        ? primaryColor
-                        : (isDark
-                              ? GBTColors.darkTextSecondary
-                              : GBTColors.textSecondary),
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.w400,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                GBTSpacing.sm,
+                GBTSpacing.sm,
+                GBTSpacing.md,
+                GBTSpacing.sm,
               ),
-            ],
-          ),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                    tooltip: context.l10n(ko: '뒤로가기', en: 'Back', ja: '戻る'),
+                  ),
+                  const SizedBox(width: GBTSpacing.xs2),
+                  Expanded(
+                    child: Container(
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? GBTColors.darkSurfaceVariant
+                            : GBTColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(
+                          GBTSpacing.radiusLg,
+                        ),
+                        border: Border.all(
+                          color: isDark
+                              ? GBTColors.darkBorder
+                              : GBTColors.border,
+                        ),
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        focusNode: _focusNode,
+                        autofocus: true,
+                        onChanged: _onQueryChanged,
+                        onSubmitted: _onSubmit,
+                        textInputAction: TextInputAction.search,
+                        style: GBTTypography.bodyLarge,
+                        decoration: InputDecoration(
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: GBTSpacing.sm,
+                            vertical: 14,
+                          ),
+                          hintText: context.l10n(
+                            ko: '장소, 라이브, 뉴스, 게시글 검색',
+                            en: 'Search places, live events, news, posts',
+                            ja: '場所、ライブ、ニュース、投稿を検索',
+                          ),
+                          hintStyle: GBTTypography.bodyLarge.copyWith(
+                            color: isDark
+                                ? GBTColors.darkTextTertiary
+                                : GBTColors.textTertiary,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.search_rounded,
+                            color: isDark
+                                ? GBTColors.darkTextTertiary
+                                : GBTColors.textTertiary,
+                          ),
+                          suffixIcon: _query.isEmpty
+                              ? null
+                              : IconButton(
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _onQueryChanged('');
+                                  },
+                                  icon: Icon(
+                                    Icons.close_rounded,
+                                    color: isDark
+                                        ? GBTColors.darkTextTertiary
+                                        : GBTColors.textTertiary,
+                                  ),
+                                  tooltip: context.l10n(
+                                    ko: '검색어 지우기',
+                                    en: 'Clear query',
+                                    ja: '検索語をクリア',
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _onRefresh,
+                child: _query.isEmpty
+                    ? _RecentSearches(
+                        items: history,
+                        popularState: popularState!,
+                        categoryState: categoryState!,
+                        onSelect: (value) {
+                          _searchController.text = value;
+                          _onQueryChanged(value);
+                          _onSubmit(value);
+                        },
+                        onRemove: (value) => ref
+                            .read(searchHistoryControllerProvider.notifier)
+                            .removeSearch(value),
+                        onClear: () => ref
+                            .read(searchHistoryControllerProvider.notifier)
+                            .clear(),
+                        onRetryPopular: () => ref.invalidate(
+                          searchPopularDiscoveryProvider(_discoveryLimit),
+                        ),
+                        onRetryCategories: () => ref.invalidate(
+                          searchCategoryDiscoveryProvider(_discoveryLimit),
+                        ),
+                      )
+                    : _SearchResults(
+                        query: _query,
+                        state: resultsState,
+                        onRetry: () => ref
+                            .read(searchControllerProvider.notifier)
+                            .search(_query, forceRefresh: true),
+                      ),
+              ),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  void _showDiscoveryFailureToastIfNeeded(
+    AsyncValue<SearchPopularDiscovery> popularState,
+    AsyncValue<SearchCategoryDiscovery> categoryState,
+  ) {
+    if (_hasShownDiscoveryFailureToast) return;
+    if (!(popularState.hasError || categoryState.hasError)) return;
+    _hasShownDiscoveryFailureToast = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n(
+              ko: '일부 검색 추천 데이터를 불러오지 못했어요. 검색은 계속 사용할 수 있어요.',
+              en: 'Some discovery data failed to load. Search is still available.',
+              ja: '一部の検索おすすめデータの読み込みに失敗しました。検索は引き続き利用できます。',
+            ),
+          ),
+        ),
+      );
+    });
   }
 }
 
@@ -332,224 +276,304 @@ class _ScopePill extends StatelessWidget {
 class _RecentSearches extends StatelessWidget {
   const _RecentSearches({
     required this.items,
+    required this.popularState,
+    required this.categoryState,
     required this.onSelect,
     required this.onRemove,
     required this.onClear,
+    required this.onRetryPopular,
+    required this.onRetryCategories,
   });
 
   final List<String> items;
+  final AsyncValue<SearchPopularDiscovery> popularState;
+  final AsyncValue<SearchCategoryDiscovery> categoryState;
   final ValueChanged<String> onSelect;
   final ValueChanged<String> onRemove;
   final VoidCallback onClear;
-
-  static const _trending = ['도쿄', '라이브', '2026', '신곡', '콘서트', '앨범'];
+  final VoidCallback onRetryPopular;
+  final VoidCallback onRetryCategories;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
     final secondaryColor = isDark
         ? GBTColors.darkTextSecondary
         : GBTColors.textSecondary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    final chipItems = items.take(6).toList();
+    final popularKeywords = _resolvePopularKeywords(context);
+    final quickItems = _resolveCategoryItems();
+    final exploreTopics = _buildExploreTopics(context);
+    final popularUpdatedLabel = _resolveUpdatedLabel(
+      context,
+      popularState.valueOrNull?.updatedAt,
+    );
+    final categoriesUpdatedLabel = _resolveUpdatedLabel(
+      context,
+      categoryState.valueOrNull?.updatedAt,
+    );
+    final showCategoriesSection = quickItems.isNotEmpty;
+    final showCategoriesRetry =
+        !showCategoriesSection && categoryState.hasError;
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        GBTSpacing.md,
+        GBTSpacing.sm,
+        GBTSpacing.md,
+        GBTSpacing.xl,
+      ),
       children: [
-        // EN: Recent search history section
-        // KO: 최근 검색 기록 섹션
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            GBTSpacing.md,
-            GBTSpacing.md,
-            GBTSpacing.sm,
-            GBTSpacing.xs,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                context.l10n(
-                  ko: '최근 검색어',
-                  en: 'Recent searches',
-                  ja: '最近の検索',
-                ),
-                style: GBTTypography.labelMedium.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: isDark
-                      ? GBTColors.darkTextSecondary
-                      : GBTColors.textSecondary,
-                ),
-              ),
-              if (items.isNotEmpty)
-                TextButton(
-                  onPressed: onClear,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: GBTSpacing.sm,
-                      vertical: GBTSpacing.xs,
-                    ),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Text(
-                    context.l10n(
-                      ko: '전체 삭제',
-                      en: 'Clear all',
-                      ja: 'すべて削除',
-                    ),
-                    style: GBTTypography.labelSmall.copyWith(
-                      color: secondaryColor,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        if (items.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
-            child: Text(
-              context.l10n(
-                ko: '최근 검색어가 없습니다.',
-                en: 'No recent searches.',
-                ja: '最近の検索履歴はありません。',
-              ),
-              style: GBTTypography.bodySmall.copyWith(color: secondaryColor),
-            ),
+        if (chipItems.isNotEmpty)
+          Wrap(
+            spacing: GBTSpacing.xs,
+            runSpacing: GBTSpacing.xs,
+            children: chipItems.map((item) {
+              return _SearchFilterChip(
+                label: item,
+                isDark: isDark,
+                onTap: () => onSelect(item),
+                onRemove: () => onRemove(item),
+              );
+            }).toList(),
           )
         else
-          // EN: Horizontal scrollable recent chip row
-          // KO: 수평 스크롤 최근 검색어 칩 행
-          SizedBox(
-            height: 36,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
-              itemCount: items.length,
-              separatorBuilder: (_, __) =>
-                  const SizedBox(width: GBTSpacing.xs),
-              itemBuilder: (context, index) {
-                final item = items[index];
-                return Semantics(
-                  label: context.l10n(
-                    ko: '최근 검색어: $item. 탭하여 검색',
-                    en: 'Recent search: $item. Tap to search',
-                    ja: '最近の検索: $item。タップして検索',
-                  ),
-                  button: true,
-                  child: _RecentChip(
-                    label: item,
-                    onTap: () => onSelect(item),
-                    onRemove: () => onRemove(item),
-                    isDark: isDark,
-                  ),
-                );
-              },
+          Padding(
+            padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
+            child: Text(
+              context.l10n(
+                ko: '자주 찾는 키워드를 빠르게 다시 검색할 수 있어요.',
+                en: 'Your frequent keywords will appear here for quick search.',
+                ja: 'よく使うキーワードをここですぐ再検索できます。',
+              ),
+              style: GBTTypography.bodySmall.copyWith(color: tertiaryColor),
             ),
           ),
-        // EN: Section divider
-        // KO: 섹션 구분선
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: GBTSpacing.lg),
-          child: Divider(
-            height: 1,
-            thickness: 0.5,
-            color: isDark
-                ? GBTColors.darkBorder.withValues(alpha: 0.5)
-                : GBTColors.border.withValues(alpha: 0.5),
-            indent: GBTSpacing.md,
-            endIndent: GBTSpacing.md,
-          ),
-        ),
-        // EN: Trending searches section
-        // KO: 인기 검색어 섹션
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
-          child: Row(
-            children: [
-              Icon(
-                Icons.trending_up_rounded,
-                size: 18,
-                color: primaryColor,
+        if (chipItems.isNotEmpty)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: onClear,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: GBTSpacing.xs,
+                  vertical: GBTSpacing.xxs,
+                ),
               ),
-              const SizedBox(width: GBTSpacing.xs),
-              Text(
+              child: Text(
                 context.l10n(
-                  ko: '인기 검색어',
-                  en: 'Trending searches',
-                  ja: '人気検索語',
+                  ko: '최근 검색어 전체 삭제',
+                  en: 'Clear recent',
+                  ja: '最近検索を削除',
                 ),
-                style: GBTTypography.labelMedium.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: GBTTypography.labelSmall.copyWith(color: tertiaryColor),
               ),
-            ],
+            ),
           ),
+        const SizedBox(height: GBTSpacing.md),
+        _DiscoverySectionHeader(
+          title: context.l10n(
+            ko: '인기 통합 검색',
+            en: 'Popular searches',
+            ja: '人気統合検索',
+          ),
+          trailing: popularUpdatedLabel,
         ),
-        // EN: Numbered trending list — Naver/Kakao/Melon style rank rows
-        // KO: 번호 순위 목록 — 네이버/카카오/멜론 스타일 순위 행
-        ..._trending.asMap().entries.map((entry) {
+        const SizedBox(height: GBTSpacing.sm),
+        if (popularState.hasError)
+          Padding(
+            padding: const EdgeInsets.only(bottom: GBTSpacing.xs),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onRetryPopular,
+                child: Text(context.l10n(ko: '다시 시도', en: 'Retry', ja: '再試行')),
+              ),
+            ),
+          ),
+        ...popularKeywords.asMap().entries.map((entry) {
           final rank = entry.key + 1;
           final keyword = entry.value;
-          final isTop3 = rank <= 3;
-          final rankColor = isTop3
-              ? primaryColor
-              : (isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary);
-
-          return Semantics(
-            label: context.l10n(
-              ko: '인기 검색어 $rank위: $keyword',
-              en: 'Trending search rank $rank: $keyword',
-              ja: '人気検索 $rank位: $keyword',
-            ),
-            button: true,
-            child: InkWell(
-              onTap: () => onSelect(keyword),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: GBTSpacing.md,
-                  vertical: GBTSpacing.sm2,
-                ),
-                child: Row(
-                  children: [
-                    // EN: Rank number — 24px fixed width, top-3 in primary color
-                    // KO: 순위 번호 — 24px 고정 너비, 상위 3위는 primary 색상
-                    SizedBox(
-                      width: 24,
-                      child: Text(
-                        '$rank',
-                        textAlign: TextAlign.center,
-                        style: GBTTypography.labelMedium.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: rankColor,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: GBTSpacing.md),
-                    Expanded(
-                      child: Text(
-                        keyword,
-                        style: GBTTypography.bodyMedium,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          return _DiscoveryRankRow(
+            rank: rank,
+            title: keyword,
+            onTap: () => onSelect(keyword),
           );
         }),
+        const SizedBox(height: GBTSpacing.xl),
+        if (showCategoriesSection) ...[
+          _DiscoverySectionHeader(
+            title: context.l10n(
+              ko: '인기 탐색 카테고리',
+              en: 'Popular explore categories',
+              ja: '人気探索カテゴリ',
+            ),
+            trailing: categoriesUpdatedLabel,
+          ),
+          const SizedBox(height: GBTSpacing.sm),
+          ...quickItems.asMap().entries.map((entry) {
+            final rank = entry.key + 1;
+            final item = entry.value;
+            return _DiscoveryQuickRow(
+              rank: rank,
+              subtitle: item.subtitle,
+              title: item.title,
+              trailing: context.l10n(
+                ko: '${item.contentCount}건',
+                en: '${item.contentCount} items',
+                ja: '${item.contentCount}件',
+              ),
+              onTap: () => onSelect(item.query),
+            );
+          }),
+          const SizedBox(height: GBTSpacing.xl),
+        ] else if (showCategoriesRetry) ...[
+          _DiscoverySectionHeader(
+            title: context.l10n(
+              ko: '인기 탐색 카테고리',
+              en: 'Popular explore categories',
+              ja: '人気探索カテゴリ',
+            ),
+            trailing: categoriesUpdatedLabel,
+          ),
+          const SizedBox(height: GBTSpacing.xs),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: onRetryCategories,
+              child: Text(context.l10n(ko: '다시 시도', en: 'Retry', ja: '再試行')),
+            ),
+          ),
+          const SizedBox(height: GBTSpacing.lg),
+        ],
+        Row(
+          children: [
+            Text(
+              context.l10n(ko: '검색 둘러보기', en: 'Explore topics', ja: '検索トピック'),
+              style: GBTTypography.headlineMedium.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              context.l10n(ko: '전체보기', en: 'View all', ja: 'すべて表示'),
+              style: GBTTypography.bodyMedium.copyWith(color: secondaryColor),
+            ),
+          ],
+        ),
+        const SizedBox(height: GBTSpacing.sm),
+        SizedBox(
+          height: 42,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: exploreTopics.length,
+            separatorBuilder: (_, __) => const SizedBox(width: GBTSpacing.xs),
+            itemBuilder: (context, index) {
+              final topic = exploreTopics[index];
+              return _ExploreTopicChip(
+                label: topic,
+                isDark: isDark,
+                onTap: () => onSelect(topic),
+              );
+            },
+          ),
+        ),
         const SizedBox(height: GBTSpacing.xl),
       ],
     );
   }
+
+  List<String> _resolvePopularKeywords(BuildContext context) {
+    final fromServer =
+        popularState.valueOrNull?.popularKeywords
+            .map((item) => item.keyword.trim())
+            .where((keyword) => keyword.isNotEmpty)
+            .toList(growable: false) ??
+        const <String>[];
+    if (fromServer.isNotEmpty) {
+      return fromServer.take(5).toList(growable: false);
+    }
+
+    final defaults = <String>[
+      context.l10n(ko: '토게나시 토게아리', en: 'Togenashi Togeari', ja: 'トゲナシトゲアリ'),
+      context.l10n(ko: 'BanG Dream!', en: 'BanG Dream!', ja: 'BanG Dream!'),
+      context.l10n(ko: 'Zepp', en: 'Zepp', ja: 'Zepp'),
+      context.l10n(ko: '성지순례', en: 'Pilgrimage', ja: '聖地巡礼'),
+      context.l10n(ko: '라이브 일정', en: 'Live schedule', ja: 'ライブ日程'),
+    ];
+    final merged = <String>[];
+    for (final item in items) {
+      final value = item.trim();
+      if (value.isEmpty) continue;
+      if (merged.any(
+        (existing) => existing.toLowerCase() == value.toLowerCase(),
+      )) {
+        continue;
+      }
+      merged.add(value);
+      if (merged.length == 5) {
+        return merged;
+      }
+    }
+    for (final item in defaults) {
+      if (merged.any(
+        (existing) => existing.toLowerCase() == item.toLowerCase(),
+      )) {
+        continue;
+      }
+      merged.add(item);
+      if (merged.length == 5) {
+        break;
+      }
+    }
+    return merged;
+  }
+
+  List<_DiscoveryQuickItem> _resolveCategoryItems() {
+    final categories = categoryState.valueOrNull?.categories ?? const [];
+    return categories
+        .where((item) => item.label.trim().isNotEmpty)
+        .map(
+          (item) => _DiscoveryQuickItem(
+            subtitle: item.code,
+            title: item.label,
+            query: item.label,
+            contentCount: item.contentCount,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  List<String> _buildExploreTopics(BuildContext context) {
+    return [
+      context.l10n(ko: '오늘의 라이브', en: 'Today live', ja: '今日のライブ'),
+      context.l10n(ko: '성지 순례 루트', en: 'Pilgrimage routes', ja: '聖地巡礼ルート'),
+      context.l10n(ko: '공연장 근처', en: 'Near venue', ja: '会場周辺'),
+      context.l10n(ko: '팬 후기', en: 'Fan reviews', ja: 'ファンレビュー'),
+      context.l10n(ko: '신규 뉴스', en: 'Latest news', ja: '最新ニュース'),
+    ];
+  }
+
+  String _resolveUpdatedLabel(BuildContext context, DateTime? updatedAt) {
+    if (updatedAt == null) {
+      return context.l10n(ko: '방금 기준', en: 'Updated just now', ja: 'ただいま更新');
+    }
+    final localTime = updatedAt.toLocal();
+    final timeLabel = DateFormat('HH:mm').format(localTime);
+    return context.l10n(
+      ko: '오늘 $timeLabel 기준',
+      en: 'Updated $timeLabel',
+      ja: '本日 $timeLabel 時点',
+    );
+  }
 }
 
-/// EN: Recent search chip with history icon and delete button.
-/// KO: 히스토리 아이콘과 삭제 버튼이 있는 최근 검색 칩.
-class _RecentChip extends StatelessWidget {
-  const _RecentChip({
+class _SearchFilterChip extends StatelessWidget {
+  const _SearchFilterChip({
     required this.label,
     required this.onTap,
     required this.onRemove,
@@ -576,40 +600,28 @@ class _RecentChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.only(
-          left: GBTSpacing.sm,
-          right: GBTSpacing.xs,
-          top: GBTSpacing.xs,
-          bottom: GBTSpacing.xs,
+        padding: const EdgeInsets.symmetric(
+          horizontal: GBTSpacing.sm,
+          vertical: GBTSpacing.xs,
         ),
         decoration: BoxDecoration(
           color: bgColor,
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.history_rounded,
-              size: 14,
-              color: iconColor,
-            ),
-            const SizedBox(width: 5),
             Text(
               label,
               style: GBTTypography.labelMedium.copyWith(color: textColor),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: GBTSpacing.xs2),
             GestureDetector(
               onTap: onRemove,
               behavior: HitTestBehavior.opaque,
               child: Padding(
-                padding: const EdgeInsets.all(3),
-                child: Icon(
-                  Icons.close_rounded,
-                  size: 12,
-                  color: iconColor,
-                ),
+                padding: const EdgeInsets.all(2),
+                child: Icon(Icons.close_rounded, size: 14, color: iconColor),
               ),
             ),
           ],
@@ -617,6 +629,216 @@ class _RecentChip extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DiscoverySectionHeader extends StatelessWidget {
+  const _DiscoverySectionHeader({required this.title, required this.trailing});
+
+  final String title;
+  final String trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Row(
+      children: [
+        Text(
+          title,
+          style: GBTTypography.headlineMedium.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          trailing,
+          style: GBTTypography.bodyMedium.copyWith(
+            color: isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DiscoveryRankRow extends StatelessWidget {
+  const _DiscoveryRankRow({
+    required this.rank,
+    required this.title,
+    required this.onTap,
+  });
+
+  final int rank;
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final rankColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 24,
+              child: Text(
+                '$rank',
+                style: GBTTypography.titleSmall.copyWith(
+                  color: rankColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: GBTSpacing.md),
+            Expanded(
+              child: Text(
+                title,
+                style: GBTTypography.titleMedium.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DiscoveryQuickRow extends StatelessWidget {
+  const _DiscoveryQuickRow({
+    required this.rank,
+    required this.subtitle,
+    required this.title,
+    required this.trailing,
+    required this.onTap,
+  });
+
+  final int rank;
+  final String subtitle;
+  final String title;
+  final String trailing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final rankColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    final subtitleColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm2),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 24,
+              child: Text(
+                '$rank',
+                style: GBTTypography.headlineSmall.copyWith(
+                  color: rankColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: GBTSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    subtitle,
+                    style: GBTTypography.bodySmall.copyWith(
+                      color: subtitleColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    title,
+                    style: GBTTypography.titleMedium.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: GBTSpacing.sm),
+            Text(
+              trailing,
+              style: GBTTypography.headlineSmall.copyWith(
+                color: const Color(0xFF4E96FF),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExploreTopicChip extends StatelessWidget {
+  const _ExploreTopicChip({
+    required this.label,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: GBTSpacing.md,
+          vertical: GBTSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: isDark
+              ? GBTColors.darkSurfaceVariant
+              : GBTColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
+        ),
+        child: Text(
+          label,
+          style: GBTTypography.titleSmall.copyWith(fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+}
+
+class _DiscoveryQuickItem {
+  const _DiscoveryQuickItem({
+    required this.subtitle,
+    required this.title,
+    required this.query,
+    required this.contentCount,
+  });
+
+  final String subtitle;
+  final String title;
+  final String query;
+  final int contentCount;
 }
 
 // ============================================================
@@ -628,15 +850,11 @@ class _SearchResults extends StatelessWidget {
   const _SearchResults({
     required this.query,
     required this.state,
-    required this.scopedToCurrentProject,
-    required this.projectScopeLabel,
     required this.onRetry,
   });
 
   final String query;
   final AsyncValue<List<SearchItem>> state;
-  final bool scopedToCurrentProject;
-  final String? projectScopeLabel;
   final VoidCallback onRetry;
 
   @override
@@ -677,7 +895,7 @@ class _SearchResults extends StatelessWidget {
               ),
               error: (error, _) {
                 final message = error is Failure
-                    ? error.userMessage
+                    ? _errorDisplayText(error)
                     : context.l10n(
                         ko: '검색 결과를 불러오지 못했어요',
                         en: 'Failed to load search results',
@@ -715,6 +933,14 @@ class _SearchResults extends StatelessWidget {
       ),
     );
   }
+}
+
+String _errorDisplayText(Failure failure) {
+  final code = failure.code?.trim();
+  if (code != null && code.isNotEmpty) {
+    return '[$code] ${failure.message}';
+  }
+  return failure.message;
 }
 
 class _SearchResultList extends StatelessWidget {
@@ -972,27 +1198,24 @@ IconData _typeIcon(SearchItemType type) {
 /// KO: 검색 아이템 타입별 강조 색상 — 구분 가능하고 접근성 있는 색상.
 Color _typeAccentColor(SearchItemType type, {required bool isDark}) {
   return switch (type) {
-    SearchItemType.place => isDark
-        ? const Color(0xFF2DD4BF)
-        : GBTColors.accentTeal,     // teal — location
-    SearchItemType.liveEvent => isDark
-        ? GBTColors.darkSecondary
-        : GBTColors.secondary,      // pink — live event
-    SearchItemType.news => isDark
-        ? const Color(0xFF60A5FA)
-        : GBTColors.accentBlue,     // blue — news
-    SearchItemType.post => isDark
-        ? GBTColors.darkPrimary
-        : GBTColors.primary,        // indigo — community
-    SearchItemType.unit => isDark
-        ? const Color(0xFFFBBF24)
-        : GBTColors.accent,         // amber — unit/band
-    SearchItemType.project => isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary,
-    SearchItemType.unknown => isDark
-        ? GBTColors.darkTextTertiary
-        : GBTColors.textTertiary,
+    SearchItemType.place =>
+      isDark
+          ? const Color(0xFF2DD4BF)
+          : GBTColors.accentTeal, // teal — location
+    SearchItemType.liveEvent =>
+      isDark
+          ? GBTColors.darkSecondary
+          : GBTColors.secondary, // pink — live event
+    SearchItemType.news =>
+      isDark ? const Color(0xFF60A5FA) : GBTColors.accentBlue, // blue — news
+    SearchItemType.post =>
+      isDark ? GBTColors.darkPrimary : GBTColors.primary, // indigo — community
+    SearchItemType.unit =>
+      isDark ? const Color(0xFFFBBF24) : GBTColors.accent, // amber — unit/band
+    SearchItemType.project =>
+      isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
+    SearchItemType.unknown =>
+      isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
   };
 }
 

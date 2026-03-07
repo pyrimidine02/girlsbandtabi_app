@@ -40,11 +40,19 @@ abstract class FeedRepository {
     int size = 20,
   });
 
-  /// EN: Get integrated community feed by cursor.
-  /// KO: 통합 커뮤니티 피드를 커서 기반으로 가져옵니다.
-  Future<Result<PostCursorPage>> getCommunityFeedByCursor({
+  /// EN: Get global recommended community feed by cursor.
+  /// KO: 전역 추천 커뮤니티 피드를 커서 기반으로 가져옵니다.
+  Future<Result<PostCursorPage>> getCommunityRecommendedFeedByCursor({
     String? cursor,
     int size = 20,
+  });
+
+  /// EN: Get global recommended community feed by page.
+  /// KO: 전역 추천 커뮤니티 피드를 페이지 기반으로 가져옵니다.
+  Future<Result<List<PostSummary>>> getCommunityRecommendedFeed({
+    int page = 0,
+    int size = 20,
+    String sort = 'createdAt,desc',
   });
 
   /// EN: Get following-only community feed by cursor.
@@ -94,6 +102,14 @@ abstract class FeedRepository {
     required String title,
     required String content,
     List<String> imageUploadIds = const [],
+    String? topic,
+    List<String> tags = const [],
+  });
+
+  /// EN: Get compose metadata options (topics/tags).
+  /// KO: 작성 메타데이터 옵션(토픽/태그)을 조회합니다.
+  Future<Result<PostComposeOptions>> getPostComposeOptions({
+    bool forceRefresh = false,
   });
 
   /// EN: Update a community post.
@@ -103,6 +119,8 @@ abstract class FeedRepository {
     required String postId,
     required String title,
     required String content,
+    String? topic,
+    List<String> tags = const [],
   });
 
   /// EN: Delete a community post.

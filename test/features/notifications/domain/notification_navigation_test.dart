@@ -9,6 +9,10 @@ void main() {
       notificationTypePostCreated,
     );
     expect(
+      normalizeNotificationType('FOLLOWING_POST_CREATED'),
+      notificationTypePostCreated,
+    );
+    expect(
       normalizeNotificationType('SYSTEM_BROADCAST'),
       notificationTypeSystemNotice,
     );
@@ -49,10 +53,44 @@ void main() {
   );
 
   test(
+    'resolveNotificationNavigationPath prioritizes deeplink over actionUrl',
+    () {
+      final path = resolveNotificationNavigationPath(
+        type: 'SYSTEM_NOTICE',
+        deeplink: '/board/posts/abc-123',
+        actionUrl: '/notifications',
+      );
+      expect(path, '/board/posts/abc-123');
+    },
+  );
+
+  test(
     'resolveNotificationNavigationPath routes POST_CREATED without post id to board',
     () {
       final path = resolveNotificationNavigationPath(type: 'POST_CREATED');
       expect(path, '/board');
+    },
+  );
+
+  test(
+    'resolveNotificationNavigationPath converts /community/posts to /board/posts',
+    () {
+      final path = resolveNotificationNavigationPath(
+        type: 'COMMENT_CREATED',
+        deeplink: '/community/posts/38f55757-6953-44d4-abb8-8ab0ec35003e',
+      );
+      expect(path, '/board/posts/38f55757-6953-44d4-abb8-8ab0ec35003e');
+    },
+  );
+
+  test(
+    'resolveNotificationNavigationPath routes comment-like types using entity id',
+    () {
+      final path = resolveNotificationNavigationPath(
+        type: 'COMMENT_REPLY_CREATED',
+        entityId: '38f55757-6953-44d4-abb8-8ab0ec35003e',
+      );
+      expect(path, '/board/posts/38f55757-6953-44d4-abb8-8ab0ec35003e');
     },
   );
 }

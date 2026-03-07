@@ -10,7 +10,7 @@ const String notificationTypeSystemNotice = 'SYSTEM_NOTICE';
 String normalizeNotificationType(String? rawType) {
   final upper = rawType?.trim().toUpperCase() ?? '';
   return switch (upper) {
-    'FOLLOWING_POST' => notificationTypePostCreated,
+    'FOLLOWING_POST' || 'FOLLOWING_POST_CREATED' => notificationTypePostCreated,
     'SYSTEM_BROADCAST' || 'SYSTEM' => notificationTypeSystemNotice,
     _ => upper,
   };
@@ -25,12 +25,10 @@ String? resolveNotificationNavigationPath({
   String? entityId,
 }) {
   final normalizedType = normalizeNotificationType(type);
-  final primaryLink = normalizedType == notificationTypeSystemNotice
-      ? _firstNonEmpty(actionUrl, deeplink)
-      : _firstNonEmpty(deeplink, actionUrl);
-  final secondaryLink = normalizedType == notificationTypeSystemNotice
-      ? _firstNonEmpty(deeplink, actionUrl)
-      : _firstNonEmpty(actionUrl, deeplink);
+  // EN: Contract v1.1.0 prefers deeplink over actionUrl for all types.
+  // KO: 계약 v1.1.0 기준으로 모든 타입에서 deeplink를 actionUrl보다 우선합니다.
+  final primaryLink = _firstNonEmpty(deeplink, actionUrl);
+  final secondaryLink = _firstNonEmpty(actionUrl, deeplink);
 
   final directPath =
       _resolveInAppPath(primaryLink) ?? _resolveInAppPath(secondaryLink);
@@ -42,13 +40,13 @@ String? resolveNotificationNavigationPath({
       _extractPostId(entityId) ??
       _extractPostId(primaryLink) ??
       _extractPostId(secondaryLink);
-  if (normalizedType == notificationTypePostCreated &&
+  if (_isPostScopedType(normalizedType) &&
       postId != null &&
       postId.isNotEmpty) {
     return '/board/posts/$postId';
   }
 
-  if (normalizedType == notificationTypePostCreated) {
+  if (_isPostScopedType(normalizedType)) {
     return '/board';
   }
 
@@ -107,6 +105,12 @@ String? _normalizePath(String rawPath, {String? query}) {
       }
     }
   }
+  if (path.startsWith('/community/posts/')) {
+    final postId = _extractPostId(path);
+    if (postId != null && postId.isNotEmpty) {
+      return _appendQuery('/board/posts/$postId', query);
+    }
+  }
 
   if (path == '/api/v1/notifications' || path == '/notifications') {
     return '/notifications';
@@ -163,4 +167,19 @@ String? _firstNonEmpty(String? first, String? second) {
     return second.trim();
   }
   return null;
+}
+
+bool _isPostScopedType(String normalizedType) {
+  if (normalizedType == notificationTypePostCreated) {
+    return true;
+  }
+  return switch (normalizedType) {
+    'COMMENT_CREATED' ||
+    'COMMENT_REPLY_CREATED' ||
+    'POST_LIKED' ||
+    'COMMUNITY_COMMENT' ||
+    'COMMUNITY_REPLY' ||
+    'COMMUNITY_LIKE' => true,
+    _ => false,
+  };
 }
