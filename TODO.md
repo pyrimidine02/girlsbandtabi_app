@@ -532,3 +532,7 @@
     redirect path should all land on expected tab/state.
   - remove `/live-attendance -> /visits?tab=live` redirect after one release
     cycle once no external deep-link dependency remains.
+- QA feed re-entry + write-refresh behavior on iOS/Android:
+  - leaving feed and re-entering `/board` should always fetch fresh community feed data.
+  - successful post/comment/reply submission should reflect in feed without manual pull-to-refresh.
+  - remove after QA confirms expected refresh timing and no duplicate loading flashes.

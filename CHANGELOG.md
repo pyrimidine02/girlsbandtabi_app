@@ -1464,3 +1464,13 @@
 - Validation:
   - `flutter analyze lib/core/providers/core_providers.dart lib/app.dart lib/shared/main_scaffold.dart lib/features/settings/presentation/pages/settings_page.dart lib/core/localization/locale_text.dart`
   - `flutter analyze`
+
+## 2026-03-08
+- Feed refresh behavior updates:
+  - Added forced refresh when entering the board feed section (`/board`) so re-entry always reloads latest items.
+  - Triggered community feed + project feed refresh immediately after successful post creation.
+  - Triggered community feed + project feed refresh immediately after successful comment/reply creation in post detail.
+- Feed card follow state update:
+  - Post card follow CTA now resolves current following relationships and displays `팔로잉` for already-followed authors.
+- Validation:
+  - `flutter analyze`

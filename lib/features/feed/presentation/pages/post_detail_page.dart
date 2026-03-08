@@ -2,6 +2,8 @@
 /// KO: 댓글을 포함한 커뮤니티 게시글 상세 페이지.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -142,6 +144,15 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       return;
     }
     _commentFocusNode.requestFocus();
+  }
+
+  Future<void> _refreshFeedAfterWrite() async {
+    await ref
+        .read(communityFeedControllerProvider.notifier)
+        .reload(forceRefresh: true);
+    await ref
+        .read(postListControllerProvider.notifier)
+        .load(forceRefresh: true);
   }
 
   @override
@@ -339,6 +350,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
             }
             if (result is Success<PostComment>) {
               _commentController.clear();
+              unawaited(_refreshFeedAfterWrite());
               if (context.mounted) {
                 _showSnackBar(
                   context,

@@ -919,6 +919,9 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
 
     if (result case Success<PostDetail>(:final data)) {
       await ref
+          .read(communityFeedControllerProvider.notifier)
+          .reload(forceRefresh: true);
+      await ref
           .read(postListControllerProvider.notifier)
           .load(forceRefresh: true);
       await _autosaveController.clearSavedDraft(silent: true);
