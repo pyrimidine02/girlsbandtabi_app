@@ -609,6 +609,10 @@
     `FIREBASE_IOS_STORAGE_BUCKET` (optional).
   - confirm archive logs include
     `Generated GoogleService-Info.plist ...` line in `ci_post_clone.sh`.
+- Verify Xcode Cloud post-clone script discovery:
+  - ensure workflow executes either root `ci_post_clone.sh` or
+    `ci_scripts/ci_post_clone.sh` (both now supported).
+  - confirm logs include `flutter pub get` and `pod install --repo-update`.
 - QA home by-project summary integration:
   - verify project switch uses by-project payload first and falls back to
     single-summary endpoint only on errors/missing row.
