@@ -94,3 +94,21 @@ flutter run \
    - foreground display behavior
    - background push receipt
    - notification tap deep-link routing
+
+## 7) Xcode Cloud note (plist injection)
+
+`GoogleService-Info.plist` is git-ignored in this repository.  
+Xcode Cloud must inject/create it during post-clone script execution
+(`ci_post_clone.sh` / `ci_scripts/ci_post_clone.sh`).
+
+Supported secret inputs (priority order):
+
+1. `GOOGLE_SERVICE_INFO_PLIST` (raw full plist text)
+2. `GOOGLE_SERVICE_INFO_PLIST_B64` (base64 full plist)
+3. `FIREBASE_IOS_*` values:
+   - `FIREBASE_IOS_API_KEY`
+   - `FIREBASE_IOS_APP_ID`
+   - `FIREBASE_IOS_MESSAGING_SENDER_ID`
+   - `FIREBASE_IOS_PROJECT_ID`
+   - `FIREBASE_IOS_BUNDLE_ID`
+   - `FIREBASE_IOS_STORAGE_BUCKET` (optional)

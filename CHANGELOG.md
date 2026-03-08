@@ -13,6 +13,11 @@
     - `Build input file cannot be found: .../ios/Runner/GoogleService-Info.plist`
   - Validation:
     - `bash -n ci_post_clone.sh`
+- **XCODE CLOUD SCRIPT PATH COMPATIBILITY**:
+  - Added `ci_scripts/ci_post_clone.sh` wrapper that forwards to root
+    `ci_post_clone.sh`, so both script discovery patterns are supported.
+  - Added Xcode Cloud plist injection note to
+    `docs/dev/fcm_apns_enablement_guide_20260308.md`.
 
 ## 2026-03-08
 - **ANDROID VERSIONCODE AUTO-INCREMENT + INTERNAL BUILD SCRIPT**:
