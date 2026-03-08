@@ -10,16 +10,21 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import 'core/constants/legal_policy_constants.dart';
 import 'core/connectivity/connectivity_service.dart';
 import 'core/localization/locale_text.dart';
 import 'core/notifications/local_notifications_service.dart';
 import 'core/providers/core_providers.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/gbt_colors.dart';
+import 'core/theme/gbt_spacing.dart';
+import 'core/theme/gbt_typography.dart';
 import 'core/theme/gbt_theme.dart';
 import 'features/notifications/application/notifications_controller.dart';
 import 'features/notifications/domain/entities/notification_navigation.dart';
+import 'features/settings/application/mandatory_consent_controller.dart';
 
 /// EN: Main application widget
 /// KO: 메인 앱 위젯
@@ -129,9 +134,11 @@ class GBTApp extends ConsumerWidget {
               onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
               child: DecoratedBox(
                 decoration: BoxDecoration(gradient: backgroundGradient),
-                child: _NotificationsLifecycleBridge(
-                  child: _ConnectivityWrapper(
-                    child: child ?? const SizedBox.shrink(),
+                child: _MandatoryConsentGate(
+                  child: _NotificationsLifecycleBridge(
+                    child: _ConnectivityWrapper(
+                      child: child ?? const SizedBox.shrink(),
+                    ),
                   ),
                 ),
               ),
@@ -176,6 +183,280 @@ class GBTApp extends ConsumerWidget {
       router.go(targetPath);
     }
     unawaited(notifier.refreshInBackground(minInterval: Duration.zero));
+  }
+}
+
+/// EN: Mandatory consent gate overlay for authenticated users.
+/// KO: 인증 사용자 대상 필수 동의 게이트 오버레이입니다.
+class _MandatoryConsentGate extends ConsumerWidget {
+  const _MandatoryConsentGate({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isAuthenticated = ref.watch(isAuthenticatedProvider);
+    final state = ref.watch(mandatoryConsentControllerProvider);
+
+    final shouldBlockForLoading =
+        isAuthenticated && state.isLoading && !state.isRequired;
+    final shouldShowConsentOverlay = isAuthenticated && state.isRequired;
+
+    if (!shouldBlockForLoading && !shouldShowConsentOverlay) {
+      return child;
+    }
+
+    return Stack(
+      children: [
+        child,
+        Positioned.fill(
+          child: ColoredBox(
+            color: shouldShowConsentOverlay
+                ? Colors.black.withValues(alpha: 0.55)
+                : Colors.black.withValues(alpha: 0.1),
+            child: shouldShowConsentOverlay
+                ? SafeArea(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(GBTSpacing.md),
+                        child: _MandatoryConsentOverlay(
+                          missingTypes: state.missingTypes,
+                        ),
+                      ),
+                    ),
+                  )
+                : const Center(child: CircularProgressIndicator()),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MandatoryConsentOverlay extends ConsumerStatefulWidget {
+  const _MandatoryConsentOverlay({required this.missingTypes});
+
+  final Set<RequiredConsentType> missingTypes;
+
+  @override
+  ConsumerState<_MandatoryConsentOverlay> createState() =>
+      _MandatoryConsentOverlayState();
+}
+
+class _MandatoryConsentOverlayState
+    extends ConsumerState<_MandatoryConsentOverlay> {
+  late bool _agreeTerms;
+  late bool _agreePrivacy;
+
+  @override
+  void initState() {
+    super.initState();
+    _agreeTerms = !widget.missingTypes.contains(
+      RequiredConsentType.termsOfService,
+    );
+    _agreePrivacy = !widget.missingTypes.contains(
+      RequiredConsentType.privacyPolicy,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _MandatoryConsentOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.missingTypes != widget.missingTypes) {
+      _agreeTerms = !widget.missingTypes.contains(
+        RequiredConsentType.termsOfService,
+      );
+      _agreePrivacy = !widget.missingTypes.contains(
+        RequiredConsentType.privacyPolicy,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(mandatoryConsentControllerProvider);
+    final canSubmit = _agreeTerms && _agreePrivacy && !state.isSubmitting;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final terms = LegalPolicyConstants.byType(LegalPolicyType.termsOfService);
+    final privacy = LegalPolicyConstants.byType(LegalPolicyType.privacyPolicy);
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 520),
+      child: Material(
+        color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface,
+        elevation: 10,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        child: Padding(
+          padding: const EdgeInsets.all(GBTSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                context.l10n(
+                  ko: '서비스 이용을 위해 동의가 필요해요',
+                  en: 'Consent is required to continue',
+                  ja: 'サービス利用には同意が必要です',
+                ),
+                style: GBTTypography.titleSmall.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: GBTSpacing.sm),
+              Text(
+                context.l10n(
+                  ko: '이용약관과 개인정보 처리방침 동의 전에는 앱을 사용할 수 없습니다.',
+                  en: 'You cannot use the app until required consents are accepted.',
+                  ja: '必須同意前はアプリを利用できません。',
+                ),
+                style: GBTTypography.bodySmall,
+              ),
+              const SizedBox(height: GBTSpacing.md),
+              _MandatoryConsentCheckTile(
+                title: context.l10n(
+                  ko: '이용약관 동의 (필수)',
+                  en: 'Terms of service (required)',
+                  ja: '利用規約への同意（必須）',
+                ),
+                version: terms.version,
+                checked: _agreeTerms,
+                onChanged: (value) {
+                  setState(() => _agreeTerms = value ?? false);
+                },
+                onOpenPolicy: () => _openPolicy(context, terms.url),
+              ),
+              const SizedBox(height: GBTSpacing.xs),
+              _MandatoryConsentCheckTile(
+                title: context.l10n(
+                  ko: '개인정보 처리방침 동의 (필수)',
+                  en: 'Privacy policy (required)',
+                  ja: 'プライバシーポリシーへの同意（必須）',
+                ),
+                version: privacy.version,
+                checked: _agreePrivacy,
+                onChanged: (value) {
+                  setState(() => _agreePrivacy = value ?? false);
+                },
+                onOpenPolicy: () => _openPolicy(context, privacy.url),
+              ),
+              if (state.errorMessage != null) ...[
+                const SizedBox(height: GBTSpacing.sm),
+                Text(
+                  state.errorMessage!,
+                  style: GBTTypography.bodySmall.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ],
+              const SizedBox(height: GBTSpacing.md),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: canSubmit ? _submit : null,
+                  child: state.isSubmitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(
+                          context.l10n(
+                            ko: '동의하고 계속',
+                            en: 'Agree and continue',
+                            ja: '同意して続行',
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submit() async {
+    await ref
+        .read(mandatoryConsentControllerProvider.notifier)
+        .submitRequiredConsents(
+          agreeTermsOfService: _agreeTerms,
+          agreePrivacyPolicy: _agreePrivacy,
+        );
+  }
+
+  Future<void> _openPolicy(BuildContext context, String rawUrl) async {
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null) return;
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!context.mounted || opened) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.l10n(
+            ko: '정책 문서를 열 수 없습니다.',
+            en: 'Unable to open policy document.',
+            ja: 'ポリシー文書を開けません。',
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MandatoryConsentCheckTile extends StatelessWidget {
+  const _MandatoryConsentCheckTile({
+    required this.title,
+    required this.version,
+    required this.checked,
+    required this.onChanged,
+    required this.onOpenPolicy,
+  });
+
+  final String title;
+  final String version;
+  final bool checked;
+  final ValueChanged<bool?> onChanged;
+  final VoidCallback onOpenPolicy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Theme.of(
+            context,
+          ).colorScheme.outlineVariant.withValues(alpha: 0.7),
+        ),
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+      ),
+      child: Row(
+        children: [
+          Checkbox(value: checked, onChanged: onChanged),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: GBTTypography.bodySmall),
+                  const SizedBox(height: 2),
+                  Text(
+                    version,
+                    style: GBTTypography.labelSmall.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onOpenPolicy,
+            child: Text(context.l10n(ko: '보기', en: 'View', ja: '表示')),
+          ),
+        ],
+      ),
+    );
   }
 }
 

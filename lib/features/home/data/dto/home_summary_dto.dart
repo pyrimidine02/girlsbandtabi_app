@@ -2,24 +2,65 @@
 /// KO: 서버 응답 스키마에 맞춘 홈 요약 DTO.
 library;
 
-/// EN: Home summary returned from the /api/v1/home/summary endpoint.
-/// KO: /api/v1/home/summary 엔드포인트에서 반환되는 홈 요약.
+/// EN: Per-project payload from /api/v1/home/summary/by-project.
+/// KO: /api/v1/home/summary/by-project 의 프로젝트별 payload 입니다.
+class HomeSummaryByProjectItemDto {
+  const HomeSummaryByProjectItemDto({
+    required this.projectId,
+    required this.projectCode,
+    required this.summary,
+  });
+
+  final String projectId;
+  final String projectCode;
+  final HomeSummaryDto summary;
+
+  factory HomeSummaryByProjectItemDto.fromJson(Map<String, dynamic> json) {
+    return HomeSummaryByProjectItemDto(
+      projectId: json['projectId'] as String? ?? '',
+      projectCode: json['projectCode'] as String? ?? '',
+      summary: HomeSummaryDto.fromJson(_map(json['summary'])),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'projectId': projectId,
+      'projectCode': projectCode,
+      'summary': summary.toJson(),
+    };
+  }
+
+  HomeSummaryByProjectItemDto copyWith({
+    String? projectId,
+    String? projectCode,
+    HomeSummaryDto? summary,
+  }) {
+    return HomeSummaryByProjectItemDto(
+      projectId: projectId ?? this.projectId,
+      projectCode: projectCode ?? this.projectCode,
+      summary: summary ?? this.summary,
+    );
+  }
+}
+
+/// EN: Home summary returned from /api/v1/home/summary.
+/// KO: /api/v1/home/summary 에서 반환되는 홈 요약입니다.
 ///
-/// EN: The server returns lightweight summary items (not the full
-/// PlaceSummaryDto / LiveEventSummaryDto / NewsSummaryDto), so we
-/// use dedicated inner DTOs that match the actual response shape.
-/// KO: 서버는 경량 요약 항목을 반환하므로(전체 DTO가 아님),
-/// 실제 응답 형태에 맞는 전용 내부 DTO를 사용합니다.
+/// EN: The server returns lightweight summary items (not full detail DTOs).
+/// KO: 서버는 경량 요약 항목을 반환합니다(상세 DTO 아님).
 class HomeSummaryDto {
   const HomeSummaryDto({
     required this.recommendedPlaces,
     required this.trendingLiveEvents,
     required this.latestNews,
+    this.metadata = const HomeSummaryMetadataDto(),
   });
 
   final List<HomeRecommendedPlaceDto> recommendedPlaces;
   final List<HomeTrendingLiveEventDto> trendingLiveEvents;
   final List<HomeLatestNewsDto> latestNews;
+  final HomeSummaryMetadataDto metadata;
 
   factory HomeSummaryDto.fromJson(Map<String, dynamic> json) {
     return HomeSummaryDto(
@@ -32,6 +73,7 @@ class HomeSummaryDto {
         HomeTrendingLiveEventDto.fromJson,
       ),
       latestNews: _parseList(json['latestNews'], HomeLatestNewsDto.fromJson),
+      metadata: HomeSummaryMetadataDto.fromJson(_map(json['metadata'])),
     );
   }
 
@@ -40,6 +82,105 @@ class HomeSummaryDto {
       'recommendedPlaces': recommendedPlaces.map((e) => e.toJson()).toList(),
       'trendingLiveEvents': trendingLiveEvents.map((e) => e.toJson()).toList(),
       'latestNews': latestNews.map((e) => e.toJson()).toList(),
+      'metadata': metadata.toJson(),
+    };
+  }
+
+  HomeSummaryDto copyWith({
+    List<HomeRecommendedPlaceDto>? recommendedPlaces,
+    List<HomeTrendingLiveEventDto>? trendingLiveEvents,
+    List<HomeLatestNewsDto>? latestNews,
+    HomeSummaryMetadataDto? metadata,
+  }) {
+    return HomeSummaryDto(
+      recommendedPlaces: recommendedPlaces ?? this.recommendedPlaces,
+      trendingLiveEvents: trendingLiveEvents ?? this.trendingLiveEvents,
+      latestNews: latestNews ?? this.latestNews,
+      metadata: metadata ?? this.metadata,
+    );
+  }
+}
+
+/// EN: Metadata for source diagnostics and fallback visibility.
+/// KO: 원천 데이터 진단과 폴백 여부를 위한 메타데이터입니다.
+class HomeSummaryMetadataDto {
+  const HomeSummaryMetadataDto({
+    this.sourceCounts = const HomeSourceCountsDto(),
+    this.fallbackApplied = const HomeFallbackAppliedDto(),
+  });
+
+  final HomeSourceCountsDto sourceCounts;
+  final HomeFallbackAppliedDto fallbackApplied;
+
+  factory HomeSummaryMetadataDto.fromJson(Map<String, dynamic> json) {
+    return HomeSummaryMetadataDto(
+      sourceCounts: HomeSourceCountsDto.fromJson(_map(json['sourceCounts'])),
+      fallbackApplied: HomeFallbackAppliedDto.fromJson(
+        _map(json['fallbackApplied']),
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'sourceCounts': sourceCounts.toJson(),
+      'fallbackApplied': fallbackApplied.toJson(),
+    };
+  }
+}
+
+/// EN: Server-reported source counts for home sections.
+/// KO: 홈 섹션별 서버 원천 데이터 개수입니다.
+class HomeSourceCountsDto {
+  const HomeSourceCountsDto({
+    this.places = 0,
+    this.liveEvents = 0,
+    this.news = 0,
+  });
+
+  final int places;
+  final int liveEvents;
+  final int news;
+
+  factory HomeSourceCountsDto.fromJson(Map<String, dynamic> json) {
+    return HomeSourceCountsDto(
+      places: _int(json['places']),
+      liveEvents: _int(json['liveEvents'] ?? json['live_events']),
+      news: _int(json['news']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'places': places, 'liveEvents': liveEvents, 'news': news};
+  }
+}
+
+/// EN: Flags that indicate whether server fallback logic was used.
+/// KO: 서버 폴백 로직 사용 여부를 나타내는 플래그입니다.
+class HomeFallbackAppliedDto {
+  const HomeFallbackAppliedDto({
+    this.recommendedPlaces = false,
+    this.trendingLiveEvents = false,
+  });
+
+  final bool recommendedPlaces;
+  final bool trendingLiveEvents;
+
+  factory HomeFallbackAppliedDto.fromJson(Map<String, dynamic> json) {
+    return HomeFallbackAppliedDto(
+      recommendedPlaces: _bool(
+        json['recommendedPlaces'] ?? json['recommended_places'],
+      ),
+      trendingLiveEvents: _bool(
+        json['trendingLiveEvents'] ?? json['trending_live_events'],
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'recommendedPlaces': recommendedPlaces,
+      'trendingLiveEvents': trendingLiveEvents,
     };
   }
 }
@@ -51,11 +192,6 @@ class HomeSummaryDto {
 
 /// EN: Lightweight place item returned by the home summary endpoint.
 /// KO: 홈 요약 엔드포인트에서 반환되는 경량 장소 항목.
-///
-/// Server response shape:
-/// ```json
-/// { "id": "uuid", "name": "장소명", "count": 5 }
-/// ```
 class HomeRecommendedPlaceDto {
   const HomeRecommendedPlaceDto({
     required this.id,
@@ -113,16 +249,6 @@ class HomeRecommendedPlaceDto {
 
 /// EN: Lightweight live event item from the home summary endpoint.
 /// KO: 홈 요약 엔드포인트에서 반환되는 경량 라이브 이벤트 항목.
-///
-/// Server response shape:
-/// ```json
-/// {
-///   "id": "uuid", "title": "...", "startTime": "...",
-///   "showStartTime": "...", "doorsOpenTime": null,
-///   "ticketUrl": null, "projectIds": ["uuid"],
-///   "bannerUrl": "https://..." (optional)
-/// }
-/// ```
 class HomeTrendingLiveEventDto {
   const HomeTrendingLiveEventDto({
     required this.id,
@@ -143,8 +269,8 @@ class HomeTrendingLiveEventDto {
   final String? ticketUrl;
   final List<String> projectIds;
 
-  // EN: Poster/banner image URL — tries multiple field names for compatibility.
-  // KO: 포스터/배너 이미지 URL — 호환성을 위해 여러 필드명을 시도합니다.
+  // EN: Poster/banner image URL.
+  // KO: 포스터/배너 이미지 URL.
   final String? bannerUrl;
 
   factory HomeTrendingLiveEventDto.fromJson(Map<String, dynamic> json) {
@@ -161,8 +287,6 @@ class HomeTrendingLiveEventDto {
       json['start_time'],
     ]);
 
-    // EN: Accept several field names the server may use for the poster image.
-    // KO: 서버가 포스터 이미지에 사용할 수 있는 여러 필드명을 허용합니다.
     final rawBannerUrl = _firstNonEmptyString([
       json['bannerUrl'],
       json['banner_url'],
@@ -212,6 +336,28 @@ class HomeTrendingLiveEventDto {
       if (bannerUrl != null) 'bannerUrl': bannerUrl,
     };
   }
+
+  HomeTrendingLiveEventDto copyWith({
+    String? id,
+    String? title,
+    DateTime? startTime,
+    DateTime? showStartTime,
+    DateTime? doorsOpenTime,
+    String? ticketUrl,
+    List<String>? projectIds,
+    String? bannerUrl,
+  }) {
+    return HomeTrendingLiveEventDto(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      startTime: startTime ?? this.startTime,
+      showStartTime: showStartTime ?? this.showStartTime,
+      doorsOpenTime: doorsOpenTime ?? this.doorsOpenTime,
+      ticketUrl: ticketUrl ?? this.ticketUrl,
+      projectIds: projectIds ?? this.projectIds,
+      bannerUrl: bannerUrl ?? this.bannerUrl,
+    );
+  }
 }
 
 // ========================================
@@ -221,11 +367,6 @@ class HomeTrendingLiveEventDto {
 
 /// EN: Lightweight news item from the home summary endpoint.
 /// KO: 홈 요약 엔드포인트에서 반환되는 경량 뉴스 항목.
-///
-/// Server response shape:
-/// ```json
-/// { "id": "uuid", "title": "..." }
-/// ```
 class HomeLatestNewsDto {
   const HomeLatestNewsDto({
     required this.id,
@@ -286,11 +427,40 @@ List<T> _parseList<T>(dynamic raw, T Function(Map<String, dynamic>) parser) {
   return raw.whereType<Map<String, dynamic>>().map(parser).toList();
 }
 
+Map<String, dynamic> _map(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  return const <String, dynamic>{};
+}
+
 int _int(dynamic value) {
   if (value is int) return value;
   if (value is num) return value.toInt();
   if (value is String) return int.tryParse(value) ?? 0;
   return 0;
+}
+
+bool _bool(dynamic value) {
+  if (value is bool) {
+    return value;
+  }
+  if (value is String) {
+    switch (value.trim().toLowerCase()) {
+      case 'true':
+      case '1':
+      case 'yes':
+        return true;
+      case 'false':
+      case '0':
+      case 'no':
+        return false;
+    }
+  }
+  if (value is num) {
+    return value != 0;
+  }
+  return false;
 }
 
 DateTime _dateTime(dynamic value) {

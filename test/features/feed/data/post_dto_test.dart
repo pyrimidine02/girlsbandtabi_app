@@ -71,6 +71,52 @@ void main() {
     expect(dto.imageUrls, ['https://example.com/thumb.webp']);
   });
 
+  test('PostSummaryDto trims and filters invalid image URL entries', () {
+    final json = {
+      'id': 'post-alt-3',
+      'projectId': 'proj-1',
+      'authorId': 'user-1',
+      'title': 'sanitize image urls',
+      'createdAt': '2026-03-07T00:00:00Z',
+      'imageUrls': [
+        '   ',
+        'null',
+        ' https://example.com/a.webp ',
+        {'file_url': ' https://example.com/b.webp '},
+        {'cdn_url': 'null'},
+      ],
+    };
+
+    final dto = PostSummaryDto.fromJson(json);
+    expect(dto.imageUrls, [
+      'https://example.com/a.webp',
+      'https://example.com/b.webp',
+    ]);
+  });
+
+  test(
+    'PostSummaryDto falls back to thumbnail when image array has only invalid entries',
+    () {
+      final json = {
+        'id': 'post-alt-4',
+        'projectId': 'proj-1',
+        'authorId': 'user-1',
+        'title': 'thumbnail fallback from invalid image list',
+        'createdAt': '2026-03-07T00:00:00Z',
+        'thumbnailUrl': 'https://example.com/thumb.webp',
+        'imageUrls': [
+          ' ',
+          'null',
+          {'url': 'null'},
+        ],
+      };
+
+      final dto = PostSummaryDto.fromJson(json);
+      expect(dto.thumbnailUrl, 'https://example.com/thumb.webp');
+      expect(dto.imageUrls, ['https://example.com/thumb.webp']);
+    },
+  );
+
   test('PostDetailDto parses swagger keys', () {
     final json = {
       'id': 'post-2',

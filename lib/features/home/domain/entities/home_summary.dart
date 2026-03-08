@@ -12,16 +12,28 @@ class HomeSummary {
     required this.recommendedPlaces,
     required this.trendingLiveEvents,
     required this.latestNews,
+    required this.metadata,
   });
 
   final List<HomePlaceItem> recommendedPlaces;
   final List<HomeEventItem> trendingLiveEvents;
   final List<HomeNewsItem> latestNews;
+  final HomeSummaryMetadata metadata;
 
   bool get isEmpty =>
       recommendedPlaces.isEmpty &&
       trendingLiveEvents.isEmpty &&
       latestNews.isEmpty;
+
+  /// EN: Show hard empty only when both cards and source rows are all empty.
+  /// KO: 카드/원천 데이터가 모두 없을 때만 완전 빈 상태를 노출합니다.
+  bool get shouldShowNoContentEmptyState =>
+      isEmpty && metadata.sourceCounts.isAllZero;
+
+  /// EN: Show soft empty when cards are empty but source rows exist.
+  /// KO: 카드가 비어도 원천 데이터가 있으면 소프트 빈 상태를 노출합니다.
+  bool get shouldShowFilteredEmptyState =>
+      isEmpty && !metadata.sourceCounts.isAllZero;
 
   factory HomeSummary.fromDto(HomeSummaryDto dto) {
     return HomeSummary(
@@ -34,6 +46,90 @@ class HomeSummary {
       latestNews: dto.latestNews
           .map((item) => HomeNewsItem.fromDto(item))
           .toList(),
+      metadata: HomeSummaryMetadata.fromDto(dto.metadata),
+    );
+  }
+}
+
+class HomeSummaryByProjectItem {
+  const HomeSummaryByProjectItem({
+    required this.projectId,
+    required this.projectCode,
+    required this.summary,
+  });
+
+  final String projectId;
+  final String projectCode;
+  final HomeSummary summary;
+
+  bool matchesProject(String? projectIdentifier) {
+    if (projectIdentifier == null || projectIdentifier.isEmpty) {
+      return false;
+    }
+    return projectIdentifier == projectId || projectIdentifier == projectCode;
+  }
+
+  factory HomeSummaryByProjectItem.fromDto(HomeSummaryByProjectItemDto dto) {
+    return HomeSummaryByProjectItem(
+      projectId: dto.projectId,
+      projectCode: dto.projectCode,
+      summary: HomeSummary.fromDto(dto.summary),
+    );
+  }
+}
+
+class HomeSummaryMetadata {
+  const HomeSummaryMetadata({
+    required this.sourceCounts,
+    required this.fallbackApplied,
+  });
+
+  final HomeSourceCounts sourceCounts;
+  final HomeFallbackApplied fallbackApplied;
+
+  factory HomeSummaryMetadata.fromDto(HomeSummaryMetadataDto dto) {
+    return HomeSummaryMetadata(
+      sourceCounts: HomeSourceCounts.fromDto(dto.sourceCounts),
+      fallbackApplied: HomeFallbackApplied.fromDto(dto.fallbackApplied),
+    );
+  }
+}
+
+class HomeSourceCounts {
+  const HomeSourceCounts({
+    required this.places,
+    required this.liveEvents,
+    required this.news,
+  });
+
+  final int places;
+  final int liveEvents;
+  final int news;
+
+  bool get isAllZero => places == 0 && liveEvents == 0 && news == 0;
+
+  factory HomeSourceCounts.fromDto(HomeSourceCountsDto dto) {
+    return HomeSourceCounts(
+      places: dto.places,
+      liveEvents: dto.liveEvents,
+      news: dto.news,
+    );
+  }
+}
+
+class HomeFallbackApplied {
+  const HomeFallbackApplied({
+    required this.recommendedPlaces,
+    required this.trendingLiveEvents,
+  });
+
+  final bool recommendedPlaces;
+  final bool trendingLiveEvents;
+
+  factory HomeFallbackApplied.fromDto(HomeFallbackAppliedDto dto) {
+    return HomeFallbackApplied(
+      recommendedPlaces: dto.recommendedPlaces,
+      trendingLiveEvents: dto.trendingLiveEvents,
     );
   }
 }

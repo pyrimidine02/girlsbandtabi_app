@@ -82,6 +82,7 @@ class ApiEndpoints {
   // KO: 홈/검색 엔드포인트 (8.4)
   // ============================================================
   static const String homeSummary = '$apiVersion/home/summary';
+  static const String homeSummaryByProject = '$homeSummary/by-project';
   static const String search = '$apiVersion/search';
   static const String searchDiscoveryPopular =
       '$apiVersion/search/discovery/popular';
@@ -325,6 +326,8 @@ class ApiEndpoints {
       '$apiVersion/community/events/stream';
   static const String communitySubscriptions =
       '$apiVersion/community/subscriptions';
+  static const String communityTranslations =
+      '$apiVersion/community/translations';
 
   // EN: Community reports endpoints.
   // KO: 커뮤니티 신고 엔드포인트.

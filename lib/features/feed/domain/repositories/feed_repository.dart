@@ -95,6 +95,14 @@ abstract class FeedRepository {
     bool forceRefresh = false,
   });
 
+  /// EN: Translate community content on demand.
+  /// KO: 커뮤니티 콘텐츠를 요청 시점에 번역합니다.
+  Future<Result<CommunityTranslation>> translateCommunityText({
+    required String text,
+    required String targetLanguage,
+    String? sourceLanguage,
+  });
+
   /// EN: Create a community post.
   /// KO: 커뮤니티 게시글을 생성합니다.
   Future<Result<PostDetail>> createPost({

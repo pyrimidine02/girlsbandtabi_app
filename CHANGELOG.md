@@ -1,6 +1,88 @@
 # Changelog
 
 ## 2026-03-08
+- **COMMUNITY ON-DEMAND TRANSLATION API INTEGRATION (v1.0.0)**:
+  - Added endpoint wiring for requested translation contract:
+    - `POST /api/v1/community/translations`
+  - Added community translation DTO/domain/repository flow:
+    - `CommunityTranslationRequestDto`, `CommunityTranslationDto`
+    - `FeedRepository.translateCommunityText(...)`
+    - `FeedRemoteDataSource.translateCommunityText(...)`
+  - Added in-memory translation controller with request de-duplication:
+    - cache key: `contentId + targetLanguage`
+    - status handling: `idle/loading/translated/noResult/error`
+  - Added reusable UI translation panel and connected to:
+    - post detail body
+    - post detail comments/replies/thread view
+    - board feed post preview card
+    - legacy feed page post preview card
+  - Added tests:
+    - `test/features/feed/data/community_translation_dto_test.dart`
+    - `test/features/feed/application/community_translation_controller_test.dart`
+    - endpoint contract update in
+      `test/core/constants/api_endpoints_contract_test.dart`
+  - Validation:
+    - `flutter analyze lib/features/feed/application/community_translation_controller.dart lib/features/feed/presentation/widgets/community_translation_panel.dart lib/features/feed/presentation/pages/post_detail_page.dart lib/features/feed/presentation/pages/board_page.dart lib/features/feed/presentation/pages/feed_page.dart lib/features/feed/data/datasources/feed_remote_data_source.dart lib/features/feed/data/repositories/feed_repository_impl.dart lib/features/feed/domain/repositories/feed_repository.dart lib/features/feed/domain/entities/feed_entities.dart lib/features/feed/data/dto/community_translation_dto.dart lib/core/constants/api_constants.dart lib/core/constants/api_v3_endpoints_catalog.dart test/features/feed/data/community_translation_dto_test.dart test/features/feed/application/community_translation_controller_test.dart test/core/constants/api_endpoints_contract_test.dart`
+    - `flutter test test/features/feed/data/community_translation_dto_test.dart test/features/feed/application/community_translation_controller_test.dart test/core/constants/api_endpoints_contract_test.dart`
+- **MANDATORY CONSENT ENFORCEMENT BACKEND REQUEST DOC V1.0.0**:
+  - Added backend request document for mandatory terms/privacy consent
+    enforcement contract alignment:
+    - `docs/api-spec/필수동의강제_백엔드요청서_v1.0.0.md`
+  - Includes requested APIs:
+    - `POST /api/v1/users/me/consents`
+    - `GET /api/v1/users/me/consent-status` (recommended)
+  - Includes error code proposal, migration strategy, and QA checklist.
+- **MANDATORY TERMS/PRIVACY CONSENT GATE (FORCED BLOCKING POPUP)**:
+  - Added global mandatory-consent gate for authenticated users:
+    - evaluates required consents (`TERMS_OF_SERVICE`, `PRIVACY_POLICY`)
+      against current policy versions.
+    - source strategy: merge remote history (`GET /api/v1/users/me/consents`)
+      with local consent snapshot (`user_consents`) and pick latest record by
+      consent type.
+  - Added app-wide blocking overlay in `GBTApp`:
+    - when required consents are missing, all page interaction is blocked.
+    - user must check required items and confirm to continue.
+    - policy document links are accessible from the popup.
+  - Added mandatory consent controller:
+    - `lib/features/settings/application/mandatory_consent_controller.dart`
+    - handles auth-bound refresh, missing-type resolution, and local consent
+      snapshot write on agreement.
+  - Added unit tests for consent-resolution logic:
+    - `test/features/settings/application/mandatory_consent_controller_test.dart`
+  - Validation:
+    - `flutter analyze lib/app.dart lib/features/settings/application/mandatory_consent_controller.dart`
+    - `flutter test test/features/settings/application/mandatory_consent_controller_test.dart`
+- **FIREBASE ANALYTICS FLUTTERFIRE INTEGRATION (I/O APPLE GUIDE ALIGNMENT)**:
+  - Added Flutter dependency:
+    - `firebase_analytics` in `pubspec.yaml`.
+  - Replaced analytics no-op wrapper with Firebase Analytics-backed service:
+    - lazy Firebase init with bundled config first, runtime-options fallback.
+    - event/screen logging now sent to Firebase when available.
+    - safely degrades to debug logging when Firebase options are unavailable.
+  - Validation:
+    - `flutter pub get`
+    - `flutter analyze lib/core/analytics/analytics_service.dart lib/core/providers/core_providers.dart`
+- **HOME TRENDING LIVE POSTER FALLBACK HYDRATION**:
+  - Fixed cases where `HomeSummary.trendingLiveEvents` had missing poster URLs
+    while live detail/list endpoints still had valid banner images.
+  - Added fallback hydration in home repository:
+    - only for rows with missing poster, fetch live-detail poster URL
+      (`GET /api/v1/projects/{projectId}/live-events/{liveEventId}`)
+    - merge poster back into home summary before UI mapping/cache storage.
+  - Home `트렌딩 라이브` carousel now reuses the same live poster source more
+    reliably as the live page.
+  - Validation:
+    - `flutter analyze lib/features/home/data/datasources/home_remote_data_source.dart lib/features/home/data/repositories/home_repository_impl.dart lib/features/home/presentation/pages/home_page.dart`
+    - `flutter test test/features/home/data/home_summary_dto_test.dart`
+- **DETAIL PAGES FULLSCREEN MODE (HIDE BOTTOM NAV)**:
+  - Updated shell bottom-nav visibility policy in `MainScaffold`:
+    - bottom nav now appears only on top-level branch root routes:
+      `/home`, `/places`, `/live`, `/board`, `/board/discover`,
+      `/board/travel-reviews-tab`, `/info`.
+    - all detail/sub routes under shell now hide bottom navigation and render
+      as full-screen content (e.g. place/live/post/news/travel-review details).
+  - Validation:
+    - `flutter analyze lib/shared/main_scaffold.dart`
 - **LIVE ATTENDANCE READ ENDPOINT + VISIT HISTORY SPLIT INTEGRATION**:
   - Applied new attendance read endpoints contract:
     - `GET /api/v1/projects/{projectId}/live-events/{liveEventId}/attendance`
@@ -1472,5 +1554,48 @@
   - Triggered community feed + project feed refresh immediately after successful comment/reply creation in post detail.
 - Feed card follow state update:
   - Post card follow CTA now resolves current following relationships and displays `팔로잉` for already-followed authors.
+- Push platform readiness updates:
+  - Added Firebase runtime initialization fallback via `--dart-define` options when native Firebase config files are not bundled.
+  - Added iOS APNs entitlements per build type (`RunnerDebug.entitlements`, `RunnerRelease.entitlements`) and wired them into Runner target build settings.
+  - Updated device registration payload contract:
+    - sends `provider` on token PATCH requests,
+    - includes optional `locale`/`timezone` on device register,
+    - applies iOS token/provider selection rule (`FCM` token first, `APNS` fallback).
+  - Added setup guide: `docs/dev/fcm_apns_enablement_guide_20260308.md`.
 - Validation:
   - `flutter analyze`
+- Home summary by-project API integration:
+  - Added `ApiEndpoints.homeSummaryByProject` and endpoint contract coverage.
+  - Expanded home DTO/domain models with `metadata.sourceCounts` and
+    `metadata.fallbackApplied`.
+  - Added by-project DTO/domain row mapping
+    (`projectId`, `projectCode`, `summary`).
+  - Updated home repository/controller flow to load by-project summaries first
+    and fallback to single-project summary API when needed.
+  - Updated home empty-state rule:
+    - hard empty only when all card lists are empty and source counts are all 0
+    - soft empty when card lists are empty but source counts exist.
+- Validation:
+  - `flutter test test/features/home/data/home_summary_dto_test.dart test/features/home/domain/home_summary_test.dart test/core/constants/api_endpoints_contract_test.dart`
+- Feed post preview thumbnail consistency fix:
+  - Updated board/feed post cards to prefer `thumbnailUrl` first for preview,
+    then fallback to `imageUrls` and content-extracted images.
+  - This aligns UI with backend contract where `thumbnailUrl` is derived from
+    the first uploaded image (`imageUploadIds[0]`).
+  - Hardened post summary image URL parsing:
+    - trims URL strings,
+    - filters invalid placeholders like `"null"`,
+    - supports additional object keys (`publicUrl`, `cdnUrl`).
+- Validation:
+  - `flutter analyze lib/features/feed/data/dto/post_dto.dart lib/features/feed/presentation/pages/board_page.dart lib/features/feed/presentation/pages/feed_page.dart`
+  - `flutter test test/features/feed/data/post_dto_test.dart`
+- Push settings ON-path registration + iOS Firebase plist target wiring:
+  - Notification settings now trigger push activation flow when toggled OFF→ON:
+    - re-initialize remote push service
+    - request permission
+    - sync/register device token to backend
+    - request local notification permissions
+  - Added `GoogleService-Info.plist` into Runner Xcode project group/resources
+    so iOS builds consistently bundle Firebase config.
+- Validation:
+  - `flutter analyze lib/features/settings/application/settings_controller.dart lib/core/notifications/remote_push_service.dart lib/core/notifications/local_notifications_service.dart`

@@ -480,54 +480,72 @@ DateTime? _dateTimeOrNull(dynamic value) {
 }
 
 List<String> _imageUrls(dynamic raw) {
-  final urls = <String>[];
-  if (raw is String && raw.isNotEmpty) {
-    urls.add(raw);
-    return urls;
+  final urls = <String>{};
+  if (raw is String) {
+    final normalized = _normalizeUrlString(raw);
+    if (normalized != null) {
+      urls.add(normalized);
+    }
+    return urls.toList(growable: false);
   }
   if (raw is List) {
     for (final item in raw) {
-      if (item is String && item.isNotEmpty) {
-        urls.add(item);
-      } else if (item is Map<String, dynamic>) {
+      if (item is String) {
+        final normalized = _normalizeUrlString(item);
+        if (normalized != null) {
+          urls.add(normalized);
+        }
+      } else if (item is Map) {
         // EN: Try multiple keys for the image URL inside an object.
         // KO: 객체 내부에서 이미지 URL을 여러 키로 시도합니다.
+        final map = item.map((key, value) => MapEntry(key.toString(), value));
         final url =
-            item['url'] as String? ??
-            item['imageUrl'] as String? ??
-            item['image_url'] as String? ??
-            item['src'] as String? ??
-            item['thumbnailUrl'] as String? ??
-            item['thumbnail_url'] as String? ??
-            item['fileUrl'] as String? ??
-            item['file_url'] as String? ??
-            item['path'] as String?;
-        if (url is String && url.isNotEmpty) {
-          urls.add(url);
+            map['url'] as String? ??
+            map['imageUrl'] as String? ??
+            map['image_url'] as String? ??
+            map['src'] as String? ??
+            map['thumbnailUrl'] as String? ??
+            map['thumbnail_url'] as String? ??
+            map['fileUrl'] as String? ??
+            map['file_url'] as String? ??
+            map['publicUrl'] as String? ??
+            map['public_url'] as String? ??
+            map['cdnUrl'] as String? ??
+            map['cdn_url'] as String? ??
+            map['path'] as String?;
+        final normalized = _normalizeUrlString(url);
+        if (normalized != null) {
+          urls.add(normalized);
         }
       }
     }
   }
-  return urls;
+  return urls.toList(growable: false);
 }
 
 String? _extractUrlFromDynamic(dynamic raw) {
   if (raw is String) {
-    final trimmed = raw.trim();
-    return trimmed.isEmpty ? null : trimmed;
+    return _normalizeUrlString(raw);
   }
-  if (raw is Map<String, dynamic>) {
-    return _firstNonEmptyString([
-      raw['url'],
-      raw['imageUrl'],
-      raw['image_url'],
-      raw['src'],
-      raw['thumbnailUrl'],
-      raw['thumbnail_url'],
-      raw['fileUrl'],
-      raw['file_url'],
-      raw['path'],
-    ]);
+  if (raw is Map) {
+    final map = raw.map((key, value) => MapEntry(key.toString(), value));
+    return _normalizeUrlString(
+      _firstNonEmptyString([
+        map['url'],
+        map['imageUrl'],
+        map['image_url'],
+        map['src'],
+        map['thumbnailUrl'],
+        map['thumbnail_url'],
+        map['fileUrl'],
+        map['file_url'],
+        map['publicUrl'],
+        map['public_url'],
+        map['cdnUrl'],
+        map['cdn_url'],
+        map['path'],
+      ]),
+    );
   }
   return null;
 }
@@ -554,12 +572,20 @@ String? _firstNonEmptyString(List<dynamic> values) {
   for (final value in values) {
     if (value is String) {
       final trimmed = value.trim();
-      if (trimmed.isNotEmpty) {
+      if (trimmed.isNotEmpty && trimmed.toLowerCase() != 'null') {
         return trimmed;
       }
     }
   }
   return null;
+}
+
+String? _normalizeUrlString(String? raw) {
+  if (raw == null) return null;
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return null;
+  if (trimmed.toLowerCase() == 'null') return null;
+  return trimmed;
 }
 
 AuthorProfileDto? _authorProfile(dynamic value) {

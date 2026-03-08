@@ -153,6 +153,7 @@ class NotificationSettingsController
     );
 
     if (result is Success<NotificationSettings>) {
+      final previousPushEnabled = previousState.valueOrNull?.pushEnabled;
       await _persistPushEnabled(result.data.pushEnabled);
       state = AsyncData(result.data);
       if (!result.data.pushEnabled) {
@@ -168,6 +169,8 @@ class NotificationSettingsController
             tag: 'NotificationSettingsController',
           );
         }
+      } else if (previousPushEnabled != true) {
+        await _activateDeviceRegistration();
       }
     } else if (result is Err<NotificationSettings>) {
       final previousPushEnabled = previousState.valueOrNull?.pushEnabled;
@@ -209,6 +212,33 @@ class NotificationSettingsController
       return const Result.success(null);
     }
     return result;
+  }
+
+  /// EN: Re-register push device when push setting is turned on.
+  /// KO: 푸시 설정이 ON으로 전환되면 디바이스 등록을 다시 수행합니다.
+  Future<void> _activateDeviceRegistration() async {
+    try {
+      final remotePushService = _ref.read(remotePushServiceProvider);
+      await remotePushService.initialize();
+      await remotePushService.setAuthenticated(true);
+      await remotePushService.requestPermission();
+      await remotePushService.syncRegistration();
+
+      final localNotifier = _ref.read(localNotificationsServiceProvider);
+      await localNotifier.requestPermissions();
+    } catch (error, stackTrace) {
+      AppLogger.warning(
+        'Notification device activation failed after push ON update',
+        data: error,
+        tag: 'NotificationSettingsController',
+      );
+      AppLogger.error(
+        'Notification activation error',
+        error: error,
+        stackTrace: stackTrace,
+        tag: 'NotificationSettingsController',
+      );
+    }
   }
 
   String? _resolveStoredNotificationDeviceId(LocalStorage storage) {

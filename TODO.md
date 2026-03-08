@@ -1,5 +1,32 @@
 # TODO
 
+- Run QA for community on-demand translation flow (2026-03-08):
+  - 게시글 상세 본문에서 `번역` 탭 시 `POST /api/v1/community/translations`
+    호출이 1회만 발생하는지 확인.
+  - 동일 콘텐츠(`post/comment`)에 대해 같은 목표 언어로 재탭 시
+    중복 호출 없이 메모리 캐시 결과가 즉시 표시되는지 확인.
+  - 댓글/답글/스레드 뷰에서 번역 성공 시 원문 아래 번역문이 노출되는지 확인.
+  - `translated=false` 응답 케이스에서 `번역 결과 없음` 상태가 노출되는지 확인.
+  - 비로그인 상태에서 번역 버튼 탭 시 로그인 유도 스낵바가 노출되고
+    API가 호출되지 않는지 확인.
+  - 401/500 오류 시 크래시 없이 `번역 다시 시도` 액션이 동작하는지 확인.
+
+- Backend confirm needed for mandatory consent enforcement request v1.0.0 (2026-03-08):
+  - `docs/api-spec/필수동의강제_백엔드요청서_v1.0.0.md` 기준으로
+    `POST /api/v1/users/me/consents` 제공 여부 확정.
+  - `GET /api/v1/users/me/consent-status` 제공 여부 및 응답 필드(`canUseService`, `needsReconsent`) 확정.
+  - 정책 버전 변경 시 재동의 트리거(`requiresReconsent`) 계산 기준 확정.
+  - 동의 저장 멱등 정책(중복 제출/재시도 처리) 확정.
+
+- Run QA for mandatory terms/privacy consent gate (2026-03-08):
+  - 로그인 상태에서 약관/개인정보 동의 최신 버전 이력이 없을 때 전역 차단 팝업이 즉시 표시되는지 확인.
+  - 차단 팝업 노출 중에는 Home/Board/Settings 등 모든 페이지 터치/라우팅이 차단되는지 확인.
+  - 팝업 내 `보기` 버튼으로 이용약관/개인정보 문서 외부 링크가 열리는지 확인.
+  - 필수 체크박스 미체크 상태에서는 `동의하고 계속` 버튼이 비활성인지 확인.
+  - 체크 후 동의 시 차단 해제되고 기존 페이지를 계속 사용할 수 있는지 확인.
+  - 앱 재시작 후 동일 계정에서 로컬 동의 스냅샷 기준 재차단이 해제 유지되는지 확인.
+  - 서버 `GET /users/me/consents` 실패 시에도 로컬 이력 fallback으로 판정이 동작하는지 확인.
+
 - Run QA for feed header community settings page (2026-03-08):
   - 피드 상단 삼선 버튼 탭 시 `/community-settings`로 이동하는지 확인.
   - 커뮤니티 설정 페이지에서 `내 프로필/팔로워/팔로잉/알림함/저장한 글/게시글 작성/알림 설정` 라우팅이 정상인지 확인.
@@ -532,7 +559,45 @@
     redirect path should all land on expected tab/state.
   - remove `/live-attendance -> /visits?tab=live` redirect after one release
     cycle once no external deep-link dependency remains.
+- QA shell detail fullscreen policy on iOS/Android:
+  - ensure bottom nav is hidden on detail/sub routes in shell branches
+    (`/places/:id`, `/live/:id`, `/board/posts/:id`,
+    `/board/travel-reviews/:id`, `/info/news/:id` etc.).
+  - ensure bottom nav remains visible on branch root routes only.
+- QA home trending-live poster hydration:
+  - verify posters appear on `/home` trending-live cards for events that
+    previously had blank image there but had poster on `/live`.
+  - monitor latency impact when multiple trending rows require fallback detail
+    lookups, and tune if needed.
+- Decide iOS analytics IDFA policy:
+  - if non-IDFA analytics is required, set
+    `$FirebaseAnalyticsWithoutAdIdSupport = true` in `ios/Podfile`
+    and re-verify ads/attribution impact before release.
 - QA feed re-entry + write-refresh behavior on iOS/Android:
   - leaving feed and re-entering `/board` should always fetch fresh community feed data.
   - successful post/comment/reply submission should reflect in feed without manual pull-to-refresh.
   - remove after QA confirms expected refresh timing and no duplicate loading flashes.
+- Complete production push rollout checklist:
+  - place Firebase native config files locally:
+    `android/app/google-services.json`,
+    `ios/Runner/GoogleService-Info.plist`.
+  - verify Apple Developer Push capability + regenerated provisioning profiles.
+  - upload APNs auth key (`.p8`) in Firebase Console (Cloud Messaging, iOS app).
+  - run end-to-end push test (foreground/background/tap deep-link) on real
+    iOS and Android devices.
+- QA community feed thumbnail priority on Android/iOS:
+  - create post with multiple images and verify feed card preview uses the
+    first uploaded image (thumbnailUrl) consistently.
+  - verify fallback behavior when `thumbnailUrl` is missing:
+    `imageUrls` → content-extracted image.
+- QA push toggle OFF↔ON roundtrip:
+  - OFF should deactivate backend device registration without error toast.
+  - ON should request permission (if needed) and re-register device token.
+  - verify token update/registration logs and actual push delivery after ON.
+- QA home by-project summary integration:
+  - verify project switch uses by-project payload first and falls back to
+    single-summary endpoint only on errors/missing row.
+  - verify empty-state messaging follows source-count policy:
+    hard empty (`sourceCounts=0`) vs soft empty (`sourceCounts>0`).
+  - verify by-project response ordering/id matching when identifiers mix
+    `slug` and `uuid`.
