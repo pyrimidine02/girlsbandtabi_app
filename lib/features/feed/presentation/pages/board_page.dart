@@ -376,11 +376,18 @@ class _FeedSectionState extends ConsumerState<_FeedSection>
       const Duration(seconds: 35),
       (_) => _refreshFeedIfVisible(),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      ref
+      final mode = ref.read(communityFeedControllerProvider).mode;
+      if (mode != CommunityFeedMode.recommended) {
+        await ref
+            .read(communityFeedControllerProvider.notifier)
+            .setMode(CommunityFeedMode.recommended);
+        return;
+      }
+      await ref
           .read(communityFeedControllerProvider.notifier)
-          .setMode(CommunityFeedMode.recommended);
+          .reload(forceRefresh: true);
     });
   }
 
@@ -2218,6 +2225,16 @@ class _CommunityPostCard extends ConsumerWidget {
       orElse: () => false,
     );
     final isAuthor = currentUserId != null && currentUserId == post.authorId;
+    final followingUsersState =
+        !isAuthor && isAuthenticated && currentUserId != null
+        ? ref.watch(userFollowingProvider(currentUserId))
+        : null;
+    final isFollowingAuthor =
+        followingUsersState?.maybeWhen(
+          data: (users) => users.any((user) => user.userId == post.authorId),
+          orElse: () => false,
+        ) ??
+        false;
     final blockStatusState = isAuthenticated && !isAuthor
         ? ref.watch(blockStatusControllerProvider(post.authorId))
         : null;
@@ -2326,6 +2343,16 @@ class _CommunityPostCard extends ConsumerWidget {
                       TextButton(
                         onPressed: () => context.goToUserProfile(post.authorId),
                         style: TextButton.styleFrom(
+                          foregroundColor: isFollowingAuthor
+                              ? (isDark
+                                    ? GBTColors.darkTextPrimary
+                                    : GBTColors.textPrimary)
+                              : null,
+                          backgroundColor: isFollowingAuthor
+                              ? (isDark
+                                    ? GBTColors.darkSurfaceElevated
+                                    : GBTColors.surfaceVariant)
+                              : null,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 4,
@@ -2334,7 +2361,17 @@ class _CommunityPostCard extends ConsumerWidget {
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: Text(
-                          context.l10n(ko: '팔로우', en: 'Follow', ja: 'フォロー'),
+                          isFollowingAuthor
+                              ? context.l10n(
+                                  ko: '팔로잉',
+                                  en: 'Following',
+                                  ja: 'フォロー中',
+                                )
+                              : context.l10n(
+                                  ko: '팔로우',
+                                  en: 'Follow',
+                                  ja: 'フォロー',
+                                ),
                           style: GBTTypography.titleSmall.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
