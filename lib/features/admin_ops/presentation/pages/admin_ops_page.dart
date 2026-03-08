@@ -69,7 +69,10 @@ class AdminOpsPage extends ConsumerWidget {
   }
 
   bool _canAccess(UserProfile? profile) {
-    return hasAdminOpsAccessRole(profile?.role);
+    return hasAdminOpsAccess(
+      effectiveAccessLevel: profile?.effectiveAccessLevel,
+      accountRole: profile?.accountRole,
+    );
   }
 }
 
@@ -95,7 +98,7 @@ class _AccessDeniedView extends StatelessWidget {
             ),
             const SizedBox(height: GBTSpacing.sm),
             Text(
-              '관리자 또는 앱 매니저 권한이 필요합니다.',
+              'ADMIN_NON_SENSITIVE 이상 접근 레벨이 필요합니다.',
               style: GBTTypography.bodyMedium.copyWith(
                 color: isDark
                     ? GBTColors.darkTextSecondary
@@ -241,7 +244,7 @@ class _HeadlineCard extends StatelessWidget {
                 ),
                 const SizedBox(height: GBTSpacing.xs),
                 Text(
-                  '신고/이의제기/권한 요청을 한 화면에서 점검하세요',
+                  '신고/이의제기/접근 레벨 이슈를 한 화면에서 점검하세요',
                   style: GBTTypography.bodySmall.copyWith(
                     color: Colors.white.withValues(alpha: 0.82),
                   ),
@@ -297,8 +300,8 @@ class _StatGrid extends StatelessWidget {
         icon: Icons.rule,
       ),
       _StatCardData(
-        label: '역할 요청',
-        value: summary.pendingRoleRequests,
+        label: '권한 변경 요청',
+        value: summary.pendingAccessGrantRequests,
         color: GBTColors.info,
         icon: Icons.manage_accounts,
       ),
@@ -372,42 +375,42 @@ class _StatCard extends StatelessWidget {
             border: Border.all(color: borderColor),
           ),
           padding: const EdgeInsets.all(GBTSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: data.color.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(data.icon, size: 16, color: data.color),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: data.color.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(data.icon, size: 16, color: data.color),
+                  ),
+                  const Spacer(),
+                  // EN: Apply color to value text when value > 0
+                  // KO: 값이 있으면 값 텍스트에 해당 색상 적용
+                  Text(
+                    '${data.value}',
+                    style: GBTTypography.titleLarge.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: hasValue ? data.color : null,
+                    ),
+                  ),
+                ],
               ),
-              const Spacer(),
-              // EN: Apply color to value text when value > 0
-              // KO: 값이 있으면 값 텍스트에 해당 색상 적용
+              const SizedBox(height: GBTSpacing.sm),
               Text(
-                '${data.value}',
-                style: GBTTypography.titleLarge.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: hasValue ? data.color : null,
+                data.label,
+                style: GBTTypography.bodySmall.copyWith(
+                  color: isDark
+                      ? GBTColors.darkTextSecondary
+                      : GBTColors.textSecondary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: GBTSpacing.sm),
-          Text(
-            data.label,
-            style: GBTTypography.bodySmall.copyWith(
-              color: isDark
-                  ? GBTColors.darkTextSecondary
-                  : GBTColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
         ),
         // EN: Left accent bar overlay when value > 0
         // KO: 값이 있을 때 왼쪽 컬러 accent 바 오버레이
@@ -445,12 +448,13 @@ class _ExtraMetricsSection extends StatelessWidget {
       ..sort((a, b) => b.value.compareTo(a.value));
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textSecondary =
-        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
-    final dividerColor =
-        isDark ? GBTColors.darkBorder : GBTColors.divider;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final dividerColor = isDark ? GBTColors.darkBorder : GBTColors.divider;
 
     return Container(
       decoration: BoxDecoration(
@@ -586,60 +590,60 @@ class _ReportFilterRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = isDark ? GBTColors.darkPrimary : GBTColors.primary;
-    final surfaceVariantColor =
-        isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant;
+    final surfaceVariantColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
-    final textSecondary =
-        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: AdminReportFilter.values
-            .map(
-              (filter) {
-                final isSelected = filter == selected;
-                return Padding(
-                  padding: const EdgeInsets.only(right: GBTSpacing.xs),
-                  child: InkWell(
-                    onTap: () => ref
-                        .read(adminReportsControllerProvider.notifier)
-                        .load(filter: filter, forceRefresh: true),
-                    borderRadius:
-                        BorderRadius.circular(GBTSpacing.radiusFull),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: GBTSpacing.md,
-                        vertical: GBTSpacing.xs,
+            .map((filter) {
+              final isSelected = filter == selected;
+              return Padding(
+                padding: const EdgeInsets.only(right: GBTSpacing.xs),
+                child: InkWell(
+                  onTap: () => ref
+                      .read(adminReportsControllerProvider.notifier)
+                      .load(filter: filter, forceRefresh: true),
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: GBTSpacing.md,
+                      vertical: GBTSpacing.xs,
+                    ),
+                    decoration: BoxDecoration(
+                      // EN: Selected chip — indigo background, unselected — surfaceVariant
+                      // KO: 선택된 칩 — indigo 배경, 미선택 — surfaceVariant
+                      color: isSelected
+                          ? primary.withValues(alpha: 0.14)
+                          : surfaceVariantColor,
+                      borderRadius: BorderRadius.circular(
+                        GBTSpacing.radiusFull,
                       ),
-                      decoration: BoxDecoration(
-                        // EN: Selected chip — indigo background, unselected — surfaceVariant
-                        // KO: 선택된 칩 — indigo 배경, 미선택 — surfaceVariant
+                      border: Border.all(
                         color: isSelected
-                            ? primary.withValues(alpha: 0.14)
-                            : surfaceVariantColor,
-                        borderRadius:
-                            BorderRadius.circular(GBTSpacing.radiusFull),
-                        border: Border.all(
-                          color: isSelected
-                              ? primary.withValues(alpha: 0.45)
-                              : borderColor,
-                        ),
+                            ? primary.withValues(alpha: 0.45)
+                            : borderColor,
                       ),
-                      child: Text(
-                        filter.label,
-                        style: GBTTypography.labelMedium.copyWith(
-                          color: isSelected ? primary : textSecondary,
-                          fontWeight: isSelected
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                        ),
+                    ),
+                    child: Text(
+                      filter.label,
+                      style: GBTTypography.labelMedium.copyWith(
+                        color: isSelected ? primary : textSecondary,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                       ),
                     ),
                   ),
-                );
-              },
-            )
+                ),
+              );
+            })
             .toList(growable: false),
       ),
     );
@@ -661,10 +665,10 @@ class _ReportCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = _paletteFor(report.status);
-    final textSecondary =
-        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
-    final surfaceColor =
-        isDark ? GBTColors.darkSurfaceElevated : Colors.white;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final surfaceColor = isDark ? GBTColors.darkSurfaceElevated : Colors.white;
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
 
     return Padding(
@@ -714,11 +718,7 @@ class _ReportCard extends ConsumerWidget {
                         ),
                       ),
                       const Spacer(),
-                      Icon(
-                        Icons.chevron_right,
-                        size: 18,
-                        color: textSecondary,
-                      ),
+                      Icon(Icons.chevron_right, size: 18, color: textSecondary),
                     ],
                   ),
                   const SizedBox(height: GBTSpacing.sm),
@@ -948,10 +948,12 @@ class _ActionSheetItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textSecondary =
-        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
 
     return InkWell(
       onTap: onTap,

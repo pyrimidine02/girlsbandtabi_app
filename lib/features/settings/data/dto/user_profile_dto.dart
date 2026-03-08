@@ -8,6 +8,9 @@ class UserProfileDto {
     required this.email,
     required this.displayName,
     required this.role,
+    required this.accountRole,
+    required this.baselineAccessLevel,
+    required this.effectiveAccessLevel,
     required this.createdAt,
     this.avatarUrl,
     this.bio,
@@ -20,6 +23,12 @@ class UserProfileDto {
   final String? avatarUrl;
   final String? bio;
   final String? coverImageUrl;
+  final String accountRole;
+  final String baselineAccessLevel;
+  final String effectiveAccessLevel;
+
+  /// EN: Legacy role field kept for backward compatibility with old payloads.
+  /// KO: 구형 응답 호환을 위해 유지하는 레거시 role 필드입니다.
   final String role;
   final DateTime createdAt;
 
@@ -29,11 +38,23 @@ class UserProfileDto {
         DateTime.tryParse(createdAtRaw) ??
         DateTime.fromMillisecondsSinceEpoch(0);
 
+    final accountRole = _string(json, ['accountRole']) ?? 'USER';
+    final role = _string(json, ['role']) ?? accountRole;
+    final baselineAccessLevel =
+        _string(json, ['baselineAccessLevel']) ??
+        _baselineFromAccountRole(accountRole);
+    final effectiveAccessLevel =
+        _string(json, ['effectiveAccessLevel', 'accessLevel']) ??
+        _baselineFromAccountRole(accountRole);
+
     return UserProfileDto(
       id: _string(json, ['id', 'userId']) ?? '',
       email: _string(json, ['email', 'emailAddress']) ?? '',
       displayName: _string(json, ['displayName', 'nickname', 'name']) ?? '사용자',
-      role: _string(json, ['role']) ?? 'USER',
+      role: role,
+      accountRole: accountRole,
+      baselineAccessLevel: baselineAccessLevel,
+      effectiveAccessLevel: effectiveAccessLevel,
       createdAt: parsedCreatedAt,
       avatarUrl: _string(json, ['avatarUrl', 'profileImageUrl', 'imageUrl']),
       bio: _string(json, ['bio', 'introduction', 'about', 'summary']),
@@ -53,6 +74,9 @@ class UserProfileDto {
       'avatarUrl': avatarUrl,
       'bio': bio,
       'coverImageUrl': coverImageUrl,
+      'accountRole': accountRole,
+      'baselineAccessLevel': baselineAccessLevel,
+      'effectiveAccessLevel': effectiveAccessLevel,
       'role': role,
       'createdAt': createdAt.toIso8601String(),
     };
@@ -65,4 +89,12 @@ String? _string(Map<String, dynamic> json, List<String> keys) {
     if (value is String && value.isNotEmpty) return value;
   }
   return null;
+}
+
+String _baselineFromAccountRole(String accountRole) {
+  final normalized = accountRole.trim().toUpperCase();
+  if (normalized == 'ADMIN') {
+    return 'ADMIN_NON_SENSITIVE';
+  }
+  return 'USER_BASE';
 }

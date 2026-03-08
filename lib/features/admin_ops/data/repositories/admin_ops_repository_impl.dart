@@ -3,6 +3,7 @@
 library;
 
 import '../../../../core/cache/cache_manager.dart';
+import '../../../../core/cache/cache_profiles.dart';
 import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/result.dart';
@@ -25,15 +26,15 @@ class AdminOpsRepositoryImpl implements AdminOpsRepository {
   Future<Result<AdminDashboardSummary>> getDashboard({
     bool forceRefresh = false,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.adminDashboard;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<AdminDashboardDto>(
         key: 'admin_dashboard_summary',
         policy: policy,
-        ttl: const Duration(minutes: 3),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: _fetchDashboardWithFallback,
         toJson: (dto) => dto.toJson(),
         fromJson: (json) => AdminDashboardDto.fromJson(json),
@@ -53,9 +54,8 @@ class AdminOpsRepositoryImpl implements AdminOpsRepository {
     int size = 30,
     bool forceRefresh = false,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.adminCommunityReports;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
     final cacheKey = 'admin_reports:${status ?? 'ALL'}:$page:$size';
 
     try {
@@ -63,7 +63,8 @@ class AdminOpsRepositoryImpl implements AdminOpsRepository {
           .resolve<List<AdminCommunityReportDto>>(
             key: cacheKey,
             policy: policy,
-            ttl: const Duration(minutes: 2),
+            ttl: profile.ttl,
+            revalidateAfter: profile.revalidateAfter,
             fetcher: () =>
                 _fetchCommunityReports(status: status, page: page, size: size),
             toJson: (dtos) => {
@@ -89,16 +90,15 @@ class AdminOpsRepositoryImpl implements AdminOpsRepository {
     required String reportId,
     bool forceRefresh = false,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.cacheFirst;
+    final profile = CacheProfiles.adminCommunityReportDetail;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<AdminCommunityReportDto>(
         key: 'admin_report_detail:$reportId',
         policy: policy,
-        ttl: const Duration(minutes: 5),
-        revalidateAfter: const Duration(minutes: 1),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchCommunityReportDetail(reportId),
         toJson: (dto) => dto.toJson(),
         fromJson: (json) => AdminCommunityReportDto.fromJson(json),
@@ -248,7 +248,7 @@ class AdminOpsRepositoryImpl implements AdminOpsRepository {
     return AdminDashboardSummary(
       openReports: dto.openReports,
       inReviewReports: dto.inReviewReports,
-      pendingRoleRequests: dto.pendingRoleRequests,
+      pendingAccessGrantRequests: dto.pendingAccessGrantRequests,
       pendingVerificationAppeals: dto.pendingVerificationAppeals,
       pendingMediaDeletionRequests: dto.pendingMediaDeletionRequests,
       activeSanctions: dto.activeSanctions,

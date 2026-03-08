@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/providers/core_providers.dart';
+import '../../../../core/security/user_access_level.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/theme/gbt_colors.dart';
@@ -39,6 +40,53 @@ enum _CommentOtherAction { report }
 
 enum _CommentSort { latest, oldest }
 
+const int _maxCommentReplyDepth = 10;
+const String _deletedCommentPlaceholder = '[Deleted comment]';
+const String _deletedCommentPlaceholderLegacy = '삭제된 댓글입니다';
+
+bool _isDeletedCommentPlaceholder(String content) {
+  final normalized = content.trim();
+  return normalized == _deletedCommentPlaceholder ||
+      normalized == _deletedCommentPlaceholderLegacy;
+}
+
+String _displayCommentContent(String content) {
+  if (_isDeletedCommentPlaceholder(content)) {
+    return _deletedCommentPlaceholderLegacy;
+  }
+  return content;
+}
+
+int _resolveCommentDepth(PostComment comment) {
+  if (comment.depth != null && comment.depth! >= 0) {
+    return comment.depth!;
+  }
+  return comment.parentCommentId == null ? 0 : 1;
+}
+
+bool _canReplyToComment(PostComment comment) {
+  if (_isDeletedCommentPlaceholder(comment.content)) {
+    return false;
+  }
+  return _resolveCommentDepth(comment) < _maxCommentReplyDepth;
+}
+
+class _CommentThread {
+  const _CommentThread({
+    required this.id,
+    required this.sortAnchor,
+    required this.replies,
+    this.rootComment,
+  });
+
+  final String id;
+  final DateTime sortAnchor;
+  final PostComment? rootComment;
+  final List<PostComment> replies;
+
+  bool get isDeletedPlaceholder => rootComment == null;
+}
+
 class PostDetailPage extends ConsumerStatefulWidget {
   const PostDetailPage({super.key, required this.postId});
 
@@ -58,6 +106,14 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   PostComment? _replyTarget;
 
   void _setReplyTarget(PostComment comment) {
+    if (!_canReplyToComment(comment)) {
+      if (_isDeletedCommentPlaceholder(comment.content)) {
+        _showSnackBar(context, '삭제된 댓글에는 답글을 작성할 수 없어요');
+      } else {
+        _showSnackBar(context, '답글은 최대 $_maxCommentReplyDepth단계까지만 작성할 수 있어요');
+      }
+      return;
+    }
     setState(() => _replyTarget = comment);
     _commentFocusNode.requestFocus();
   }
@@ -101,7 +157,10 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       orElse: () => null,
     );
     final isAdmin = profileState.maybeWhen(
-      data: (profile) => _isAdminRole(profile?.role),
+      data: (profile) => _isAdminRole(
+        effectiveAccessLevel: profile?.effectiveAccessLevel,
+        accountRole: profile?.accountRole,
+      ),
       orElse: () => false,
     );
     final currentPost = state.maybeWhen(
@@ -610,7 +669,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       projectCode: projectCode,
       postId: postId,
       parentCommentId: comment.id,
-      maxDepth: 3,
+      maxDepth: _maxCommentReplyDepth,
       size: 50,
     );
 
@@ -1320,51 +1379,93 @@ class _PostCommentsSection extends StatefulWidget {
 class _PostCommentsSectionState extends State<_PostCommentsSection> {
   _CommentSort _sort = _CommentSort.latest;
 
-  List<PostComment> _sortedRoots(List<PostComment> comments) {
-    // EN: Show only root (non-reply) comments in the main list.
-    // KO: 메인 목록에는 최상위 댓글(대댓글 아닌)만 표시합니다.
-    final roots = comments.where((c) => c.parentCommentId == null).toList();
-    roots.sort((a, b) {
-      if (_sort == _CommentSort.latest) {
-        return b.createdAt.compareTo(a.createdAt);
-      }
-      return a.createdAt.compareTo(b.createdAt);
-    });
-    return roots;
+  bool _isDeletedRootComment(PostComment comment) {
+    return _isDeletedCommentPlaceholder(comment.content);
   }
 
-  Map<String, List<PostComment>> _buildRepliesMap(List<PostComment> comments) {
+  List<_CommentThread> _buildThreads(List<PostComment> comments) {
     // EN: Build id→comment lookup for ancestor traversal.
     // KO: 조상 탐색을 위한 id→댓글 조회 맵 구성.
     final lookup = <String, PostComment>{for (final c in comments) c.id: c};
+    final roots = <String, PostComment>{
+      for (final comment in comments)
+        if (comment.parentCommentId == null) comment.id: comment,
+    };
 
-    // EN: Walk up to find the root ancestor (depth=0) of a comment.
-    // KO: 댓글의 최상위 조상(depth=0)을 찾아 올라갑니다.
-    String findRootId(PostComment c) {
-      var cur = c;
-      while (cur.parentCommentId != null) {
-        final parent = lookup[cur.parentCommentId];
-        if (parent == null) break;
-        cur = parent;
+    // EN: Resolve a reply thread id; if parent is missing, use missing parent id.
+    // KO: 답글 스레드 id를 계산하고, 부모가 없으면 누락된 부모 id를 사용합니다.
+    String resolveThreadId(PostComment comment) {
+      var cursor = comment;
+      final visited = <String>{comment.id};
+      while (cursor.parentCommentId != null) {
+        final parentId = cursor.parentCommentId!;
+        final parent = lookup[parentId];
+        if (parent == null) {
+          return parentId;
+        }
+        if (!visited.add(parent.id)) {
+          return parent.id;
+        }
+        cursor = parent;
       }
-      return cur.id;
+      return cursor.id;
     }
 
-    // EN: Group all non-root comments under their root ancestor (flat display).
-    // KO: 모든 대댓글을 최상위 댓글 아래에 그룹화합니다 (플랫 표시).
-    final map = <String, List<PostComment>>{};
-    for (final c in comments) {
-      if (c.parentCommentId != null) {
-        final rid = findRootId(c);
-        map.putIfAbsent(rid, () => []).add(c);
+    // EN: Group replies by thread and track sort anchors for deleted-root placeholders.
+    // KO: 답글을 스레드별로 묶고 삭제된 루트 플레이스홀더 정렬 기준 시각을 계산합니다.
+    final repliesByThread = <String, List<PostComment>>{};
+    final deletedRootAnchor = <String, DateTime>{};
+    for (final comment in comments) {
+      if (comment.parentCommentId != null) {
+        final threadId = resolveThreadId(comment);
+        repliesByThread.putIfAbsent(threadId, () => []).add(comment);
+        if (!roots.containsKey(threadId)) {
+          final currentAnchor = deletedRootAnchor[threadId];
+          if (currentAnchor == null ||
+              comment.createdAt.isBefore(currentAnchor)) {
+            deletedRootAnchor[threadId] = comment.createdAt;
+          }
+        }
       }
     }
-    // EN: Sort each reply list by oldest-first for natural conversation flow.
-    // KO: 자연스러운 대화 흐름을 위해 각 답글 목록을 오래된 순으로 정렬합니다.
-    for (final key in map.keys) {
-      map[key]!.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+    for (final replies in repliesByThread.values) {
+      replies.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     }
-    return map;
+
+    final threads = <_CommentThread>[
+      for (final root in roots.values) ...[
+        if (_isDeletedRootComment(root) &&
+            (repliesByThread[root.id] ?? const <PostComment>[]).isEmpty)
+          // EN: Hide deleted root traces once all child replies are gone.
+          // KO: 모든 하위 답글이 사라지면 삭제 루트 흔적도 숨깁니다.
+          ...[]
+        else
+          _CommentThread(
+            id: root.id,
+            sortAnchor: root.createdAt,
+            rootComment: _isDeletedRootComment(root) ? null : root,
+            replies: repliesByThread[root.id] ?? const <PostComment>[],
+          ),
+      ],
+      for (final entry in repliesByThread.entries)
+        if (!roots.containsKey(entry.key) && entry.value.isNotEmpty)
+          _CommentThread(
+            id: entry.key,
+            sortAnchor:
+                deletedRootAnchor[entry.key] ?? entry.value.first.createdAt,
+            replies: entry.value,
+          ),
+    ];
+
+    threads.sort((a, b) {
+      if (_sort == _CommentSort.latest) {
+        return b.sortAnchor.compareTo(a.sortAnchor);
+      }
+      return a.sortAnchor.compareTo(b.sortAnchor);
+    });
+
+    return threads;
   }
 
   @override
@@ -1383,8 +1484,7 @@ class _PostCommentsSectionState extends State<_PostCommentsSection> {
         return GBTErrorState(message: message);
       },
       data: (comments) {
-        final roots = _sortedRoots(comments);
-        if (roots.isEmpty && comments.isEmpty) {
+        if (comments.isEmpty) {
           // EN: Motivational empty state CTA to encourage first comment.
           // KO: 첫 댓글을 유도하는 동기부여 빈 상태 CTA.
           return Padding(
@@ -1435,7 +1535,7 @@ class _PostCommentsSectionState extends State<_PostCommentsSection> {
           );
         }
 
-        final repliesMap = _buildRepliesMap(comments);
+        final threads = _buildThreads(comments);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1477,25 +1577,46 @@ class _PostCommentsSectionState extends State<_PostCommentsSection> {
               ),
               child: Column(
                 children: [
-                  for (var i = 0; i < roots.length; i++) ...[
-                    _CommentItem(
-                      comment: roots[i],
-                      replies: repliesMap[roots[i].id] ?? [],
-                      postAuthorId: widget.postAuthorId,
-                      onTapAuthor: widget.onTapAuthor,
-                      canEdit: widget.currentUserId == roots[i].authorId,
-                      canDelete:
-                          widget.currentUserId == roots[i].authorId ||
-                          (widget.isAdmin && widget.currentUserId != null),
-                      canReport: widget.isAuthenticated,
-                      currentUserId: widget.currentUserId,
-                      isAdmin: widget.isAdmin,
-                      onEdit: widget.onEditComment,
-                      onDelete: widget.onDeleteComment,
-                      onReport: widget.onReportComment,
-                      onReply: widget.onReplyToComment,
-                    ),
-                    if (i < roots.length - 1)
+                  for (var i = 0; i < threads.length; i++) ...[
+                    if (threads[i].isDeletedPlaceholder)
+                      _DeletedRootCommentItem(
+                        key: ValueKey<String>(
+                          'deleted-thread-${threads[i].id}',
+                        ),
+                        threadId: threads[i].id,
+                        replies: threads[i].replies,
+                        postAuthorId: widget.postAuthorId,
+                        onTapAuthor: widget.onTapAuthor,
+                        currentUserId: widget.currentUserId,
+                        isAdmin: widget.isAdmin,
+                        canReport: widget.isAuthenticated,
+                        onEdit: widget.onEditComment,
+                        onDelete: widget.onDeleteComment,
+                        onReport: widget.onReportComment,
+                        onReply: widget.onReplyToComment,
+                      )
+                    else
+                      _CommentItem(
+                        comment: threads[i].rootComment!,
+                        replies: threads[i].replies,
+                        postAuthorId: widget.postAuthorId,
+                        onTapAuthor: widget.onTapAuthor,
+                        canEdit:
+                            widget.currentUserId ==
+                            threads[i].rootComment!.authorId,
+                        canDelete:
+                            widget.currentUserId ==
+                                threads[i].rootComment!.authorId ||
+                            (widget.isAdmin && widget.currentUserId != null),
+                        canReport: widget.isAuthenticated,
+                        currentUserId: widget.currentUserId,
+                        isAdmin: widget.isAdmin,
+                        onEdit: widget.onEditComment,
+                        onDelete: widget.onDeleteComment,
+                        onReport: widget.onReportComment,
+                        onReply: widget.onReplyToComment,
+                      ),
+                    if (i < threads.length - 1)
                       Divider(height: 1, thickness: 1, color: borderColor),
                   ],
                 ],
@@ -1504,6 +1625,137 @@ class _PostCommentsSectionState extends State<_PostCommentsSection> {
           ],
         );
       },
+    );
+  }
+}
+
+class _DeletedRootCommentItem extends StatefulWidget {
+  const _DeletedRootCommentItem({
+    super.key,
+    required this.threadId,
+    required this.replies,
+    required this.postAuthorId,
+    required this.onTapAuthor,
+    required this.currentUserId,
+    required this.isAdmin,
+    required this.canReport,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onReport,
+    required this.onReply,
+  });
+
+  final String threadId;
+  final List<PostComment> replies;
+  final String postAuthorId;
+  final ValueChanged<String> onTapAuthor;
+  final String? currentUserId;
+  final bool isAdmin;
+  final bool canReport;
+  final ValueChanged<PostComment> onEdit;
+  final ValueChanged<PostComment> onDelete;
+  final ValueChanged<PostComment> onReport;
+  final ValueChanged<PostComment> onReply;
+
+  @override
+  State<_DeletedRootCommentItem> createState() =>
+      _DeletedRootCommentItemState();
+}
+
+class _DeletedRootCommentItemState extends State<_DeletedRootCommentItem> {
+  bool _repliesExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
+    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    final replyBgColor = isDark
+        ? GBTColors.darkSurfaceVariant.withValues(alpha: 0.5)
+        : GBTColors.surfaceVariant.withValues(alpha: 0.6);
+    final parentLookup = <String, PostComment>{
+      for (final reply in widget.replies) reply.id: reply,
+    };
+    final replyCount = widget.replies.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // EN: Placeholder row for a deleted root comment.
+        // KO: 삭제된 최상위 댓글 자리 표시 행입니다.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            GBTSpacing.md,
+            GBTSpacing.sm2,
+            GBTSpacing.md,
+            GBTSpacing.sm2,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.remove_circle_outline, size: 16, color: tertiaryColor),
+              const SizedBox(width: GBTSpacing.xs),
+              Text(
+                '삭제된 댓글입니다',
+                style: GBTTypography.bodySmall.copyWith(color: tertiaryColor),
+              ),
+            ],
+          ),
+        ),
+        if (replyCount > 0)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              GBTSpacing.md + 24,
+              0,
+              GBTSpacing.md,
+              GBTSpacing.xs,
+            ),
+            child: _ReplyActionButton(
+              label: _repliesExpanded ? '답글 숨기기' : '답글 $replyCount개 보기',
+              color: primaryColor,
+              icon: _repliesExpanded
+                  ? Icons.keyboard_arrow_up_rounded
+                  : Icons.keyboard_arrow_down_rounded,
+              onTap: () => setState(() => _repliesExpanded = !_repliesExpanded),
+            ),
+          ),
+        if (_repliesExpanded && widget.replies.isNotEmpty)
+          Container(
+            color: replyBgColor,
+            child: Column(
+              children: [
+                for (var i = 0; i < widget.replies.length; i++) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      indent: GBTSpacing.xl + GBTSpacing.sm,
+                      color: borderColor.withValues(alpha: 0.6),
+                    ),
+                  _ReplyItem(
+                    reply: widget.replies[i],
+                    postAuthorId: widget.postAuthorId,
+                    rootCommentId: widget.threadId,
+                    rootAuthorName: null,
+                    parentLookup: parentLookup,
+                    onTapAuthor: widget.onTapAuthor,
+                    canEdit: widget.currentUserId == widget.replies[i].authorId,
+                    canDelete:
+                        widget.currentUserId == widget.replies[i].authorId ||
+                        (widget.isAdmin && widget.currentUserId != null),
+                    canReport: widget.canReport,
+                    onEdit: widget.onEdit,
+                    onDelete: widget.onDelete,
+                    onReport: widget.onReport,
+                    onReply: widget.onReply,
+                  ),
+                ],
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
@@ -1584,6 +1836,7 @@ class _CommentItemState extends State<_CommentItem> {
     final liveReplyCount = widget.replies.length;
     final apiReplyCount = comment.replyCount ?? 0;
     final replyCount = liveReplyCount > 0 ? liveReplyCount : apiReplyCount;
+    final canReply = _canReplyToComment(comment);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1669,7 +1922,7 @@ class _CommentItemState extends State<_CommentItem> {
                     // EN: Comment content.
                     // KO: 댓글 내용.
                     Text(
-                      comment.content,
+                      _displayCommentContent(comment.content),
                       style: GBTTypography.bodyMedium.copyWith(
                         color: contentColor,
                         height: 1.46,
@@ -1680,13 +1933,14 @@ class _CommentItemState extends State<_CommentItem> {
                     // KO: 액션 행 — 답글 버튼 + 답글 펼치기 토글.
                     Row(
                       children: [
-                        _ReplyActionButton(
-                          label: '답글',
-                          color: secondaryColor,
-                          onTap: () => widget.onReply(comment),
-                        ),
+                        if (canReply)
+                          _ReplyActionButton(
+                            label: '답글',
+                            color: secondaryColor,
+                            onTap: () => widget.onReply(comment),
+                          ),
                         if (replyCount > 0) ...[
-                          const SizedBox(width: GBTSpacing.sm),
+                          if (canReply) const SizedBox(width: GBTSpacing.sm),
                           _ReplyActionButton(
                             label: _repliesExpanded
                                 ? '답글 숨기기'
@@ -1727,6 +1981,7 @@ class _CommentItemState extends State<_CommentItem> {
                     reply: widget.replies[i],
                     postAuthorId: widget.postAuthorId,
                     rootCommentId: widget.comment.id,
+                    rootAuthorName: authorLabel,
                     parentLookup: {for (final r in widget.replies) r.id: r},
                     onTapAuthor: widget.onTapAuthor,
                     canEdit: widget.currentUserId == widget.replies[i].authorId,
@@ -1757,6 +2012,7 @@ class _ReplyItem extends StatelessWidget {
     required this.reply,
     required this.postAuthorId,
     required this.rootCommentId,
+    required this.rootAuthorName,
     required this.parentLookup,
     required this.onTapAuthor,
     required this.canEdit,
@@ -1773,6 +2029,9 @@ class _ReplyItem extends StatelessWidget {
   // EN: ID of the root comment that this reply thread belongs to.
   // KO: 이 답글 스레드가 속한 최상위 댓글의 ID.
   final String rootCommentId;
+  // EN: Root author name for direct replies to the root comment.
+  // KO: 최상위 댓글 직접 답글의 @멘션 표시를 위한 루트 작성자 이름.
+  final String? rootAuthorName;
   // EN: Lookup map of id→PostComment for replies in this thread.
   // KO: 이 스레드 내 답글의 id→PostComment 조회 맵.
   final Map<String, PostComment> parentLookup;
@@ -1802,15 +2061,20 @@ class _ReplyItem extends StatelessWidget {
         ? GBTColors.darkPrimary.withValues(alpha: 0.5)
         : GBTColors.primary.withValues(alpha: 0.35);
 
-    final authorLabel = reply.authorName?.isNotEmpty == true
-        ? reply.authorName!
-        : '익명';
+    final authorLabel = _isDeletedCommentPlaceholder(reply.content)
+        ? _deletedCommentPlaceholderLegacy
+        : (reply.authorName?.isNotEmpty == true ? reply.authorName! : '익명');
     final avatarUrl = reply.authorAvatarUrl?.isNotEmpty == true
         ? reply.authorAvatarUrl
         : null;
     final isEdited =
         reply.updatedAt != null && reply.updatedAt!.isAfter(reply.createdAt);
     final isPostAuthor = reply.authorId == postAuthorId;
+    final isDeletedPlaceholder = _isDeletedCommentPlaceholder(reply.content);
+    final effectiveCanEdit = canEdit && !isDeletedPlaceholder;
+    final effectiveCanDelete = canDelete && !isDeletedPlaceholder;
+    final effectiveCanReport = canReport && !isDeletedPlaceholder;
+    final canReply = _canReplyToComment(reply);
 
     return IntrinsicHeight(
       child: Row(
@@ -1844,7 +2108,9 @@ class _ReplyItem extends StatelessWidget {
                     url: avatarUrl,
                     radius: 12,
                     semanticLabel: '$authorLabel 프로필 사진',
-                    onTap: () => onTapAuthor(reply.authorId),
+                    onTap: isDeletedPlaceholder
+                        ? null
+                        : () => onTapAuthor(reply.authorId),
                   ),
                   const SizedBox(width: GBTSpacing.sm),
                   Expanded(
@@ -1861,7 +2127,9 @@ class _ReplyItem extends StatelessWidget {
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   GestureDetector(
-                                    onTap: () => onTapAuthor(reply.authorId),
+                                    onTap: isDeletedPlaceholder
+                                        ? null
+                                        : () => onTapAuthor(reply.authorId),
                                     child: Text(
                                       authorLabel,
                                       style: GBTTypography.labelSmall.copyWith(
@@ -1884,7 +2152,7 @@ class _ReplyItem extends StatelessWidget {
                                       fontSize: 11,
                                     ),
                                   ),
-                                  if (isEdited)
+                                  if (isEdited && !isDeletedPlaceholder)
                                     Text(
                                       '(수정)',
                                       style: GBTTypography.labelSmall.copyWith(
@@ -1896,9 +2164,9 @@ class _ReplyItem extends StatelessWidget {
                               ),
                             ),
                             _CommentMenuButton(
-                              canEdit: canEdit,
-                              canDelete: canDelete,
-                              canReport: canReport,
+                              canEdit: effectiveCanEdit,
+                              canDelete: effectiveCanDelete,
+                              canReport: effectiveCanReport,
                               tertiaryColor: tertiaryColor,
                               iconSize: 16,
                               onEdit: () => onEdit(reply),
@@ -1913,18 +2181,31 @@ class _ReplyItem extends StatelessWidget {
                         Builder(
                           builder: (context) {
                             final directParentId = reply.parentCommentId;
-                            final isReplyOfReply =
-                                directParentId != null &&
-                                directParentId != rootCommentId;
-                            final parentAuthor = isReplyOfReply
-                                ? (parentLookup[directParentId]
-                                              ?.authorName
-                                              ?.isNotEmpty ==
-                                          true
-                                      ? parentLookup[directParentId]!
-                                            .authorName!
-                                      : null)
-                                : null;
+                            if (isDeletedPlaceholder) {
+                              return Text(
+                                _deletedCommentPlaceholderLegacy,
+                                style: GBTTypography.bodySmall.copyWith(
+                                  color: tertiaryColor,
+                                  height: 1.45,
+                                ),
+                              );
+                            }
+                            String? parentAuthor;
+                            if (directParentId != null) {
+                              if (directParentId == rootCommentId) {
+                                parentAuthor =
+                                    rootAuthorName?.trim().isNotEmpty == true
+                                    ? rootAuthorName
+                                    : null;
+                              } else {
+                                final resolvedAuthor =
+                                    parentLookup[directParentId]?.authorName;
+                                parentAuthor =
+                                    resolvedAuthor?.trim().isNotEmpty == true
+                                    ? resolvedAuthor
+                                    : null;
+                              }
+                            }
                             if (parentAuthor != null) {
                               return Text.rich(
                                 TextSpan(
@@ -1938,7 +2219,9 @@ class _ReplyItem extends StatelessWidget {
                                       ),
                                     ),
                                     TextSpan(
-                                      text: reply.content,
+                                      text: _displayCommentContent(
+                                        reply.content,
+                                      ),
                                       style: GBTTypography.bodySmall.copyWith(
                                         color: contentColor,
                                         height: 1.45,
@@ -1949,7 +2232,7 @@ class _ReplyItem extends StatelessWidget {
                               );
                             }
                             return Text(
-                              reply.content,
+                              _displayCommentContent(reply.content),
                               style: GBTTypography.bodySmall.copyWith(
                                 color: contentColor,
                                 height: 1.45,
@@ -1957,12 +2240,14 @@ class _ReplyItem extends StatelessWidget {
                             );
                           },
                         ),
-                        const SizedBox(height: GBTSpacing.xs),
-                        _ReplyActionButton(
-                          label: '답글',
-                          color: secondaryColor,
-                          onTap: () => onReply(reply),
-                        ),
+                        if (canReply) ...[
+                          const SizedBox(height: GBTSpacing.xs),
+                          _ReplyActionButton(
+                            label: '답글',
+                            color: secondaryColor,
+                            onTap: () => onReply(reply),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -2433,9 +2718,10 @@ class _CommentThreadNodeView extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final comment = node.comment;
-    final author = comment.authorName?.isNotEmpty == true
-        ? comment.authorName!
-        : '익명';
+    final isDeletedPlaceholder = _isDeletedCommentPlaceholder(comment.content);
+    final author = isDeletedPlaceholder
+        ? _deletedCommentPlaceholderLegacy
+        : (comment.authorName?.isNotEmpty == true ? comment.authorName! : '익명');
     final avatarUrl = comment.authorAvatarUrl?.isNotEmpty == true
         ? comment.authorAvatarUrl
         : null;
@@ -2503,9 +2789,11 @@ class _CommentThreadNodeView extends StatelessWidget {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          comment.content,
+                          _displayCommentContent(comment.content),
                           style: GBTTypography.bodySmall.copyWith(
-                            color: contentColor,
+                            color: isDeletedPlaceholder
+                                ? tertiaryColor
+                                : contentColor,
                             height: 1.5,
                           ),
                         ),
@@ -2531,10 +2819,11 @@ class _CommentThreadNodeView extends StatelessWidget {
   }
 }
 
-bool _isAdminRole(String? role) {
-  if (role == null) return false;
-  final normalized = role.toUpperCase();
-  return normalized.contains('ADMIN') || normalized.contains('MODERATOR');
+bool _isAdminRole({String? effectiveAccessLevel, String? accountRole}) {
+  return canModerateCommunity(
+    effectiveAccessLevel: effectiveAccessLevel,
+    accountRole: accountRole,
+  );
 }
 
 // ========================================

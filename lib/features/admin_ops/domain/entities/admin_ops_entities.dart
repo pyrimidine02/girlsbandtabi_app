@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import '../../../../core/security/user_access_level.dart';
 
 /// EN: Community report moderation status.
 /// KO: 커뮤니티 신고 처리 상태.
@@ -123,7 +124,7 @@ class AdminDashboardSummary {
   const AdminDashboardSummary({
     required this.openReports,
     required this.inReviewReports,
-    required this.pendingRoleRequests,
+    required this.pendingAccessGrantRequests,
     required this.pendingVerificationAppeals,
     required this.pendingMediaDeletionRequests,
     required this.activeSanctions,
@@ -132,7 +133,7 @@ class AdminDashboardSummary {
 
   final int openReports;
   final int inReviewReports;
-  final int pendingRoleRequests;
+  final int pendingAccessGrantRequests;
   final int pendingVerificationAppeals;
   final int pendingMediaDeletionRequests;
   final int activeSanctions;
@@ -141,7 +142,7 @@ class AdminDashboardSummary {
   int get totalPendingItems {
     return openReports +
         inReviewReports +
-        pendingRoleRequests +
+        pendingAccessGrantRequests +
         pendingVerificationAppeals +
         pendingMediaDeletionRequests;
   }
@@ -194,24 +195,13 @@ class AdminCommunityReport {
   }
 }
 
-/// EN: Returns true when a role can access admin operations screens.
-/// KO: 관리자/운영 화면 접근이 가능한 역할인지 반환합니다.
-bool hasAdminOpsAccessRole(String? role) {
-  if (role == null || role.isEmpty) {
-    return false;
-  }
-
-  const allowedRoles = <String>{
-    'ADMIN',
-    'SUPER_ADMIN',
-    'APP_MANAGER',
-    'MANAGER',
-    'OPERATOR',
-    'MODERATOR',
-    'PROJECT_ADMIN',
-  };
-
-  return allowedRoles.contains(role.toUpperCase());
+/// EN: Returns true when user can access admin operations screens.
+/// KO: 사용자에게 운영/관리 화면 접근 권한이 있는지 반환합니다.
+bool hasAdminOpsAccess({String? effectiveAccessLevel, String? accountRole}) {
+  return canAccessNonSensitiveAdmin(
+    effectiveAccessLevel: effectiveAccessLevel,
+    accountRole: accountRole,
+  );
 }
 
 /// EN: UI palette for report states.

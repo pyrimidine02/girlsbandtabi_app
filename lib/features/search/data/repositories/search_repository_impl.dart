@@ -3,6 +3,7 @@
 library;
 
 import '../../../../core/cache/cache_manager.dart';
+import '../../../../core/cache/cache_profiles.dart';
 import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/result.dart';
@@ -38,15 +39,15 @@ class SearchRepositoryImpl implements SearchRepository {
     );
     // EN: Use staleWhileRevalidate — show cached search results instantly.
     // KO: staleWhileRevalidate 사용 — 캐시된 검색 결과 즉시 표시.
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.searchResults;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<List<SearchItemDto>>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () =>
             _fetchSearch(query: query, types: types, page: page, size: size),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
@@ -101,16 +102,16 @@ class SearchRepositoryImpl implements SearchRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = 'search:discovery:popular:${limit.clamp(1, 20)}';
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.searchPopularDiscovery;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager
           .resolve<SearchPopularDiscoveryDto>(
             key: cacheKey,
             policy: policy,
-            ttl: const Duration(minutes: 3),
+            ttl: profile.ttl,
+            revalidateAfter: profile.revalidateAfter,
             fetcher: () async {
               final result = await _remoteDataSource.fetchPopularDiscovery(
                 limit: limit,
@@ -146,16 +147,16 @@ class SearchRepositoryImpl implements SearchRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = 'search:discovery:categories:${limit.clamp(1, 20)}';
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.searchCategoryDiscovery;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager
           .resolve<SearchCategoryDiscoveryDto>(
             key: cacheKey,
             policy: policy,
-            ttl: const Duration(minutes: 3),
+            ttl: profile.ttl,
+            revalidateAfter: profile.revalidateAfter,
             fetcher: () async {
               final result = await _remoteDataSource.fetchCategoryDiscovery(
                 limit: limit,

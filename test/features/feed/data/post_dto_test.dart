@@ -130,6 +130,19 @@ void main() {
     expect(dto.bookmarkedAt, isNotNull);
   });
 
+  test('PostBookmarkStatusDto serializes payload', () {
+    final dto = PostBookmarkStatusDto(
+      postId: 'post-serialize',
+      isBookmarked: true,
+      bookmarkedAt: DateTime.parse('2026-03-08T00:00:00Z'),
+    );
+
+    final json = dto.toJson();
+    expect(json['postId'], 'post-serialize');
+    expect(json['isBookmarked'], true);
+    expect(json['bookmarkedAt'], '2026-03-08T00:00:00.000Z');
+  });
+
   test('ProjectSubscriptionSummaryDto parses payload', () {
     final json = {
       'projectId': 'proj-id',
@@ -163,4 +176,24 @@ void main() {
     expect(dto.tags.first.id, 'tag-1');
     expect(dto.tags.first.name, '라이브');
   });
+
+  test(
+    'PostComposeOptionsDto keeps server ordering without client re-sort',
+    () {
+      final json = {
+        'topics': [
+          {'id': 'topic-b', 'name': '후기', 'sortOrder': 20},
+          {'id': 'topic-a', 'name': '정보', 'sortOrder': 10},
+        ],
+        'tags': [
+          {'id': 'tag-c', 'name': '굿즈', 'sortOrder': 30},
+          {'id': 'tag-a', 'name': '라이브', 'sortOrder': 10},
+        ],
+      };
+
+      final dto = PostComposeOptionsDto.fromJson(json);
+      expect(dto.topics.map((item) => item.id), ['topic-b', 'topic-a']);
+      expect(dto.tags.map((item) => item.id), ['tag-c', 'tag-a']);
+    },
+  );
 }

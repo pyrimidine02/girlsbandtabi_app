@@ -64,6 +64,14 @@ class PostBookmarkStatusDto {
       bookmarkedAt: _dateTimeOrNull(json['bookmarkedAt']),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'postId': postId,
+      'isBookmarked': isBookmarked,
+      if (bookmarkedAt != null) 'bookmarkedAt': bookmarkedAt!.toIso8601String(),
+    };
+  }
 }
 
 class PostCursorPageDto {

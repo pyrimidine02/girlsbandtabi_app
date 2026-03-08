@@ -92,6 +92,12 @@ class ErrorHandler {
         code: '404',
         stackTrace: stackTrace,
       ),
+      409 => ValidationFailure(
+        message ?? 'Conflict',
+        code: errorCode ?? '409',
+        stackTrace: stackTrace,
+        fieldErrors: _extractFieldErrors(data),
+      ),
       422 => ValidationFailure(
         message ?? 'Validation error',
         code: errorCode ?? '422',

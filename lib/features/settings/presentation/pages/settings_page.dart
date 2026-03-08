@@ -18,7 +18,6 @@ import '../../../../core/utils/sensitive_text_utils.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
-import '../../../admin_ops/domain/entities/admin_ops_entities.dart';
 import '../../../auth/application/auth_controller.dart';
 import '../../application/settings_controller.dart';
 import '../../domain/entities/user_profile.dart';
@@ -36,8 +35,8 @@ class SettingsPage extends ConsumerWidget {
     final profileState = isAuthenticated
         ? ref.watch(userProfileControllerProvider)
         : null;
-    final userRole = profileState?.valueOrNull?.role;
-    final canAccessAdminOps = hasAdminOpsAccessRole(userRole);
+    final canAccessAdminOps =
+        profileState?.valueOrNull?.canAccessAdminOps ?? false;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(

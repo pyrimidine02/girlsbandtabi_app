@@ -1066,7 +1066,8 @@ class _AccountInfoCard extends StatelessWidget {
             icon: Icons.verified_user_outlined,
             iconBgColor: const Color(0xFF10B981),
             label: '권한',
-            value: profile.role,
+            value:
+                '${profile.accountRole} · ${profile.effectiveAccessLevelLabel}',
             isDark: isDark,
             isLast: true,
           ),

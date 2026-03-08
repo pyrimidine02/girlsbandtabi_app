@@ -1,5 +1,62 @@
 # TODO
 
+- Run QA for feed header community settings page (2026-03-08):
+  - 피드 상단 삼선 버튼 탭 시 `/community-settings`로 이동하는지 확인.
+  - 커뮤니티 설정 페이지에서 `내 프로필/팔로워/팔로잉/알림함/저장한 글/게시글 작성/알림 설정` 라우팅이 정상인지 확인.
+  - 프로필 카드(아바타/표시명/이메일 마스킹/프로필 수정 버튼)가 라이트/다크 모드에서 가독성 유지되는지 확인.
+  - 운영 권한 사용자에서 `운영 센터` 노출, 일반 사용자에서 `전체 설정` 노출 분기 확인.
+
+- Run QA for live attendance history view (2026-03-08):
+  - 라이브 탭 AppBar 히스토리 버튼으로 `/live-attendance` 진입이 되는지 확인.
+  - 방문기록 페이지 AppBar 음악 아이콘으로 라이브 방문기록 진입이 되는지 확인.
+  - `DECLARED/VERIFIED` 상태 배지와 취소 불가 안내 문구가 기록 카드에서 정확히 노출되는지 확인.
+  - 캐시 스냅샷이 없는 기존 기록에서도 이벤트 상세 보강 후 제목/일정/포스터가 표시되는지 확인.
+  - 라이트/다크 모드에서 카드 대비/텍스트 가독성/탭 동작이 정상인지 확인.
+
+- Run QA for live attendance v1 toggle integration (2026-03-08):
+  - 라이브 상세에서 `라이브 방문` 토글 ON 시 `DECLARED/canUndo=true`가 즉시 반영되는지 확인.
+  - self-declared 상태에서 토글 OFF 시 `NONE/canUndo=false`로 복귀하는지 확인.
+  - `VERIFIED` 상태에서 OFF 불가(토글 비활성 + 안내 문구) 동작 확인.
+  - `ATTENDANCE_UPDATE_FAILED` 400 응답 시 사용자 안내 문구가 정상 노출되는지 확인.
+  - 화면 재진입 시 로컬 캐시 기반 상태 복원 후 재토글 시 서버 응답 기준으로 정합성 회복되는지 확인.
+
+- Run QA for comment/reply consistency fixes (2026-03-08):
+  - 추천/팔로잉/최신 피드에서 프로젝트가 다른 게시글 상세 진입 후 댓글/답글 등록이 정상 동작하는지 확인.
+  - 댓글/답글 등록 및 삭제 직후 게시글 상세의 댓글 목록/카운트가 서버값과 일치하는지 확인.
+  - 댓글 삭제 시(답글 포함 스레드 포함) 댓글 수 표시가 즉시 정상화되는지 확인.
+  - 유저 프로필 `작성한 글/작성한 댓글` 탭에서 상세 진입 후 복귀 시 삭제 반영이 즉시 갱신되는지 확인.
+
+- Run QA for feed project badge emphasis (2026-03-08):
+  - Board 피드 카드에서 프로젝트명 알약 배지 가독성 확인(라이트/다크).
+  - 긴 프로젝트명/좁은 폭(iPhone mini급)에서 줄바꿈 및 레이아웃 깨짐 여부 확인.
+  - 부모 댓글 삭제 후 post detail에서 `삭제된 댓글입니다` 플레이스홀더와
+    답글 목록이 함께 유지되는지 확인.
+  - 부모 댓글 삭제 후 답글이 하나도 없으면 플레이스홀더가 노출되지 않는지 확인.
+  - 루트 댓글에 대한 답글/답글의 답글 작성 시 `@부모닉네임` 표시가
+    기대대로 동작하는지 확인.
+  - depth 10 댓글에 대한 `답글` 버튼이 비활성/숨김되고,
+    답글 타겟 선택 시도도 차단되는지 확인.
+  - 삭제 placeholder 값이 `[Deleted comment]`로 내려와도
+    한국어 플레이스홀더 UI로 정상 렌더되는지 확인.
+
+- Run QA for privacy-rights API alignment (2026-03-08):
+  - 개인정보 및 권리행사 페이지 진입 시 `GET /api/v1/users/me/privacy-settings`로
+    자동번역 토글 초기값/updatedAt/version이 서버값으로 표시되는지 확인.
+  - 자동번역 토글 변경 시 `PATCH /api/v1/users/me/privacy-settings` 요청에
+    `version`이 포함되는지 확인.
+  - 동시 수정 충돌(`PRIVACY_SETTINGS_VERSION_CONFLICT`) 시
+    최신 설정 재조회 후 UI가 서버값으로 복구되는지 확인.
+  - 처리정지 요청 시 `requestType=RESTRICTION`로 전송되는지 확인.
+  - 권리행사 요청 이력(`GET /api/v1/users/me/privacy-requests`)이
+    페이지에서 상태 배지와 함께 노출되는지 확인.
+  - 동의 이력 호출이 `page/size/sort` 파라미터 포함으로 나가는지 확인.
+
+- Backend confirm needed for community comment consistency request v1.0.0 (2026-03-08):
+  - `docs/api-spec/커뮤니티_댓글일관성_백엔드요청서_v1.0.0.md` 기준으로
+    `projectCode` 응답 포함 여부 확정.
+  - 답글 생성 실패 코드 세분화(`COMMENT_THREAD_DEPTH_EXCEEDED` 등) 확정.
+  - 댓글 삭제 응답 메타(`deletedCount`, `postCommentCount`) 제공 가능 여부 확정.
+
 - Run QA for notification payload alignment v1.1.0 (2026-03-08):
   - `notificationType + type` 동시 수신 시 `notificationType` 우선 처리 확인.
   - `targetId + entityId` 동시 수신 시 `targetId` 우선 라우팅 확인.
@@ -348,7 +405,7 @@
 - Run QA after repost-action removal (3-action row balance and accidental-tap rate on board/detail) on iOS/Android (remove once validated).
 - Verify like toggle failure copy in both directions (like and unlike) and confirm localization tone with product owner (remove once validated).
 - Run QA for places region filter UX updates (reactive loading without stuck spinner, compact chip entry, multi-select search/apply/clear, selected-count badge, single-region camera move) on iOS/Android (remove once validated).
-- Run QA for `계정 도구` flows on iOS/Android: blocks list load/unblock, role request submit/cancel, verification appeal submit/list (remove once validated).
+- Run QA for `계정 도구` flows on iOS/Android: blocks list load/unblock, access-level summary rendering (`accountRole/baseline/effective`), verification appeal submit/list (remove once validated).
 - Request backend fix: `GET /api/v1/home/summary` currently returns 500 (confirmed on both slug and UUID `projectId` as of 2026-03-01).
 - Request backend fix: `GET /api/v1/users/me` returns 500 in authenticated app bootstrap flow (as of 2026-03-01).
 - Request backend fix: `DELETE /api/v1/projects/{projectId}/posts/{postId}/like` intermittently returns 500 after token refresh on valid authenticated flow (observed 2026-03-02, projectId `girls-band-cry`).
@@ -394,7 +451,17 @@
 - Add unit tests for refresh `429 retryAfter` handling and concurrent `401` refresh deduplication in `ApiClient`.
 - Confirm profile update payload handling for optional fields (avatar/bio/cover) when omitted vs empty.
 - Add Firebase config files (`google-services.json`, `GoogleService-Info.plist`) and verify Analytics/Crashlytics runtime behavior.
-- Define cache key registry + clear-all mechanism for `CacheManager` and map feature TTLs to cache keys.
+- Complete app-wide cache policy rollout phase-2 from
+  `docs/architecture/MOBILE_APP_CACHE_POLICY_V1.0.0.md` (phase-1 done:
+  profile registry + major repository migration + feed reaction soft-fail):
+  - Standardize remaining legacy cache key naming to
+    `feature/resource/scope/variant` and publish key registry table.
+  - Expand prefix-based invalidation matrix coverage to remaining mutation
+    paths (`favorites`, `uploads`, `admin ops` secondary lists).
+  - Add cache observability events (`hit/miss/stale/invalidation/refresh`) and
+    run 1-week telemetry review for TTL tuning.
+  - Add repository/controller tests for reaction-status 404 fallback + short
+    negative-cache behavior (TTL window verification).
 - Enable OAuth once backend is ready by providing authorize URLs and deep-link redirects.
 - Confirm `HomeSummaryDto` field mapping with backend response and adjust parsing keys if needed.
 - Confirm `PlaceDetailDto`/`PlaceSummaryDto` field mapping with backend response and adjust parsing keys if needed.
@@ -433,6 +500,8 @@
 - Verify report sheet keyboard dismiss behavior (tap outside/drag/done) on iOS and Android keyboards.
 - QA post-detail comment thread readability after PHASE4 redesign (small-width devices, long-text wrapping, and deep reply indentation at depth >= 2).
 - QA PHASE5 comment fixes on iOS/Android: root/reply indentation alignment, avatar tap-to-profile navigation, and bottom-sheet edit flow keyboard/submit behavior.
+- QA deleted-root comment UX: `삭제된 댓글입니다` 행에서 `답글 N개 보기/숨기기`
+  토글 동작, 접기 기본 상태, 다크/라이트 가독성 확인.
 - Confirm user profile `bio` and `coverImageUrl` are returned on public profile endpoints (read + update).
 - Confirm whether `username` should be an email for registration and align login labels accordingly.
 - Confirm unit name/description semantics (`code` vs `displayName`) with backend and update mapping if the contract changes.
@@ -452,3 +521,14 @@
 - Add widget tests to guard locale switching and key board/live/project localized strings against regressions.
 - Confirm backend contract for community post `topic`/`tags` fields (create/update/read) and remove temporary optional compatibility fallback once API schema is finalized.
 - Run on-device QA for compose topic/tag UX (bottom-sheet selection, duplicate guard, max-count guard, draft restore, and publish/update payload verification) on iOS/Android.
+- Add widget tests for compose taxonomy failure states (retry button, 401/403
+  login guidance, empty-catalog disabled picker behavior) with provider
+  overrides to avoid real ApiClient bootstrap.
+- Validate Admin taxonomy reorder propagation end-to-end:
+  - update order in Admin `/community-taxonomy`
+  - verify mobile compose/edit reflects identical order after re-entry.
+- Re-verify `설정 > 방문 기록` 탭 분리(장소/라이브) UX on iOS/Android:
+  - entry from `/visits`, `/visits?tab=live`, and legacy `/live-attendance`
+    redirect path should all land on expected tab/state.
+  - remove `/live-attendance -> /visits?tab=live` redirect after one release
+    cycle once no external deep-link dependency remains.

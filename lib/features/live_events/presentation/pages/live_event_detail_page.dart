@@ -1,5 +1,5 @@
-/// EN: Live event detail page with info and verification
-/// KO: 정보 및 인증을 포함한 라이브 이벤트 상세 페이지
+/// EN: Live event detail page with info and attendance toggle.
+/// KO: 정보 및 방문 토글을 포함한 라이브 이벤트 상세 페이지.
 library;
 
 import 'package:flutter/material.dart';
@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/localization/locale_text.dart';
 import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -15,8 +16,6 @@ import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../favorites/application/favorites_controller.dart';
 import '../../../favorites/domain/entities/favorite_entities.dart';
-import '../../../verification/application/verification_controller.dart';
-import '../../../verification/presentation/widgets/verification_sheet.dart';
 import '../../application/live_events_controller.dart';
 import '../../domain/entities/live_event_entities.dart';
 
@@ -41,8 +40,10 @@ class LiveEventDetailPage extends ConsumerWidget {
           loading: () {
             // EN: Skeleton loading — matches poster + info card layout.
             // KO: 스켈레톤 로딩 — 포스터 + 정보 카드 레이아웃에 맞춤.
-            final posterH = (MediaQuery.sizeOf(context).width * 1.45)
-                .clamp(300.0, 620.0);
+            final posterH = (MediaQuery.sizeOf(context).width * 1.45).clamp(
+              300.0,
+              620.0,
+            );
             return [
               SliverAppBar(
                 expandedHeight: posterH,
@@ -78,11 +79,26 @@ class LiveEventDetailPage extends ConsumerWidget {
                           height: 88,
                           child: Row(
                             children: [
-                              Expanded(child: GBTShimmerContainer(height: 88, width: double.infinity)),
+                              Expanded(
+                                child: GBTShimmerContainer(
+                                  height: 88,
+                                  width: double.infinity,
+                                ),
+                              ),
                               const SizedBox(width: GBTSpacing.sm),
-                              Expanded(child: GBTShimmerContainer(height: 88, width: double.infinity)),
+                              Expanded(
+                                child: GBTShimmerContainer(
+                                  height: 88,
+                                  width: double.infinity,
+                                ),
+                              ),
                               const SizedBox(width: GBTSpacing.sm),
-                              Expanded(child: GBTShimmerContainer(height: 88, width: double.infinity)),
+                              Expanded(
+                                child: GBTShimmerContainer(
+                                  height: 88,
+                                  width: double.infinity,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -146,6 +162,9 @@ class LiveEventDetailPage extends ConsumerWidget {
         ? const Color(0xFF121418)
         : const Color(0xFFE8ECF3);
     final favoritesState = ref.watch(favoritesControllerProvider);
+    final attendanceState = ref.watch(
+      liveAttendanceControllerProvider(event.id),
+    );
     final isFavorite = favoritesState.maybeWhen(
       data: (items) => items.any(
         (item) =>
@@ -378,9 +397,7 @@ class LiveEventDetailPage extends ConsumerWidget {
               height: 92,
               child: ListView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: GBTSpacing.md,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
                 children: [
                   _InfoCard(
                     icon: Icons.calendar_today_rounded,
@@ -416,21 +433,10 @@ class LiveEventDetailPage extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: GBTSpacing.lg),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        _showVerificationSheet(
-                          context,
-                          ref,
-                          event.id,
-                          eventTitle: event.title,
-                        );
-                      },
-                      icon: const Icon(Icons.check_circle_outline_rounded),
-                      label: const Text('참석 인증하기'),
-                    ),
+                  _LiveAttendanceSection(
+                    state: attendanceState,
+                    onToggle: (attended) =>
+                        _toggleAttendance(context, ref, event, attended),
                   ),
                   const SizedBox(height: GBTSpacing.lg),
                   const Divider(),
@@ -462,10 +468,7 @@ class LiveEventDetailPage extends ConsumerWidget {
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: () => _launchUrl(event.ticketUrl!),
-                        icon: const Icon(
-                          Icons.open_in_new_rounded,
-                          size: 18,
-                        ),
+                        icon: const Icon(Icons.open_in_new_rounded, size: 18),
                         label: const Text('티켓 구매하기'),
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 48),
@@ -487,7 +490,9 @@ class LiveEventDetailPage extends ConsumerWidget {
                       padding: GBTSpacing.paddingMd,
                       decoration: BoxDecoration(
                         color: surfaceVariantColor,
-                        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                        borderRadius: BorderRadius.circular(
+                          GBTSpacing.radiusMd,
+                        ),
                       ),
                       child: Text(
                         '티켓 정보가 없습니다',
@@ -505,6 +510,183 @@ class LiveEventDetailPage extends ConsumerWidget {
       ),
     ];
   }
+
+  Future<void> _toggleAttendance(
+    BuildContext context,
+    WidgetRef ref,
+    LiveEventDetail event,
+    bool attended,
+  ) async {
+    final result = await ref
+        .read(liveAttendanceControllerProvider(event.id).notifier)
+        .toggle(attended);
+    if (!context.mounted) {
+      return;
+    }
+    final failure = result.failureOrNull;
+    if (failure != null) {
+      final message = _attendanceErrorMessage(context, failure);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+}
+
+class _LiveAttendanceSection extends StatelessWidget {
+  const _LiveAttendanceSection({required this.state, required this.onToggle});
+
+  final LiveAttendanceViewState state;
+  final ValueChanged<bool> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final attendance = state.attendance;
+    final cardColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+    final titleColor = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final bodyColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final statusColor = _attendanceStatusColor(isDark, attendance.status);
+    final isOffLocked = attendance.attended && !attendance.canUndo;
+    final switchEnabled = !state.isSubmitting && !state.isLoading && !isOffLocked;
+
+    return Container(
+      width: double.infinity,
+      padding: GBTSpacing.paddingMd,
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.l10n(
+                        ko: '라이브 방문',
+                        en: 'Live attendance',
+                        ja: 'ライブ参加',
+                      ),
+                      style: GBTTypography.titleSmall.copyWith(
+                        color: titleColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: GBTSpacing.xxs),
+                    Text(
+                      _attendanceStatusLabel(context, attendance.status),
+                      style: GBTTypography.bodySmall.copyWith(
+                        color: statusColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch.adaptive(
+                value: attendance.attended,
+                onChanged: switchEnabled ? onToggle : null,
+              ),
+            ],
+          ),
+          if (state.isLoading) ...[
+            const SizedBox(height: GBTSpacing.xs),
+            Text(
+              context.l10n(
+                ko: '서버 상태를 동기화하는 중이에요.',
+                en: 'Syncing attendance status from server.',
+                ja: 'サーバー状態を同期しています。',
+              ),
+              style: GBTTypography.bodySmall.copyWith(color: bodyColor),
+            ),
+          ] else if (state.isSubmitting) ...[
+            const SizedBox(height: GBTSpacing.xs),
+            Text(
+              context.l10n(
+                ko: '방문 상태를 업데이트하는 중이에요.',
+                en: 'Updating attendance status.',
+                ja: '参加状態を更新しています。',
+              ),
+              style: GBTTypography.bodySmall.copyWith(color: bodyColor),
+            ),
+          ] else if (isOffLocked) ...[
+            const SizedBox(height: GBTSpacing.xs),
+            Text(
+              context.l10n(
+                ko: '검증 완료된 방문 기록은 취소할 수 없어요.',
+                en: 'Verified attendance cannot be undone.',
+                ja: '検証済みの参加記録は取り消せません。',
+              ),
+              style: GBTTypography.bodySmall.copyWith(color: bodyColor),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+String _attendanceStatusLabel(BuildContext context, String status) {
+  final normalized = LiveAttendanceStatus.normalize(status);
+  return switch (normalized) {
+    LiveAttendanceStatus.declared => context.l10n(
+      ko: '방문 기록됨(검증 전)',
+      en: 'Recorded (before verification)',
+      ja: '訪問記録済み（検証前）',
+    ),
+    LiveAttendanceStatus.verified => context.l10n(
+      ko: '방문 검증 완료',
+      en: 'Attendance verified',
+      ja: '参加検証完了',
+    ),
+    _ => context.l10n(ko: '방문 기록 없음', en: 'No attendance record', ja: '参加記録なし'),
+  };
+}
+
+String _attendanceErrorMessage(BuildContext context, Failure failure) {
+  if (failure is ValidationFailure &&
+      failure.code == 'ATTENDANCE_UPDATE_FAILED') {
+    return context.l10n(
+      ko: '검증 완료된 방문 기록은 취소할 수 없어요.',
+      en: 'Verified attendance cannot be undone.',
+      ja: '検証済みの参加記録は取り消せません。',
+    );
+  }
+  return switch (failure) {
+    AuthFailure() => context.l10n(
+      ko: '로그인이 필요합니다.',
+      en: 'Login required.',
+      ja: 'ログインが必要です。',
+    ),
+    NetworkFailure() => context.l10n(
+      ko: '네트워크 연결을 확인해주세요.',
+      en: 'Check your network connection.',
+      ja: 'ネットワーク接続を確認してください。',
+    ),
+    _ => failure.userMessage,
+  };
+}
+
+Color _attendanceStatusColor(bool isDark, String status) {
+  final normalized = LiveAttendanceStatus.normalize(status);
+  return switch (normalized) {
+    LiveAttendanceStatus.declared =>
+      isDark ? GBTColors.darkSecondary : GBTColors.secondary,
+    LiveAttendanceStatus.verified =>
+      isDark ? GBTColors.darkPrimary : GBTColors.primary,
+    _ => isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
+  };
 }
 
 /// EN: Status chip — color-coded by event status.
@@ -573,9 +755,10 @@ class _InfoCard extends StatelessWidget {
     final labelColor = isDark
         ? GBTColors.darkTextTertiary
         : GBTColors.textTertiary;
-    final valueColor = accent ??
-        (isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary);
-    final iconColor = accent ??
+    final valueColor =
+        accent ?? (isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary);
+    final iconColor =
+        accent ??
         (isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary);
 
     return Container(
@@ -730,10 +913,10 @@ class _ExpandableDescriptionState extends State<_ExpandableDescription> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final secondaryColor =
-        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
-    final primaryColor =
-        isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
 
     // EN: Show toggle only when text is long enough to overflow 3 lines.
     //     ~100 chars is a reliable heuristic for most body text sizes.
@@ -746,8 +929,9 @@ class _ExpandableDescriptionState extends State<_ExpandableDescription> {
       children: [
         AnimatedCrossFade(
           duration: GBTAnimations.normal,
-          crossFadeState:
-              _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+          crossFadeState: _expanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
           firstChild: Text(
             widget.text,
             style: GBTTypography.bodyMedium.copyWith(
@@ -789,28 +973,4 @@ Future<void> _launchUrl(String url) async {
   if (await canLaunchUrl(uri)) {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
-}
-
-void _showVerificationSheet(
-  BuildContext context,
-  WidgetRef ref,
-  String eventId, {
-  String? eventTitle,
-}) {
-  ref.read(verificationControllerProvider.notifier).reset();
-  showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    builder: (context) => VerificationSheet(
-      title: '참석 인증',
-      description: '현장에 도착했는지 확인하여 참석 인증을 진행합니다.',
-      onVerify: () => ref
-          .read(verificationControllerProvider.notifier)
-          .verifyLiveEvent(
-            eventId,
-            verificationMethod: 'MANUAL',
-            targetName: eventTitle,
-          ),
-    ),
-  );
 }

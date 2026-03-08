@@ -3,6 +3,7 @@
 library;
 
 import '../../../../core/cache/cache_manager.dart';
+import '../../../../core/cache/cache_profiles.dart';
 import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/result.dart';
@@ -32,16 +33,16 @@ class LiveEventsRepositoryImpl implements LiveEventsRepository {
     final cacheKey = _listCacheKey(projectId, unitIds, page, size);
     // EN: Use staleWhileRevalidate — show cache instantly, refresh in background.
     // KO: staleWhileRevalidate 사용 — 캐시 즉시 표시, 백그라운드 갱신.
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.liveEventsList;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager
           .resolve<List<LiveEventSummaryDto>>(
             key: cacheKey,
             policy: policy,
-            ttl: const Duration(minutes: 10),
+            ttl: profile.ttl,
+            revalidateAfter: profile.revalidateAfter,
             fetcher: () => _fetchLiveEvents(projectId, unitIds, page, size),
             toJson: (dtos) => {'items': dtos.map((e) => e.toJson()).toList()},
             fromJson: (json) {
@@ -76,21 +77,102 @@ class LiveEventsRepositoryImpl implements LiveEventsRepository {
     final cacheKey = _detailCacheKey(projectId, eventId);
     // EN: Use staleWhileRevalidate for event detail — show cached data first.
     // KO: 이벤트 상세에 staleWhileRevalidate 사용 — 캐시 데이터 먼저 표시.
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.liveEventDetail;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<LiveEventDetailDto>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 10),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchLiveEventDetail(projectId, eventId),
         toJson: (dto) => dto.toJson(),
         fromJson: (json) => LiveEventDetailDto.fromJson(json),
       );
 
       return Result.success(LiveEventDetail.fromDto(cacheResult.data));
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  @override
+  Future<Result<LiveAttendanceState>> getLiveAttendanceState({
+    required String projectId,
+    required String eventId,
+    bool forceRefresh = false,
+  }) async {
+    try {
+      final result = await _remoteDataSource.fetchLiveAttendanceState(
+        projectId: projectId,
+        eventId: eventId,
+      );
+
+      if (result case Success<LiveAttendanceStateDto>(:final data)) {
+        return Result.success(LiveAttendanceState.fromDto(data));
+      }
+      if (result case Err<LiveAttendanceStateDto>(:final failure)) {
+        return Result.failure(failure);
+      }
+
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown live attendance state result',
+          code: 'unknown_live_attendance_state',
+        ),
+      );
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  @override
+  Future<Result<LiveAttendanceHistoryPageData>> getLiveAttendanceHistory({
+    required String projectId,
+    int page = 0,
+    int size = 20,
+    bool forceRefresh = false,
+  }) async {
+    try {
+      final result = await _remoteDataSource.fetchLiveAttendances(
+        projectId: projectId,
+        page: page,
+        size: size,
+      );
+
+      if (result case Success<LiveAttendancePageDto>(:final data)) {
+        final items = data.items
+            .map(
+              (dto) => LiveAttendanceHistoryRecord.fromState(
+                projectKey: projectId,
+                state: LiveAttendanceState.fromDto(dto),
+              ),
+            )
+            .where((record) => record.attended && !record.isNone)
+            .toList(growable: false);
+
+        return Result.success(
+          LiveAttendanceHistoryPageData(
+            items: items,
+            currentPage: data.currentPage,
+            pageSize: data.pageSize,
+            hasNext: data.hasNext,
+          ),
+        );
+      }
+      if (result case Err<LiveAttendancePageDto>(:final failure)) {
+        return Result.failure(failure);
+      }
+
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown live attendance history result',
+          code: 'unknown_live_attendance_history',
+        ),
+      );
     } catch (e, stackTrace) {
       final failure = ErrorHandler.mapException(e, stackTrace);
       return Result.failure(failure);
@@ -143,6 +225,38 @@ class LiveEventsRepositoryImpl implements LiveEventsRepository {
       'Unknown live event detail result',
       code: 'unknown_live_event_detail',
     );
+  }
+
+  @override
+  Future<Result<LiveAttendanceState>> toggleLiveAttendance({
+    required String projectId,
+    required String eventId,
+    required bool attended,
+  }) async {
+    try {
+      final result = await _remoteDataSource.toggleLiveAttendance(
+        projectId: projectId,
+        eventId: eventId,
+        attended: attended,
+      );
+
+      if (result case Success<LiveAttendanceStateDto>(:final data)) {
+        return Result.success(LiveAttendanceState.fromDto(data));
+      }
+      if (result case Err<LiveAttendanceStateDto>(:final failure)) {
+        return Result.failure(failure);
+      }
+
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown live attendance toggle result',
+          code: 'unknown_live_attendance_toggle',
+        ),
+      );
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
   }
 
   String _listCacheKey(

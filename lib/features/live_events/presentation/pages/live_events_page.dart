@@ -16,6 +16,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/cards/gbt_event_card.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../application/live_events_controller.dart';
@@ -137,7 +138,18 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
             ],
           ),
         ),
-        actions: [GBTProfileAction(avatarUrl: avatarUrl)],
+        actions: [
+          GBTAppBarIconButton(
+            icon: Icons.history_rounded,
+            tooltip: context.l10n(
+              ko: '라이브 방문 기록',
+              en: 'Live attendance history',
+              ja: 'ライブ参加履歴',
+            ),
+            onPressed: () => context.goToVisitHistory(showLiveTab: true),
+          ),
+          GBTProfileAction(avatarUrl: avatarUrl),
+        ],
       ),
       body: Column(
         children: [

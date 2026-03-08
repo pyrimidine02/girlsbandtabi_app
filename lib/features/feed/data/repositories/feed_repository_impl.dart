@@ -3,6 +3,7 @@
 library;
 
 import '../../../../core/cache/cache_manager.dart';
+import '../../../../core/cache/cache_profiles.dart';
 import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/result.dart';
@@ -31,15 +32,15 @@ class FeedRepositoryImpl implements FeedRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _newsListCacheKey(projectId, page, size);
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.feedNews;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<List<NewsSummaryDto>>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 15),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchNews(projectId, page, size),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {
@@ -71,15 +72,15 @@ class FeedRepositoryImpl implements FeedRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _newsDetailCacheKey(projectId, newsId);
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.feedNews;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<NewsDetailDto>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 15),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchNewsDetail(projectId, newsId),
         toJson: (dto) => dto.toJson(),
         fromJson: (json) => NewsDetailDto.fromJson(json),
@@ -102,15 +103,15 @@ class FeedRepositoryImpl implements FeedRepository {
     final cacheKey = _postListCacheKey(projectCode, page, size);
     // EN: Use staleWhileRevalidate — show cached posts instantly.
     // KO: staleWhileRevalidate 사용 — 캐시된 게시글 즉시 표시.
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.feedPostList;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<List<PostSummaryDto>>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchPosts(projectCode, page, size),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {
@@ -305,15 +306,15 @@ class FeedRepositoryImpl implements FeedRepository {
       page,
       size,
     );
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.feedTrendingPosts;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<List<PostSummaryDto>>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchTrendingPosts(projectCode, sinceHours, page, size),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {
@@ -343,16 +344,16 @@ class FeedRepositoryImpl implements FeedRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _communitySubscriptionsCacheKey(page, size);
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.feedCommunitySubscriptions;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager
           .resolve<List<ProjectSubscriptionSummaryDto>>(
             key: cacheKey,
             policy: policy,
-            ttl: const Duration(minutes: 10),
+            ttl: profile.ttl,
+            revalidateAfter: profile.revalidateAfter,
             fetcher: () => _fetchCommunitySubscriptions(page, size),
             toJson: (dtos) => {
               'items': dtos
@@ -397,15 +398,15 @@ class FeedRepositoryImpl implements FeedRepository {
     final cacheKey = _postDetailCacheKey(projectCode, postId);
     // EN: Use staleWhileRevalidate for post detail — show cached content first.
     // KO: 게시글 상세에 staleWhileRevalidate 사용 — 캐시 콘텐츠 먼저 표시.
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.feedPostDetail;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<PostDetailDto>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchPostDetail(projectCode, postId),
         toJson: (dto) => dto.toJson(),
         fromJson: (json) => PostDetailDto.fromJson(json),
@@ -441,7 +442,7 @@ class FeedRepositoryImpl implements FeedRepository {
       );
 
       if (result is Success<PostDetailDto>) {
-        await _cacheManager.remove(_postListCacheKey(projectCode, 0, 20));
+        await _invalidateAfterPostMutation(projectCode);
         return Result.success(PostDetail.fromDto(result.data));
       }
       if (result is Err<PostDetailDto>) {
@@ -464,15 +465,15 @@ class FeedRepositoryImpl implements FeedRepository {
   Future<Result<PostComposeOptions>> getPostComposeOptions({
     bool forceRefresh = false,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.cacheFirst;
+    final profile = CacheProfiles.feedPostComposeOptions;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<PostComposeOptionsDto>(
         key: _postComposeOptionsCacheKey(),
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: _fetchPostComposeOptions,
         toJson: (dto) => dto.toJson(),
         fromJson: (json) => PostComposeOptionsDto.fromJson(json),
@@ -509,7 +510,7 @@ class FeedRepositoryImpl implements FeedRepository {
       );
 
       if (result is Success<PostDetailDto>) {
-        await _cacheManager.remove(_postDetailCacheKey(projectCode, postId));
+        await _invalidateAfterPostMutation(projectCode, postId: postId);
         return Result.success(PostDetail.fromDto(result.data));
       }
       if (result is Err<PostDetailDto>) {
@@ -540,7 +541,7 @@ class FeedRepositoryImpl implements FeedRepository {
       );
 
       if (result is Success<void>) {
-        await _cacheManager.remove(_postDetailCacheKey(projectCode, postId));
+        await _invalidateAfterPostMutation(projectCode, postId: postId);
         return const Result.success(null);
       }
       if (result is Err<void>) {
@@ -570,15 +571,15 @@ class FeedRepositoryImpl implements FeedRepository {
     final cacheKey = _postCommentsCacheKey(projectCode, postId, page, size);
     // EN: Use staleWhileRevalidate for comments — show cached comments first.
     // KO: 댓글에 staleWhileRevalidate 사용 — 캐시 댓글 먼저 표시.
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.feedPostComments;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<List<PostCommentDto>>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 3),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchPostComments(projectCode, postId, page, size),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {
@@ -622,9 +623,7 @@ class FeedRepositoryImpl implements FeedRepository {
       );
 
       if (result is Success<PostCommentDto>) {
-        await _cacheManager.remove(
-          _postCommentsCacheKey(projectCode, postId, 0, 20),
-        );
+        await _invalidateAfterCommentMutation(projectCode, postId: postId);
         return Result.success(PostComment.fromDto(result.data));
       }
       if (result is Err<PostCommentDto>) {
@@ -659,9 +658,7 @@ class FeedRepositoryImpl implements FeedRepository {
       );
 
       if (result is Success<PostCommentDto>) {
-        await _cacheManager.remove(
-          _postCommentsCacheKey(projectCode, postId, 0, 20),
-        );
+        await _invalidateAfterCommentMutation(projectCode, postId: postId);
         return Result.success(PostComment.fromDto(result.data));
       }
       if (result is Err<PostCommentDto>) {
@@ -694,9 +691,7 @@ class FeedRepositoryImpl implements FeedRepository {
       );
 
       if (result is Success<void>) {
-        await _cacheManager.remove(
-          _postCommentsCacheKey(projectCode, postId, 0, 20),
-        );
+        await _invalidateAfterCommentMutation(projectCode, postId: postId);
         return const Result.success(null);
       }
       if (result is Err<void>) {
@@ -726,15 +721,15 @@ class FeedRepositoryImpl implements FeedRepository {
     final cacheKey = _postsByAuthorCacheKey(projectCode, userId, page, size);
     // EN: Use staleWhileRevalidate for author posts — show cached data first.
     // KO: 작성자별 게시글에 staleWhileRevalidate 사용 — 캐시 먼저 표시.
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.feedPostsByAuthor;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<List<PostSummaryDto>>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchPostsByAuthor(projectCode, userId, page, size),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {
@@ -770,15 +765,15 @@ class FeedRepositoryImpl implements FeedRepository {
     final cacheKey = _commentsByAuthorCacheKey(projectCode, userId, page, size);
     // EN: Use staleWhileRevalidate for author comments — show cached data first.
     // KO: 작성자별 댓글에 staleWhileRevalidate 사용 — 캐시 먼저 표시.
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.feedCommentsByAuthor;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<List<PostCommentDto>>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 3),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchCommentsByAuthor(projectCode, userId, page, size),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {
@@ -808,25 +803,19 @@ class FeedRepositoryImpl implements FeedRepository {
     required String projectCode,
     required String postId,
   }) async {
+    final profile = CacheProfiles.feedReactionStatus;
+    final cacheKey = _postLikeStatusCacheKey(projectCode, postId);
     try {
-      final result = await _remoteDataSource.fetchPostLikeStatus(
-        projectCode: projectCode,
-        postId: postId,
+      final cacheResult = await _cacheManager.resolve<PostLikeStatusDto>(
+        key: cacheKey,
+        policy: profile.readPolicy,
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
+        fetcher: () => _fetchPostLikeStatusWithFallback(projectCode, postId),
+        toJson: (dto) => dto.toJson(),
+        fromJson: PostLikeStatusDto.fromJson,
       );
-
-      if (result is Success<PostLikeStatusDto>) {
-        return Result.success(PostLikeStatus.fromDto(result.data));
-      }
-      if (result is Err<PostLikeStatusDto>) {
-        return Result.failure(result.failure);
-      }
-
-      return Result.failure(
-        const UnknownFailure(
-          'Unknown post like status result',
-          code: 'unknown_post_like_status',
-        ),
-      );
+      return Result.success(PostLikeStatus.fromDto(cacheResult.data));
     } catch (e, stackTrace) {
       final failure = ErrorHandler.mapException(e, stackTrace);
       return Result.failure(failure);
@@ -845,6 +834,7 @@ class FeedRepositoryImpl implements FeedRepository {
       );
 
       if (result is Success<PostLikeStatusDto>) {
+        await _cacheLikeStatus(projectCode, result.data);
         return Result.success(PostLikeStatus.fromDto(result.data));
       }
       if (result is Err<PostLikeStatusDto>) {
@@ -875,6 +865,7 @@ class FeedRepositoryImpl implements FeedRepository {
       );
 
       if (result is Success<PostLikeStatusDto>) {
+        await _cacheLikeStatus(projectCode, result.data);
         return Result.success(PostLikeStatus.fromDto(result.data));
       }
       if (result is Err<PostLikeStatusDto>) {
@@ -898,25 +889,20 @@ class FeedRepositoryImpl implements FeedRepository {
     required String projectCode,
     required String postId,
   }) async {
+    final profile = CacheProfiles.feedReactionStatus;
+    final cacheKey = _postBookmarkStatusCacheKey(projectCode, postId);
     try {
-      final result = await _remoteDataSource.fetchPostBookmarkStatus(
-        projectCode: projectCode,
-        postId: postId,
+      final cacheResult = await _cacheManager.resolve<PostBookmarkStatusDto>(
+        key: cacheKey,
+        policy: profile.readPolicy,
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
+        fetcher: () =>
+            _fetchPostBookmarkStatusWithFallback(projectCode, postId),
+        toJson: (dto) => dto.toJson(),
+        fromJson: PostBookmarkStatusDto.fromJson,
       );
-
-      if (result is Success<PostBookmarkStatusDto>) {
-        return Result.success(PostBookmarkStatus.fromDto(result.data));
-      }
-      if (result is Err<PostBookmarkStatusDto>) {
-        return Result.failure(result.failure);
-      }
-
-      return Result.failure(
-        const UnknownFailure(
-          'Unknown post bookmark status result',
-          code: 'unknown_post_bookmark_status',
-        ),
-      );
+      return Result.success(PostBookmarkStatus.fromDto(cacheResult.data));
     } catch (e, stackTrace) {
       final failure = ErrorHandler.mapException(e, stackTrace);
       return Result.failure(failure);
@@ -935,6 +921,7 @@ class FeedRepositoryImpl implements FeedRepository {
       );
 
       if (result is Success<PostBookmarkStatusDto>) {
+        await _cacheBookmarkStatus(projectCode, result.data);
         return Result.success(PostBookmarkStatus.fromDto(result.data));
       }
       if (result is Err<PostBookmarkStatusDto>) {
@@ -965,6 +952,7 @@ class FeedRepositoryImpl implements FeedRepository {
       );
 
       if (result is Success<PostBookmarkStatusDto>) {
+        await _cacheBookmarkStatus(projectCode, result.data);
         return Result.success(PostBookmarkStatus.fromDto(result.data));
       }
       if (result is Err<PostBookmarkStatusDto>) {
@@ -1254,6 +1242,127 @@ class FeedRepositoryImpl implements FeedRepository {
     );
   }
 
+  Future<PostLikeStatusDto> _fetchPostLikeStatusWithFallback(
+    String projectCode,
+    String postId,
+  ) async {
+    final result = await _remoteDataSource.fetchPostLikeStatus(
+      projectCode: projectCode,
+      postId: postId,
+    );
+
+    if (result is Success<PostLikeStatusDto>) {
+      return result.data;
+    }
+    if (result is Err<PostLikeStatusDto>) {
+      if (_isNotFoundLikeFailure(result.failure)) {
+        return PostLikeStatusDto(postId: postId, isLiked: false, likeCount: 0);
+      }
+      throw result.failure;
+    }
+
+    throw const UnknownFailure(
+      'Unknown post like status result',
+      code: 'unknown_post_like_status',
+    );
+  }
+
+  Future<PostBookmarkStatusDto> _fetchPostBookmarkStatusWithFallback(
+    String projectCode,
+    String postId,
+  ) async {
+    final result = await _remoteDataSource.fetchPostBookmarkStatus(
+      projectCode: projectCode,
+      postId: postId,
+    );
+
+    if (result is Success<PostBookmarkStatusDto>) {
+      return result.data;
+    }
+    if (result is Err<PostBookmarkStatusDto>) {
+      if (_isNotFoundLikeFailure(result.failure)) {
+        return PostBookmarkStatusDto(postId: postId, isBookmarked: false);
+      }
+      throw result.failure;
+    }
+
+    throw const UnknownFailure(
+      'Unknown post bookmark status result',
+      code: 'unknown_post_bookmark_status',
+    );
+  }
+
+  bool _isNotFoundLikeFailure(Failure failure) {
+    if (failure is NotFoundFailure) {
+      return true;
+    }
+    return failure.code?.trim() == '404';
+  }
+
+  Future<void> _cacheLikeStatus(
+    String projectCode,
+    PostLikeStatusDto dto,
+  ) async {
+    await _cacheManager.setJson(
+      _postLikeStatusCacheKey(projectCode, dto.postId),
+      dto.toJson(),
+      ttl: CacheProfiles.feedReactionStatus.ttl,
+    );
+  }
+
+  Future<void> _cacheBookmarkStatus(
+    String projectCode,
+    PostBookmarkStatusDto dto,
+  ) async {
+    await _cacheManager.setJson(
+      _postBookmarkStatusCacheKey(projectCode, dto.postId),
+      dto.toJson(),
+      ttl: CacheProfiles.feedReactionStatus.ttl,
+    );
+  }
+
+  Future<void> _invalidateAfterPostMutation(
+    String projectCode, {
+    String? postId,
+  }) async {
+    await _invalidatePostListCaches(projectCode);
+    await _invalidateAuthorActivityCaches(projectCode);
+    if (postId != null && postId.isNotEmpty) {
+      await _invalidatePostDetailAndCommentsCaches(projectCode, postId);
+    }
+  }
+
+  Future<void> _invalidateAfterCommentMutation(
+    String projectCode, {
+    required String postId,
+  }) async {
+    await _invalidatePostDetailAndCommentsCaches(projectCode, postId);
+    await _invalidatePostListCaches(projectCode);
+    await _invalidateAuthorActivityCaches(projectCode);
+  }
+
+  Future<void> _invalidatePostListCaches(String projectCode) async {
+    await _cacheManager.removeByPrefix('post_list:$projectCode:');
+    await _cacheManager.removeByPrefix('post_trending:$projectCode:');
+  }
+
+  Future<void> _invalidatePostDetailAndCommentsCaches(
+    String projectCode,
+    String postId,
+  ) async {
+    await _cacheManager.remove(_postDetailCacheKey(projectCode, postId));
+    await _cacheManager.removeByPrefix('post_comments:$projectCode:$postId:');
+    await _cacheManager.remove(_postLikeStatusCacheKey(projectCode, postId));
+    await _cacheManager.remove(
+      _postBookmarkStatusCacheKey(projectCode, postId),
+    );
+  }
+
+  Future<void> _invalidateAuthorActivityCaches(String projectCode) async {
+    await _cacheManager.removeByPrefix('post_list:$projectCode:author:');
+    await _cacheManager.removeByPrefix('post_comments:$projectCode:author:');
+  }
+
   String _newsListCacheKey(String projectId, int page, int size) {
     return 'news_list:$projectId:p$page:s$size';
   }
@@ -1312,5 +1421,13 @@ class FeedRepositoryImpl implements FeedRepository {
 
   String _postComposeOptionsCacheKey() {
     return 'post_compose_options';
+  }
+
+  String _postLikeStatusCacheKey(String projectCode, String postId) {
+    return 'post_like_status:$projectCode:$postId';
+  }
+
+  String _postBookmarkStatusCacheKey(String projectCode, String postId) {
+    return 'post_bookmark_status:$projectCode:$postId';
   }
 }

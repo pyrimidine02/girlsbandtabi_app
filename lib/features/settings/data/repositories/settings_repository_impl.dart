@@ -3,6 +3,7 @@
 library;
 
 import '../../../../core/cache/cache_manager.dart';
+import '../../../../core/cache/cache_profiles.dart';
 import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/result.dart';
@@ -30,15 +31,15 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<Result<UserProfile>> getUserProfile({
     bool forceRefresh = false,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.settingsUserProfile;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<UserProfileDto>(
         key: _profileCacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 10),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: _fetchUserProfile,
         toJson: (dto) => dto.toJson(),
         fromJson: (json) => UserProfileDto.fromJson(json),
@@ -55,15 +56,15 @@ class SettingsRepositoryImpl implements SettingsRepository {
     required String userId,
     bool forceRefresh = false,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.settingsUserProfileById;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<UserProfileDto>(
         key: _userProfileCacheKey(userId),
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchUserProfileById(userId),
         toJson: (dto) => dto.toJson(),
         fromJson: (json) => UserProfileDto.fromJson(json),
@@ -94,7 +95,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
         await _cacheManager.setJson(
           _profileCacheKey,
           result.data.toJson(),
-          ttl: const Duration(minutes: 10),
+          ttl: CacheProfiles.settingsUserProfile.ttl,
         );
         return Result.success(UserProfile.fromDto(result.data));
       }
@@ -118,15 +119,15 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<Result<NotificationSettings>> getNotificationSettings({
     bool forceRefresh = false,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.settingsNotificationSettings;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<NotificationSettingsDto>(
         key: _notificationCacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: _fetchNotificationSettings,
         toJson: (dto) => dto.toJson(),
         fromJson: (json) => NotificationSettingsDto.fromJson(json),
@@ -156,7 +157,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
         await _cacheManager.setJson(
           _notificationCacheKey,
           result.data.toJson(),
-          ttl: const Duration(minutes: 5),
+          ttl: CacheProfiles.settingsNotificationSettings.ttl,
         );
         return Result.success(NotificationSettings.fromDto(result.data));
       }
@@ -209,14 +210,14 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<Result<List<UserBlock>>> getUserBlocks({
     bool forceRefresh = false,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.settingsUserBlocks;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
     try {
       final cacheResult = await _cacheManager.resolve<List<UserBlockDto>>(
         key: _userBlocksCacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: _fetchUserBlocks,
         toJson: (dtos) => {'items': dtos.map(_userBlockToJson).toList()},
         fromJson: (json) {
@@ -254,107 +255,20 @@ class SettingsRepositoryImpl implements SettingsRepository {
   }
 
   @override
-  Future<Result<List<ProjectRoleRequest>>> getProjectRoleRequests({
-    bool forceRefresh = false,
-  }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
-    try {
-      final cacheResult = await _cacheManager
-          .resolve<List<ProjectRoleRequestSummaryDto>>(
-            key: _projectRoleRequestsCacheKey,
-            policy: policy,
-            ttl: const Duration(minutes: 5),
-            fetcher: _fetchProjectRoleRequests,
-            toJson: (dtos) => {
-              'items': dtos.map(_roleRequestSummaryToJson).toList(),
-            },
-            fromJson: (json) {
-              final items = json['items'];
-              if (items is List) {
-                return items
-                    .whereType<Map<String, dynamic>>()
-                    .map(ProjectRoleRequestSummaryDto.fromJson)
-                    .toList(growable: false);
-              }
-              return const <ProjectRoleRequestSummaryDto>[];
-            },
-          );
-      return Result.success(
-        cacheResult.data
-            .map(ProjectRoleRequest.fromSummaryDto)
-            .toList(growable: false),
-      );
-    } catch (e, stackTrace) {
-      return Result.failure(ErrorHandler.mapException(e, stackTrace));
-    }
-  }
-
-  @override
-  Future<Result<ProjectRoleRequest>> createProjectRoleRequest({
-    required String projectId,
-    required String requestedRole,
-    required String justification,
-  }) async {
-    try {
-      final result = await _remoteDataSource.createProjectRoleRequest(
-        request: ProjectRoleRequestCreateRequestDto(
-          projectId: projectId,
-          requestedRole: requestedRole,
-          justification: justification,
-        ),
-      );
-      if (result is Success<ProjectRoleRequestDetailDto>) {
-        await _cacheManager.remove(_projectRoleRequestsCacheKey);
-        return Result.success(ProjectRoleRequest.fromDetailDto(result.data));
-      }
-      if (result is Err<ProjectRoleRequestDetailDto>) {
-        return Result.failure(result.failure);
-      }
-      return Result.failure(
-        const UnknownFailure(
-          'Unknown project role request create result',
-          code: 'unknown_project_role_request_create',
-        ),
-      );
-    } catch (e, stackTrace) {
-      return Result.failure(ErrorHandler.mapException(e, stackTrace));
-    }
-  }
-
-  @override
-  Future<Result<void>> cancelProjectRoleRequest({
-    required String requestId,
-  }) async {
-    try {
-      final result = await _remoteDataSource.cancelProjectRoleRequest(
-        requestId: requestId,
-      );
-      if (result is Success<void>) {
-        await _cacheManager.remove(_projectRoleRequestsCacheKey);
-      }
-      return result;
-    } catch (e, stackTrace) {
-      return Result.failure(ErrorHandler.mapException(e, stackTrace));
-    }
-  }
-
-  @override
   Future<Result<List<VerificationAppeal>>> getVerificationAppeals({
     required String projectId,
     bool forceRefresh = false,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.settingsVerificationAppeals;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
     final cacheKey = _verificationAppealsCacheKey(projectId);
     try {
       final cacheResult = await _cacheManager
           .resolve<List<VerificationAppealDto>>(
             key: cacheKey,
             policy: policy,
-            ttl: const Duration(minutes: 3),
+            ttl: profile.ttl,
+            revalidateAfter: profile.revalidateAfter,
             fetcher: () => _fetchVerificationAppeals(projectId),
             toJson: (dtos) => {
               'items': dtos.map(_verificationAppealToJson).toList(),
@@ -480,20 +394,6 @@ class SettingsRepositoryImpl implements SettingsRepository {
     );
   }
 
-  Future<List<ProjectRoleRequestSummaryDto>> _fetchProjectRoleRequests() async {
-    final result = await _remoteDataSource.fetchProjectRoleRequests();
-    if (result is Success<List<ProjectRoleRequestSummaryDto>>) {
-      return result.data;
-    }
-    if (result is Err<List<ProjectRoleRequestSummaryDto>>) {
-      throw result.failure;
-    }
-    throw const UnknownFailure(
-      'Unknown project role requests result',
-      code: 'unknown_project_role_requests',
-    );
-  }
-
   Future<List<VerificationAppealDto>> _fetchVerificationAppeals(
     String projectId,
   ) async {
@@ -515,7 +415,6 @@ class SettingsRepositoryImpl implements SettingsRepository {
   static const String _profileCacheKey = 'user_profile';
   static const String _notificationCacheKey = 'notification_settings';
   static const String _userBlocksCacheKey = 'user_blocks';
-  static const String _projectRoleRequestsCacheKey = 'project_role_requests';
 
   String _userProfileCacheKey(String userId) {
     return 'user_profile:$userId';
@@ -539,19 +438,6 @@ Map<String, dynamic> _userBlockToJson(UserBlockDto dto) {
     'id': dto.id,
     'blockedUser': _blockedUserToJson(dto.blockedUser),
     if (dto.reason != null) 'reason': dto.reason,
-    'createdAt': dto.createdAt.toIso8601String(),
-  };
-}
-
-Map<String, dynamic> _roleRequestSummaryToJson(
-  ProjectRoleRequestSummaryDto dto,
-) {
-  return {
-    'id': dto.id,
-    if (dto.projectSlug != null) 'projectSlug': dto.projectSlug,
-    if (dto.projectName != null) 'projectName': dto.projectName,
-    'requestedRole': dto.requestedRole,
-    'status': dto.status,
     'createdAt': dto.createdAt.toIso8601String(),
   };
 }

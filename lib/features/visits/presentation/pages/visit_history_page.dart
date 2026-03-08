@@ -15,25 +15,44 @@ import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../places/domain/entities/place_entities.dart';
+import '../../../live_events/presentation/pages/live_attendance_history_page.dart';
 import '../../application/visits_controller.dart';
 import '../../domain/entities/visit_entities.dart';
 
 /// EN: Visit history page widget — premium timeline design.
 /// KO: 방문 기록 페이지 위젯 — 프리미엄 타임라인 디자인.
+enum VisitHistoryTab { places, live }
+
 class VisitHistoryPage extends ConsumerStatefulWidget {
-  const VisitHistoryPage({super.key});
+  const VisitHistoryPage({super.key, this.initialTab = VisitHistoryTab.places});
+
+  final VisitHistoryTab initialTab;
 
   @override
   ConsumerState<VisitHistoryPage> createState() => _VisitHistoryPageState();
 }
 
-class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage> {
+class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTab.index,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(userVisitsControllerProvider.notifier).load();
     });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
@@ -44,6 +63,17 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(context.l10n(ko: '방문 기록', en: 'Visit history', ja: '訪問履歴')),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(
+              text: context.l10n(ko: '장소', en: 'Places', ja: '場所'),
+            ),
+            Tab(
+              text: context.l10n(ko: '라이브', en: 'Live', ja: 'ライブ'),
+            ),
+          ],
+        ),
         actions: [
           GBTAppBarIconButton(
             icon: Icons.bar_chart_rounded,
@@ -52,125 +82,138 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage> {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () => ref
-            .read(userVisitsControllerProvider.notifier)
-            .load(forceRefresh: true),
-        child: visitsState.when(
-          loading: () => Center(
-            child: GBTLoading(
-              message: context.l10n(
-                ko: '방문 기록을 불러오는 중...',
-                en: 'Loading visit history...',
-                ja: '訪問履歴を読み込み中...',
-              ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildPlaceHistoryBody(context, visitsState, placesMapState),
+          const LiveAttendanceHistoryBody(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceHistoryBody(
+    BuildContext context,
+    AsyncValue<List<VisitEvent>> visitsState,
+    AsyncValue<Map<String, PlaceSummary>> placesMapState,
+  ) {
+    return RefreshIndicator(
+      onRefresh: () => ref
+          .read(userVisitsControllerProvider.notifier)
+          .load(forceRefresh: true),
+      child: visitsState.when(
+        loading: () => Center(
+          child: GBTLoading(
+            message: context.l10n(
+              ko: '방문 기록을 불러오는 중...',
+              en: 'Loading visit history...',
+              ja: '訪問履歴を読み込み中...',
             ),
           ),
-          error: (error, _) {
-            final message = error is Failure
-                ? error.userMessage
-                : context.l10n(
-                    ko: '방문 기록을 불러오지 못했습니다.',
-                    en: 'Could not load visit history.',
-                    ja: '訪問履歴を読み込めませんでした。',
-                  );
+        ),
+        error: (error, _) {
+          final message = error is Failure
+              ? error.userMessage
+              : context.l10n(
+                  ko: '방문 기록을 불러오지 못했습니다.',
+                  en: 'Could not load visit history.',
+                  ja: '訪問履歴を読み込めませんでした。',
+                );
+          return _VisitEmptyState(
+            message: message,
+            onRetry: () {
+              ref
+                  .read(userVisitsControllerProvider.notifier)
+                  .load(forceRefresh: true);
+            },
+          );
+        },
+        data: (visits) {
+          if (visits.isEmpty) {
             return _VisitEmptyState(
-              message: message,
-              onRetry: () {
-                ref
-                    .read(userVisitsControllerProvider.notifier)
-                    .load(forceRefresh: true);
-              },
-            );
-          },
-          data: (visits) {
-            if (visits.isEmpty) {
-              return _VisitEmptyState(
-                message: context.l10n(
-                  ko: '아직 방문 기록이 없습니다.\n장소를 방문하고 인증해보세요!',
-                  en: 'No visit history yet.\nVisit a place and verify your visit!',
-                  ja: 'まだ訪問履歴がありません。\n場所を訪問して認証してみましょう！',
-                ),
-              );
-            }
-
-            final sorted = [...visits]..sort((a, b) => _compareVisitedAt(b, a));
-            final placesLoading = placesMapState is AsyncLoading;
-            final placeMap =
-                placesMapState.valueOrNull ?? const <String, PlaceSummary>{};
-
-            // EN: Group visits by month for timeline sections.
-            // KO: 타임라인 섹션을 위해 방문을 월별로 그룹화합니다.
-            final grouped = _groupByMonth(sorted, context);
-
-            return CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
+              message: context.l10n(
+                ko: '아직 방문 기록이 없습니다.\n장소를 방문하고 인증해보세요!',
+                en: 'No visit history yet.\nVisit a place and verify your visit!',
+                ja: 'まだ訪問履歴がありません。\n場所を訪問して認証してみましょう！',
               ),
-              slivers: [
-                // EN: Summary header card
-                // KO: 요약 헤더 카드
-                SliverToBoxAdapter(
-                  child: _SummaryHeader(
-                    totalVisits: sorted.length,
-                    uniquePlaces: sorted.map((v) => v.placeId).toSet().length,
+            );
+          }
+
+          final sorted = [...visits]..sort((a, b) => _compareVisitedAt(b, a));
+          final placesLoading = placesMapState is AsyncLoading;
+          final placeMap =
+              placesMapState.valueOrNull ?? const <String, PlaceSummary>{};
+
+          // EN: Group visits by month for timeline sections.
+          // KO: 타임라인 섹션을 위해 방문을 월별로 그룹화합니다.
+          final grouped = _groupByMonth(sorted, context);
+
+          return CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            slivers: [
+              // EN: Summary header card
+              // KO: 요약 헤더 카드
+              SliverToBoxAdapter(
+                child: _SummaryHeader(
+                  totalVisits: sorted.length,
+                  uniquePlaces: sorted.map((v) => v.placeId).toSet().length,
+                ),
+              ),
+
+              for (final entry in grouped.entries) ...[
+                // EN: Month section header
+                // KO: 월별 섹션 헤더
+                SliverToBoxAdapter(child: _MonthHeader(label: entry.key)),
+
+                // EN: Visit cards for this month
+                // KO: 이 달의 방문 카드
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GBTSpacing.pageHorizontal,
+                  ),
+                  sliver: SliverList.separated(
+                    itemCount: entry.value.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(height: GBTSpacing.sm),
+                    itemBuilder: (context, index) {
+                      final visit = entry.value[index];
+                      final placeFound = placeMap.containsKey(visit.placeId);
+                      final place = placeMap[visit.placeId];
+                      final showLoading = placesLoading && !placeFound;
+
+                      return _VisitCard(
+                        visit: visit,
+                        place: place,
+                        isLoading: showLoading,
+                        onTap: () => context.goToVisitDetail(
+                          visitId: visit.id,
+                          placeId: visit.placeId,
+                          visitedAt: visit.visitedAt?.toIso8601String(),
+                          latitude: visit.latitude,
+                          longitude: visit.longitude,
+                        ),
+                      );
+                    },
                   ),
                 ),
 
-                for (final entry in grouped.entries) ...[
-                  // EN: Month section header
-                  // KO: 월별 섹션 헤더
-                  SliverToBoxAdapter(child: _MonthHeader(label: entry.key)),
-
-                  // EN: Visit cards for this month
-                  // KO: 이 달의 방문 카드
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: GBTSpacing.pageHorizontal,
-                    ),
-                    sliver: SliverList.separated(
-                      itemCount: entry.value.length,
-                      separatorBuilder: (_, __) =>
-                          const SizedBox(height: GBTSpacing.sm),
-                      itemBuilder: (context, index) {
-                        final visit = entry.value[index];
-                        final placeFound = placeMap.containsKey(visit.placeId);
-                        final place = placeMap[visit.placeId];
-                        final showLoading = placesLoading && !placeFound;
-
-                        return _VisitCard(
-                          visit: visit,
-                          place: place,
-                          isLoading: showLoading,
-                          onTap: () => context.goToVisitDetail(
-                            visitId: visit.id,
-                            placeId: visit.placeId,
-                            visitedAt: visit.visitedAt?.toIso8601String(),
-                            latitude: visit.latitude,
-                            longitude: visit.longitude,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: GBTSpacing.md),
-                  ),
-                ],
-
-                // EN: Bottom safe area
-                // KO: 하단 안전 영역
-                SliverToBoxAdapter(
-                  child: SizedBox(
-                    height:
-                        MediaQuery.of(context).padding.bottom + GBTSpacing.lg,
-                  ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: GBTSpacing.md),
                 ),
               ],
-            );
-          },
-        ),
+
+              // EN: Bottom safe area
+              // KO: 하단 안전 영역
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: MediaQuery.of(context).padding.bottom + GBTSpacing.lg,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

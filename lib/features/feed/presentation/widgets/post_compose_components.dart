@@ -26,30 +26,6 @@ String appendImageMarkdownContent(String content, List<String> urls) {
   return buffer.toString().trim();
 }
 
-/// EN: Default topic options for community post compose.
-/// KO: 커뮤니티 글 작성에 사용하는 기본 토픽 옵션입니다.
-const List<String> kPostTopicOptions = <String>[
-  '일상',
-  '정보',
-  '질문',
-  '후기',
-  '공연',
-  '굿즈',
-];
-
-/// EN: Suggested tags shown in the compose tag picker.
-/// KO: 작성 화면 태그 선택기에 표시되는 추천 태그입니다.
-const List<String> kPostTagSuggestions = <String>[
-  '라이브',
-  '성지',
-  '세트리스트',
-  '티켓',
-  '굿즈',
-  '밴드',
-  '사진',
-  '질문',
-];
-
 /// EN: Maximum allowed tag count in compose metadata.
 /// KO: 작성 메타데이터에서 허용하는 최대 태그 개수입니다.
 const int kPostMaxTagCount = 5;
@@ -111,6 +87,7 @@ class PostTopicTagSelector extends StatelessWidget {
     return Wrap(
       spacing: GBTSpacing.xs,
       runSpacing: GBTSpacing.xs,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         ActionChip(
           onPressed: onTapTopic,
@@ -142,8 +119,6 @@ class PostTopicTagSelector extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
             deleteIconColor: colorScheme.onSurfaceVariant,
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ),
         ActionChip(
@@ -171,7 +146,7 @@ class PostTopicTagSelector extends StatelessWidget {
 Future<String?> showPostTopicPickerSheet(
   BuildContext context, {
   required String? selectedTopic,
-  List<String> options = kPostTopicOptions,
+  required List<String> options,
 }) {
   return showModalBottomSheet<String>(
     context: context,
@@ -224,116 +199,19 @@ Future<String?> showPostTopicPickerSheet(
   );
 }
 
-/// EN: Shows a fallback text input sheet for custom topic entry.
-/// KO: 커스텀 토픽 자유입력을 위한 폴백 시트를 표시합니다.
-Future<String?> showPostTopicInputSheet(
-  BuildContext context, {
-  required String? initialTopic,
-  int maxLength = 30,
-}) async {
-  final controller = TextEditingController(text: initialTopic ?? '');
-  String? errorText;
-
-  final result = await showModalBottomSheet<String>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (sheetContext) {
-      final colorScheme = Theme.of(sheetContext).colorScheme;
-      return StatefulBuilder(
-        builder: (sheetContext, setSheetState) {
-          Future<void> submit() async {
-            final value = controller.text.trim();
-            if (value.length > maxLength) {
-              setSheetState(() {
-                errorText = '토픽은 최대 $maxLength자까지 입력할 수 있어요';
-              });
-              return;
-            }
-            Navigator.of(sheetContext).pop(value);
-          }
-
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
-            ),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  GBTSpacing.md,
-                  GBTSpacing.xs,
-                  GBTSpacing.md,
-                  GBTSpacing.md,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '토픽 직접 입력',
-                      style: GBTTypography.titleMedium.copyWith(
-                        color: colorScheme.onSurface,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: GBTSpacing.xs),
-                    TextField(
-                      controller: controller,
-                      autofocus: true,
-                      maxLength: maxLength,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => submit(),
-                      decoration: InputDecoration(
-                        hintText: '예) 정보, 질문',
-                        counterText: '',
-                        errorText: errorText,
-                      ),
-                    ),
-                    const SizedBox(height: GBTSpacing.md),
-                    Row(
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.of(sheetContext).pop(''),
-                          child: const Text('선택 안 함'),
-                        ),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: () => Navigator.of(sheetContext).pop(),
-                          child: const Text('취소'),
-                        ),
-                        const SizedBox(width: GBTSpacing.xs),
-                        FilledButton(
-                          onPressed: submit,
-                          child: const Text('저장'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      );
-    },
-  );
-
-  controller.dispose();
-  return result;
-}
-
-/// EN: Shows a modal tag picker and returns a normalized tag token.
-/// KO: 모달 태그 선택기를 표시하고 정규화된 태그 토큰을 반환합니다.
+/// EN: Shows a modal tag picker and returns a selected tag token.
+/// KO: 모달 태그 선택기를 표시하고 선택된 태그 토큰을 반환합니다.
 Future<String?> showPostTagPickerSheet(
   BuildContext context, {
   required List<String> selectedTags,
-  List<String> suggestions = kPostTagSuggestions,
-  int maxLength = 16,
+  List<String> suggestions = const <String>[],
 }) async {
-  final controller = TextEditingController();
-  String? errorText;
+  final orderedSuggestions = suggestions
+      .map(normalizePostTag)
+      .where((tag) => tag.isNotEmpty)
+      .toList(growable: false);
 
-  bool alreadySelected(String normalizedTag) {
+  bool isAlreadySelected(String normalizedTag) {
     return selectedTags.any(
       (tag) => tag.toLowerCase() == normalizedTag.toLowerCase(),
     );
@@ -341,127 +219,76 @@ Future<String?> showPostTagPickerSheet(
 
   final result = await showModalBottomSheet<String>(
     context: context,
-    isScrollControlled: true,
     showDragHandle: true,
     builder: (sheetContext) {
       final colorScheme = Theme.of(sheetContext).colorScheme;
-      return StatefulBuilder(
-        builder: (sheetContext, setSheetState) {
-          void setError(String message) {
-            setSheetState(() {
-              errorText = message;
-            });
-          }
-
-          Future<void> submitCustomTag() async {
-            final normalizedTag = normalizePostTag(controller.text);
-            if (normalizedTag.isEmpty) {
-              setError('태그를 입력해주세요');
-              return;
-            }
-            if (normalizedTag.length > maxLength) {
-              setError('태그는 최대 $maxLength자까지 입력할 수 있어요');
-              return;
-            }
-            if (alreadySelected(normalizedTag)) {
-              setError('이미 선택된 태그입니다');
-              return;
-            }
-            Navigator.of(sheetContext).pop(normalizedTag);
-          }
-
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
-            ),
-            child: SafeArea(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    GBTSpacing.md,
-                    GBTSpacing.xs,
-                    GBTSpacing.md,
-                    GBTSpacing.md,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '태그 추가',
-                        style: GBTTypography.titleMedium.copyWith(
-                          color: colorScheme.onSurface,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: GBTSpacing.xs),
-                      TextField(
-                        controller: controller,
-                        autofocus: true,
-                        maxLength: maxLength,
-                        textInputAction: TextInputAction.done,
-                        onSubmitted: (_) => submitCustomTag(),
-                        decoration: InputDecoration(
-                          hintText: '예) 라이브, 세트리스트',
-                          counterText: '',
-                          errorText: errorText,
-                        ),
-                      ),
-                      if (suggestions.isNotEmpty) ...[
-                        const SizedBox(height: GBTSpacing.sm),
-                        Text(
-                          '추천 태그',
-                          style: GBTTypography.labelMedium.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: GBTSpacing.xs),
-                        Wrap(
-                          spacing: GBTSpacing.xs,
-                          runSpacing: GBTSpacing.xs,
-                          children: suggestions
-                              .map((tag) {
-                                final normalizedTag = normalizePostTag(tag);
-                                final disabled = alreadySelected(normalizedTag);
-                                return ActionChip(
-                                  onPressed: disabled
-                                      ? null
-                                      : () => Navigator.of(
-                                          sheetContext,
-                                        ).pop(normalizedTag),
-                                  label: Text('#$normalizedTag'),
-                                );
-                              })
-                              .toList(growable: false),
-                        ),
-                      ],
-                      const SizedBox(height: GBTSpacing.md),
-                      Row(
-                        children: [
-                          TextButton(
-                            onPressed: () => Navigator.of(sheetContext).pop(),
-                            child: const Text('취소'),
-                          ),
-                          const Spacer(),
-                          FilledButton(
-                            onPressed: submitCustomTag,
-                            child: const Text('추가'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            GBTSpacing.md,
+            GBTSpacing.xs,
+            GBTSpacing.md,
+            GBTSpacing.md,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '태그 선택',
+                style: GBTTypography.titleMedium.copyWith(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            ),
-          );
-        },
+              const SizedBox(height: GBTSpacing.xs),
+              Text(
+                '태그는 목록에서만 선택할 수 있어요',
+                style: GBTTypography.bodySmall.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: GBTSpacing.sm),
+              if (orderedSuggestions.isEmpty)
+                Text(
+                  '선택 가능한 태그가 없습니다.',
+                  style: GBTTypography.bodySmall.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                )
+              else
+                Wrap(
+                  spacing: GBTSpacing.xs,
+                  runSpacing: GBTSpacing.xs,
+                  children: orderedSuggestions
+                      .map((tag) {
+                        final disabled = isAlreadySelected(tag);
+                        return ActionChip(
+                          onPressed: disabled
+                              ? null
+                              : () => Navigator.of(sheetContext).pop(tag),
+                          label: Text('#$tag'),
+                        );
+                      })
+                      .toList(growable: false),
+                ),
+              const SizedBox(height: GBTSpacing.md),
+              Row(
+                children: [
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    child: const Text('닫기'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       );
     },
   );
 
-  controller.dispose();
   return result;
 }
 

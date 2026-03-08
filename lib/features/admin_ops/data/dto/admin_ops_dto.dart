@@ -6,7 +6,7 @@ class AdminDashboardDto {
   const AdminDashboardDto({
     required this.openReports,
     required this.inReviewReports,
-    required this.pendingRoleRequests,
+    required this.pendingAccessGrantRequests,
     required this.pendingVerificationAppeals,
     required this.pendingMediaDeletionRequests,
     required this.activeSanctions,
@@ -15,7 +15,7 @@ class AdminDashboardDto {
 
   final int openReports;
   final int inReviewReports;
-  final int pendingRoleRequests;
+  final int pendingAccessGrantRequests;
   final int pendingVerificationAppeals;
   final int pendingMediaDeletionRequests;
   final int activeSanctions;
@@ -34,10 +34,9 @@ class AdminDashboardDto {
       'reportsInReview',
       'processingReports',
     ]);
-    final pendingRoleRequests = _intFromAny(json, const [
-      'pendingRoleRequests',
-      'pendingProjectRoleRequests',
-      'roleRequestPendingCount',
+    final pendingAccessGrantRequests = _intFromAny(json, const [
+      'pendingAccessGrantRequests',
+      'pendingAccessLevelRequests',
     ]);
     final pendingVerificationAppeals = _intFromAny(json, const [
       'pendingVerificationAppeals',
@@ -65,9 +64,8 @@ class AdminDashboardDto {
       'reviewInProgressCount',
       'reportsInReview',
       'processingReports',
-      'pendingRoleRequests',
-      'pendingProjectRoleRequests',
-      'roleRequestPendingCount',
+      'pendingAccessGrantRequests',
+      'pendingAccessLevelRequests',
       'pendingVerificationAppeals',
       'pendingAppeals',
       'verificationAppealsPending',
@@ -92,7 +90,7 @@ class AdminDashboardDto {
     return AdminDashboardDto(
       openReports: openReports,
       inReviewReports: inReviewReports,
-      pendingRoleRequests: pendingRoleRequests,
+      pendingAccessGrantRequests: pendingAccessGrantRequests,
       pendingVerificationAppeals: pendingVerificationAppeals,
       pendingMediaDeletionRequests: pendingMediaDeletionRequests,
       activeSanctions: activeSanctions,
@@ -104,7 +102,7 @@ class AdminDashboardDto {
     return {
       'openReports': openReports,
       'inReviewReports': inReviewReports,
-      'pendingRoleRequests': pendingRoleRequests,
+      'pendingAccessGrantRequests': pendingAccessGrantRequests,
       'pendingVerificationAppeals': pendingVerificationAppeals,
       'pendingMediaDeletionRequests': pendingMediaDeletionRequests,
       'activeSanctions': activeSanctions,

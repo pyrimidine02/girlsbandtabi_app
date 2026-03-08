@@ -1,6 +1,34 @@
 # Changelog
 
 ## 2026-03-08
+- **LIVE ATTENDANCE READ ENDPOINT + VISIT HISTORY SPLIT INTEGRATION**:
+  - Applied new attendance read endpoints contract:
+    - `GET /api/v1/projects/{projectId}/live-events/{liveEventId}/attendance`
+    - `GET /api/v1/projects/{projectId}/live-events/attendances?page&size`
+  - Removed legacy local-cache based history parsing flow and switched to
+    server-paged history state loading.
+  - Split settings visit history surface into tabbed views:
+    - `장소` tab (existing place visits)
+    - `라이브` tab (live attendance history, same card-style system)
+  - Added `/visits?tab=live` entry and converted legacy `/live-attendance` to
+    redirect for compatibility.
+  - Updated endpoint contract tests for live attendance list/single `GET`.
+  - Validation:
+    - `flutter analyze lib/core/router/app_router.dart lib/features/visits/presentation/pages/visit_history_page.dart lib/features/live_events/presentation/pages/live_events_page.dart lib/features/live_events/application/live_events_controller.dart lib/features/live_events/data/datasources/live_events_remote_data_source.dart lib/features/live_events/data/repositories/live_events_repository_impl.dart lib/features/live_events/domain/entities/live_event_entities.dart lib/features/live_events/domain/repositories/live_events_repository.dart`
+    - `flutter test test/features/live_events/domain/live_attendance_history_record_test.dart`
+    - `flutter test test/core/constants/api_endpoints_contract_test.dart`
+- **FEED HEADER COMMUNITY SETTINGS PAGE (3-LINE BUTTON) REWORK**:
+  - Replaced feed header menu bottom sheet with a dedicated community settings
+    page that matches the existing settings-page card style.
+  - Added new route:
+    - `/community-settings` (`AppRoutes.communitySettings`)
+  - Added `CommunitySettingsPage` with profile-first community actions:
+    - `내 프로필`, `팔로워`, `팔로잉`, `알림함`, `저장한 글`, `게시글 작성`, `알림 설정`
+    - account/ops links: `계정 도구`, `운영 센터(권한 사용자)` or full settings.
+  - Updated feed header menu (`Icons.menu_rounded`) action:
+    - now opens community settings page directly.
+  - Validation:
+    - `flutter analyze lib/features/settings/presentation/pages/community_settings_page.dart lib/features/feed/presentation/pages/board_page.dart lib/core/router/app_router.dart`
 - **NOTIFICATION PAYLOAD ALIGNMENT REQUEST V1.1.0 IMPLEMENTATION**:
   - Aligned notification parsing/navigation to payload contract v1.1.0.
   - Updated notification routing policy:

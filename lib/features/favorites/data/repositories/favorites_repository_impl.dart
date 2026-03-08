@@ -3,6 +3,7 @@
 library;
 
 import '../../../../core/cache/cache_manager.dart';
+import '../../../../core/cache/cache_profiles.dart';
 import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/result.dart';
@@ -28,15 +29,15 @@ class FavoritesRepositoryImpl implements FavoritesRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _favoritesCacheKeyPaged(page, size);
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.favoritesList;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<List<FavoriteItemDto>>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchFavorites(page, size),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {

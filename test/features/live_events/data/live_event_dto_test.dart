@@ -45,4 +45,34 @@ void main() {
     expect(dto.doorsOpenTime, DateTime.parse('2026-03-10T18:00:00Z'));
     expect(dto.banner?.url, 'https://example.com/banner.png');
   });
+
+  test('LiveAttendanceStateDto parses v1 attendance payload', () {
+    final json = {
+      'liveEventId': 'event-3',
+      'attended': true,
+      'status': 'DECLARED',
+      'canUndo': true,
+    };
+
+    final dto = LiveAttendanceStateDto.fromJson(json);
+    expect(dto.liveEventId, 'event-3');
+    expect(dto.attended, isTrue);
+    expect(dto.status, 'DECLARED');
+    expect(dto.canUndo, isTrue);
+  });
+
+  test('LiveAttendanceStateDto tolerates fallback keys and bool values', () {
+    final json = {
+      'eventId': 'event-4',
+      'attended': 'false',
+      'status': 'none',
+      'canUndo': 0,
+    };
+
+    final dto = LiveAttendanceStateDto.fromJson(json);
+    expect(dto.liveEventId, 'event-4');
+    expect(dto.attended, isFalse);
+    expect(dto.status, 'NONE');
+    expect(dto.canUndo, isFalse);
+  });
 }

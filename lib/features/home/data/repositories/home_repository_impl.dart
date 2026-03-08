@@ -3,6 +3,7 @@
 library;
 
 import '../../../../core/cache/cache_manager.dart';
+import '../../../../core/cache/cache_profiles.dart';
 import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/result.dart';
@@ -28,15 +29,15 @@ class HomeRepositoryImpl implements HomeRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _buildCacheKey(projectId, unitIds);
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.homeSummary;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<HomeSummaryDto>(
         key: cacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 10),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchSummary(projectId, unitIds),
         toJson: (dto) => dto.toJson(),
         fromJson: (json) => HomeSummaryDto.fromJson(json),

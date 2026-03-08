@@ -23,26 +23,23 @@ void main() {
       expect(dto.createdAt.toUtc().year, 2026);
     });
 
-    test('ProjectRoleRequestDetailDto parses optional review fields', () {
-      final dto = ProjectRoleRequestDetailDto.fromJson({
-        'id': 'req-1',
-        'projectSlug': 'girls-band-cry',
-        'projectName': '걸즈 밴드 크라이',
-        'requestedRole': 'EDITOR',
+    test('VerificationAppealDto parses optional resolution fields', () {
+      final dto = VerificationAppealDto.fromJson({
+        'id': 'appeal-1',
+        'targetType': 'PLACE_VISIT',
+        'targetId': 'target-1',
+        'reason': 'GPS_INACCURACY',
         'status': 'IN_REVIEW',
-        'justification': '운영 기여를 위해 요청합니다.',
-        'reviewDecision': 'PENDING',
-        'adminMemo': '검토 예정',
-        'reviewedAt': '2026-03-01T06:00:00Z',
+        'reviewerMemo': '재검토 중',
         'createdAt': '2026-03-01T05:00:00Z',
+        'resolvedAt': '2026-03-01T06:00:00Z',
       });
 
-      expect(dto.id, 'req-1');
-      expect(dto.projectSlug, 'girls-band-cry');
-      expect(dto.requestedRole, 'EDITOR');
+      expect(dto.id, 'appeal-1');
+      expect(dto.targetType, 'PLACE_VISIT');
       expect(dto.status, 'IN_REVIEW');
-      expect(dto.reviewDecision, 'PENDING');
-      expect(dto.reviewedAt, isNotNull);
+      expect(dto.reviewerMemo, '재검토 중');
+      expect(dto.resolvedAt, isNotNull);
     });
   });
 }

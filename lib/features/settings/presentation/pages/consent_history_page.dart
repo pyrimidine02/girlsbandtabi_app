@@ -101,6 +101,7 @@ final consentHistoryProvider = FutureProvider<List<_ConsentHistoryItem>>((
   final apiClient = ref.read(apiClientProvider);
   final remoteResult = await apiClient.get<List<_ConsentHistoryItem>>(
     ApiEndpoints.userConsents,
+    queryParameters: const {'page': 0, 'size': 50, 'sort': 'agreedAt,desc'},
     fromJson: _parseConsentItems,
   );
 

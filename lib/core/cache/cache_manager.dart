@@ -216,6 +216,21 @@ class CacheManager {
     await _localStorage.remove(_wrapKey(key));
   }
 
+  /// EN: Remove cached entries by logical key prefix.
+  /// KO: 논리 키 prefix 기준으로 캐시 엔트리를 삭제합니다.
+  Future<int> removeByPrefix(String keyPrefix) async {
+    final wrappedPrefix = _wrapKey(keyPrefix);
+    final keys = _localStorage
+        .getKeys()
+        .where((key) => key.startsWith(wrappedPrefix))
+        .toList(growable: false);
+
+    for (final key in keys) {
+      await _localStorage.remove(key);
+    }
+    return keys.length;
+  }
+
   /// EN: Clear all cache entries using the cache namespace.
   /// KO: 캐시 네임스페이스의 모든 엔트리를 삭제합니다.
   Future<void> clearAll() async {

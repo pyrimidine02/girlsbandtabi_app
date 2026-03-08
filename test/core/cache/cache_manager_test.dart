@@ -81,6 +81,34 @@ void main() {
     );
   });
 
+  test('removeByPrefix removes matching cache entries only', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final storage = LocalStorage(prefs);
+    final manager = CacheManager(storage);
+
+    await manager.setJson('post_list:bang-dream:p0:s20', {'items': []});
+    await manager.setJson('post_list:bang-dream:p1:s20', {'items': []});
+    await manager.setJson('post_list:girls-band-cry:p0:s20', {'items': []});
+
+    final removed = await manager.removeByPrefix('post_list:bang-dream:');
+
+    expect(removed, 2);
+    expect(
+      manager.getJsonEntry<Map<String, dynamic>>(
+        'post_list:bang-dream:p0:s20',
+        fromJson: (json) => json,
+      ),
+      isNull,
+    );
+    expect(
+      manager.getJsonEntry<Map<String, dynamic>>(
+        'post_list:girls-band-cry:p0:s20',
+        fromJson: (json) => json,
+      ),
+      isNotNull,
+    );
+  });
+
   test(
     'cacheFirst triggers background revalidation when entry is old',
     () async {

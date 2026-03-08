@@ -34,6 +34,7 @@ import '../../features/feed/presentation/pages/user_connections_page.dart';
 import '../../features/feed/presentation/pages/user_profile_page.dart';
 import '../../features/feed/domain/entities/feed_entities.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/settings/presentation/pages/community_settings_page.dart';
 import '../../features/settings/presentation/pages/profile_edit_page.dart';
 import '../../features/settings/presentation/pages/notification_settings_page.dart';
 import '../../features/settings/presentation/pages/account_tools_page.dart';
@@ -124,6 +125,7 @@ class AppRoutes {
   // EN: Settings routes (overlay, outside shell)
   // KO: 설정 라우트 (오버레이, 쉘 외부)
   static const String settings = 'settings';
+  static const String communitySettings = 'community-settings';
   static const String profileEdit = 'profile-edit';
   static const String notificationSettings = 'notification-settings';
   static const String accountTools = 'account-tools';
@@ -526,6 +528,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // EN: Overlay routes (outside shell)
       // KO: 오버레이 라우트 (쉘 외부)
       GoRoute(
+        path: '/community-settings',
+        name: AppRoutes.communitySettings,
+        builder: (context, state) => const CommunitySettingsPage(),
+      ),
+      GoRoute(
         path: '/search',
         name: AppRoutes.search,
         builder: (context, state) {
@@ -542,6 +549,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/favorites',
         name: AppRoutes.favorites,
         builder: (context, state) => const FavoritesPage(),
+      ),
+      GoRoute(
+        path: '/live-attendance',
+        redirect: (context, state) => '/visits?tab=live',
       ),
 
       // EN: Overlay detail routes used when opening details from overlay stacks
@@ -598,7 +609,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/visits',
         name: AppRoutes.visitHistory,
-        builder: (context, state) => const VisitHistoryPage(),
+        builder: (context, state) {
+          final tab = state.uri.queryParameters['tab'];
+          final initialTab = tab == 'live'
+              ? VisitHistoryTab.live
+              : VisitHistoryTab.places;
+          return VisitHistoryPage(initialTab: initialTab);
+        },
         routes: [
           GoRoute(
             path: ':visitId',
@@ -1010,6 +1027,12 @@ extension AppRouterExtension on BuildContext {
     push(settingsUri.toString());
   }
 
+  /// EN: Navigate to community settings.
+  /// KO: 커뮤니티 설정으로 이동
+  void goToCommunitySettings() {
+    pushNamed(AppRoutes.communitySettings);
+  }
+
   /// EN: Navigate to visit stats
   /// KO: 방문 통계로 이동
   void goToVisitStats() {
@@ -1024,7 +1047,11 @@ extension AppRouterExtension on BuildContext {
 
   /// EN: Navigate to visit history
   /// KO: 방문 기록으로 이동
-  void goToVisitHistory() {
+  void goToVisitHistory({bool showLiveTab = false}) {
+    if (showLiveTab) {
+      pushNamed(AppRoutes.visitHistory, queryParameters: const {'tab': 'live'});
+      return;
+    }
     pushNamed(AppRoutes.visitHistory);
   }
 }

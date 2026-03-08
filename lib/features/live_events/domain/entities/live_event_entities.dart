@@ -140,6 +140,198 @@ class LiveEventDetail {
   }
 }
 
+class LiveAttendanceStatus {
+  const LiveAttendanceStatus._();
+
+  static const String declared = 'DECLARED';
+  static const String verified = 'VERIFIED';
+  static const String none = 'NONE';
+
+  static String normalize(String raw) {
+    final upper = raw.toUpperCase().trim();
+    if (upper == declared || upper == verified || upper == none) {
+      return upper;
+    }
+    return none;
+  }
+}
+
+class LiveAttendanceState {
+  const LiveAttendanceState({
+    required this.liveEventId,
+    required this.attended,
+    required this.status,
+    required this.canUndo,
+    this.verificationMethod,
+    this.attendedAt,
+  });
+
+  final String liveEventId;
+  final bool attended;
+  final String status;
+  final bool canUndo;
+  final String? verificationMethod;
+  final DateTime? attendedAt;
+
+  bool get isDeclared => status == LiveAttendanceStatus.declared;
+  bool get isVerified => status == LiveAttendanceStatus.verified;
+  bool get isNone => status == LiveAttendanceStatus.none;
+
+  LiveAttendanceState copyWith({
+    String? liveEventId,
+    bool? attended,
+    String? status,
+    bool? canUndo,
+    String? verificationMethod,
+    DateTime? attendedAt,
+  }) {
+    return LiveAttendanceState(
+      liveEventId: liveEventId ?? this.liveEventId,
+      attended: attended ?? this.attended,
+      status: status ?? this.status,
+      canUndo: canUndo ?? this.canUndo,
+      verificationMethod: verificationMethod ?? this.verificationMethod,
+      attendedAt: attendedAt ?? this.attendedAt,
+    );
+  }
+
+  factory LiveAttendanceState.fromDto(LiveAttendanceStateDto dto) {
+    return LiveAttendanceState(
+      liveEventId: dto.liveEventId,
+      attended: dto.attended,
+      status: LiveAttendanceStatus.normalize(dto.status),
+      canUndo: dto.canUndo,
+      verificationMethod: dto.verificationMethod,
+      attendedAt: dto.attendedAt,
+    );
+  }
+
+  factory LiveAttendanceState.fromJson(Map<String, dynamic> json) {
+    return LiveAttendanceState.fromDto(LiveAttendanceStateDto.fromJson(json));
+  }
+
+  factory LiveAttendanceState.none(String liveEventId) {
+    return LiveAttendanceState(
+      liveEventId: liveEventId,
+      attended: false,
+      status: LiveAttendanceStatus.none,
+      canUndo: false,
+      verificationMethod: null,
+      attendedAt: null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'liveEventId': liveEventId,
+      'attended': attended,
+      'status': status,
+      'canUndo': canUndo,
+      'verificationMethod': verificationMethod,
+      'attendedAt': attendedAt?.toIso8601String(),
+    };
+  }
+}
+
+class LiveAttendanceHistoryRecord {
+  const LiveAttendanceHistoryRecord({
+    required this.projectKey,
+    required this.eventId,
+    required this.attended,
+    required this.status,
+    required this.canUndo,
+    this.verificationMethod,
+    this.attendedAt,
+    this.eventTitle,
+    this.bannerUrl,
+    this.showStartTime,
+  });
+
+  final String projectKey;
+  final String eventId;
+  final bool attended;
+  final String status;
+  final bool canUndo;
+  final String? verificationMethod;
+  final DateTime? attendedAt;
+  final String? eventTitle;
+  final String? bannerUrl;
+  final DateTime? showStartTime;
+
+  bool get isDeclared => status == LiveAttendanceStatus.declared;
+  bool get isVerified => status == LiveAttendanceStatus.verified;
+  bool get isNone => status == LiveAttendanceStatus.none;
+
+  String get titleFallback =>
+      eventTitle?.trim().isNotEmpty == true ? eventTitle!.trim() : eventId;
+
+  LiveAttendanceHistoryRecord copyWith({
+    String? projectKey,
+    String? eventId,
+    bool? attended,
+    String? status,
+    bool? canUndo,
+    String? verificationMethod,
+    DateTime? attendedAt,
+    String? eventTitle,
+    String? bannerUrl,
+    DateTime? showStartTime,
+  }) {
+    return LiveAttendanceHistoryRecord(
+      projectKey: projectKey ?? this.projectKey,
+      eventId: eventId ?? this.eventId,
+      attended: attended ?? this.attended,
+      status: status ?? this.status,
+      canUndo: canUndo ?? this.canUndo,
+      verificationMethod: verificationMethod ?? this.verificationMethod,
+      attendedAt: attendedAt ?? this.attendedAt,
+      eventTitle: eventTitle ?? this.eventTitle,
+      bannerUrl: bannerUrl ?? this.bannerUrl,
+      showStartTime: showStartTime ?? this.showStartTime,
+    );
+  }
+
+  LiveAttendanceHistoryRecord withDetail(LiveEventDetail detail) {
+    return copyWith(
+      eventTitle: detail.title,
+      bannerUrl: detail.bannerUrl,
+      showStartTime: detail.showStartTime,
+    );
+  }
+
+  factory LiveAttendanceHistoryRecord.fromState({
+    required String projectKey,
+    required LiveAttendanceState state,
+  }) {
+    return LiveAttendanceHistoryRecord(
+      projectKey: projectKey,
+      eventId: state.liveEventId,
+      attended: state.attended,
+      status: state.status,
+      canUndo: state.canUndo,
+      verificationMethod: state.verificationMethod,
+      attendedAt: state.attendedAt,
+      eventTitle: null,
+      bannerUrl: null,
+      showStartTime: null,
+    );
+  }
+}
+
+class LiveAttendanceHistoryPageData {
+  const LiveAttendanceHistoryPageData({
+    required this.items,
+    required this.currentPage,
+    required this.pageSize,
+    required this.hasNext,
+  });
+
+  final List<LiveAttendanceHistoryRecord> items;
+  final int currentPage;
+  final int pageSize;
+  final bool hasNext;
+}
+
 String _formatDDay(DateTime dateTime) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
