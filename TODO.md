@@ -1,5 +1,13 @@
 # TODO
 
+- Run QA for Xcode Cloud iOS plist injection flow (2026-03-09):
+  - Xcode Cloud Archive 로그에서 `GoogleService-Info.plist` 생성 로그
+    (`GOOGLE_SERVICE_INFO_PLIST`/`GOOGLE_SERVICE_INFO_PLIST_B64`)가 노출되는지 확인.
+  - Archive 단계에서 `Build input file cannot be found: ...GoogleService-Info.plist`
+    에러가 재발하지 않는지 확인.
+  - Secret 미주입/오타 시 `ci_post_clone` 단계에서 즉시 실패(`Missing
+    GoogleService-Info.plist secret.`)하는지 확인.
+
 - Run QA for Android version-code automation flow (2026-03-09):
   - `./scripts/bump_version.sh build`를 연속 2회 실행했을 때 build number가
     항상 증가하는지 확인.
@@ -584,6 +592,17 @@
   - leaving feed and re-entering `/board` should always fetch fresh community feed data.
   - successful post/comment/reply submission should reflect in feed without manual pull-to-refresh.
   - remove after QA confirms expected refresh timing and no duplicate loading flashes.
+- Verify Android community post image preview parity after JPEG-for-feed upload mitigation:
+  - on Galaxy S21 (and at least one additional Android model), create posts
+    with single/multiple images and confirm feed card preview appears
+    immediately and after app restart.
+  - if preview still misses while post detail shows images, collect
+    `/api/v1/projects/{projectCode}/posts` summary payload for affected post
+    (`thumbnailUrl`, `imageUrls`, `content`) and raise backend contract issue.
+- QA post edit project-lock behavior:
+  - on edit page, project selector must be non-interactive with lock affordance.
+  - updating title/content/images should succeed without
+    `입력값이 올바르지 않습니다` when user previously switched global project.
 - Complete production push rollout checklist:
   - place Firebase native config files locally:
     `android/app/google-services.json`,

@@ -59,6 +59,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
   late final String _initialTitle;
   late final String _initialContent;
   late final List<String> _initialImageUrls;
+  late final String _editProjectCode;
   late final String? _initialTopic;
   late final List<String> _initialTags;
   bool _isSubmitting = false;
@@ -101,6 +102,11 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
   @override
   void initState() {
     super.initState();
+    final selectedProjectCode = ref.read(selectedProjectKeyProvider);
+    _editProjectCode =
+        (selectedProjectCode != null && selectedProjectCode.trim().isNotEmpty)
+        ? selectedProjectCode.trim()
+        : widget.post.projectId.trim();
     _autosaveConfig = PostComposeAutosaveConfig(storageKey: _draftStorageKey);
     _autosaveController = ref.read(
       postComposeAutosaveControllerProvider(_autosaveConfig).notifier,
@@ -552,11 +558,55 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const SizedBox(
+                              SizedBox(
                                 height: 32,
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: ProjectAudienceSelectorCompact(),
+                                child: Stack(
+                                  children: [
+                                    const Positioned.fill(
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: IgnorePointer(
+                                          child: ProjectAudienceSelectorCompact(
+                                            dense: true,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      right: 0,
+                                      top: 0,
+                                      bottom: 0,
+                                      child: Align(
+                                        alignment: Alignment.centerRight,
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            color: colorScheme.surface,
+                                            borderRadius: BorderRadius.circular(
+                                              GBTSpacing.radiusFull,
+                                            ),
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: GBTSpacing.xs,
+                                            ),
+                                            child: Icon(
+                                              Icons.lock_outline_rounded,
+                                              size: 14,
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '수정 시 프로젝트는 변경할 수 없어요',
+                                style: GBTTypography.labelSmall.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
                                 ),
                               ),
                               const SizedBox(height: GBTSpacing.xs),
@@ -959,8 +1009,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
       return;
     }
 
-    final projectCode = ref.read(selectedProjectKeyProvider);
-    if (projectCode == null || projectCode.isEmpty) {
+    if (_editProjectCode.isEmpty) {
       messenger.showSnackBar(const SnackBar(content: Text('프로젝트를 먼저 선택해주세요')));
       return;
     }
@@ -1000,7 +1049,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     final repository = await ref.read(feedRepositoryProvider.future);
     final normalizedTags = sanitizePostTags(_selectedTags);
     final result = await repository.updatePost(
-      projectCode: projectCode,
+      projectCode: _editProjectCode,
       postId: widget.post.id,
       title: title,
       content: contentWithImages,
@@ -1132,6 +1181,9 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
       final payload = await convertToWebp(
         path: image.path,
         originalFilename: p.basename(image.path),
+        // EN: Force JPEG on Android to keep feed thumbnail generation stable.
+        // KO: 안드로이드에서는 피드 썸네일 생성 안정화를 위해 JPEG로 강제합니다.
+        forceJpeg: Platform.isAndroid,
       );
 
       final uploadResult = await uploadController.uploadImageBytes(

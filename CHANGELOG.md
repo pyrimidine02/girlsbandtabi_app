@@ -1,6 +1,41 @@
 # Changelog
 
 ## 2026-03-09
+- **XCODE CLOUD IOS PLIST INJECTION POLICY HARDENING (SECRET-ONLY)**:
+  - Updated iOS Xcode Cloud plist generation to strict secret mode:
+    - accepted inputs: `GOOGLE_SERVICE_INFO_PLIST_B64` (recommended) or
+      `GOOGLE_SERVICE_INFO_PLIST` (raw)
+    - removed fallback generation from `FIREBASE_IOS_*` and placeholder plist.
+  - Missing/invalid secret now fails fast during `ci_post_clone` with explicit
+    error message, preventing ambiguous archive-stage failures.
+  - Updated files:
+    - `ci_post_clone.sh`
+    - `ios/ci_scripts/ci_post_clone.sh`
+  - Validation:
+    - `bash -n ci_post_clone.sh`
+    - `sh -n ios/ci_scripts/ci_post_clone.sh`
+- **ANDROID COMMUNITY FEED PREVIEW IMAGE STABILIZATION**:
+  - Root-cause-oriented mitigation applied for Android-only preview misses:
+    Android community compose/edit image uploads now force `image/jpeg`
+    instead of `image/webp`.
+  - Updated files:
+    - `lib/features/uploads/utils/webp_image_converter.dart`
+      (`forceJpeg` option)
+    - `lib/features/feed/presentation/pages/post_create_page.dart`
+    - `lib/features/feed/presentation/pages/post_edit_page.dart`
+  - Goal:
+    - keep feed thumbnail generation behavior aligned with iOS upload format
+      when backend thumbnail pipeline is stricter on WebP in summary flows.
+  - Validation:
+    - `flutter analyze lib/features/uploads/utils/webp_image_converter.dart lib/features/feed/presentation/pages/post_create_page.dart lib/features/feed/presentation/pages/post_edit_page.dart`
+- **POST EDIT VALIDATION FIX: LOCK PROJECT CONTEXT ON UPDATE**:
+  - Fixed invalid-input failures when editing a post after changing project in
+    the edit screen.
+  - `PostEditPage` now:
+    - captures project code at edit-start and reuses it for `updatePost`,
+    - locks project selector UI in edit mode (non-interactive + lock indicator).
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/post_edit_page.dart`
 - **XCODE CLOUD IOS ARCHIVE: MISSING `GoogleService-Info.plist` FIX**:
   - Updated `ci_post_clone.sh` so CI ensures
     `ios/Runner/GoogleService-Info.plist` exists before archive.
@@ -20,6 +55,18 @@
     `docs/dev/fcm_apns_enablement_guide_20260308.md`.
 
 ## 2026-03-08
+- **XCODE CLOUD ARCHIVE FIX: OPTIONAL GOOGLE SERVICE PLIST GENERATION**:
+  - Fixed Xcode Cloud archive failure
+    (`Build input file cannot be found: ios/Runner/GoogleService-Info.plist`).
+  - Updated `ios/ci_scripts/ci_post_clone.sh` to always ensure
+    `ios/Runner/GoogleService-Info.plist` exists before `pod install`.
+  - Supported generation sources (priority):
+    - `GOOGLE_SERVICE_INFO_PLIST` (raw plist text)
+    - `GOOGLE_SERVICE_INFO_PLIST_B64` (base64)
+    - `FIREBASE_IOS_*` discrete variables
+    - placeholder fallback for CI archive stability
+  - Validation:
+    - `sh -n ios/ci_scripts/ci_post_clone.sh`
 - **ANDROID VERSIONCODE AUTO-INCREMENT + INTERNAL BUILD SCRIPT**:
   - Fixed `scripts/bump_version.sh` to stop resetting build number to `+1`.
   - Added automatic build-number strategy:
