@@ -1,5 +1,12 @@
 # TODO
 
+- Run QA for Android version-code automation flow (2026-03-09):
+  - `./scripts/bump_version.sh build`를 연속 2회 실행했을 때 build number가
+    항상 증가하는지 확인.
+  - `./scripts/build_android_internal.sh build` 실행 시
+    `pubspec.yaml` 버전 갱신 + AAB 생성이 한 번에 되는지 확인.
+  - 수동 값 강제(`--build-number`)와 상한 초과 방어(2,100,000,000) 동작 확인.
+
 - Run QA for community on-demand translation flow (2026-03-08):
   - 게시글 상세 본문에서 `번역` 탭 시 `POST /api/v1/community/translations`
     호출이 1회만 발생하는지 확인.
@@ -594,6 +601,14 @@
   - OFF should deactivate backend device registration without error toast.
   - ON should request permission (if needed) and re-register device token.
   - verify token update/registration logs and actual push delivery after ON.
+- Verify Xcode Cloud Firebase plist injection path:
+  - preferred secret: `GOOGLE_SERVICE_INFO_PLIST_B64` (full iOS plist, base64).
+  - fallback secrets: `FIREBASE_IOS_API_KEY`,
+    `FIREBASE_IOS_APP_ID`, `FIREBASE_IOS_MESSAGING_SENDER_ID`,
+    `FIREBASE_IOS_PROJECT_ID`, `FIREBASE_IOS_BUNDLE_ID`,
+    `FIREBASE_IOS_STORAGE_BUCKET` (optional).
+  - confirm archive logs include
+    `Generated GoogleService-Info.plist ...` line in `ci_post_clone.sh`.
 - QA home by-project summary integration:
   - verify project switch uses by-project payload first and falls back to
     single-summary endpoint only on errors/missing row.

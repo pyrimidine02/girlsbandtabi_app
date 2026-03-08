@@ -1,6 +1,38 @@
 # Changelog
 
+## 2026-03-09
+- **XCODE CLOUD IOS ARCHIVE: MISSING `GoogleService-Info.plist` FIX**:
+  - Updated `ci_post_clone.sh` so CI ensures
+    `ios/Runner/GoogleService-Info.plist` exists before archive.
+  - Resolution priority in CI:
+    1. `GOOGLE_SERVICE_INFO_PLIST` (raw full plist)
+    2. `GOOGLE_SERVICE_INFO_PLIST_B64` (base64 plist)
+    3. compose from `FIREBASE_IOS_*` environment variables
+    4. placeholder plist fallback (prevents Xcode resource-copy failure)
+  - Fixes Xcode Cloud failure:
+    - `Build input file cannot be found: .../ios/Runner/GoogleService-Info.plist`
+  - Validation:
+    - `bash -n ci_post_clone.sh`
+
 ## 2026-03-08
+- **ANDROID VERSIONCODE AUTO-INCREMENT + INTERNAL BUILD SCRIPT**:
+  - Fixed `scripts/bump_version.sh` to stop resetting build number to `+1`.
+  - Added automatic build-number strategy:
+    - `max(current_build + 1, current_epoch_second)`
+    - with Android upper-limit guard (`<= 2,100,000,000`).
+  - Added `build` mode:
+    - `./scripts/bump_version.sh build` (keep semver, bump build code only)
+  - Added internal-test convenience script:
+    - `./scripts/build_android_internal.sh [major|minor|patch|build]`
+    - flow: bump version -> build release AAB -> print artifact path.
+  - Updated docs:
+    - `BUILD_GUIDE.md`
+    - `docs/모바일버전배포가이드_v1.0.0.md`
+  - Validation:
+    - `bash -n scripts/bump_version.sh`
+    - `bash -n scripts/build_android_internal.sh`
+    - `./scripts/bump_version.sh build --dry-run`
+    - `flutter build appbundle --release`
 - **COMMUNITY ON-DEMAND TRANSLATION API INTEGRATION (v1.0.0)**:
   - Added endpoint wiring for requested translation contract:
     - `POST /api/v1/community/translations`
