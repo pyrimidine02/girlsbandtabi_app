@@ -81,7 +81,7 @@ git checkout main
 # 2. app_config.dart에서 Environment.production으로 설정
 
 # 3. 프로덕션 URL 설정 후 빌드
-flutter build appbundle --release
+./scripts/build_android_internal.sh build
 
 # 또는 APK
 flutter build apk --release
@@ -99,7 +99,7 @@ flutter build apk --release
 - [ ] `currentEnvironment = Environment.production`
 - [ ] Production API URL이 올바르게 설정됨
 - [ ] 프로덕션 서버가 실행 중
-- [ ] 앱 버전 번호 업데이트 (`pubspec.yaml`)
+- [ ] 자동 빌드 스크립트 사용 (`./scripts/build_android_internal.sh`)
 - [ ] 앱 서명 키 확인
 - [ ] Google Play Console 준비
 - [ ] 모든 테스트 통과
