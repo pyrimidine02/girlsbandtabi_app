@@ -1039,6 +1039,9 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
       final payload = await convertToWebp(
         path: image.path,
         originalFilename: p.basename(image.path),
+        // EN: Force JPEG on Android to keep feed thumbnail generation stable.
+        // KO: 안드로이드에서는 피드 썸네일 생성 안정화를 위해 JPEG로 강제합니다.
+        forceJpeg: Platform.isAndroid,
       );
 
       final uploadResult = await uploadController.uploadImageBytes(

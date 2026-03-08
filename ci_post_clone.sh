@@ -45,72 +45,11 @@ create_ios_google_service_info_plist() {
     exit 1
   fi
 
-  # Fallback: compose plist from discrete Firebase env vars.
-  if [ -n "${FIREBASE_IOS_APP_ID:-}" ] && \
-     [ -n "${FIREBASE_IOS_API_KEY:-}" ] && \
-     [ -n "${FIREBASE_IOS_MESSAGING_SENDER_ID:-}" ] && \
-     [ -n "${FIREBASE_IOS_PROJECT_ID:-}" ]; then
-    cat > "$IOS_PLIST_PATH" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>API_KEY</key>
-  <string>${FIREBASE_IOS_API_KEY}</string>
-  <key>GCM_SENDER_ID</key>
-  <string>${FIREBASE_IOS_MESSAGING_SENDER_ID}</string>
-  <key>PLIST_VERSION</key>
-  <string>1</string>
-  <key>BUNDLE_ID</key>
-  <string>${FIREBASE_IOS_BUNDLE_ID:-org.pyrimidines.girlsbandtabi}</string>
-  <key>PROJECT_ID</key>
-  <string>${FIREBASE_IOS_PROJECT_ID}</string>
-  <key>STORAGE_BUCKET</key>
-  <string>${FIREBASE_IOS_STORAGE_BUCKET:-}</string>
-  <key>IS_ADS_ENABLED</key>
-  <false/>
-  <key>IS_ANALYTICS_ENABLED</key>
-  <false/>
-  <key>IS_APPINVITE_ENABLED</key>
-  <true/>
-  <key>IS_GCM_ENABLED</key>
-  <true/>
-  <key>IS_SIGNIN_ENABLED</key>
-  <true/>
-  <key>GOOGLE_APP_ID</key>
-  <string>${FIREBASE_IOS_APP_ID}</string>
-</dict>
-</plist>
-EOF
-    echo "Generated GoogleService-Info.plist from FIREBASE_IOS_* variables."
-    return 0
-  fi
-
-  # Last-resort placeholder so Xcode resource copy phase does not fail.
-  # Runtime Firebase init will fallback to dart-define options when available.
-  cat > "$IOS_PLIST_PATH" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>API_KEY</key>
-  <string>CI_PLACEHOLDER</string>
-  <key>GCM_SENDER_ID</key>
-  <string>CI_PLACEHOLDER</string>
-  <key>PLIST_VERSION</key>
-  <string>1</string>
-  <key>BUNDLE_ID</key>
-  <string>org.pyrimidines.girlsbandtabi</string>
-  <key>PROJECT_ID</key>
-  <string>ci-placeholder</string>
-  <key>IS_GCM_ENABLED</key>
-  <true/>
-  <key>GOOGLE_APP_ID</key>
-  <string>CI_PLACEHOLDER</string>
-</dict>
-</plist>
-EOF
-  echo "Generated placeholder GoogleService-Info.plist for CI build stability."
+  echo "Missing GoogleService-Info.plist secret."
+  echo "Set one of these Xcode Cloud secrets:"
+  echo "  - GOOGLE_SERVICE_INFO_PLIST_B64 (recommended)"
+  echo "  - GOOGLE_SERVICE_INFO_PLIST (raw plist content)"
+  exit 1
 }
 
 create_ios_google_service_info_plist

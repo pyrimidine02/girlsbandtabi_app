@@ -28,9 +28,10 @@ Future<WebpImagePayload> convertToWebp({
   int maxWidth = 2048,
   int maxHeight = 2048,
   int quality = 85,
+  bool forceJpeg = false,
 }) async {
   final ext = p.extension(originalFilename).toLowerCase();
-  if (ext == '.webp') {
+  if (ext == '.webp' && !forceJpeg) {
     final bytes = await File(path).readAsBytes();
     return WebpImagePayload(
       bytes: bytes,
@@ -39,7 +40,7 @@ Future<WebpImagePayload> convertToWebp({
     );
   }
 
-  final useWebp = !(Platform.isIOS || Platform.isMacOS);
+  final useWebp = !forceJpeg && !(Platform.isIOS || Platform.isMacOS);
   final targetFormat = useWebp ? CompressFormat.webp : CompressFormat.jpeg;
   final targetExtension = useWebp ? '.webp' : '.jpg';
   final contentType = useWebp ? 'image/webp' : 'image/jpeg';
