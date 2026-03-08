@@ -5,6 +5,7 @@ library;
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/utils/result.dart';
+import '../dto/community_translation_dto.dart';
 import '../dto/news_dto.dart';
 import '../dto/post_comment_dto.dart';
 import '../dto/post_dto.dart';
@@ -222,6 +223,20 @@ class FeedRemoteDataSource {
     return _apiClient.get<PostComposeOptionsDto>(
       ApiEndpoints.communityPostOptions,
       fromJson: (json) => PostComposeOptionsDto.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
+    );
+  }
+
+  /// EN: Translate community text on demand.
+  /// KO: 커뮤니티 텍스트를 요청형으로 번역합니다.
+  Future<Result<CommunityTranslationDto>> translateCommunityText({
+    required CommunityTranslationRequestDto request,
+  }) {
+    return _apiClient.post<CommunityTranslationDto>(
+      ApiEndpoints.communityTranslations,
+      data: request.toJson(),
+      fromJson: (json) => CommunityTranslationDto.fromJson(
         json is Map<String, dynamic> ? json : const <String, dynamic>{},
       ),
     );

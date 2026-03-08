@@ -39,6 +39,7 @@ import '../../domain/entities/community_moderation.dart';
 import '../../domain/entities/feed_entities.dart';
 import '../models/feed_native_ad_placement.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
+import '../widgets/community_translation_panel.dart';
 import '../widgets/community_report_sheet.dart';
 
 // ========================================
@@ -2143,23 +2144,9 @@ class _CommunityPostCard extends ConsumerWidget {
         ? GBTColors.darkPrimary
         : GBTColors.accentBlue;
 
-    // EN: Resolve first image URL for thumbnail.
-    // KO: 썸네일용 첫 번째 이미지 URL을 해석합니다.
-    final String? firstImageUrl;
-    if (post.imageUrls.isNotEmpty) {
-      firstImageUrl = resolveMediaUrl(post.imageUrls.first);
-    } else {
-      final contentImages = extractImageUrls(
-        post.content,
-      ).map(resolveMediaUrl).where((url) => url.isNotEmpty);
-      if (contentImages.isNotEmpty) {
-        firstImageUrl = contentImages.first;
-      } else if (post.thumbnailUrl != null && post.thumbnailUrl!.isNotEmpty) {
-        firstImageUrl = resolveMediaUrl(post.thumbnailUrl!);
-      } else {
-        firstImageUrl = null;
-      }
-    }
+    // EN: Prefer server thumbnail (derived from first upload) for feed preview.
+    // KO: 피드 미리보기는 서버 썸네일(첫 업로드 기준)을 우선 사용합니다.
+    final firstImageUrl = _resolvePreviewImageUrl(post);
     final hasThumbnailImage = firstImageUrl != null && firstImageUrl.isNotEmpty;
     final contentRaw = post.content?.trim() ?? '';
     String previewText = '';
@@ -2592,6 +2579,16 @@ class _CommunityPostCard extends ConsumerWidget {
                       );
                     },
                   ),
+                if (previewSnippet.isNotEmpty)
+                  CommunityTranslationPanel(
+                    contentId: 'post-preview:${post.id}',
+                    text: previewSnippet,
+                    textStyle: GBTTypography.bodyLarge.copyWith(
+                      color: secondaryTextColor,
+                      height: 1.45,
+                    ),
+                    compact: true,
+                  ),
                 if (hasThumbnailImage)
                   Padding(
                     padding: const EdgeInsets.only(top: GBTSpacing.sm),
@@ -2679,6 +2676,61 @@ class _CommunityPostCard extends ConsumerWidget {
       textScaler: MediaQuery.textScalerOf(context),
     )..layout(maxWidth: maxWidth);
     return painter.didExceedMaxLines;
+  }
+
+  /// EN: Resolve post preview image with deterministic priority:
+  ///     1) thumbnailUrl (server-selected first upload)
+  ///     2) first valid imageUrls entry
+  ///     3) first image extracted from content markdown/html
+  /// KO: 게시글 미리보기 이미지 우선순위를 고정합니다:
+  ///     1) thumbnailUrl(서버가 선택한 첫 업로드)
+  ///     2) imageUrls의 첫 유효 항목
+  ///     3) 본문 마크다운/HTML에서 추출한 첫 이미지
+  String? _resolvePreviewImageUrl(PostSummary post) {
+    final thumbnail = _normalizePreviewUrl(post.thumbnailUrl);
+    if (thumbnail != null) {
+      return thumbnail;
+    }
+
+    final firstListImage = _firstValidPreviewUrl(post.imageUrls);
+    if (firstListImage != null) {
+      return firstListImage;
+    }
+
+    return _firstValidPreviewUrl(extractImageUrls(post.content));
+  }
+
+  /// EN: Returns first valid URL from candidates after normalization.
+  /// KO: 후보 URL을 정규화한 뒤 첫 번째 유효 URL을 반환합니다.
+  String? _firstValidPreviewUrl(Iterable<String?> candidates) {
+    for (final candidate in candidates) {
+      final normalized = _normalizePreviewUrl(candidate);
+      if (normalized != null) {
+        return normalized;
+      }
+    }
+    return null;
+  }
+
+  /// EN: Normalize/validate preview URL for safe image rendering.
+  /// KO: 이미지 렌더링을 위해 미리보기 URL을 정규화/검증합니다.
+  String? _normalizePreviewUrl(String? raw) {
+    if (raw == null) return null;
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty || trimmed.toLowerCase() == 'null') {
+      return null;
+    }
+
+    final resolved = resolveMediaUrl(trimmed);
+    final uri = Uri.tryParse(resolved);
+    if (uri == null) return null;
+
+    // EN: Allow only web URLs (http/https) for feed thumbnails.
+    // KO: 피드 썸네일은 웹 URL(http/https)만 허용합니다.
+    if ((uri.scheme != 'http' && uri.scheme != 'https') || uri.host.isEmpty) {
+      return null;
+    }
+    return resolved;
   }
 
   Future<void> _toggleLike(BuildContext context, WidgetRef ref) async {

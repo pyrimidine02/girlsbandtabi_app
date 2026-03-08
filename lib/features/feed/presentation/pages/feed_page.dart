@@ -11,6 +11,8 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/utils/image_url_extractor.dart';
+import '../../../../core/utils/media_url.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/common/gbt_action_icons.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
@@ -23,6 +25,7 @@ import '../../application/feed_controller.dart';
 import '../../application/report_rate_limiter.dart';
 import '../../domain/entities/community_moderation.dart';
 import '../../domain/entities/feed_entities.dart';
+import '../widgets/community_translation_panel.dart';
 import '../widgets/community_report_sheet.dart';
 
 /// EN: Actions available on a community post card.
@@ -407,12 +410,10 @@ class _CommunityPostCard extends ConsumerWidget {
     final isAuthor = myProfile?.id == post.authorId;
     final showMoreButton = isAuthenticated && !isAuthor;
 
-    // EN: Borderless post card — no Card wrapper
-    // KO: 무테두리 게시글 카드 — Card 래퍼 없음
-    final hasImage = post.imageUrls.isNotEmpty || post.thumbnailUrl != null;
-    final firstImageUrl = post.imageUrls.isNotEmpty
-        ? post.imageUrls.first
-        : post.thumbnailUrl;
+    // EN: Prefer server thumbnail (first upload) for feed card preview.
+    // KO: 피드 카드 미리보기는 서버 썸네일(첫 업로드)을 우선 사용합니다.
+    final firstImageUrl = _resolvePreviewImageUrl(post);
+    final hasImage = firstImageUrl != null;
 
     // EN: Card container — rounded border, surface background.
     // KO: 카드 컨테이너 — 둥근 테두리, 표면 배경.
@@ -512,7 +513,7 @@ class _CommunityPostCard extends ConsumerWidget {
                     const SizedBox(height: 10),
                     // EN: Content area — right thumbnail when image, full-width when text-only.
                     // KO: 콘텐츠 영역 — 이미지가 있으면 오른쪽 썸네일, 없으면 전체 너비.
-                    if (hasImage && firstImageUrl != null)
+                    if (hasImage)
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -611,6 +612,22 @@ class _CommunityPostCard extends ConsumerWidget {
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
+                            ),
+                            CommunityTranslationPanel(
+                              contentId: 'post-preview:${post.id}',
+                              text:
+                                  stripImageMarkdown(
+                                    post.content!,
+                                  ).trim().isEmpty
+                                  ? post.content!
+                                  : stripImageMarkdown(post.content!),
+                              textStyle: GBTTypography.bodySmall.copyWith(
+                                color: isDark
+                                    ? GBTColors.darkTextTertiary
+                                    : GBTColors.textTertiary,
+                                height: 1.45,
+                              ),
+                              compact: true,
                             ),
                           ],
                         ],
@@ -715,6 +732,57 @@ class _CommunityPostCard extends ConsumerWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// EN: Resolve post preview image with deterministic priority:
+  ///     1) thumbnailUrl (server-selected first upload)
+  ///     2) first valid imageUrls entry
+  ///     3) first image extracted from content markdown/html
+  /// KO: 게시글 미리보기 이미지를 고정 우선순위로 해석합니다:
+  ///     1) thumbnailUrl(서버 선택 첫 업로드)
+  ///     2) imageUrls의 첫 유효 항목
+  ///     3) 본문에서 추출한 첫 이미지
+  String? _resolvePreviewImageUrl(PostSummary post) {
+    final thumbnail = _normalizePreviewUrl(post.thumbnailUrl);
+    if (thumbnail != null) {
+      return thumbnail;
+    }
+
+    final firstListImage = _firstValidPreviewUrl(post.imageUrls);
+    if (firstListImage != null) {
+      return firstListImage;
+    }
+
+    return _firstValidPreviewUrl(extractImageUrls(post.content));
+  }
+
+  /// EN: Returns first valid URL from candidates after normalization.
+  /// KO: 후보 URL을 정규화한 뒤 첫 번째 유효 URL을 반환합니다.
+  String? _firstValidPreviewUrl(Iterable<String?> candidates) {
+    for (final candidate in candidates) {
+      final normalized = _normalizePreviewUrl(candidate);
+      if (normalized != null) {
+        return normalized;
+      }
+    }
+    return null;
+  }
+
+  /// EN: Normalize/validate preview URL for safe image rendering.
+  /// KO: 안전한 이미지 렌더링을 위해 미리보기 URL을 정규화/검증합니다.
+  String? _normalizePreviewUrl(String? raw) {
+    if (raw == null) return null;
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty || trimmed.toLowerCase() == 'null') {
+      return null;
+    }
+    final resolved = resolveMediaUrl(trimmed);
+    final uri = Uri.tryParse(resolved);
+    if (uri == null) return null;
+    if ((uri.scheme != 'http' && uri.scheme != 'https') || uri.host.isEmpty) {
+      return null;
+    }
+    return resolved;
   }
 }
 

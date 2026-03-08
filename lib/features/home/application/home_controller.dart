@@ -7,6 +7,8 @@ import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/utils/result.dart';
+import '../../projects/application/projects_controller.dart';
+import '../../projects/domain/entities/project_entities.dart';
 import '../domain/entities/home_summary.dart';
 import '../domain/repositories/home_repository.dart';
 import '../data/datasources/home_remote_data_source.dart';
@@ -61,11 +63,17 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
     if (selectedProjectKey == null || selectedProjectKey.isEmpty) {
       return;
     }
+    final selectedProjectId = _ref.read(selectedProjectIdProvider);
+    final selectedProjectIdentifier = selectedProjectId?.isNotEmpty == true
+        ? selectedProjectId!
+        : selectedProjectKey;
 
     final unitIds = _ref.read(selectedUnitIdsProvider);
-    final requestKey = '$selectedProjectKey:${unitIds.join(',')}';
+    final requestKey = '$selectedProjectIdentifier:${unitIds.join(',')}';
     final shouldSkip =
-        !forceRefresh && _isLoading && _lastProjectKey == selectedProjectKey;
+        !forceRefresh &&
+        _isLoading &&
+        _lastProjectKey == selectedProjectIdentifier;
     if (shouldSkip) {
       return;
     }
@@ -78,7 +86,7 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
       return;
     }
 
-    _lastProjectKey = selectedProjectKey;
+    _lastProjectKey = selectedProjectIdentifier;
     _lastRequestKey = requestKey;
     _isLoading = true;
 
@@ -90,6 +98,7 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
 
     final repository = await _ref.read(homeRepositoryProvider.future);
     final projectKey = selectedProjectKey;
+    final projectId = selectedProjectId;
 
     try {
       // EN: Retry only retryable failures (network/temporary server failures).
@@ -106,8 +115,10 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
             tag: 'HomeController',
           );
         }
-        result = await repository.getHomeSummary(
-          projectId: projectKey,
+        result = await _loadSummaryPreferByProject(
+          repository: repository,
+          selectedProjectKey: projectKey,
+          selectedProjectId: projectId,
           unitIds: unitIds,
           forceRefresh: forceRefresh || attempt > 0,
         );
@@ -127,6 +138,24 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
 
       if (!mounted) return;
       if (result is Success<HomeSummary>) {
+        AppLogger.debug(
+          'Home sourceCounts loaded',
+          tag: 'HomeController',
+          data: {
+            'project': selectedProjectIdentifier,
+            'sourceCounts': {
+              'places': result.data.metadata.sourceCounts.places,
+              'liveEvents': result.data.metadata.sourceCounts.liveEvents,
+              'news': result.data.metadata.sourceCounts.news,
+            },
+            'fallbackApplied': {
+              'recommendedPlaces':
+                  result.data.metadata.fallbackApplied.recommendedPlaces,
+              'trendingLiveEvents':
+                  result.data.metadata.fallbackApplied.trendingLiveEvents,
+            },
+          },
+        );
         state = AsyncData(result.data);
       } else if (result is Err<HomeSummary>) {
         state = AsyncError(result.failure, StackTrace.current);
@@ -134,6 +163,106 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
     } finally {
       _isLoading = false;
     }
+  }
+
+  Future<Result<HomeSummary>> _loadSummaryPreferByProject({
+    required HomeRepository repository,
+    required String selectedProjectKey,
+    required String? selectedProjectId,
+    required List<String> unitIds,
+    required bool forceRefresh,
+  }) async {
+    final projects = _ref.read(projectsControllerProvider).valueOrNull;
+    if (projects != null && projects.isNotEmpty) {
+      final projectIds = _projectIdentifiers(projects);
+      final batchResult = await repository.getHomeSummariesByProject(
+        projectIds: projectIds,
+        unitIds: unitIds,
+        forceRefresh: forceRefresh,
+      );
+      if (batchResult is Success<List<HomeSummaryByProjectItem>>) {
+        final summary = _selectSummaryFromBatch(
+          items: batchResult.data,
+          selectedProjectKey: selectedProjectKey,
+          selectedProjectId: selectedProjectId,
+        );
+        if (summary != null) {
+          return Result.success(summary);
+        }
+      } else if (batchResult case Err<List<HomeSummaryByProjectItem>>(
+        :final failure,
+      )) {
+        AppLogger.warning(
+          'Home by-project load failed, fallback to single summary',
+          tag: 'HomeController',
+          data: {
+            'projectKey': selectedProjectKey,
+            'projectId': selectedProjectId,
+            'errorCode': failure.code,
+          },
+        );
+      }
+    }
+
+    final projectIdentifier =
+        (selectedProjectId != null && selectedProjectId.isNotEmpty)
+        ? selectedProjectId
+        : selectedProjectKey;
+
+    return repository.getHomeSummary(
+      projectId: projectIdentifier,
+      unitIds: unitIds,
+      forceRefresh: forceRefresh,
+    );
+  }
+
+  List<String> _projectIdentifiers(List<Project> projects) {
+    final seen = <String>{};
+    final projectIds = <String>[];
+    for (final project in projects) {
+      final candidate = project.id.isNotEmpty ? project.id : project.code;
+      if (candidate.isEmpty || seen.contains(candidate)) {
+        continue;
+      }
+      seen.add(candidate);
+      projectIds.add(candidate);
+    }
+    return projectIds;
+  }
+
+  HomeSummary? _selectSummaryFromBatch({
+    required List<HomeSummaryByProjectItem> items,
+    required String selectedProjectKey,
+    required String? selectedProjectId,
+  }) {
+    if (selectedProjectId != null && selectedProjectId.isNotEmpty) {
+      for (final item in items) {
+        if (item.matchesProject(selectedProjectId)) {
+          return item.summary;
+        }
+      }
+    }
+
+    for (final item in items) {
+      if (item.matchesProject(selectedProjectKey)) {
+        return item.summary;
+      }
+    }
+
+    if (items.isNotEmpty) {
+      AppLogger.warning(
+        'Selected project not found in by-project summary payload',
+        tag: 'HomeController',
+        data: {
+          'selectedProjectKey': selectedProjectKey,
+          'selectedProjectId': selectedProjectId,
+          'payloadProjects': items
+              .map((item) => '${item.projectCode}/${item.projectId}')
+              .toList(growable: false),
+        },
+      );
+    }
+    return null;
   }
 
   bool _isRetryableFailure(Failure failure) {

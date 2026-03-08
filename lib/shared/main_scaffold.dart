@@ -54,7 +54,10 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     final currentPath = currentUri.path;
     final currentLocation = currentUri.toString();
     final isBoardBranch = currentIndex == 3;
-    final isPostComposeRoute = _isPostComposeRoute(currentPath);
+    final shouldShowBottomNav = _shouldShowBottomNav(
+      currentIndex: currentIndex,
+      currentPath: currentPath,
+    );
     if (!isBoardBranch) {
       _lastNonBoardLocation = currentLocation;
     }
@@ -93,7 +96,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       },
       child: Scaffold(
         body: widget.navigationShell,
-        bottomNavigationBar: isPostComposeRoute
+        bottomNavigationBar: !shouldShowBottomNav
             ? null
             : isBoardBranch
             ? _BoardSubBottomNav(
@@ -153,11 +156,32 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     );
   }
 
-  bool _isPostComposeRoute(String path) {
-    if (path == '/board/posts/new') {
-      return true;
+  bool _shouldShowBottomNav({
+    required int currentIndex,
+    required String currentPath,
+  }) {
+    if (currentIndex == 3) {
+      return _isBoardRootRoute(currentPath);
     }
-    return RegExp(r'^/board/posts/[^/]+/edit$').hasMatch(path);
+    if (currentIndex == 0) {
+      return currentPath == '/home';
+    }
+    if (currentIndex == 1) {
+      return currentPath == '/places';
+    }
+    if (currentIndex == 2) {
+      return currentPath == '/live';
+    }
+    if (currentIndex == 4) {
+      return currentPath == '/info';
+    }
+    return false;
+  }
+
+  bool _isBoardRootRoute(String path) {
+    return path == '/board' ||
+        path == '/board/discover' ||
+        path == '/board/travel-reviews-tab';
   }
 
   _BoardSubSection _resolveBoardSection(String path) {

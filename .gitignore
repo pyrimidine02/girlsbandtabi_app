@@ -44,6 +44,10 @@ app.*.map.json
 .env.local
 .env.*.local
 
+# Firebase platform configs (keep local only)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile

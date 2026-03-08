@@ -3,6 +3,7 @@
 library;
 
 export 'board_controller.dart';
+export 'community_translation_controller.dart';
 export 'feed_repository_provider.dart';
 export 'news_controller.dart';
 export 'post_compose_autosave_controller.dart';

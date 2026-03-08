@@ -11,6 +11,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' as widgets;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../features/notifications/domain/entities/notification_entities.dart';
@@ -21,6 +22,7 @@ import '../logging/app_logger.dart';
 import '../network/api_client.dart';
 import '../storage/local_storage.dart';
 import '../utils/result.dart';
+import 'firebase_runtime_options.dart';
 import 'local_notifications_service.dart';
 
 /// EN: Register Firebase background message handler once at startup.
@@ -36,6 +38,13 @@ const String _kPushChannelDescription =
 final FlutterLocalNotificationsPlugin _backgroundNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 bool _backgroundNotificationsInitialized = false;
+
+class _PushCredential {
+  const _PushCredential({required this.provider, required this.token});
+
+  final String provider;
+  final String token;
+}
 
 Future<void> _ensureBackgroundNotificationPluginInitialized() async {
   if (_backgroundNotificationsInitialized) {
@@ -167,6 +176,30 @@ Future<void> _showBackgroundLocalNotificationIfNeeded(
   );
 }
 
+Future<void> _ensureFirebaseAppInitialized() async {
+  if (Firebase.apps.isNotEmpty) {
+    return;
+  }
+
+  try {
+    await Firebase.initializeApp();
+    return;
+  } catch (_) {
+    // EN: Fallback to dart-define runtime options when bundled config is absent.
+    // KO: 번들 설정 파일이 없을 때 dart-define 런타임 옵션으로 대체 초기화합니다.
+  }
+
+  final runtimeOptions = FirebaseRuntimeOptions.resolveForCurrentPlatform();
+  if (runtimeOptions == null) {
+    throw StateError('Firebase options are missing for this platform.');
+  }
+  await Firebase.initializeApp(options: runtimeOptions);
+  AppLogger.info(
+    'Firebase initialized with runtime options',
+    tag: 'RemotePushService',
+  );
+}
+
 int _stableBackgroundNotificationId(String seed) {
   return seed.hashCode & 0x7fffffff;
 }
@@ -178,9 +211,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
     widgets.WidgetsFlutterBinding.ensureInitialized();
     DartPluginRegistrant.ensureInitialized();
-    if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp();
-    }
+    await _ensureFirebaseAppInitialized();
     await _showBackgroundLocalNotificationIfNeeded(message);
   } catch (_) {
     // EN: Ignore to keep background isolate safe when Firebase config is absent.
@@ -256,7 +287,13 @@ class RemotePushService {
       if (!_isAuthenticated || token.trim().isEmpty) {
         return;
       }
-      unawaited(_upsertDeviceRegistration(token.trim(), forceRegister: false));
+      unawaited(
+        _upsertDeviceRegistration(
+          token.trim(),
+          provider: 'FCM',
+          forceRegister: false,
+        ),
+      );
     });
 
     final initialMessage = await messaging.getInitialMessage();
@@ -324,16 +361,20 @@ class RemotePushService {
       return;
     }
 
-    final token = await messaging.getToken();
-    if (token == null || token.trim().isEmpty) {
+    final credential = await _resolvePushCredential(messaging);
+    if (credential == null) {
       AppLogger.warning(
-        'FCM token is unavailable; skip registration sync',
+        'Push token is unavailable; skip registration sync',
         tag: 'RemotePushService',
       );
       return;
     }
 
-    await _upsertDeviceRegistration(token.trim(), forceRegister: false);
+    await _upsertDeviceRegistration(
+      credential.token,
+      provider: credential.provider,
+      forceRegister: false,
+    );
   }
 
   /// EN: Deactivate current backend device registration and clear local keys.
@@ -382,9 +423,7 @@ class RemotePushService {
       return true;
     }
     try {
-      if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp();
-      }
+      await _ensureFirebaseAppInitialized();
       _messaging ??= FirebaseMessaging.instance;
       _firebaseReady = true;
       return true;
@@ -407,6 +446,7 @@ class RemotePushService {
 
   Future<void> _upsertDeviceRegistration(
     String pushToken, {
+    required String provider,
     required bool forceRegister,
   }) async {
     if (!_isAuthenticated) {
@@ -425,6 +465,7 @@ class RemotePushService {
       await _registerDevice(
         storage: storage,
         deviceId: deviceId,
+        provider: provider,
         pushToken: pushToken,
       );
       return;
@@ -432,7 +473,7 @@ class RemotePushService {
 
     final patchResult = await _apiClient.patch<dynamic>(
       ApiEndpoints.notificationDeviceToken(deviceId),
-      data: {'pushToken': pushToken},
+      data: {'pushToken': pushToken, 'provider': provider},
     );
     if (patchResult is Success<dynamic>) {
       await storage.setString(
@@ -448,6 +489,7 @@ class RemotePushService {
         await _registerDevice(
           storage: storage,
           deviceId: deviceId,
+          provider: provider,
           pushToken: pushToken,
         );
         return;
@@ -463,13 +505,18 @@ class RemotePushService {
   Future<void> _registerDevice({
     required LocalStorage storage,
     required String deviceId,
+    required String provider,
     required String pushToken,
   }) async {
+    final locale = _resolveDeviceLocale(storage);
+    final timezone = _resolveDeviceTimezone();
     final payload = <String, dynamic>{
       'platform': _platformValue(),
-      'provider': 'FCM',
+      'provider': provider,
       'deviceId': deviceId,
       'pushToken': pushToken,
+      if (locale != null) 'locale': locale,
+      if (timezone != null) 'timezone': timezone,
     };
 
     final registerResult = await _apiClient.post<dynamic>(
@@ -660,6 +707,44 @@ class RemotePushService {
       TargetPlatform.iOS => 'IOS',
       _ => 'UNKNOWN',
     };
+  }
+
+  Future<_PushCredential?> _resolvePushCredential(
+    FirebaseMessaging messaging,
+  ) async {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      final fcmToken = (await messaging.getToken())?.trim();
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        return _PushCredential(provider: 'FCM', token: fcmToken);
+      }
+      final apnsToken = (await messaging.getAPNSToken())?.trim();
+      if (apnsToken != null && apnsToken.isNotEmpty) {
+        return _PushCredential(provider: 'APNS', token: apnsToken);
+      }
+      return null;
+    }
+
+    final fcmToken = (await messaging.getToken())?.trim();
+    if (fcmToken == null || fcmToken.isEmpty) {
+      return null;
+    }
+    return _PushCredential(provider: 'FCM', token: fcmToken);
+  }
+
+  String? _resolveDeviceLocale(LocalStorage storage) {
+    final storedLocale = storage.getLocale()?.trim();
+    if (storedLocale != null &&
+        storedLocale.isNotEmpty &&
+        storedLocale.toLowerCase() != 'system') {
+      return storedLocale;
+    }
+    final currentLocale = Intl.getCurrentLocale().trim();
+    return currentLocale.isEmpty ? null : currentLocale;
+  }
+
+  String? _resolveDeviceTimezone() {
+    final timezone = DateTime.now().timeZoneName.trim();
+    return timezone.isEmpty ? null : timezone;
   }
 }
 

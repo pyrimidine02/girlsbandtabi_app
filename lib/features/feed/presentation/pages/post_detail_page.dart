@@ -28,6 +28,7 @@ import '../../application/report_rate_limiter.dart';
 import '../../application/user_follow_controller.dart';
 import '../../domain/entities/community_moderation.dart';
 import '../../domain/entities/feed_entities.dart';
+import '../widgets/community_translation_panel.dart';
 import '../widgets/community_report_sheet.dart';
 
 /// EN: Post detail page widget.
@@ -1148,12 +1149,25 @@ class _PostDetailContent extends StatelessWidget {
                         ContentModerationStatus.quarantined)
                       const SizedBox(height: GBTSpacing.md),
                     if (contentText.isNotEmpty)
-                      SelectableText(
-                        contentText,
-                        style: GBTTypography.bodyMedium.copyWith(
-                          height: 1.6,
-                          color: secondaryColor,
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SelectableText(
+                            contentText,
+                            style: GBTTypography.bodyMedium.copyWith(
+                              height: 1.6,
+                              color: secondaryColor,
+                            ),
+                          ),
+                          CommunityTranslationPanel(
+                            contentId: 'post:${post.id}',
+                            text: contentText,
+                            textStyle: GBTTypography.bodyMedium.copyWith(
+                              height: 1.6,
+                              color: secondaryColor,
+                            ),
+                          ),
+                        ],
                       ),
                     if (mergedImageUrls.isNotEmpty) ...[
                       const SizedBox(height: GBTSpacing.md),
@@ -1940,6 +1954,16 @@ class _CommentItemState extends State<_CommentItem> {
                         height: 1.46,
                       ),
                     ),
+                    if (!_isDeletedCommentPlaceholder(comment.content))
+                      CommunityTranslationPanel(
+                        contentId: 'comment:${comment.id}',
+                        text: comment.content,
+                        textStyle: GBTTypography.bodyMedium.copyWith(
+                          color: contentColor,
+                          height: 1.46,
+                        ),
+                        compact: true,
+                      ),
                     const SizedBox(height: GBTSpacing.sm),
                     // EN: Action row — reply button + expand-replies toggle.
                     // KO: 액션 행 — 답글 버튼 + 답글 펼치기 토글.
@@ -2252,6 +2276,16 @@ class _ReplyItem extends StatelessWidget {
                             );
                           },
                         ),
+                        if (!isDeletedPlaceholder)
+                          CommunityTranslationPanel(
+                            contentId: 'comment:${reply.id}',
+                            text: reply.content,
+                            textStyle: GBTTypography.bodySmall.copyWith(
+                              color: contentColor,
+                              height: 1.45,
+                            ),
+                            compact: true,
+                          ),
                         if (canReply) ...[
                           const SizedBox(height: GBTSpacing.xs),
                           _ReplyActionButton(
@@ -2809,6 +2843,16 @@ class _CommentThreadNodeView extends StatelessWidget {
                             height: 1.5,
                           ),
                         ),
+                        if (!isDeletedPlaceholder)
+                          CommunityTranslationPanel(
+                            contentId: 'comment:${comment.id}',
+                            text: comment.content,
+                            textStyle: GBTTypography.bodySmall.copyWith(
+                              color: contentColor,
+                              height: 1.5,
+                            ),
+                            compact: true,
+                          ),
                         if (node.replies.isNotEmpty) ...[
                           const SizedBox(height: GBTSpacing.sm),
                           ...node.replies.map(

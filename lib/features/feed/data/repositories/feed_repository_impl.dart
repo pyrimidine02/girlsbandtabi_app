@@ -10,6 +10,7 @@ import '../../../../core/utils/result.dart';
 import '../../domain/entities/feed_entities.dart';
 import '../../domain/repositories/feed_repository.dart';
 import '../datasources/feed_remote_data_source.dart';
+import '../dto/community_translation_dto.dart';
 import '../dto/news_dto.dart';
 import '../dto/post_comment_dto.dart';
 import '../dto/post_dto.dart';
@@ -453,6 +454,58 @@ class FeedRepositoryImpl implements FeedRepository {
         const UnknownFailure(
           'Unknown create post result',
           code: 'unknown_create_post',
+        ),
+      );
+    } catch (e, stackTrace) {
+      final failure = ErrorHandler.mapException(e, stackTrace);
+      return Result.failure(failure);
+    }
+  }
+
+  @override
+  Future<Result<CommunityTranslation>> translateCommunityText({
+    required String text,
+    required String targetLanguage,
+    String? sourceLanguage,
+  }) async {
+    final normalizedText = text.trim();
+    final normalizedTarget = targetLanguage.trim().toLowerCase();
+    final normalizedSource = sourceLanguage?.trim().toLowerCase();
+
+    if (normalizedText.isEmpty) {
+      return const Result.failure(
+        ValidationFailure('Translation text is empty', code: 'text_required'),
+      );
+    }
+    if (normalizedTarget.isEmpty) {
+      return const Result.failure(
+        ValidationFailure(
+          'Translation target language is empty',
+          code: 'target_language_required',
+        ),
+      );
+    }
+
+    try {
+      final result = await _remoteDataSource.translateCommunityText(
+        request: CommunityTranslationRequestDto(
+          text: normalizedText,
+          targetLanguage: normalizedTarget,
+          sourceLanguage: normalizedSource,
+        ),
+      );
+
+      if (result is Success<CommunityTranslationDto>) {
+        return Result.success(CommunityTranslation.fromDto(result.data));
+      }
+      if (result is Err<CommunityTranslationDto>) {
+        return Result.failure(result.failure);
+      }
+
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown community translation result',
+          code: 'unknown_community_translation',
         ),
       );
     } catch (e, stackTrace) {

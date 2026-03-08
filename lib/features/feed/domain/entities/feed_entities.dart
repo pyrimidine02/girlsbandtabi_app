@@ -5,6 +5,7 @@ library;
 import 'package:intl/intl.dart';
 
 import '../../data/dto/news_dto.dart';
+import '../../data/dto/community_translation_dto.dart';
 import '../../data/dto/post_comment_dto.dart';
 import '../../data/dto/post_dto.dart';
 import 'community_moderation.dart';
@@ -241,6 +242,43 @@ class PostComment {
       parentCommentId: dto.parentCommentId,
       depth: dto.depth,
       replyCount: dto.replyCount,
+    );
+  }
+}
+
+/// EN: On-demand translation result for community content.
+/// KO: 커뮤니티 콘텐츠 요청형 번역 결과입니다.
+class CommunityTranslation {
+  const CommunityTranslation({
+    required this.originalText,
+    required this.translatedText,
+    required this.targetLanguage,
+    required this.translated,
+    this.sourceLanguage,
+  });
+
+  final String originalText;
+  final String translatedText;
+  final String? sourceLanguage;
+  final String targetLanguage;
+  final bool translated;
+
+  bool get hasTranslatedText {
+    final source = originalText.trim();
+    final translatedValue = translatedText.trim();
+    if (!translated || translatedValue.isEmpty) {
+      return false;
+    }
+    return translatedValue != source;
+  }
+
+  factory CommunityTranslation.fromDto(CommunityTranslationDto dto) {
+    return CommunityTranslation(
+      originalText: dto.originalText,
+      translatedText: dto.translatedText,
+      sourceLanguage: dto.sourceLanguage,
+      targetLanguage: dto.targetLanguage,
+      translated: dto.translated,
     );
   }
 }

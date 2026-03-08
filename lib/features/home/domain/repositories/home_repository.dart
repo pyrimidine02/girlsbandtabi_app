@@ -6,6 +6,12 @@ import '../../../../core/utils/result.dart';
 import '../entities/home_summary.dart';
 
 abstract class HomeRepository {
+  Future<Result<List<HomeSummaryByProjectItem>>> getHomeSummariesByProject({
+    List<String> projectIds = const [],
+    List<String> unitIds = const [],
+    bool forceRefresh = false,
+  });
+
   Future<Result<HomeSummary>> getHomeSummary({
     required String projectId,
     List<String> unitIds = const [],

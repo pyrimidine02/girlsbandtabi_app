@@ -302,9 +302,9 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ),
 
-        // EN: Empty state
-        // KO: 빈 상태
-        if (summary.isEmpty)
+        // EN: Hard empty state (no cards + no source data)
+        // KO: 완전 빈 상태 (카드/원천 데이터 모두 없음)
+        if (summary.shouldShowNoContentEmptyState)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.only(top: GBTSpacing.xl),
@@ -313,6 +313,21 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ko: '표시할 홈 콘텐츠가 없습니다',
                   en: 'No home content available',
                   ja: '表示できるホームコンテンツがありません',
+                ),
+              ),
+            ),
+          ),
+        // EN: Soft empty state (cards empty but source rows exist)
+        // KO: 소프트 빈 상태 (카드는 비었지만 원천 데이터가 존재)
+        if (summary.shouldShowFilteredEmptyState)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(top: GBTSpacing.xl),
+              child: GBTEmptyState(
+                message: context.l10n(
+                  ko: '조건에 맞는 최신 항목이 없습니다',
+                  en: 'No recent items match current conditions',
+                  ja: '条件に合う最新項目がありません',
                 ),
               ),
             ),
