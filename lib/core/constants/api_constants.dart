@@ -96,9 +96,6 @@ class ApiEndpoints {
   // ============================================================
   static const String projects = '$apiVersion/projects';
   static String project(String projectId) => '$projects/$projectId';
-  static const String projectRoleRequests = '$projects/role-requests';
-  static String projectRoleRequest(String requestId) =>
-      '$projectRoleRequests/$requestId';
 
   // EN: Unit endpoints
   // KO: 유닛 엔드포인트
@@ -273,8 +270,12 @@ class ApiEndpoints {
   // ============================================================
   static String liveEvents(String projectId) =>
       '${project(projectId)}/live-events';
+  static String liveEventAttendances(String projectId) =>
+      '${liveEvents(projectId)}/attendances';
   static String liveEvent(String projectId, String liveEventId) =>
       '${liveEvents(projectId)}/$liveEventId';
+  static String liveEventAttendance(String projectId, String liveEventId) =>
+      '${liveEvent(projectId, liveEventId)}/attendance';
   static String liveEventVerification(String projectId, String liveEventId) =>
       '${liveEvent(projectId, liveEventId)}/verification';
 
@@ -433,6 +434,16 @@ class ApiEndpoints {
   static const String adminUsers = '$apiVersion/admin/users';
   static String adminUserActive(String userId) => '$adminUsers/$userId/active';
   static String adminUserRole(String userId) => '$adminUsers/$userId/role';
+  static String adminUserAccessLevel(String userId) =>
+      '$adminUsers/$userId/access-level';
+  static String adminUserAccessGrants(String userId) =>
+      '$adminUsers/$userId/access-grants';
+  static String adminUserAccessGrantRevoke(String userId, String grantId) =>
+      '${adminUserAccessGrants(userId)}/$grantId/revoke';
+  static const String adminUsersNotificationsBroadcast =
+      '$adminUsers/notifications/broadcast';
+  static const String adminUsersNotificationsTestSend =
+      '$adminUsers/notifications/test-send';
   static const String adminTokensRevoke = '$apiVersion/admin/tokens/revoke';
   static String projectRoles(String projectId) => '${project(projectId)}/roles';
   static String projectRolesGrant(String projectId) =>

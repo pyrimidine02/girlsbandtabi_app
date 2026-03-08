@@ -3,6 +3,7 @@
 library;
 
 import '../../../../core/cache/cache_manager.dart';
+import '../../../../core/cache/cache_profiles.dart';
 import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/result.dart';
@@ -28,16 +29,16 @@ class NotificationsRepositoryImpl implements NotificationsRepository {
     bool forceRefresh = false,
   }) async {
     final cacheKey = _pagedCacheKey(page, size);
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.notificationsList;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager
           .resolve<List<NotificationItemDto>>(
             key: cacheKey,
             policy: policy,
-            ttl: const Duration(minutes: 1),
+            ttl: profile.ttl,
+            revalidateAfter: profile.revalidateAfter,
             fetcher: () => _fetchNotifications(page, size),
             toJson: (dtos) => {
               'items': dtos.map((dto) => dto.toJson()).toList(),

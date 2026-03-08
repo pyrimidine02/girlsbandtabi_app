@@ -44,6 +44,21 @@ void main() {
           path: ApiEndpoints.liveEvent('{projectId}', '{liveEventId}'),
           method: 'GET',
         ),
+        (path: ApiEndpoints.liveEventAttendances('{projectId}'), method: 'GET'),
+        (
+          path: ApiEndpoints.liveEventAttendance(
+            '{projectId}',
+            '{liveEventId}',
+          ),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.liveEventAttendance(
+            '{projectId}',
+            '{liveEventId}',
+          ),
+          method: 'PUT',
+        ),
         (
           path: ApiEndpoints.liveEventVerification(
             '{projectId}',
@@ -195,14 +210,19 @@ void main() {
         (path: ApiEndpoints.uploadsApprove('{uploadId}'), method: 'PUT'),
         (path: ApiEndpoints.uploadsMy, method: 'GET'),
         (path: ApiEndpoints.uploadsDelete('{uploadId}'), method: 'DELETE'),
-        (path: ApiEndpoints.projectRoleRequests, method: 'GET'),
-        (path: ApiEndpoints.projectRoleRequests, method: 'POST'),
-        (
-          path: ApiEndpoints.projectRoleRequest('{requestId}'),
-          method: 'DELETE',
-        ),
         (path: ApiEndpoints.verificationAppeals('{projectId}'), method: 'GET'),
         (path: ApiEndpoints.verificationAppeals('{projectId}'), method: 'POST'),
+        (path: ApiEndpoints.adminUserAccessLevel('{userId}'), method: 'GET'),
+        (path: ApiEndpoints.adminUserAccessGrants('{userId}'), method: 'POST'),
+        (
+          path: ApiEndpoints.adminUserAccessGrantRevoke(
+            '{userId}',
+            '{grantId}',
+          ),
+          method: 'POST',
+        ),
+        (path: ApiEndpoints.adminUsersNotificationsBroadcast, method: 'POST'),
+        (path: ApiEndpoints.adminUsersNotificationsTestSend, method: 'POST'),
         (path: ApiEndpoints.adminDashboard, method: 'GET'),
         (path: ApiEndpoints.adminModerationDashboard, method: 'GET'),
         (path: ApiEndpoints.adminCommunityReports, method: 'GET'),

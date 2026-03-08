@@ -1,4 +1,5 @@
 import 'dart:core';
+import 'dart:io';
 
 void main() {
   final content = '''
@@ -9,14 +10,16 @@ void main() {
 ''';
 
   final urls = extractImageUrls(content);
-  print('Extracted: $urls');
+  stdout.writeln('Extracted: $urls');
 }
 
 List<String> extractImageUrls(String? content) {
   if (content == null || content.isEmpty) return const [];
   final urls = <String>{};
 
-  final markdownImagePattern = RegExp(r'!\[[^\]]*\]\((https?://[^)\s]+)[^)]*\)');
+  final markdownImagePattern = RegExp(
+    r'!\[[^\]]*\]\((https?://[^)\s]+)[^)]*\)',
+  );
   final mdMatches = markdownImagePattern.allMatches(content);
   for (final match in mdMatches) {
     final url = match.group(1);

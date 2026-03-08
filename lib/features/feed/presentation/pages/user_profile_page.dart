@@ -826,7 +826,13 @@ class _PostsTab extends StatelessWidget {
                           borderRadius: BorderRadius.circular(
                             GBTSpacing.radiusLg,
                           ),
-                          onTap: () => context.goToPostDetail(post.id),
+                          onTap: () async {
+                            await context.pushNamed(
+                              AppRoutes.postDetail,
+                              pathParameters: {'postId': post.id},
+                            );
+                            await onRefresh();
+                          },
                           child: Ink(
                             padding: const EdgeInsets.all(GBTSpacing.sm),
                             decoration: BoxDecoration(
@@ -943,7 +949,13 @@ class _CommentsTab extends StatelessWidget {
                           borderRadius: BorderRadius.circular(
                             GBTSpacing.radiusLg,
                           ),
-                          onTap: () => context.goToPostDetail(comment.postId),
+                          onTap: () async {
+                            await context.pushNamed(
+                              AppRoutes.postDetail,
+                              pathParameters: {'postId': comment.postId},
+                            );
+                            await onRefresh();
+                          },
                           child: Ink(
                             padding: const EdgeInsets.all(GBTSpacing.sm),
                             decoration: BoxDecoration(

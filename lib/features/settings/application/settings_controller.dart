@@ -259,59 +259,6 @@ class UserBlocksController extends StateNotifier<AsyncValue<List<UserBlock>>> {
   }
 }
 
-class ProjectRoleRequestsController
-    extends StateNotifier<AsyncValue<List<ProjectRoleRequest>>> {
-  ProjectRoleRequestsController(this._ref) : super(const AsyncLoading());
-
-  final Ref _ref;
-
-  Future<void> load({bool forceRefresh = false}) async {
-    final isAuthenticated = _ref.read(isAuthenticatedProvider);
-    if (!isAuthenticated) {
-      state = const AsyncData(<ProjectRoleRequest>[]);
-      return;
-    }
-    state = const AsyncLoading();
-    final repository = await _ref.read(settingsRepositoryProvider.future);
-    final result = await repository.getProjectRoleRequests(
-      forceRefresh: forceRefresh,
-    );
-    if (result is Success<List<ProjectRoleRequest>>) {
-      state = AsyncData(result.data);
-    } else if (result is Err<List<ProjectRoleRequest>>) {
-      state = AsyncError(result.failure, StackTrace.current);
-    }
-  }
-
-  Future<Result<ProjectRoleRequest>> create({
-    required String projectId,
-    required String requestedRole,
-    required String justification,
-  }) async {
-    final repository = await _ref.read(settingsRepositoryProvider.future);
-    final result = await repository.createProjectRoleRequest(
-      projectId: projectId,
-      requestedRole: requestedRole,
-      justification: justification,
-    );
-    if (result is Success<ProjectRoleRequest>) {
-      await load(forceRefresh: true);
-    }
-    return result;
-  }
-
-  Future<Result<void>> cancel(String requestId) async {
-    final repository = await _ref.read(settingsRepositoryProvider.future);
-    final result = await repository.cancelProjectRoleRequest(
-      requestId: requestId,
-    );
-    if (result is Success<void>) {
-      await load(forceRefresh: true);
-    }
-    return result;
-  }
-}
-
 class VerificationAppealsController
     extends StateNotifier<AsyncValue<List<VerificationAppeal>>> {
   VerificationAppealsController(this._ref) : super(const AsyncLoading());
@@ -426,16 +373,6 @@ final userBlocksControllerProvider =
       ref,
     ) {
       return UserBlocksController(ref)..load();
-    });
-
-/// EN: Project role requests controller provider.
-/// KO: 프로젝트 권한 요청 컨트롤러 프로바이더.
-final projectRoleRequestsControllerProvider =
-    StateNotifierProvider<
-      ProjectRoleRequestsController,
-      AsyncValue<List<ProjectRoleRequest>>
-    >((ref) {
-      return ProjectRoleRequestsController(ref)..load();
     });
 
 /// EN: Verification appeals controller provider.

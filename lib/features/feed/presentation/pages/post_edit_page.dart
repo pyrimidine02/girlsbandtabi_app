@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/theme/gbt_colors.dart';
@@ -51,8 +52,8 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
   final List<XFile> _images = [];
   final List<String> _existingImageUrls = [];
   final List<String> _selectedTags = [];
-  final List<String> _topicOptions = [...kPostTopicOptions];
-  final List<String> _tagSuggestions = [...kPostTagSuggestions];
+  final List<String> _topicOptions = <String>[];
+  final List<String> _tagSuggestions = <String>[];
   late final PostComposeAutosaveConfig _autosaveConfig;
   late final PostComposeAutosaveController _autosaveController;
   late final String _initialTitle;
@@ -61,7 +62,9 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
   late final String? _initialTopic;
   late final List<String> _initialTags;
   bool _isSubmitting = false;
+  bool _isTaxonomyLoading = false;
   bool _taxonomyLoadFailed = false;
+  Failure? _taxonomyFailure;
   String? _errorMessage;
   String? _selectedTopic;
 
@@ -127,7 +130,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     _titleController.addListener(_onFormChanged);
     _contentController.addListener(_onFormChanged);
     unawaited(_autosaveController.loadRecoverableDraft());
-    unawaited(_loadPostComposeOptions());
+    unawaited(_loadPostComposeOptions(forceRefresh: true));
   }
 
   @override
@@ -247,20 +250,11 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  List<String> _normalizeOptionNames(List<PostTaxonomyOption> options) {
-    final seen = <String>{};
-    final normalized = <String>[];
-    for (final option in options) {
-      final value = option.name.trim();
-      if (value.isEmpty) {
-        continue;
-      }
-      final key = value.toLowerCase();
-      if (seen.add(key)) {
-        normalized.add(value);
-      }
-    }
-    return normalized;
+  List<String> _orderedOptionNames(List<PostTaxonomyOption> options) {
+    return options
+        .map((option) => option.name.trim())
+        .where((name) => name.isNotEmpty)
+        .toList(growable: false);
   }
 
   Future<void> _loadPostComposeOptions({bool forceRefresh = false}) async {
@@ -268,18 +262,35 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
       return;
     }
 
-    final repository = await ref.read(feedRepositoryProvider.future);
-    final result = await repository.getPostComposeOptions(
-      forceRefresh: forceRefresh,
-    );
+    setState(() {
+      _isTaxonomyLoading = true;
+    });
+
+    Result<PostComposeOptions> result;
+    try {
+      final repository = await ref.read(feedRepositoryProvider.future);
+      result = await repository.getPostComposeOptions(
+        forceRefresh: forceRefresh,
+      );
+    } catch (error, stackTrace) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isTaxonomyLoading = false;
+        _taxonomyLoadFailed = true;
+        _taxonomyFailure = ErrorHandler.mapException(error, stackTrace);
+      });
+      return;
+    }
     if (!mounted) {
       return;
     }
 
     switch (result) {
       case Success<PostComposeOptions>(:final data):
-        final topics = _normalizeOptionNames(data.topics);
-        final tags = _normalizeOptionNames(data.tags);
+        final topics = _orderedOptionNames(data.topics);
+        final tags = _orderedOptionNames(data.tags);
         setState(() {
           _topicOptions
             ..clear()
@@ -287,19 +298,73 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
           _tagSuggestions
             ..clear()
             ..addAll(tags);
+          _isTaxonomyLoading = false;
           _taxonomyLoadFailed = false;
+          _taxonomyFailure = null;
         });
-      case Err<PostComposeOptions>():
+      case Err<PostComposeOptions>(:final failure):
         setState(() {
+          _isTaxonomyLoading = false;
           _taxonomyLoadFailed = true;
-        });
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) {
-            return;
-          }
-          _showMessage('토픽 목록을 불러오지 못해 자유입력 모드로 전환했어요.');
+          _taxonomyFailure = failure;
         });
     }
+  }
+
+  bool get _shouldShowTaxonomyLoginAction {
+    final failure = _taxonomyFailure;
+    if (failure is! AuthFailure) {
+      return false;
+    }
+    return failure.code == '401' || failure.code == 'auth_required';
+  }
+
+  bool get _canOpenTopicPicker {
+    if (_isSubmitting || _isTaxonomyLoading) {
+      return false;
+    }
+    return _topicOptions.isNotEmpty;
+  }
+
+  bool get _canOpenTagPicker {
+    if (_isSubmitting || _isTaxonomyLoading) {
+      return false;
+    }
+    return _tagSuggestions.isNotEmpty;
+  }
+
+  String? get _taxonomyStatusMessage {
+    if (_isTaxonomyLoading) {
+      return '토픽/태그 목록을 불러오는 중입니다.';
+    }
+
+    if (_taxonomyLoadFailed) {
+      final failure = _taxonomyFailure;
+      if (failure is AuthFailure) {
+        switch (failure.code) {
+          case '401':
+          case 'auth_required':
+            return '로그인이 만료되었습니다. 다시 로그인해주세요.';
+          case '403':
+            return '토픽/태그 목록 조회 권한이 없습니다.';
+        }
+      }
+      return '토픽/태그 목록을 불러오지 못했습니다.';
+    }
+
+    if (_topicOptions.isEmpty && _tagSuggestions.isEmpty) {
+      return '현재 선택 가능한 토픽/태그가 없습니다.';
+    }
+
+    if (_topicOptions.isEmpty) {
+      return '현재 선택 가능한 토픽이 없습니다.';
+    }
+
+    if (_tagSuggestions.isEmpty) {
+      return '현재 선택 가능한 태그가 없습니다.';
+    }
+
+    return null;
   }
 
   Future<void> _handleCancelPressed() async {
@@ -498,14 +563,48 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
                               PostTopicTagSelector(
                                 selectedTopic: _selectedTopic,
                                 selectedTags: _selectedTags,
-                                onTapTopic: _isSubmitting
-                                    ? null
-                                    : _handleTopicTap,
-                                onTapAddTag: _isSubmitting
-                                    ? null
-                                    : _handleTagAddTap,
+                                onTapTopic: _canOpenTopicPicker
+                                    ? _handleTopicTap
+                                    : null,
+                                onTapAddTag: _canOpenTagPicker
+                                    ? _handleTagAddTap
+                                    : null,
                                 onRemoveTag: _isSubmitting ? null : _removeTag,
                               ),
+                              if (_taxonomyStatusMessage != null) ...[
+                                const SizedBox(height: GBTSpacing.xs),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        _taxonomyStatusMessage!,
+                                        style: GBTTypography.labelSmall
+                                            .copyWith(
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
+                                      ),
+                                    ),
+                                    if (_taxonomyLoadFailed)
+                                      TextButton(
+                                        onPressed: _isTaxonomyLoading
+                                            ? null
+                                            : () => unawaited(
+                                                _loadPostComposeOptions(
+                                                  forceRefresh: true,
+                                                ),
+                                              ),
+                                        child: const Text('다시 시도'),
+                                      ),
+                                    if (_taxonomyLoadFailed &&
+                                        _shouldShowTaxonomyLoginAction)
+                                      TextButton(
+                                        onPressed: () => context.go('/login'),
+                                        child: const Text('로그인'),
+                                      ),
+                                  ],
+                                ),
+                              ],
                               const SizedBox(height: GBTSpacing.xs),
                               TextField(
                                 controller: _titleController,
@@ -777,14 +876,20 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
   }
 
   Future<void> _handleTopicTap() async {
-    // ignore: use_build_context_synchronously
-    final selected = (_taxonomyLoadFailed || _topicOptions.isEmpty)
-        ? await showPostTopicInputSheet(context, initialTopic: _selectedTopic)
-        : await showPostTopicPickerSheet(
-            context,
-            selectedTopic: _selectedTopic,
-            options: _topicOptions,
-          );
+    if (_isTaxonomyLoading) {
+      _showMessage('토픽/태그 목록을 불러오는 중입니다.');
+      return;
+    }
+    if (_topicOptions.isEmpty) {
+      _showMessage('선택 가능한 토픽이 없습니다.');
+      return;
+    }
+
+    final selected = await showPostTopicPickerSheet(
+      context,
+      selectedTopic: _selectedTopic,
+      options: _topicOptions,
+    );
     if (!mounted || selected == null) {
       return;
     }
@@ -801,6 +906,14 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
   Future<void> _handleTagAddTap() async {
     if (_selectedTags.length >= kPostMaxTagCount) {
       _showMessage('태그는 최대 $kPostMaxTagCount개까지 추가할 수 있어요.');
+      return;
+    }
+    if (_isTaxonomyLoading) {
+      _showMessage('토픽/태그 목록을 불러오는 중입니다.');
+      return;
+    }
+    if (_tagSuggestions.isEmpty) {
+      _showMessage('선택 가능한 태그가 없습니다.');
       return;
     }
     final selected = await showPostTagPickerSheet(

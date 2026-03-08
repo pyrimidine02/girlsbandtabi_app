@@ -409,8 +409,7 @@ class _CommunityPostCard extends ConsumerWidget {
 
     // EN: Borderless post card — no Card wrapper
     // KO: 무테두리 게시글 카드 — Card 래퍼 없음
-    final hasImage =
-        post.imageUrls.isNotEmpty || post.thumbnailUrl != null;
+    final hasImage = post.imageUrls.isNotEmpty || post.thumbnailUrl != null;
     final firstImageUrl = post.imageUrls.isNotEmpty
         ? post.imageUrls.first
         : post.thumbnailUrl;
@@ -455,8 +454,7 @@ class _CommunityPostCard extends ConsumerWidget {
                           url: avatarUrl,
                           radius: 16,
                           semanticLabel: '$authorLabel 프로필 사진',
-                          onTap: () =>
-                              context.goToUserProfile(post.authorId),
+                          onTap: () => context.goToUserProfile(post.authorId),
                         ),
                         const SizedBox(width: GBTSpacing.sm),
                         Expanded(
@@ -540,8 +538,7 @@ class _CommunityPostCard extends ConsumerWidget {
                                   child: GBTImage(
                                     imageUrl: firstImageUrl,
                                     fit: BoxFit.cover,
-                                    semanticLabel:
-                                        '${post.title} 첨부 이미지',
+                                    semanticLabel: '${post.title} 첨부 이미지',
                                   ),
                                 ),
                                 if (post.imageUrls.length > 1)
@@ -549,16 +546,15 @@ class _CommunityPostCard extends ConsumerWidget {
                                     right: 4,
                                     bottom: 4,
                                     child: Container(
-                                      padding:
-                                          const EdgeInsets.symmetric(
+                                      padding: const EdgeInsets.symmetric(
                                         horizontal: 5,
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.65),
-                                        borderRadius:
-                                            BorderRadius.circular(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.65,
+                                        ),
+                                        borderRadius: BorderRadius.circular(
                                           GBTSpacing.radiusFull,
                                         ),
                                       ),
@@ -573,13 +569,12 @@ class _CommunityPostCard extends ConsumerWidget {
                                           const SizedBox(width: 3),
                                           Text(
                                             '${post.imageUrls.length}',
-                                            style: GBTTypography
-                                                .labelSmall
+                                            style: GBTTypography.labelSmall
                                                 .copyWith(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 10,
-                                            ),
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 10,
+                                                ),
                                           ),
                                         ],
                                       ),
@@ -685,9 +680,7 @@ class _CommunityPostCard extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('신고 접수'),
-        content: Text(
-          '게시글을 "${payload.reason.label}" 사유로 신고합니다.\n접수하시겠어요?',
-        ),
+        content: Text('게시글을 "${payload.reason.label}" 사유로 신고합니다.\n접수하시겠어요?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -719,176 +712,9 @@ class _CommunityPostCard extends ConsumerWidget {
   }
 
   void _showSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-}
-
-/// EN: Post image preview widget — Weverse/Instagram-style layout.
-/// KO: 포스트 이미지 프리뷰 위젯 — Weverse/Instagram 스타일 레이아웃.
-///
-/// EN: Supports 1-image (16:9 full-width), 2-image (4:3 side-by-side),
-///     and 3+-image (first two visible + "+N" overlay badge) layouts.
-/// KO: 1장(16:9 전체 너비), 2장(4:3 좌우 분할),
-///     3장+(첫 2장 표시 + "+N" 오버레이 뱃지) 레이아웃을 지원합니다.
-class _PostImagePreview extends StatelessWidget {
-  const _PostImagePreview({
-    required this.imageUrls,
-    required this.isDark,
-  });
-
-  /// EN: List of image URLs to display.
-  /// KO: 표시할 이미지 URL 목록.
-  final List<String> imageUrls;
-
-  /// EN: Whether the current theme is dark mode.
-  /// KO: 현재 테마가 다크 모드인지 여부.
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    assert(imageUrls.isNotEmpty, '_PostImagePreview requires at least one URL');
-
-    if (imageUrls.length == 1) {
-      return _buildSingleImage(imageUrls.first);
-    } else if (imageUrls.length == 2) {
-      return _buildDualImages(imageUrls[0], imageUrls[1]);
-    } else {
-      // EN: 3 or more images — show first two with "+N" badge on second.
-      // KO: 3장 이상 — 첫 두 장 표시, 두 번째에 "+N" 뱃지 오버레이.
-      return _buildMultiImages(imageUrls[0], imageUrls[1], imageUrls.length);
-    }
-  }
-
-  /// EN: Builds a single full-width 16:9 image.
-  /// KO: 전체 너비 16:9 비율 단일 이미지를 빌드합니다.
-  Widget _buildSingleImage(String url) {
-    return AspectRatio(
-      aspectRatio: 16 / 9,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        child: GBTImage(
-          imageUrl: url,
-          fit: BoxFit.cover,
-          semanticLabel: '포스트 이미지',
-        ),
-      ),
-    );
-  }
-
-  /// EN: Builds two side-by-side 4:3 images with a small gap.
-  /// KO: 작은 간격으로 나란히 놓인 4:3 비율 이미지 두 장을 빌드합니다.
-  Widget _buildDualImages(String leftUrl, String rightUrl) {
-    return AspectRatio(
-      aspectRatio: (4 / 3) * 2 + (GBTSpacing.xs / 100),
-      child: Row(
-        children: [
-          Expanded(
-            child: AspectRatio(
-              aspectRatio: 4 / 3,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-                child: GBTImage(
-                  imageUrl: leftUrl,
-                  fit: BoxFit.cover,
-                  semanticLabel: '포스트 이미지 1',
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: GBTSpacing.xs),
-          Expanded(
-            child: AspectRatio(
-              aspectRatio: 4 / 3,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-                child: GBTImage(
-                  imageUrl: rightUrl,
-                  fit: BoxFit.cover,
-                  semanticLabel: '포스트 이미지 2',
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// EN: Builds two side-by-side images with "+N" overlay badge on the right.
-  /// KO: 오른쪽에 "+N" 오버레이 뱃지가 있는 나란히 놓인 두 이미지를 빌드합니다.
-  Widget _buildMultiImages(
-    String leftUrl,
-    String rightUrl,
-    int totalCount,
-  ) {
-    // EN: Number of hidden images beyond the two displayed.
-    // KO: 표시되는 두 장 이외의 숨겨진 이미지 수.
-    final hiddenCount = totalCount - 2;
-
-    return Row(
-      children: [
-        // EN: Left image — plain 4:3
-        // KO: 왼쪽 이미지 — 일반 4:3
-        Expanded(
-          child: AspectRatio(
-            aspectRatio: 4 / 3,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-              child: GBTImage(
-                imageUrl: leftUrl,
-                fit: BoxFit.cover,
-                semanticLabel: '포스트 이미지 1',
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: GBTSpacing.xs),
-        // EN: Right image — 4:3 with "+N" overlay on top.
-        // KO: 오른쪽 이미지 — 위에 "+N" 오버레이가 있는 4:3.
-        Expanded(
-          child: AspectRatio(
-            aspectRatio: 4 / 3,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-                  child: GBTImage(
-                    imageUrl: rightUrl,
-                    fit: BoxFit.cover,
-                    semanticLabel: '포스트 이미지 2',
-                  ),
-                ),
-                // EN: Semi-transparent dark overlay scrim.
-                // KO: 반투명 어두운 오버레이 스크림.
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-                  child: ColoredBox(
-                    color: const Color(0x80000000),
-                    child: Center(
-                      child: Semantics(
-                        label: '사진 $hiddenCount장 더 보기',
-                        child: Text(
-                          '+$hiddenCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

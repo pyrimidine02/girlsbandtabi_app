@@ -3,17 +3,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:girlsbandtabi_app/features/admin_ops/domain/entities/admin_ops_entities.dart';
 
 void main() {
-  group('hasAdminOpsAccessRole', () {
-    test('returns true for admin/operator roles', () {
-      expect(hasAdminOpsAccessRole('ADMIN'), isTrue);
-      expect(hasAdminOpsAccessRole('app_manager'), isTrue);
-      expect(hasAdminOpsAccessRole('OPERATOR'), isTrue);
+  group('hasAdminOpsAccess', () {
+    test('prefers effective access level from new policy', () {
+      expect(
+        hasAdminOpsAccess(effectiveAccessLevel: 'ADMIN_NON_SENSITIVE'),
+        isTrue,
+      );
+      expect(
+        hasAdminOpsAccess(effectiveAccessLevel: 'COMMUNITY_MODERATOR'),
+        isFalse,
+      );
     });
 
-    test('returns false for user or empty role', () {
-      expect(hasAdminOpsAccessRole('USER'), isFalse);
-      expect(hasAdminOpsAccessRole(''), isFalse);
-      expect(hasAdminOpsAccessRole(null), isFalse);
+    test('falls back to account role when access level is missing', () {
+      expect(hasAdminOpsAccess(accountRole: 'ADMIN'), isTrue);
+      expect(hasAdminOpsAccess(accountRole: 'USER'), isFalse);
     });
   });
 

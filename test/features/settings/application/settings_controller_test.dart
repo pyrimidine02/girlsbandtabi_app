@@ -199,27 +199,6 @@ class _FakeSettingsRepository implements SettingsRepository {
   }
 
   @override
-  Future<Result<List<ProjectRoleRequest>>> getProjectRoleRequests({
-    bool forceRefresh = false,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Result<ProjectRoleRequest>> createProjectRoleRequest({
-    required String projectId,
-    required String requestedRole,
-    required String justification,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Result<void>> cancelProjectRoleRequest({required String requestId}) {
-    throw UnimplementedError();
-  }
-
-  @override
   Future<Result<List<VerificationAppeal>>> getVerificationAppeals({
     required String projectId,
     bool forceRefresh = false,

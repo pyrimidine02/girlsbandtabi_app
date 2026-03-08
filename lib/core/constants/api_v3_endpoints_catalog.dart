@@ -41,9 +41,6 @@ class ApiV3EndpointCatalog {
     '/api/v1/admin/moderation/dashboard': ['GET'],
     '/api/v1/admin/password-security/config': ['GET'],
     '/api/v1/admin/password-security/test': ['GET'],
-    '/api/v1/admin/projects/role-requests': ['GET'],
-    '/api/v1/admin/projects/role-requests/{requestId}': ['GET'],
-    '/api/v1/admin/projects/role-requests/{requestId}/review': ['PATCH'],
     '/api/v1/admin/projects/{projectId}/verification-appeals': ['GET'],
     '/api/v1/admin/projects/{projectId}/verification-appeals/{appealId}': [
       'GET',
@@ -55,7 +52,12 @@ class ApiV3EndpointCatalog {
     '/api/v1/admin/users/blocks': ['GET'],
     '/api/v1/admin/users/{userId}': ['GET'],
     '/api/v1/admin/users/{userId}/active': ['POST'],
+    '/api/v1/admin/users/{userId}/access-grants': ['POST'],
+    '/api/v1/admin/users/{userId}/access-grants/{grantId}/revoke': ['POST'],
+    '/api/v1/admin/users/{userId}/access-level': ['GET'],
     '/api/v1/admin/users/{userId}/blocks': ['DELETE', 'POST'],
+    '/api/v1/admin/users/notifications/broadcast': ['POST'],
+    '/api/v1/admin/users/notifications/test-send': ['POST'],
     '/api/v1/admin/users/{userId}/role': ['POST'],
     '/api/v1/admin/users/{userId}/sanctions': ['GET', 'POST'],
     '/api/v1/admin/users/{userId}/sanctions/{sanctionId}': ['DELETE'],
@@ -112,8 +114,6 @@ class ApiV3EndpointCatalog {
     '/api/v1/places/{placeId}/photos/{photoId}': ['DELETE', 'GET', 'PUT'],
     '/api/v1/places/{placeId}/photos/{photoId}/approve': ['PUT'],
     '/api/v1/projects': ['GET', 'POST'],
-    '/api/v1/projects/role-requests': ['GET', 'POST'],
-    '/api/v1/projects/role-requests/{requestId}': ['DELETE', 'GET'],
     '/api/v1/projects/{projectCode}/comments/by-author/{userId}': ['GET'],
     '/api/v1/projects/{projectCode}/moderation/bans': ['GET'],
     '/api/v1/projects/{projectCode}/moderation/bans/{userId}': [
@@ -172,6 +172,11 @@ class ApiV3EndpointCatalog {
     '/api/v1/projects/{projectId}/live-events/{liveEventId}/banner': [
       'DELETE',
       'POST',
+    ],
+    '/api/v1/projects/{projectId}/live-events/attendances': ['GET'],
+    '/api/v1/projects/{projectId}/live-events/{liveEventId}/attendance': [
+      'GET',
+      'PUT',
     ],
     '/api/v1/projects/{projectId}/live-events/{liveEventId}/verification': [
       'POST',

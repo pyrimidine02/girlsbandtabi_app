@@ -3,6 +3,7 @@
 library;
 
 import '../../../../core/cache/cache_manager.dart';
+import '../../../../core/cache/cache_profiles.dart';
 import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/result.dart';
@@ -46,15 +47,15 @@ class ProjectsRepositoryImpl implements ProjectsRepository {
   Future<Result<List<Project>>> _getProjects({
     required bool forceRefresh,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.projectsList;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<List<ProjectDto>>(
         key: _projectsCacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 30),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: _fetchProjects,
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {
@@ -84,15 +85,15 @@ class ProjectsRepositoryImpl implements ProjectsRepository {
     required String projectId,
     bool forceRefresh = false,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.projectUnits;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<List<UnitDto>>(
         key: _unitsCacheKey(projectId),
         policy: policy,
-        ttl: const Duration(minutes: 15),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchUnits(projectId),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {
@@ -152,15 +153,15 @@ class ProjectsRepositoryImpl implements ProjectsRepository {
     required String unitId,
     bool forceRefresh = false,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.projectUnitMembers;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<List<MemberDto>>(
         key: _membersCacheKey(projectId, unitId),
         policy: policy,
-        ttl: const Duration(minutes: 15),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchUnitMembers(projectId, unitId),
         toJson: (dtos) => {'items': dtos.map((dto) => dto.toJson()).toList()},
         fromJson: (json) {

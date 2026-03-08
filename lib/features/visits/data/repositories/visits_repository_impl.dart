@@ -3,6 +3,7 @@
 library;
 
 import '../../../../core/cache/cache_manager.dart';
+import '../../../../core/cache/cache_profiles.dart';
 import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/result.dart';
@@ -28,15 +29,15 @@ class VisitsRepositoryImpl implements VisitsRepository {
     int size = 20,
     bool forceRefresh = false,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.visitsList;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<List<VisitEventDto>>(
         key: _visitsCacheKey(page, size),
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchVisits(page: page, size: size),
         toJson: _encodeVisitList,
         fromJson: _decodeVisitList,
@@ -82,15 +83,15 @@ class VisitsRepositoryImpl implements VisitsRepository {
     required String placeId,
     bool forceRefresh = false,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.visitsSummary;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<VisitSummaryDto>(
         key: _summaryCacheKey(placeId),
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchSummary(placeId: placeId),
         toJson: (dto) => dto.toJson(),
         fromJson: VisitSummaryDto.fromJson,
@@ -106,15 +107,15 @@ class VisitsRepositoryImpl implements VisitsRepository {
     required String visitId,
     bool forceRefresh = false,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.visitDetail;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<VisitEventDetailDto>(
         key: _detailCacheKey(visitId),
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchVisitDetail(visitId: visitId),
         toJson: (dto) => dto.toJson(),
         fromJson: (json) => VisitEventDetailDto.fromJson(json),
@@ -180,15 +181,15 @@ class VisitsRepositoryImpl implements VisitsRepository {
     required String projectId,
     bool forceRefresh = false,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.staleWhileRevalidate;
+    final profile = CacheProfiles.userRanking;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<UserRankingDto>(
         key: _rankingCacheKey(projectId),
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchUserRanking(projectId: projectId),
         toJson: (dto) => dto.toJson(),
         fromJson: UserRankingDto.fromJson,

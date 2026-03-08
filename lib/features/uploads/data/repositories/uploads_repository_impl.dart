@@ -3,6 +3,7 @@
 library;
 
 import '../../../../core/cache/cache_manager.dart';
+import '../../../../core/cache/cache_profiles.dart';
 import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/result.dart';
@@ -76,15 +77,15 @@ class UploadsRepositoryImpl implements UploadsRepository {
   Future<Result<List<UploadInfo>>> getMyUploads({
     bool forceRefresh = false,
   }) async {
-    final policy = forceRefresh
-        ? CachePolicy.networkFirst
-        : CachePolicy.cacheFirst;
+    final profile = CacheProfiles.uploadsMy;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
 
     try {
       final cacheResult = await _cacheManager.resolve<List<UploadInfoResponse>>(
         key: _myUploadsCacheKey,
         policy: policy,
-        ttl: const Duration(minutes: 5),
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
         fetcher: () => _fetchMyUploads(),
         toJson: (dtos) => {'items': dtos.map((e) => e.toJson()).toList()},
         fromJson: (json) {

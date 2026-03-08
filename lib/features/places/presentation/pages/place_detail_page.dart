@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/localization/locale_text.dart';
+import '../../../../core/security/user_access_level.dart';
 import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -184,7 +185,10 @@ class PlaceDetailPage extends ConsumerWidget {
       orElse: () => place.isFavorite,
     );
     final isAdmin = profileState.maybeWhen(
-      data: (profile) => _isAdminRole(profile?.role),
+      data: (profile) => _isAdminRole(
+        effectiveAccessLevel: profile?.effectiveAccessLevel,
+        accountRole: profile?.accountRole,
+      ),
       orElse: () => false,
     );
     final projectKey = selection.projectKey;
@@ -1102,6 +1106,16 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
     required bool isApproved,
   }) async {
     if (comment.photoUploadIds.isEmpty) return;
+    final approvedMessage = context.l10n(
+      ko: '사진 승인 완료',
+      en: 'Photo approved',
+      ja: '写真を承認しました',
+    );
+    final rejectedMessage = context.l10n(
+      ko: '사진 반려 완료',
+      en: 'Photo rejected',
+      ja: '写真を却下しました',
+    );
     setState(() => _approvingIds.add(comment.id));
 
     final uploadController = ref.read(uploadsControllerProvider.notifier);
@@ -1144,11 +1158,7 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
         }
       });
     }
-    _showMessage(
-      isApproved
-          ? context.l10n(ko: '사진 승인 완료', en: 'Photo approved', ja: '写真を承認しました')
-          : context.l10n(ko: '사진 반려 완료', en: 'Photo rejected', ja: '写真を却下しました'),
-    );
+    _showMessage(isApproved ? approvedMessage : rejectedMessage);
   }
 
   void _showMessage(String message) {
@@ -1479,10 +1489,11 @@ bool _isForbidden(Object error) {
   return error is AuthFailure && error.code == '403';
 }
 
-bool _isAdminRole(String? role) {
-  if (role == null) return false;
-  final normalized = role.toUpperCase();
-  return normalized.contains('ADMIN') || normalized.contains('MODERATOR');
+bool _isAdminRole({String? effectiveAccessLevel, String? accountRole}) {
+  return canModerateCommunity(
+    effectiveAccessLevel: effectiveAccessLevel,
+    accountRole: accountRole,
+  );
 }
 
 String _formatPlaceType(String type) {

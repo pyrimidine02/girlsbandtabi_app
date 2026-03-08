@@ -47,63 +47,6 @@ class UserBlock {
   }
 }
 
-class ProjectRoleRequest {
-  const ProjectRoleRequest({
-    required this.id,
-    required this.requestedRole,
-    required this.status,
-    required this.createdAt,
-    this.projectSlug,
-    this.projectName,
-    this.justification,
-    this.reviewDecision,
-    this.adminMemo,
-    this.reviewedAt,
-  });
-
-  final String id;
-  final String? projectSlug;
-  final String? projectName;
-  final String requestedRole;
-  final String status;
-  final String? justification;
-  final String? reviewDecision;
-  final String? adminMemo;
-  final DateTime? reviewedAt;
-  final DateTime createdAt;
-
-  bool get canCancel {
-    final normalized = status.trim().toUpperCase();
-    return normalized == 'PENDING' || normalized == 'REQUESTED';
-  }
-
-  factory ProjectRoleRequest.fromSummaryDto(ProjectRoleRequestSummaryDto dto) {
-    return ProjectRoleRequest(
-      id: dto.id,
-      projectSlug: dto.projectSlug,
-      projectName: dto.projectName,
-      requestedRole: dto.requestedRole,
-      status: dto.status,
-      createdAt: dto.createdAt,
-    );
-  }
-
-  factory ProjectRoleRequest.fromDetailDto(ProjectRoleRequestDetailDto dto) {
-    return ProjectRoleRequest(
-      id: dto.id,
-      projectSlug: dto.projectSlug,
-      projectName: dto.projectName,
-      requestedRole: dto.requestedRole,
-      status: dto.status,
-      justification: dto.justification,
-      reviewDecision: dto.reviewDecision,
-      adminMemo: dto.adminMemo,
-      reviewedAt: dto.reviewedAt,
-      createdAt: dto.createdAt,
-    );
-  }
-}
-
 class VerificationAppeal {
   const VerificationAppeal({
     required this.id,

@@ -126,6 +126,78 @@ class LiveEventDetailDto {
   }
 }
 
+class LiveAttendanceToggleRequestDto {
+  const LiveAttendanceToggleRequestDto({required this.attended});
+
+  final bool attended;
+
+  Map<String, dynamic> toJson() {
+    return {'attended': attended};
+  }
+}
+
+class LiveAttendanceStateDto {
+  const LiveAttendanceStateDto({
+    required this.liveEventId,
+    required this.attended,
+    required this.status,
+    required this.canUndo,
+    this.verificationMethod,
+    this.attendedAt,
+  });
+
+  final String liveEventId;
+  final bool attended;
+  final String status;
+  final bool canUndo;
+  final String? verificationMethod;
+  final DateTime? attendedAt;
+
+  factory LiveAttendanceStateDto.fromJson(Map<String, dynamic> json) {
+    final status = (json['status'] as String? ?? 'NONE').toUpperCase();
+    final attendedValue = json['attended'];
+    return LiveAttendanceStateDto(
+      liveEventId:
+          json['liveEventId'] as String? ??
+          json['eventId'] as String? ??
+          json['id'] as String? ??
+          '',
+      attended: attendedValue == null
+          ? status != 'NONE'
+          : _boolOrFallback(attendedValue, false),
+      status: status,
+      canUndo: _boolOrFallback(json['canUndo'], false),
+      verificationMethod: json['verificationMethod'] as String?,
+      attendedAt: _dateTimeOrNull(json['attendedAt']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'liveEventId': liveEventId,
+      'attended': attended,
+      'status': status,
+      'canUndo': canUndo,
+      'verificationMethod': verificationMethod,
+      'attendedAt': attendedAt?.toIso8601String(),
+    };
+  }
+}
+
+class LiveAttendancePageDto {
+  const LiveAttendancePageDto({
+    required this.items,
+    required this.currentPage,
+    required this.pageSize,
+    required this.hasNext,
+  });
+
+  final List<LiveAttendanceStateDto> items;
+  final int currentPage;
+  final int pageSize;
+  final bool hasNext;
+}
+
 DateTime _dateTime(dynamic value) {
   if (value is String) {
     return DateTime.tryParse(value) ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -153,4 +225,19 @@ List<String> _stringList(dynamic value) {
     return value.whereType<String>().toList();
   }
   return <String>[];
+}
+
+bool _boolOrFallback(dynamic value, bool fallback) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == 'true' || normalized == 'y' || normalized == 'yes') {
+      return true;
+    }
+    if (normalized == 'false' || normalized == 'n' || normalized == 'no') {
+      return false;
+    }
+  }
+  return fallback;
 }

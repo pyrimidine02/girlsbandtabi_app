@@ -1,11 +1,13 @@
-/// EN: Account tools page for blocks, role requests, and appeals.
+/// EN: Account tools page for blocks, permission requests, and appeals.
 /// KO: 차단/권한요청/이의제기를 관리하는 계정 도구 페이지.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/security/user_access_level.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
@@ -13,14 +15,13 @@ import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
-import '../../../projects/application/projects_controller.dart';
-import '../../../projects/domain/entities/project_entities.dart';
 import '../../../settings/application/settings_controller.dart';
 import '../../../settings/domain/entities/account_tools.dart';
+import '../../../settings/domain/entities/user_profile.dart';
 import '../../../verification/application/failed_attempt_service.dart';
 import '../../../verification/domain/entities/failed_verification_attempt.dart';
 
-enum _AccountToolsTab { blocks, roleRequests, appeals }
+enum _AccountToolsTab { blocks, accessLevel, appeals }
 
 class AccountToolsPage extends ConsumerStatefulWidget {
   const AccountToolsPage({super.key});
@@ -33,15 +34,12 @@ class _AccountToolsPageState extends ConsumerState<AccountToolsPage>
     with SingleTickerProviderStateMixin {
   _AccountToolsTab _tab = _AccountToolsTab.blocks;
   late final TabController _tabController;
-  final _justificationController = TextEditingController();
   final _appealDescriptionController = TextEditingController();
   String? _selectedAppealTargetId;
   String? _selectedAppealTargetLabel;
 
-  String _requestedRole = 'EDITOR';
   String _appealTargetType = 'PLACE_VISIT';
   String _appealReason = 'FALSE_REJECTION';
-  String? _selectedProjectId;
 
   @override
   void initState() {
@@ -60,7 +58,6 @@ class _AccountToolsPageState extends ConsumerState<AccountToolsPage>
   @override
   void dispose() {
     _tabController.dispose();
-    _justificationController.dispose();
     _appealDescriptionController.dispose();
     super.dispose();
   }
@@ -71,9 +68,9 @@ class _AccountToolsPageState extends ConsumerState<AccountToolsPage>
         await ref
             .read(userBlocksControllerProvider.notifier)
             .load(forceRefresh: true);
-      case _AccountToolsTab.roleRequests:
+      case _AccountToolsTab.accessLevel:
         await ref
-            .read(projectRoleRequestsControllerProvider.notifier)
+            .read(userProfileControllerProvider.notifier)
             .load(forceRefresh: true);
       case _AccountToolsTab.appeals:
         await ref
@@ -85,9 +82,8 @@ class _AccountToolsPageState extends ConsumerState<AccountToolsPage>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final projectsState = ref.watch(projectsControllerProvider);
     final blocksState = ref.watch(userBlocksControllerProvider);
-    final roleRequestsState = ref.watch(projectRoleRequestsControllerProvider);
+    final profileState = ref.watch(userProfileControllerProvider);
     final appealsState = ref.watch(verificationAppealsControllerProvider);
 
     return Scaffold(
@@ -140,56 +136,9 @@ class _AccountToolsPageState extends ConsumerState<AccountToolsPage>
                   _showInfoSnackBar(context, '차단을 해제했습니다');
                 },
               ),
-              _AccountToolsTab.roleRequests => _RoleRequestsTab(
-                state: roleRequestsState,
-                projectsState: projectsState,
-                selectedProjectId: _selectedProjectId,
-                requestedRole: _requestedRole,
-                justificationController: _justificationController,
+              _AccountToolsTab.accessLevel => _AccessLevelTab(
+                profileState: profileState,
                 isDark: isDark,
-                onProjectChanged: (projectId) {
-                  setState(() => _selectedProjectId = projectId);
-                },
-                onRoleChanged: (role) {
-                  setState(() => _requestedRole = role);
-                },
-                onSubmit: () async {
-                  final projectId = _resolveProjectId(projectsState);
-                  final justification = _justificationController.text.trim();
-                  if (projectId == null || projectId.isEmpty) {
-                    _showErrorSnackBar(context, '프로젝트를 선택해주세요');
-                    return;
-                  }
-                  if (justification.length < 20) {
-                    _showErrorSnackBar(context, '사유를 20자 이상 입력해주세요');
-                    return;
-                  }
-                  final result = await ref
-                      .read(projectRoleRequestsControllerProvider.notifier)
-                      .create(
-                        projectId: projectId,
-                        requestedRole: _requestedRole,
-                        justification: justification,
-                      );
-                  if (!context.mounted) return;
-                  if (result is Err<ProjectRoleRequest>) {
-                    _showErrorSnackBar(context, result.failure.userMessage);
-                    return;
-                  }
-                  _justificationController.clear();
-                  _showInfoSnackBar(context, '권한 요청을 등록했습니다');
-                },
-                onCancel: (requestId) async {
-                  final result = await ref
-                      .read(projectRoleRequestsControllerProvider.notifier)
-                      .cancel(requestId);
-                  if (!context.mounted) return;
-                  if (result is Err<void>) {
-                    _showErrorSnackBar(context, result.failure.userMessage);
-                    return;
-                  }
-                  _showInfoSnackBar(context, '권한 요청을 취소했습니다');
-                },
                 onRefresh: _refreshCurrentTab,
               ),
               _AccountToolsTab.appeals => _AppealsTab(
@@ -248,16 +197,6 @@ class _AccountToolsPageState extends ConsumerState<AccountToolsPage>
           ),
         ],
       ),
-    );
-  }
-
-  String? _resolveProjectId(AsyncValue<List<Project>> projectsState) {
-    if (_selectedProjectId != null && _selectedProjectId!.isNotEmpty) {
-      return _selectedProjectId;
-    }
-    return projectsState.maybeWhen(
-      data: (projects) => projects.isNotEmpty ? projects.first.id : null,
-      orElse: () => null,
     );
   }
 }
@@ -445,45 +384,23 @@ class _BlockItemRow extends StatelessWidget {
 }
 
 // ========================================
-// EN: Role Requests Tab
+// EN: Permission requests tab
 // KO: 권한 요청 탭
 // ========================================
 
-class _RoleRequestsTab extends StatelessWidget {
-  const _RoleRequestsTab({
-    required this.state,
-    required this.projectsState,
-    required this.selectedProjectId,
-    required this.requestedRole,
-    required this.justificationController,
+class _AccessLevelTab extends StatelessWidget {
+  const _AccessLevelTab({
+    required this.profileState,
     required this.isDark,
-    required this.onProjectChanged,
-    required this.onRoleChanged,
-    required this.onSubmit,
-    required this.onCancel,
     required this.onRefresh,
   });
 
-  final AsyncValue<List<ProjectRoleRequest>> state;
-  final AsyncValue<List<Project>> projectsState;
-  final String? selectedProjectId;
-  final String requestedRole;
-  final TextEditingController justificationController;
+  final AsyncValue<UserProfile?> profileState;
   final bool isDark;
-  final ValueChanged<String> onProjectChanged;
-  final ValueChanged<String> onRoleChanged;
-  final VoidCallback onSubmit;
-  final Future<void> Function(String requestId) onCancel;
   final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    final projects = projectsState.maybeWhen(
-      data: (items) => items,
-      orElse: () => const <Project>[],
-    );
-    final initialProjectId =
-        selectedProjectId ?? (projects.isNotEmpty ? projects.first.id : null);
     final surfaceColor = isDark
         ? GBTColors.darkSurfaceElevated
         : GBTColors.surface;
@@ -494,27 +411,6 @@ class _RoleRequestsTab extends StatelessWidget {
     final textSecondary = isDark
         ? GBTColors.darkTextSecondary
         : GBTColors.textSecondary;
-    final projectOptions = projects
-        .map(
-          (project) => _SelectionOption(
-            value: project.id,
-            label: project.name,
-            caption: project.code,
-          ),
-        )
-        .toList(growable: false);
-    Project? selectedProject;
-    for (final project in projects) {
-      if (project.id == initialProjectId) {
-        selectedProject = project;
-        break;
-      }
-    }
-    const roleOptions = <_SelectionOption>[
-      _SelectionOption(value: 'VIEWER', label: '뷰어', caption: '읽기 전용'),
-      _SelectionOption(value: 'EDITOR', label: '에디터', caption: '편집 가능'),
-      _SelectionOption(value: 'MODERATOR', label: '모더레이터', caption: '관리 가능'),
-    ];
 
     return RefreshIndicator(
       onRefresh: onRefresh,
@@ -527,261 +423,284 @@ class _RoleRequestsTab extends StatelessWidget {
           vertical: GBTSpacing.xs,
         ),
         children: [
-          // EN: Submit form card
-          // KO: 제출 폼 카드
-          Container(
-            padding: const EdgeInsets.all(GBTSpacing.md),
-            decoration: BoxDecoration(
-              color: surfaceColor,
-              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-              border: Border.all(color: borderColor, width: 0.5),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(
-                          GBTSpacing.radiusSm,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.verified_user_rounded,
-                        size: 18,
-                        color: Color(0xFF6366F1),
-                      ),
-                    ),
-                    const SizedBox(width: GBTSpacing.sm),
-                    Text(
-                      '권한 요청 보내기',
-                      style: GBTTypography.titleSmall.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: GBTSpacing.md),
-                _SelectionField(
-                  label: '프로젝트',
-                  isDark: isDark,
-                  valueText: selectedProject?.name,
-                  placeholder: projects.isEmpty ? '프로젝트가 없습니다' : '프로젝트 선택',
-                  onTap: projects.isEmpty
-                      ? null
-                      : () async {
-                          final selected = await _showSelectionPicker(
-                            context,
-                            title: '프로젝트 선택',
-                            options: projectOptions,
-                            selectedValue: initialProjectId,
-                          );
-                          if (selected != null && selected.isNotEmpty) {
-                            onProjectChanged(selected);
-                          }
-                        },
-                ),
-                const SizedBox(height: GBTSpacing.sm),
-                _SelectionField(
-                  label: '요청 권한',
-                  isDark: isDark,
-                  valueText: _translateRole(requestedRole),
-                  placeholder: '권한 선택',
-                  onTap: () async {
-                    final selected = await _showSelectionPicker(
-                      context,
-                      title: '요청 권한 선택',
-                      options: roleOptions,
-                      selectedValue: requestedRole,
-                    );
-                    if (selected != null && selected.isNotEmpty) {
-                      onRoleChanged(selected);
-                    }
-                  },
-                ),
-                const SizedBox(height: GBTSpacing.sm),
-                TextField(
-                  controller: justificationController,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: '요청 사유 (20자 이상)',
-                  ),
-                ),
-                const SizedBox(height: GBTSpacing.md),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: onSubmit,
-                    icon: const Icon(Icons.send_rounded, size: 16),
-                    label: const Text('요청 제출'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: GBTSpacing.lg),
-
-          // EN: My requests section header
-          // KO: 내 요청 섹션 헤더
-          Padding(
-            padding: const EdgeInsets.only(
-              left: GBTSpacing.xs,
-              bottom: GBTSpacing.xs,
-            ),
-            child: Text(
-              '내 권한 요청',
-              style: GBTTypography.labelSmall.copyWith(
-                color: textSecondary,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-          state.when(
+          profileState.when(
             loading: () => const Padding(
               padding: EdgeInsets.symmetric(vertical: GBTSpacing.lg),
-              child: GBTLoading(message: '권한 요청 내역을 불러오는 중...'),
+              child: GBTLoading(message: '권한 요청 정보를 불러오는 중...'),
             ),
             error: (error, _) {
               final message = error is Failure
                   ? error.userMessage
-                  : '권한 요청 내역을 불러오지 못했어요';
+                  : '권한 요청 정보를 불러오지 못했어요';
               return GBTErrorState(message: message, onRetry: onRefresh);
             },
-            data: (items) {
-              if (items.isEmpty) {
-                return const GBTEmptyState(message: '등록된 권한 요청이 없습니다');
+            data: (profile) {
+              if (profile == null) {
+                return const GBTEmptyState(message: '로그인이 필요합니다');
               }
-              return Column(
-                children: items
-                    .map(
-                      (item) => Padding(
-                        padding: const EdgeInsets.only(bottom: GBTSpacing.xs),
-                        child: _RoleRequestItemRow(
-                          item: item,
-                          isDark: isDark,
-                          onCancel: onCancel,
+              final resolvedLevel = UserAccessLevelX.resolve(
+                effectiveAccessLevel: profile.effectiveAccessLevel,
+                accountRole: profile.accountRole,
+              );
+              final canRequestEditor = !resolvedLevel.isAtLeast(
+                UserAccessLevel.contentEditor,
+              );
+              final canRequestModerator = !resolvedLevel.isAtLeast(
+                UserAccessLevel.communityModerator,
+              );
+              return Container(
+                padding: const EdgeInsets.all(GBTSpacing.md),
+                decoration: BoxDecoration(
+                  color: surfaceColor,
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                  border: Border.all(color: borderColor, width: 0.5),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFF6366F1,
+                            ).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(
+                              GBTSpacing.radiusSm,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.verified_user_rounded,
+                            size: 18,
+                            color: Color(0xFF6366F1),
+                          ),
+                        ),
+                        const SizedBox(width: GBTSpacing.sm),
+                        Text(
+                          '권한 요청',
+                          style: GBTTypography.titleSmall.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: GBTSpacing.md),
+                    Text(
+                      '내부 권한 레벨 상세는 노출하지 않고 필요한 권한 요청만 제공합니다.',
+                      style: GBTTypography.bodySmall.copyWith(
+                        color: textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: GBTSpacing.md),
+                    _PermissionRequestCard(
+                      title: '수정권한 요청',
+                      description: '장소/라이브/뉴스 등 콘텐츠 정보 편집 권한 요청',
+                      isRequestable: canRequestEditor,
+                      onRequest: () => _showPermissionRequestDialog(
+                        context,
+                        profile: profile,
+                        requestType: '수정권한 요청',
+                        targetAccessLevel: UserAccessLevel.contentEditor,
+                      ),
+                    ),
+                    const SizedBox(height: GBTSpacing.sm),
+                    _PermissionRequestCard(
+                      title: '관리권한 요청',
+                      description: '신고/제재 등 커뮤니티 운영 권한 요청',
+                      isRequestable: canRequestModerator,
+                      onRequest: () => _showPermissionRequestDialog(
+                        context,
+                        profile: profile,
+                        requestType: '관리권한 요청',
+                        targetAccessLevel: UserAccessLevel.communityModerator,
+                      ),
+                    ),
+                    if (!canRequestEditor && !canRequestModerator) ...[
+                      const SizedBox(height: GBTSpacing.sm),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(GBTSpacing.sm),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(
+                            GBTSpacing.radiusSm,
+                          ),
+                        ),
+                        child: Text(
+                          '현재 계정은 이미 요청 가능한 권한 이상을 보유하고 있습니다.',
+                          style: GBTTypography.bodySmall.copyWith(
+                            color: const Color(0xFF10B981),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    )
-                    .toList(growable: false),
-              );
-            },
-          ),
-          const SizedBox(height: GBTSpacing.lg),
-        ],
-      ),
-    );
-  }
-}
-
-class _RoleRequestItemRow extends StatelessWidget {
-  const _RoleRequestItemRow({
-    required this.item,
-    required this.isDark,
-    required this.onCancel,
-  });
-
-  final ProjectRoleRequest item;
-  final bool isDark;
-  final Future<void> Function(String requestId) onCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    final surfaceColor = isDark
-        ? GBTColors.darkSurfaceElevated
-        : GBTColors.surface;
-    final borderColor = isDark ? GBTColors.darkBorderSubtle : GBTColors.border;
-    final textPrimary = isDark
-        ? GBTColors.darkTextPrimary
-        : GBTColors.textPrimary;
-    final textTertiary = isDark
-        ? GBTColors.darkTextTertiary
-        : GBTColors.textTertiary;
-
-    return Container(
-      padding: const EdgeInsets.all(GBTSpacing.md),
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        border: Border.all(color: borderColor, width: 0.5),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.projectName ?? item.projectSlug ?? '프로젝트',
-                  style: GBTTypography.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    _RoleBadge(role: item.requestedRole),
-                    const SizedBox(width: GBTSpacing.xs),
+                    ],
+                    const SizedBox(height: GBTSpacing.sm),
                     Text(
-                      _dateLabel(item.createdAt),
-                      style: GBTTypography.labelSmall.copyWith(
-                        color: textTertiary,
+                      '요청서를 복사해 운영자에게 전달하면 검토 후 권한이 반영됩니다.',
+                      style: GBTTypography.bodySmall.copyWith(
+                        color: textSecondary,
+                        height: 1.4,
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
-          const SizedBox(width: GBTSpacing.sm),
-          item.canCancel
-              ? OutlinedButton(
-                  onPressed: () => onCancel(item.id),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 36),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: GBTSpacing.sm,
-                    ),
-                  ),
-                  child: const Text('취소'),
-                )
-              : _StatusBadge(status: item.status),
         ],
       ),
     );
   }
+
+  Future<void> _showPermissionRequestDialog(
+    BuildContext context, {
+    required UserProfile profile,
+    required String requestType,
+    required UserAccessLevel targetAccessLevel,
+  }) async {
+    final reasonController = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(requestType),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '요청 사유를 입력하면 운영자 전달용 텍스트를 복사합니다.',
+                style: GBTTypography.bodySmall,
+              ),
+              const SizedBox(height: GBTSpacing.sm),
+              TextField(
+                controller: reasonController,
+                minLines: 2,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: '요청 사유',
+                  hintText: '예: 운영 참여를 위해 권한이 필요합니다.',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final now = DateTime.now().toIso8601String();
+                final reason = reasonController.text.trim().isEmpty
+                    ? '-'
+                    : reasonController.text.trim();
+                final requestTemplate =
+                    '[권한 요청]\n'
+                    'userId: ${profile.id}\n'
+                    'displayName: ${profile.displayName}\n'
+                    'requestType: $requestType\n'
+                    'targetAccessLevel: ${targetAccessLevel.apiValue}\n'
+                    'reason: $reason\n'
+                    'requestedAt: $now';
+
+                await Clipboard.setData(ClipboardData(text: requestTemplate));
+                if (!dialogContext.mounted) return;
+                Navigator.of(dialogContext).pop();
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('요청서가 클립보드에 복사되었습니다')),
+                );
+              },
+              child: const Text('요청서 복사'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
-class _RoleBadge extends StatelessWidget {
-  const _RoleBadge({required this.role});
+class _PermissionRequestCard extends StatelessWidget {
+  const _PermissionRequestCard({
+    required this.title,
+    required this.description,
+    required this.isRequestable,
+    required this.onRequest,
+  });
 
-  final String role;
+  final String title;
+  final String description;
+  final bool isRequestable;
+  final VoidCallback onRequest;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? GBTColors.darkBorderSubtle : GBTColors.border;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      width: double.infinity,
+      padding: const EdgeInsets.all(GBTSpacing.sm),
       decoration: BoxDecoration(
-        color: const Color(0xFF6366F1).withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+        border: Border.all(color: borderColor, width: 0.5),
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
       ),
-      child: Text(
-        _translateRole(role),
-        style: GBTTypography.labelSmall.copyWith(
-          color: const Color(0xFF6366F1),
-          fontWeight: FontWeight.w700,
-          fontSize: 10,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GBTTypography.bodyMedium.copyWith(
+              color: textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            description,
+            style: GBTTypography.bodySmall.copyWith(color: textSecondary),
+          ),
+          const SizedBox(height: GBTSpacing.sm),
+          Align(
+            alignment: Alignment.centerRight,
+            child: isRequestable
+                ? FilledButton.tonal(
+                    onPressed: onRequest,
+                    child: const Text('요청하기'),
+                  )
+                : Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: GBTSpacing.sm,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(
+                        GBTSpacing.radiusFull,
+                      ),
+                    ),
+                    child: Text(
+                      '보유중',
+                      style: GBTTypography.labelSmall.copyWith(
+                        color: const Color(0xFF10B981),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -1141,15 +1060,10 @@ class _StatusBadge extends StatelessWidget {
 }
 
 class _SelectionOption {
-  const _SelectionOption({
-    required this.value,
-    required this.label,
-    this.caption,
-  });
+  const _SelectionOption({required this.value, required this.label});
 
   final String value;
   final String label;
-  final String? caption;
 }
 
 class _SelectionField extends StatelessWidget {
@@ -1270,9 +1184,6 @@ class _SelectionPickerSheet extends StatelessWidget {
     final textPrimary = isDark
         ? GBTColors.darkTextPrimary
         : GBTColors.textPrimary;
-    final textSecondary = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
 
     return SafeArea(
       child: SizedBox(
@@ -1311,14 +1222,6 @@ class _SelectionPickerSheet extends StatelessWidget {
                             : FontWeight.w500,
                       ),
                     ),
-                    subtitle: option.caption == null
-                        ? null
-                        : Text(
-                            option.caption!,
-                            style: GBTTypography.labelSmall.copyWith(
-                              color: textSecondary,
-                            ),
-                          ),
                     trailing: isSelected
                         ? Icon(
                             Icons.check_rounded,
@@ -1337,15 +1240,6 @@ class _SelectionPickerSheet extends StatelessWidget {
     );
   }
 }
-
-/// EN: Translates server-side role strings to Korean display labels.
-/// KO: 서버 역할 문자열을 한글 표시 레이블로 변환합니다.
-String _translateRole(String role) => switch (role.toUpperCase()) {
-  'VIEWER' => '뷰어',
-  'EDITOR' => '에디터',
-  'MODERATOR' => '모더레이터',
-  _ => role,
-};
 
 String _appealTargetTypeLabel(String value) => switch (value.toUpperCase()) {
   'PLACE_VISIT' => '장소 방문 인증',

@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/localization/locale_text.dart';
+import '../../../../core/security/user_access_level.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
@@ -106,7 +107,10 @@ class _BoardPageState extends ConsumerState<BoardPage> {
     final isAuthenticated = ref.watch(isAuthenticatedProvider);
     final profileState = ref.watch(userProfileControllerProvider);
     final isAdmin = profileState.maybeWhen(
-      data: (profile) => _isAdminRole(profile?.role),
+      data: (profile) => _isAdminRole(
+        effectiveAccessLevel: profile?.effectiveAccessLevel,
+        accountRole: profile?.accountRole,
+      ),
       orElse: () => false,
     );
     final avatarUrl = profileState.valueOrNull?.avatarUrl;
@@ -461,7 +465,15 @@ class _FeedSectionState extends ConsumerState<_FeedSection>
               0,
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                Text(
+                  context.l10n(ko: '피드', en: 'Feed', ja: 'フィード'),
+                  style: GBTTypography.displayLarge.copyWith(
+                    fontWeight: FontWeight.w700,
+                    height: 1.0,
+                  ),
+                ),
                 const Spacer(),
                 _FeedHeaderIconButton(
                   icon: Icons.search_rounded,
@@ -472,12 +484,12 @@ class _FeedSectionState extends ConsumerState<_FeedSection>
                 _FeedHeaderIconButton(
                   icon: Icons.menu_rounded,
                   tooltip: context.l10n(
-                    ko: '알림으로 이동',
-                    en: 'Open notifications',
-                    ja: '通知へ移動',
+                    ko: '커뮤니티 설정 열기',
+                    en: 'Open community settings',
+                    ja: 'コミュニティ設定を開く',
                   ),
                   showDot: true,
-                  onPressed: () => context.goNamed(AppRoutes.notifications),
+                  onPressed: context.goToCommunitySettings,
                 ),
               ],
             ),
@@ -486,25 +498,6 @@ class _FeedSectionState extends ConsumerState<_FeedSection>
             padding: const EdgeInsets.fromLTRB(
               GBTSpacing.md,
               GBTSpacing.sm,
-              GBTSpacing.md,
-              0,
-            ),
-            child: Row(
-              children: [
-                Text(
-                  context.l10n(ko: '피드', en: 'Feed', ja: 'フィード'),
-                  style: GBTTypography.displayLarge.copyWith(
-                    fontWeight: FontWeight.w700,
-                    height: 1.0,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              GBTSpacing.md,
-              GBTSpacing.md,
               GBTSpacing.md,
               0,
             ),
@@ -2130,6 +2123,15 @@ class _CommunityPostCard extends ConsumerWidget {
     final tertiaryColor = isDark
         ? GBTColors.darkTextTertiary
         : GBTColors.textTertiary;
+    final projectAccentColor = isDark
+        ? GBTColors.darkPrimary
+        : GBTColors.primary;
+    final projectBadgeBackground = projectAccentColor.withValues(
+      alpha: isDark ? 0.24 : 0.12,
+    );
+    final projectBadgeBorder = projectAccentColor.withValues(
+      alpha: isDark ? 0.54 : 0.28,
+    );
     final commentActionColor = isDark
         ? GBTColors.darkPrimary
         : GBTColors.accentBlue;
@@ -2209,7 +2211,10 @@ class _CommunityPostCard extends ConsumerWidget {
       orElse: () => null,
     );
     final isAdmin = profileState.maybeWhen(
-      data: (profile) => _isAdminRole(profile?.role),
+      data: (profile) => _isAdminRole(
+        effectiveAccessLevel: profile?.effectiveAccessLevel,
+        accountRole: profile?.accountRole,
+      ),
       orElse: () => false,
     );
     final isAuthor = currentUserId != null && currentUserId == post.authorId;
@@ -2278,13 +2283,41 @@ class _CommunityPostCard extends ConsumerWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            '$projectName · ${post.timeAgoLabel}',
-                            style: GBTTypography.labelMedium.copyWith(
-                              color: tertiaryColor,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          // EN: Emphasize project identity with a tinted badge.
+                          // KO: 프로젝트 식별성을 강조하기 위해 톤 배지를 사용합니다.
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: projectBadgeBackground,
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: projectBadgeBorder,
+                                    width: 0.7,
+                                  ),
+                                ),
+                                child: Text(
+                                  projectName,
+                                  style: GBTTypography.labelSmall.copyWith(
+                                    color: projectAccentColor,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                post.timeAgoLabel,
+                                style: GBTTypography.labelMedium.copyWith(
+                                  color: tertiaryColor,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -3338,12 +3371,13 @@ IconData _searchScopeIcon(CommunitySearchScope scope) {
   };
 }
 
-/// EN: Returns true when a role has admin/moderator privileges.
-/// KO: 관리자/모더레이터 권한이 있는 역할인지 반환합니다.
-bool _isAdminRole(String? role) {
-  if (role == null) return false;
-  final normalized = role.toUpperCase();
-  return normalized.contains('ADMIN') || normalized.contains('MODERATOR');
+/// EN: Returns true when profile can perform moderation actions.
+/// KO: 프로필이 모더레이션 액션을 수행할 수 있는지 반환합니다.
+bool _isAdminRole({String? effectiveAccessLevel, String? accountRole}) {
+  return canModerateCommunity(
+    effectiveAccessLevel: effectiveAccessLevel,
+    accountRole: accountRole,
+  );
 }
 
 // ========================================

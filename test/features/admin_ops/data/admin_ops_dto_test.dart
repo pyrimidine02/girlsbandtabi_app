@@ -4,11 +4,11 @@ import 'package:girlsbandtabi_app/features/admin_ops/data/dto/admin_ops_dto.dart
 
 void main() {
   group('AdminDashboardDto', () {
-    test('parses fallback keys and extra numeric metrics', () {
+    test('parses access-grant metrics and extra numeric metrics', () {
       final dto = AdminDashboardDto.fromJson({
         'openReportCount': 3,
         'reviewInProgressCount': 2,
-        'roleRequestPendingCount': '5',
+        'pendingAccessGrantRequests': '5',
         'pendingAppeals': 4,
         'mediaDeletionPendingCount': 1,
         'activeSanctionCount': 7,
@@ -17,7 +17,7 @@ void main() {
 
       expect(dto.openReports, 3);
       expect(dto.inReviewReports, 2);
-      expect(dto.pendingRoleRequests, 5);
+      expect(dto.pendingAccessGrantRequests, 5);
       expect(dto.pendingVerificationAppeals, 4);
       expect(dto.pendingMediaDeletionRequests, 1);
       expect(dto.activeSanctions, 7);

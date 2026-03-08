@@ -540,6 +540,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
       final snapshot = await locationService.getCurrentLocation();
       _moveCameraTo(snapshot.latitude, snapshot.longitude, zoom: 14);
     } catch (error) {
+      if (!mounted) return;
       final message = error is Failure
           ? error.userMessage
           : context.l10n(
@@ -547,7 +548,6 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
               en: 'Unable to get current location',
               ja: '現在地を取得できません',
             );
-      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));

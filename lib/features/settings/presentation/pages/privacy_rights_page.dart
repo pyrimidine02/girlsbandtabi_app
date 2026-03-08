@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/error/failure.dart';
 import '../../../../core/localization/locale_text.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/storage/local_storage.dart';
@@ -25,8 +26,11 @@ class PrivacyRightsPage extends ConsumerStatefulWidget {
 class _PrivacyRightsPageState extends ConsumerState<PrivacyRightsPage> {
   bool _isLoading = true;
   bool _autoTranslationEnabled = true;
+  int? _privacySettingsVersion;
+  DateTime? _privacySettingsUpdatedAt;
   bool _isSavingTranslation = false;
   bool _isDeletingAccount = false;
+  List<_PrivacyRequestRecord> _privacyRequests = const [];
   final TextEditingController _restrictionReasonController =
       TextEditingController();
 
@@ -44,15 +48,55 @@ class _PrivacyRightsPageState extends ConsumerState<PrivacyRightsPage> {
 
   Future<void> _loadPrivacyState() async {
     final storage = await ref.read(localStorageProvider.future);
-    final value = storage.getBool(LocalStorageKeys.autoTranslationEnabled);
+    final localValue = storage.getBool(LocalStorageKeys.autoTranslationEnabled);
+    final localHistory = storage.getJsonList(
+      LocalStorageKeys.privacyRequestHistory,
+    );
+
+    final apiClient = ref.read(apiClientProvider);
+    final settingsResult = await apiClient.get<_PrivacySettingsPayload>(
+      ApiEndpoints.userPrivacySettings,
+      fromJson: (json) => _PrivacySettingsPayload.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
+    );
+    final requestsResult = await apiClient.get<List<_PrivacyRequestRecord>>(
+      ApiEndpoints.userPrivacyRequests,
+      queryParameters: const {
+        'page': 0,
+        'size': 20,
+        'sort': 'requestedAt,desc',
+      },
+      fromJson: _parsePrivacyRequestRecords,
+    );
+
+    final resolvedSettings = settingsResult.dataOrNull;
+    final resolvedRequests = requestsResult.dataOrNull;
+    final fallbackRequests = (localHistory ?? const <Map<String, dynamic>>[])
+        .whereType<Map<String, dynamic>>()
+        .map(_PrivacyRequestRecord.fromLocalJson)
+        .toList(growable: false);
+
+    if (resolvedSettings != null) {
+      await storage.setBool(
+        LocalStorageKeys.autoTranslationEnabled,
+        resolvedSettings.allowAutoTranslation,
+      );
+    }
+
     if (!mounted) return;
     setState(() {
-      _autoTranslationEnabled = value ?? true;
+      _autoTranslationEnabled =
+          resolvedSettings?.allowAutoTranslation ?? localValue ?? true;
+      _privacySettingsVersion = resolvedSettings?.version;
+      _privacySettingsUpdatedAt = resolvedSettings?.updatedAt;
+      _privacyRequests = resolvedRequests ?? fallbackRequests;
       _isLoading = false;
     });
   }
 
   Future<void> _toggleAutoTranslation(bool value) async {
+    final previous = _autoTranslationEnabled;
     setState(() {
       _autoTranslationEnabled = value;
       _isSavingTranslation = true;
@@ -62,30 +106,66 @@ class _PrivacyRightsPageState extends ConsumerState<PrivacyRightsPage> {
     await storage.setBool(LocalStorageKeys.autoTranslationEnabled, value);
 
     final apiClient = ref.read(apiClientProvider);
-    final result = await apiClient.patch<Map<String, dynamic>>(
+    final result = await apiClient.patch<_PrivacySettingsPayload>(
       ApiEndpoints.userPrivacySettings,
-      data: {'allowAutoTranslation': value},
-      fromJson: (json) =>
-          json is Map<String, dynamic> ? json : <String, dynamic>{},
+      data: {
+        'allowAutoTranslation': value,
+        if (_privacySettingsVersion != null) 'version': _privacySettingsVersion,
+      },
+      fromJson: (json) => _PrivacySettingsPayload.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
     );
 
     if (!mounted) return;
-    setState(() => _isSavingTranslation = false);
-
-    if (result is Err<Map<String, dynamic>>) {
+    if (result is Err<_PrivacySettingsPayload>) {
+      setState(() {
+        _autoTranslationEnabled = previous;
+        _isSavingTranslation = false;
+      });
+      if (_isPrivacySettingsVersionConflict(result.failure)) {
+        await _reloadPrivacySettings();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              context.l10n(
+                ko: '다른 기기에서 설정이 변경되어 최신값으로 다시 불러왔어요.',
+                en: 'Settings were updated elsewhere. Synced latest values.',
+                ja: '他の端末で設定が変更されたため、最新値を再読み込みしました。',
+              ),
+            ),
+          ),
+        );
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             context.l10n(
-              ko: '서버 연동이 준비되지 않아 로컬 설정만 반영되었습니다.',
-              en: 'Server sync is not ready. Applied locally only.',
-              ja: 'サーバー連携未対応のため、ローカル設定のみ反映しました。',
+              ko: '자동번역 설정을 저장하지 못했어요. 잠시 후 다시 시도해주세요.',
+              en: 'Failed to save auto-translation setting. Please retry.',
+              ja: '自動翻訳設定の保存に失敗しました。しばらくして再試行してください。',
             ),
           ),
         ),
       );
       return;
     }
+
+    final payload = result.dataOrNull!;
+    setState(() {
+      _isSavingTranslation = false;
+      _autoTranslationEnabled = payload.allowAutoTranslation;
+      _privacySettingsVersion = payload.version;
+      _privacySettingsUpdatedAt = payload.updatedAt;
+    });
+
+    await storage.setBool(
+      LocalStorageKeys.autoTranslationEnabled,
+      payload.allowAutoTranslation,
+    );
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -117,48 +197,104 @@ class _PrivacyRightsPageState extends ConsumerState<PrivacyRightsPage> {
       return;
     }
 
-    final now = DateTime.now().toIso8601String();
     final apiClient = ref.read(apiClientProvider);
-    final remoteResult = await apiClient.post<Map<String, dynamic>>(
+    final remoteResult = await apiClient.post<_PrivacyRequestRecord>(
       ApiEndpoints.userPrivacyRequests,
-      data: {'requestType': 'PROCESSING_RESTRICTION', 'reason': reason},
-      fromJson: (json) =>
-          json is Map<String, dynamic> ? json : <String, dynamic>{},
+      data: {'requestType': 'RESTRICTION', 'reason': reason},
+      fromJson: (json) => _PrivacyRequestRecord.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
     );
-
-    final storage = await ref.read(localStorageProvider.future);
-    final history =
-        storage.getJsonList(LocalStorageKeys.privacyRequestHistory) ??
-        <Map<String, dynamic>>[];
-    history.insert(0, {
-      'requestType': 'PROCESSING_RESTRICTION',
-      'reason': reason,
-      'requestedAt': now,
-      'synced': remoteResult is Success<Map<String, dynamic>>,
-    });
-    await storage.setJsonList(LocalStorageKeys.privacyRequestHistory, history);
 
     _restrictionReasonController.clear();
     if (!mounted) return;
     Navigator.of(context).pop();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          remoteResult is Success<Map<String, dynamic>>
-              ? context.l10n(
-                  ko: '처리정지 요청이 접수되었습니다.',
-                  en: 'Restriction request submitted.',
-                  ja: '処理停止要請を受け付けました。',
-                )
-              : context.l10n(
-                  ko: '처리정지 요청을 로컬에 저장했습니다. 서버 연동은 추후 반영됩니다.',
-                  en: 'Stored request locally. Server sync will be applied later.',
-                  ja: '要求をローカル保存しました。サーバー連携は後で反映されます。',
-                ),
+    if (remoteResult is Success<_PrivacyRequestRecord>) {
+      setState(() {
+        _privacyRequests = [remoteResult.data, ..._privacyRequests];
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n(
+              ko: '처리정지 요청이 접수되었습니다.',
+              en: 'Restriction request submitted.',
+              ja: '処理停止要請を受け付けました。',
+            ),
+          ),
         ),
+      );
+      return;
+    }
+
+    final failure = (remoteResult as Err<_PrivacyRequestRecord>).failure;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(_privacyRequestFailureMessage(failure, context))),
+    );
+  }
+
+  Future<void> _reloadPrivacySettings() async {
+    final apiClient = ref.read(apiClientProvider);
+    final storage = await ref.read(localStorageProvider.future);
+    final result = await apiClient.get<_PrivacySettingsPayload>(
+      ApiEndpoints.userPrivacySettings,
+      fromJson: (json) => _PrivacySettingsPayload.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
       ),
     );
+    final payload = result.dataOrNull;
+    if (payload == null || !mounted) return;
+    await storage.setBool(
+      LocalStorageKeys.autoTranslationEnabled,
+      payload.allowAutoTranslation,
+    );
+    if (!mounted) return;
+    setState(() {
+      _autoTranslationEnabled = payload.allowAutoTranslation;
+      _privacySettingsVersion = payload.version;
+      _privacySettingsUpdatedAt = payload.updatedAt;
+    });
+  }
+
+  bool _isPrivacySettingsVersionConflict(Failure failure) {
+    final code = failure.code?.trim().toUpperCase();
+    if (code == 'PRIVACY_SETTINGS_VERSION_CONFLICT') {
+      return true;
+    }
+    return failure.message.toUpperCase().contains(
+      'PRIVACY_SETTINGS_VERSION_CONFLICT',
+    );
+  }
+
+  String _privacyRequestFailureMessage(Failure failure, BuildContext context) {
+    final code = failure.code?.trim().toUpperCase();
+    switch (code) {
+      case 'PRIVACY_REQUEST_DUPLICATED':
+        return context.l10n(
+          ko: '같은 유형의 요청이 이미 진행 중입니다.',
+          en: 'A similar request is already in progress.',
+          ja: '同種の要請がすでに進行中です。',
+        );
+      case 'PRIVACY_REQUEST_RATE_LIMITED':
+        return context.l10n(
+          ko: '요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.',
+          en: 'Too many requests. Please try again later.',
+          ja: '要求頻度が高すぎます。しばらくしてから再試行してください。',
+        );
+      case 'PRIVACY_REQUEST_INVALID':
+        return context.l10n(
+          ko: '요청 정보가 올바르지 않습니다. 입력값을 확인해주세요.',
+          en: 'Invalid request payload. Please check your input.',
+          ja: '要請情報が正しくありません。入力内容を確認してください。',
+        );
+      default:
+        return context.l10n(
+          ko: '처리정지 요청을 접수하지 못했어요. 잠시 후 다시 시도해주세요.',
+          en: 'Failed to submit restriction request. Please retry.',
+          ja: '処理停止要請の受付に失敗しました。しばらくして再試行してください。',
+        );
+    }
   }
 
   Future<void> _showProcessingRestrictionDialog() async {
@@ -315,29 +451,79 @@ class _PrivacyRightsPageState extends ConsumerState<PrivacyRightsPage> {
               en: 'Auto-translation transfer',
               ja: '自動翻訳転送設定',
             ),
-            child: SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _autoTranslationEnabled,
-              onChanged: _isSavingTranslation ? null : _toggleAutoTranslation,
-              title: Text(
-                context.l10n(
-                  ko: '커뮤니티 자동번역 허용',
-                  en: 'Allow community auto-translation',
-                  ja: 'コミュニティ自動翻訳を許可',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _autoTranslationEnabled,
+                  onChanged: _isSavingTranslation
+                      ? null
+                      : _toggleAutoTranslation,
+                  title: Text(
+                    context.l10n(
+                      ko: '커뮤니티 자동번역 허용',
+                      en: 'Allow community auto-translation',
+                      ja: 'コミュニティ自動翻訳を許可',
+                    ),
+                    style: GBTTypography.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    context.l10n(
+                      ko: '끄면 외부 번역 서비스 전송을 중단합니다.',
+                      en: 'When off, external translation transfer is disabled.',
+                      ja: 'オフにすると外部翻訳サービスへの転送を停止します。',
+                    ),
+                    style: GBTTypography.bodySmall,
+                  ),
                 ),
-                style: GBTTypography.bodyMedium.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              subtitle: Text(
-                context.l10n(
-                  ko: '끄면 외부 번역 서비스 전송을 중단합니다.',
-                  en: 'When off, external translation transfer is disabled.',
-                  ja: 'オフにすると外部翻訳サービスへの転送を停止します。',
-                ),
-                style: GBTTypography.bodySmall,
-              ),
+                if (_privacySettingsUpdatedAt != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: GBTSpacing.xs),
+                    child: Text(
+                      context.l10n(
+                        ko:
+                            '최종 반영: ${_formatDateTime(_privacySettingsUpdatedAt!)}'
+                            '${_privacySettingsVersion != null ? ' · v$_privacySettingsVersion' : ''}',
+                        en:
+                            'Updated: ${_formatDateTime(_privacySettingsUpdatedAt!)}'
+                            '${_privacySettingsVersion != null ? ' · v$_privacySettingsVersion' : ''}',
+                        ja:
+                            '最終反映: ${_formatDateTime(_privacySettingsUpdatedAt!)}'
+                            '${_privacySettingsVersion != null ? ' · v$_privacySettingsVersion' : ''}',
+                      ),
+                      style: GBTTypography.labelSmall.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+              ],
             ),
+          ),
+          const SizedBox(height: GBTSpacing.md),
+          _SectionCard(
+            title: context.l10n(
+              ko: '권리행사 요청 이력',
+              en: 'Rights request history',
+              ja: '権利行使要請履歴',
+            ),
+            child: _privacyRequests.isEmpty
+                ? Text(
+                    context.l10n(
+                      ko: '최근 요청 이력이 없습니다.',
+                      en: 'No recent rights requests.',
+                      ja: '最近の要請履歴はありません。',
+                    ),
+                    style: GBTTypography.bodySmall,
+                  )
+                : Column(
+                    children: [
+                      for (var i = 0; i < _privacyRequests.length && i < 5; i++)
+                        _PrivacyRequestRow(item: _privacyRequests[i]),
+                    ],
+                  ),
           ),
           const SizedBox(height: GBTSpacing.md),
           _SectionCard(
@@ -459,6 +645,165 @@ class _PrivacyRightsPageState extends ConsumerState<PrivacyRightsPage> {
       },
     );
   }
+}
+
+List<_PrivacyRequestRecord> _parsePrivacyRequestRecords(dynamic json) {
+  if (json is List) {
+    return json
+        .whereType<Map<String, dynamic>>()
+        .map(_PrivacyRequestRecord.fromJson)
+        .toList(growable: false);
+  }
+  if (json is Map<String, dynamic>) {
+    final items = json['items'] ?? json['content'] ?? json['results'];
+    if (items is List) {
+      return items
+          .whereType<Map<String, dynamic>>()
+          .map(_PrivacyRequestRecord.fromJson)
+          .toList(growable: false);
+    }
+  }
+  return const [];
+}
+
+String _formatDateTime(DateTime value) {
+  final local = value.toLocal();
+  final month = local.month.toString().padLeft(2, '0');
+  final day = local.day.toString().padLeft(2, '0');
+  final hour = local.hour.toString().padLeft(2, '0');
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '${local.year}-$month-$day $hour:$minute';
+}
+
+class _PrivacySettingsPayload {
+  const _PrivacySettingsPayload({
+    required this.allowAutoTranslation,
+    this.version,
+    this.updatedAt,
+  });
+
+  final bool allowAutoTranslation;
+  final int? version;
+  final DateTime? updatedAt;
+
+  factory _PrivacySettingsPayload.fromJson(Map<String, dynamic> json) {
+    final updatedAtRaw = json['updatedAt'];
+    return _PrivacySettingsPayload(
+      allowAutoTranslation: json['allowAutoTranslation'] as bool? ?? true,
+      version: _parseInt(json['version']),
+      updatedAt: updatedAtRaw is String
+          ? DateTime.tryParse(updatedAtRaw)
+          : null,
+    );
+  }
+}
+
+class _PrivacyRequestRecord {
+  const _PrivacyRequestRecord({
+    required this.requestType,
+    required this.status,
+    required this.requestedAt,
+    this.reason,
+  });
+
+  final String requestType;
+  final String status;
+  final DateTime requestedAt;
+  final String? reason;
+
+  factory _PrivacyRequestRecord.fromJson(Map<String, dynamic> json) {
+    final requestedAt =
+        DateTime.tryParse(json['requestedAt'] as String? ?? '') ??
+        DateTime.now().toUtc();
+    return _PrivacyRequestRecord(
+      requestType:
+          json['requestType'] as String? ??
+          json['type'] as String? ??
+          'RESTRICTION',
+      status: json['status'] as String? ?? 'RECEIVED',
+      requestedAt: requestedAt,
+      reason: json['reason'] as String?,
+    );
+  }
+
+  factory _PrivacyRequestRecord.fromLocalJson(Map<String, dynamic> json) {
+    final requestedAt =
+        DateTime.tryParse(json['requestedAt'] as String? ?? '') ??
+        DateTime.now().toUtc();
+    return _PrivacyRequestRecord(
+      requestType:
+          json['requestType'] as String? ??
+          json['type'] as String? ??
+          'RESTRICTION',
+      status: json['status'] as String? ?? 'RECEIVED',
+      requestedAt: requestedAt,
+      reason: json['reason'] as String?,
+    );
+  }
+}
+
+class _PrivacyRequestRow extends StatelessWidget {
+  const _PrivacyRequestRow({required this.item});
+
+  final _PrivacyRequestRecord item;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = switch (item.status.toUpperCase()) {
+      'COMPLETED' => Colors.green,
+      'REJECTED' => Theme.of(context).colorScheme.error,
+      'IN_REVIEW' => Colors.orange,
+      _ => Theme.of(context).colorScheme.primary,
+    };
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: GBTSpacing.xs),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.requestType,
+                  style: GBTTypography.bodySmall.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _formatDateTime(item.requestedAt),
+                  style: GBTTypography.labelSmall.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              item.status,
+              style: GBTTypography.labelSmall.copyWith(
+                color: statusColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+int? _parseInt(dynamic value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value);
+  return null;
 }
 
 class _SectionCard extends StatelessWidget {

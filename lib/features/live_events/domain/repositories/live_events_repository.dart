@@ -21,4 +21,23 @@ abstract class LiveEventsRepository {
     required String eventId,
     bool forceRefresh = false,
   });
+
+  Future<Result<LiveAttendanceState>> getLiveAttendanceState({
+    required String projectId,
+    required String eventId,
+    bool forceRefresh = false,
+  });
+
+  Future<Result<LiveAttendanceHistoryPageData>> getLiveAttendanceHistory({
+    required String projectId,
+    int page = 0,
+    int size = 20,
+    bool forceRefresh = false,
+  });
+
+  Future<Result<LiveAttendanceState>> toggleLiveAttendance({
+    required String projectId,
+    required String eventId,
+    required bool attended,
+  });
 }
