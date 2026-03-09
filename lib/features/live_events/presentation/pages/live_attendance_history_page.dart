@@ -111,9 +111,7 @@ class _LiveAttendanceHistoryBodyState
             )
           : ListView.separated(
               controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(
                 GBTSpacing.pageHorizontal,
                 GBTSpacing.md,

@@ -107,6 +107,8 @@ class NotificationSettingsController
   NotificationSettingsController(this._ref) : super(const AsyncLoading());
 
   final Ref _ref;
+  bool _isUpdating = false;
+  NotificationSettings? _queuedSettings;
 
   Future<void> load({bool forceRefresh = false}) async {
     final isAuthenticated = _ref.read(isAuthenticatedProvider);
@@ -139,6 +141,32 @@ class NotificationSettingsController
       return Result.failure(failure);
     }
 
+    // EN: Serialize rapid toggle updates to avoid stale write/revert race.
+    // KO: 빠른 연속 토글에서 오래된 쓰기/복원 경쟁이 나지 않도록 직렬 처리합니다.
+    _queuedSettings = settings;
+    if (_isUpdating) {
+      state = AsyncData(settings);
+      await _persistPushEnabled(settings.pushEnabled);
+      return Result.success(settings);
+    }
+
+    _isUpdating = true;
+    var lastResult = Result<NotificationSettings>.success(settings);
+    try {
+      while (_queuedSettings != null) {
+        final next = _queuedSettings!;
+        _queuedSettings = null;
+        lastResult = await _commitSettingsUpdate(next);
+      }
+    } finally {
+      _isUpdating = false;
+    }
+    return lastResult;
+  }
+
+  Future<Result<NotificationSettings>> _commitSettingsUpdate(
+    NotificationSettings settings,
+  ) async {
     // EN: Optimistic update — apply changes immediately so toggles feel instant.
     // EN: On failure, revert to the previous state to keep UI consistent.
     // KO: Optimistic 업데이트 — 토글이 즉각 반응하도록 변경을 즉시 적용합니다.
@@ -148,9 +176,12 @@ class NotificationSettingsController
     await _persistPushEnabled(settings.pushEnabled);
 
     final repository = await _ref.read(settingsRepositoryProvider.future);
-    final result = await repository.updateNotificationSettings(
+    var result = await repository.updateNotificationSettings(
       settings: settings,
     );
+    if (_isTransientSettingsFailure(result)) {
+      result = await repository.updateNotificationSettings(settings: settings);
+    }
 
     if (result is Success<NotificationSettings>) {
       final previousPushEnabled = previousState.valueOrNull?.pushEnabled;
@@ -172,15 +203,42 @@ class NotificationSettingsController
       } else if (previousPushEnabled != true) {
         await _activateDeviceRegistration();
       }
-    } else if (result is Err<NotificationSettings>) {
-      final previousPushEnabled = previousState.valueOrNull?.pushEnabled;
-      if (previousPushEnabled != null) {
-        await _persistPushEnabled(previousPushEnabled);
-      }
-      state = previousState;
+      return result;
     }
 
+    if (result is Err<NotificationSettings>) {
+      final hasPending = _queuedSettings != null;
+      if (!hasPending) {
+        final previousPushEnabled = previousState.valueOrNull?.pushEnabled;
+        if (previousPushEnabled != null) {
+          await _persistPushEnabled(previousPushEnabled);
+        }
+        state = previousState;
+      }
+    }
     return result;
+  }
+
+  bool _isTransientSettingsFailure(Result<NotificationSettings> result) {
+    if (result is! Err<NotificationSettings>) {
+      return false;
+    }
+    final failure = result.failure;
+    if (failure is NetworkFailure) {
+      return true;
+    }
+    if (failure is ServerFailure) {
+      final code = failure.code?.trim();
+      if (code == null || code.isEmpty) {
+        return true;
+      }
+      return code == '500' ||
+          code == '502' ||
+          code == '503' ||
+          code == '504' ||
+          code == '429';
+    }
+    return false;
   }
 
   /// EN: Persist push toggle for foreground local-alert eligibility checks.

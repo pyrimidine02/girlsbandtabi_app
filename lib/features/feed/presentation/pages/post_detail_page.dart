@@ -16,11 +16,14 @@ import '../../../../core/utils/result.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/utils/image_url_extractor.dart';
 import '../../../../core/utils/media_url.dart';
 import '../../../../core/widgets/common/gbt_action_icons.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
+import '../../../../core/widgets/dialogs/gbt_adaptive_dialog.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/sheets/gbt_bottom_sheet.dart';
 import '../../../settings/application/settings_controller.dart';
 import '../../application/community_moderation_controller.dart';
 import '../../application/feed_controller.dart';
@@ -91,9 +94,10 @@ class _CommentThread {
 }
 
 class PostDetailPage extends ConsumerStatefulWidget {
-  const PostDetailPage({super.key, required this.postId});
+  const PostDetailPage({super.key, required this.postId, this.projectCodeHint});
 
   final String postId;
+  final String? projectCodeHint;
 
   @override
   ConsumerState<PostDetailPage> createState() => _PostDetailPageState();
@@ -107,6 +111,13 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   // EN: Currently targeted comment when composing a reply.
   // KO: 답글 작성 중인 대상 댓글.
   PostComment? _replyTarget;
+
+  PostRouteTarget _routeTargetFor(String postId) {
+    return PostRouteTarget(
+      postId: postId,
+      projectCodeHint: widget.projectCodeHint,
+    );
+  }
 
   void _setReplyTarget(PostComment comment) {
     if (!_canReplyToComment(comment)) {
@@ -137,7 +148,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     if (_contentScrollController.hasClients) {
       await _contentScrollController.animateTo(
         _contentScrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 220),
+        duration: GBTAnimations.normal,
         curve: Curves.easeOutCubic,
       );
     }
@@ -158,9 +169,10 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(postDetailControllerProvider(widget.postId));
+    final routeTarget = _routeTargetFor(widget.postId);
+    final state = ref.watch(postDetailRouteControllerProvider(routeTarget));
     final commentsState = ref.watch(
-      postCommentsControllerProvider(widget.postId),
+      postCommentsRouteControllerProvider(routeTarget),
     );
     final isAuthenticated = ref.watch(isAuthenticatedProvider);
     final profileState = ref.watch(userProfileControllerProvider);
@@ -292,7 +304,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
           return GBTErrorState(
             message: message,
             onRetry: () => ref
-                .read(postDetailControllerProvider(widget.postId).notifier)
+                .read(postDetailRouteControllerProvider(routeTarget).notifier)
                 .load(forceRefresh: true),
           );
         },
@@ -317,7 +329,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                 .read(postLikeControllerProvider(reactionTarget).notifier)
                 .toggleLike();
             if (result is Err<PostLikeStatus> && context.mounted) {
-              _showSnackBar(context, '좋아요/좋아요 취소를 반영하지 못했어요');
+              _showSnackBar(context, '좋아요 상태를 반영하지 못했어요');
             }
           },
           onToggleBookmark: () async {
@@ -329,7 +341,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                 .read(postBookmarkControllerProvider(reactionTarget).notifier)
                 .toggleBookmark();
             if (result is Err<PostBookmarkStatus> && context.mounted) {
-              _showSnackBar(context, '북마크를 반영하지 못했어요');
+              _showSnackBar(context, '저장 상태를 반영하지 못했어요');
             }
           },
           onSubmitComment: () async {
@@ -341,7 +353,11 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
             final parentId = _replyTarget?.id;
             _clearReplyTarget();
             final result = await ref
-                .read(postCommentsControllerProvider(post.id).notifier)
+                .read(
+                  postCommentsRouteControllerProvider(
+                    _routeTargetFor(post.id),
+                  ).notifier,
+                )
                 .addComment(content, parentCommentId: parentId);
             if (result is Err<PostComment> && context.mounted) {
               _showSnackBar(
@@ -457,22 +473,13 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       ).showSnackBar(const SnackBar(content: Text('프로젝트를 먼저 선택해주세요')));
       return;
     }
-    final confirm = await showDialog<bool>(
+    final confirm = await showGBTAdaptiveConfirmDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('게시글 삭제'),
-        content: const Text('정말로 이 게시글을 삭제할까요?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
+      title: '게시글 삭제',
+      message: '정말로 이 게시글을 삭제할까요?',
+      cancelLabel: '취소',
+      confirmLabel: '삭제',
+      isDestructive: true,
     );
 
     if (confirm != true) return;
@@ -506,94 +513,86 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     required PostComment comment,
   }) async {
     final controller = TextEditingController(text: comment.content);
-    final newContent = await showModalBottomSheet<String>(
+    final newContent = await showGBTBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
-      useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(GBTSpacing.radiusLg),
-        ),
-      ),
-      builder: (sheetContext) {
-        final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            GBTSpacing.md,
-            GBTSpacing.sm,
-            GBTSpacing.md,
-            bottomInset + GBTSpacing.md,
-          ),
-          child: ValueListenableBuilder<TextEditingValue>(
-            valueListenable: controller,
-            builder: (context, value, _) {
-              final trimmed = value.text.trim();
-              final canSave = trimmed.isNotEmpty && trimmed != comment.content;
+      title: '댓글 수정',
+      child: Builder(
+        builder: (sheetContext) {
+          final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              GBTSpacing.md,
+              GBTSpacing.sm,
+              GBTSpacing.md,
+              bottomInset + GBTSpacing.md,
+            ),
+            child: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: controller,
+              builder: (context, value, _) {
+                final trimmed = value.text.trim();
+                final canSave =
+                    trimmed.isNotEmpty && trimmed != comment.content;
 
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '댓글 수정',
-                    style: GBTTypography.titleSmall.copyWith(
-                      fontWeight: FontWeight.w700,
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: controller,
+                      minLines: 3,
+                      maxLines: 6,
+                      textInputAction: TextInputAction.newline,
+                      decoration: InputDecoration(
+                        hintText: '댓글 내용을 입력하세요',
+                        filled: true,
+                        fillColor: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            GBTSpacing.radiusMd,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.all(GBTSpacing.md),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: GBTSpacing.sm),
-                  TextField(
-                    controller: controller,
-                    minLines: 3,
-                    maxLines: 6,
-                    textInputAction: TextInputAction.newline,
-                    decoration: InputDecoration(
-                      hintText: '댓글 내용을 입력하세요',
-                      filled: true,
-                      fillColor: Theme.of(
-                        context,
-                      ).colorScheme.surfaceContainerHighest,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          GBTSpacing.radiusMd,
+                    const SizedBox(height: GBTSpacing.md),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(sheetContext).pop(),
+                            child: const Text('취소'),
+                          ),
                         ),
-                      ),
-                      contentPadding: const EdgeInsets.all(GBTSpacing.md),
+                        const SizedBox(width: GBTSpacing.sm),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: canSave
+                                ? () => Navigator.of(sheetContext).pop(trimmed)
+                                : null,
+                            child: const Text('저장'),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: GBTSpacing.md),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.of(sheetContext).pop(),
-                          child: const Text('취소'),
-                        ),
-                      ),
-                      const SizedBox(width: GBTSpacing.sm),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: canSave
-                              ? () => Navigator.of(sheetContext).pop(trimmed)
-                              : null,
-                          child: const Text('저장'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
-        );
-      },
+                  ],
+                );
+              },
+            ),
+          );
+        },
+      ),
     );
     controller.dispose();
 
     if (newContent == null || newContent == comment.content) return;
 
     final result = await ref
-        .read(postCommentsControllerProvider(postId).notifier)
+        .read(
+          postCommentsRouteControllerProvider(_routeTargetFor(postId)).notifier,
+        )
         .updateComment(comment.id, newContent);
     if (result is Err<PostComment> && context.mounted) {
       _showSnackBar(context, '댓글을 수정하지 못했어요');
@@ -610,22 +609,13 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     required PostComment comment,
     required bool useModeration,
   }) async {
-    final confirm = await showDialog<bool>(
+    final confirm = await showGBTAdaptiveConfirmDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('댓글 삭제'),
-        content: const Text('댓글을 삭제할까요?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
+      title: '댓글 삭제',
+      message: '댓글을 삭제할까요?',
+      cancelLabel: '취소',
+      confirmLabel: '삭제',
+      isDestructive: true,
     );
 
     if (confirm != true) return;
@@ -647,12 +637,20 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       );
       if (result is Success<void>) {
         await ref
-            .read(postCommentsControllerProvider(postId).notifier)
+            .read(
+              postCommentsRouteControllerProvider(
+                _routeTargetFor(postId),
+              ).notifier,
+            )
             .load(forceRefresh: true);
       }
     } else {
       result = await ref
-          .read(postCommentsControllerProvider(postId).notifier)
+          .read(
+            postCommentsRouteControllerProvider(
+              _routeTargetFor(postId),
+            ).notifier,
+          )
           .deleteComment(comment.id);
     }
     if (result is Err<void> && context.mounted) {
@@ -695,32 +693,35 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     final thread = result is Success<List<CommentThreadNode>>
         ? result.data
         : <CommentThreadNode>[];
-    await showModalBottomSheet<void>(
+    await showGBTBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(GBTSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('답글 스레드', style: GBTTypography.titleSmall),
-                const SizedBox(height: GBTSpacing.sm),
-                Expanded(
-                  child: thread.isEmpty
-                      ? const Center(child: Text('표시할 답글이 없습니다'))
-                      : ListView(
-                          children: thread
-                              .map((node) => _CommentThreadNodeView(node: node))
-                              .toList(),
-                        ),
-                ),
-              ],
+      title: '답글 스레드',
+      child: Builder(
+        builder: (sheetContext) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(GBTSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: thread.isEmpty
+                        ? const Center(child: Text('표시할 답글이 없습니다'))
+                        : ListView(
+                            children: thread
+                                .map(
+                                  (node) => _CommentThreadNodeView(node: node),
+                                )
+                                .toList(),
+                          ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -740,33 +741,22 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       return;
     }
 
-    final payload = await showModalBottomSheet<CommunityReportPayload>(
+    final payload = await showGBTBottomSheet<CommunityReportPayload>(
       context: context,
       isScrollControlled: true,
-      builder: (sheetContext) => const CommunityReportSheet(),
+      title: '신고',
+      child: const CommunityReportSheet(),
     );
     if (payload == null) return;
 
     if (!context.mounted) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showGBTAdaptiveConfirmDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('신고 접수'),
-        content: Text(
-          '${targetType.label}을(를) "${payload.reason.label}" 사유로 신고합니다.\n'
-          '접수하시겠어요?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('신고 접수'),
-          ),
-        ],
-      ),
+      title: '신고 접수',
+      message:
+          '${targetType.label}을(를) "${payload.reason.label}" 사유로 신고합니다.\n접수하시겠어요?',
+      cancelLabel: '취소',
+      confirmLabel: '신고 접수',
     );
     if (confirmed != true) return;
 
@@ -796,36 +786,53 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     String targetId,
   ) async {
     final controller = TextEditingController();
-    final reason = await showDialog<String>(
+    final reason = await showGBTBottomSheet<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('이의제기'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('이의제기 사유를 입력해주세요.'),
-            const SizedBox(height: GBTSpacing.md),
-            TextField(
-              controller: controller,
-              maxLines: 4,
-              decoration: const InputDecoration(hintText: '사유를 입력하세요'),
-            ),
-          ],
+      title: '이의제기',
+      child: Builder(
+        builder: (dialogContext) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            GBTSpacing.md,
+            GBTSpacing.xs,
+            GBTSpacing.md,
+            MediaQuery.of(dialogContext).viewInsets.bottom + GBTSpacing.md,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('이의제기 사유를 입력해주세요.'),
+              const SizedBox(height: GBTSpacing.md),
+              TextField(
+                controller: controller,
+                maxLines: 4,
+                decoration: const InputDecoration(hintText: '사유를 입력하세요'),
+              ),
+              const SizedBox(height: GBTSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      child: const Text('취소'),
+                    ),
+                  ),
+                  const SizedBox(width: GBTSpacing.sm),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () {
+                        final text = controller.text.trim();
+                        if (text.isEmpty) return;
+                        Navigator.of(dialogContext).pop(text);
+                      },
+                      child: const Text('제출'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final text = controller.text.trim();
-              if (text.isEmpty) return;
-              Navigator.of(dialogContext).pop(text);
-            },
-            child: const Text('제출'),
-          ),
-        ],
       ),
     );
     controller.dispose();
@@ -1223,7 +1230,8 @@ class _PostDetailContent extends StatelessWidget {
                         label:
                             '좋아요 $likeCount개, '
                             '${isLiked ? "좋아요 누른 상태" : "좋아요 안 누른 상태"}, '
-                            '댓글 $commentCountLabel개',
+                            '댓글 $commentCountLabel개, '
+                            '${isBookmarked ? "내 저장됨" : "내 저장 안 됨"}',
                         child: Row(
                           children: [
                             Expanded(
@@ -1265,7 +1273,7 @@ class _PostDetailContent extends StatelessWidget {
                                 icon: isBookmarked
                                     ? GBTActionIcons.bookmarkActive
                                     : GBTActionIcons.bookmark,
-                                label: '',
+                                label: isBookmarked ? '저장됨' : '저장',
                                 color: isBookmarked
                                     ? (isDark
                                           ? GBTColors.darkPrimary
@@ -2460,7 +2468,7 @@ class _CommentSortTextButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 130),
+        duration: GBTAnimations.fast,
         curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(
           horizontal: GBTSpacing.sm,
@@ -2541,7 +2549,7 @@ class _CommentComposerBar extends StatelessWidget {
             // EN: Reply context banner — slides in when replying.
             // KO: 답글 작성 시 슬라이드인되는 답글 컨텍스트 배너.
             AnimatedSize(
-              duration: const Duration(milliseconds: 180),
+              duration: GBTAnimations.normal,
               curve: Curves.easeOutCubic,
               child: replyTarget != null
                   ? Container(
@@ -2660,7 +2668,7 @@ class _CommentComposerBar extends StatelessWidget {
                       // EN: Send button — active when text is non-empty.
                       // KO: 텍스트 입력 시 활성화되는 전송 버튼.
                       AnimatedContainer(
-                        duration: const Duration(milliseconds: 130),
+                        duration: GBTAnimations.fast,
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
@@ -3033,7 +3041,7 @@ class _ImageCarouselState extends State<_ImageCarousel> {
             children: List.generate(widget.imageUrls.length, (index) {
               final isActive = index == _currentIndex;
               return AnimatedContainer(
-                duration: const Duration(milliseconds: 130),
+                duration: GBTAnimations.fast,
                 margin: const EdgeInsets.symmetric(horizontal: 3),
                 width: isActive ? 16 : 6,
                 height: 6,

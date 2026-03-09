@@ -2,6 +2,7 @@
 /// KO: 계정 생성을 위한 회원가입 페이지.
 library;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -477,81 +478,127 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     );
   }
 
-  Future<bool> _showConsentConfirmDialog() async {
+  Future<bool> _showConsentConfirmDialog() {
     final now = DateTime.now().toLocal();
     final terms = LegalPolicyConstants.byType(LegalPolicyType.termsOfService);
     final privacy = LegalPolicyConstants.byType(LegalPolicyType.privacyPolicy);
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
+    Widget buildConfirmBody(BuildContext buildContext) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
             context.l10n(
-              ko: '가입 전 최종 확인',
-              en: 'Final confirmation',
-              ja: '登録前の最終確認',
+              ko: '아래 동의 항목으로 가입을 진행할까요?',
+              en: 'Proceed with the following consents?',
+              ja: '以下の同意内容で登録を進めますか？',
+            ),
+            style: GBTTypography.bodySmall,
+          ),
+          const SizedBox(height: GBTSpacing.sm),
+          _ConfirmLine(text: '${terms.type.label(context)} ${terms.version}'),
+          _ConfirmLine(
+            text: '${privacy.type.label(context)} ${privacy.version}',
+          ),
+          _ConfirmLine(
+            text: context.l10n(
+              ko: '만 14세 이상 확인',
+              en: 'Confirmed age 14 or older',
+              ja: '14歳以上確認',
             ),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                context.l10n(
-                  ko: '아래 동의 항목으로 가입을 진행할까요?',
-                  en: 'Proceed with the following consents?',
-                  ja: '以下の同意内容で登録を進めますか？',
-                ),
-                style: GBTTypography.bodySmall,
-              ),
-              const SizedBox(height: GBTSpacing.sm),
-              _ConfirmLine(
-                text: '${terms.type.label(context)} ${terms.version}',
-              ),
-              _ConfirmLine(
-                text: '${privacy.type.label(context)} ${privacy.version}',
-              ),
-              _ConfirmLine(
-                text: context.l10n(
-                  ko: '만 14세 이상 확인',
-                  en: 'Confirmed age 14 or older',
-                  ja: '14歳以上確認',
-                ),
-              ),
-              const SizedBox(height: GBTSpacing.xs),
-              Text(
-                context.l10n(
-                  ko: '동의 시각: ${now.year}-${now.month.toString().padLeft(2, "0")}-${now.day.toString().padLeft(2, "0")} ${now.hour.toString().padLeft(2, "0")}:${now.minute.toString().padLeft(2, "0")}',
-                  en: 'Consent time: ${now.year}-${now.month.toString().padLeft(2, "0")}-${now.day.toString().padLeft(2, "0")} ${now.hour.toString().padLeft(2, "0")}:${now.minute.toString().padLeft(2, "0")}',
-                  ja: '同意時刻: ${now.year}-${now.month.toString().padLeft(2, "0")}-${now.day.toString().padLeft(2, "0")} ${now.hour.toString().padLeft(2, "0")}:${now.minute.toString().padLeft(2, "0")}',
-                ),
-                style: GBTTypography.labelSmall.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+          const SizedBox(height: GBTSpacing.xs),
+          Text(
+            context.l10n(
+              ko: '동의 시각: ${now.year}-${now.month.toString().padLeft(2, "0")}-${now.day.toString().padLeft(2, "0")} ${now.hour.toString().padLeft(2, "0")}:${now.minute.toString().padLeft(2, "0")}',
+              en: 'Consent time: ${now.year}-${now.month.toString().padLeft(2, "0")}-${now.day.toString().padLeft(2, "0")} ${now.hour.toString().padLeft(2, "0")}:${now.minute.toString().padLeft(2, "0")}',
+              ja: '同意時刻: ${now.year}-${now.month.toString().padLeft(2, "0")}-${now.day.toString().padLeft(2, "0")} ${now.hour.toString().padLeft(2, "0")}:${now.minute.toString().padLeft(2, "0")}',
+            ),
+            style: GBTTypography.labelSmall.copyWith(
+              color: Theme.of(buildContext).colorScheme.onSurfaceVariant,
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル')),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text(
+        ],
+      );
+    }
+
+    final platform = Theme.of(context).platform;
+    final useCupertino =
+        platform == TargetPlatform.iOS || platform == TargetPlatform.macOS;
+    if (!mounted) return Future.value(false);
+
+    final dialogFuture = useCupertino
+        ? showCupertinoDialog<bool>(
+            context: context,
+            builder: (dialogContext) => CupertinoAlertDialog(
+              title: Text(
                 context.l10n(
-                  ko: '동의 후 가입',
-                  en: 'Agree and sign up',
-                  ja: '同意して登録',
+                  ko: '가입 전 최종 확인',
+                  en: 'Final confirmation',
+                  ja: '登録前の最終確認',
                 ),
               ),
+              content: Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Material(
+                  color: Colors.transparent,
+                  child: buildConfirmBody(dialogContext),
+                ),
+              ),
+              actions: [
+                CupertinoDialogAction(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: Text(
+                    context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル'),
+                  ),
+                ),
+                CupertinoDialogAction(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: Text(
+                    context.l10n(
+                      ko: '동의 후 가입',
+                      en: 'Agree and sign up',
+                      ja: '同意して登録',
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        );
-      },
-    );
-    return confirmed ?? false;
+          )
+        : showDialog<bool>(
+            context: context,
+            builder: (dialogContext) {
+              return AlertDialog(
+                title: Text(
+                  context.l10n(
+                    ko: '가입 전 최종 확인',
+                    en: 'Final confirmation',
+                    ja: '登録前の最終確認',
+                  ),
+                ),
+                content: buildConfirmBody(dialogContext),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    child: Text(
+                      context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル'),
+                    ),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                    child: Text(
+                      context.l10n(
+                        ko: '동의 후 가입',
+                        en: 'Agree and sign up',
+                        ja: '同意して登録',
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+    return dialogFuture.then((confirmed) => confirmed ?? false);
   }
 
   String _toSafeRegisterErrorMessage(Object error) {

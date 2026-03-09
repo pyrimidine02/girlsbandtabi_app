@@ -410,6 +410,55 @@ class PostCommentsController
   }
 }
 
+/// EN: Route-aware target for post detail/comments with optional project hint.
+/// KO: 프로젝트 힌트를 포함할 수 있는 게시글 상세/댓글 라우트 타겟입니다.
+class PostRouteTarget {
+  const PostRouteTarget({required this.postId, this.projectCodeHint});
+
+  final String postId;
+  final String? projectCodeHint;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is PostRouteTarget &&
+            other.postId == postId &&
+            other.projectCodeHint == projectCodeHint;
+  }
+
+  @override
+  int get hashCode => Object.hash(postId, projectCodeHint);
+}
+
+/// EN: Route-aware post detail controller provider.
+/// KO: 라우트 프로젝트 힌트를 반영하는 게시글 상세 컨트롤러 프로바이더.
+final postDetailRouteControllerProvider = StateNotifierProvider.autoDispose
+    .family<PostDetailController, AsyncValue<PostDetail>, PostRouteTarget>((
+      ref,
+      target,
+    ) {
+      return PostDetailController(
+        ref,
+        target.postId,
+        projectCodeHint: target.projectCodeHint,
+      )..load();
+    });
+
+/// EN: Route-aware post comments controller provider.
+/// KO: 라우트 프로젝트 힌트를 반영하는 게시글 댓글 컨트롤러 프로바이더.
+final postCommentsRouteControllerProvider = StateNotifierProvider.autoDispose
+    .family<
+      PostCommentsController,
+      AsyncValue<List<PostComment>>,
+      PostRouteTarget
+    >((ref, target) {
+      return PostCommentsController(
+        ref,
+        target.postId,
+        projectCodeHint: target.projectCodeHint,
+      )..load();
+    });
+
 /// EN: Post detail controller provider.
 /// KO: 게시글 상세 컨트롤러 프로바이더.
 final postDetailControllerProvider = StateNotifierProvider.autoDispose

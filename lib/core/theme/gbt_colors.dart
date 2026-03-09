@@ -139,24 +139,6 @@ class GBTColors {
     end: Alignment.bottomRight,
   );
 
-  // EN: Deprecated — use primaryGradient sparingly or solid colors instead.
-  // KO: 더 이상 사용하지 않음 — primaryGradient를 최소한으로 또는 단색을 사용하세요.
-  @Deprecated('Use primaryGradient or solid colors instead')
-  static const LinearGradient accentGradient = primaryGradient;
-
-  @Deprecated('Use solid secondary color instead')
-  static const LinearGradient secondaryGradient = primaryGradient;
-
-  @Deprecated('Use primaryGradient or solid colors instead')
-  static const LinearGradient darkAccentGradient = primaryGradient;
-
-  @Deprecated('Use solid darkSurface colors instead')
-  static const LinearGradient darkSurfaceGradient = LinearGradient(
-    colors: [darkSurface, darkSurfaceVariant],
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-  );
-
   static const LinearGradient cardOverlayGradient = LinearGradient(
     colors: [Colors.transparent, Color(0x99000000)],
     begin: Alignment.topCenter,

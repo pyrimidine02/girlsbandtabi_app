@@ -52,7 +52,7 @@ class LiveEventDetailPage extends ConsumerWidget {
                   padding: const EdgeInsets.only(left: GBTSpacing.xs),
                   child: _OverlayIconButton(
                     tooltip: '뒤로 가기',
-                    icon: Icons.arrow_back_ios_new_rounded,
+                    icon: _platformBackIcon(context),
                     onPressed: () => Navigator.of(context).maybePop(),
                   ),
                 ),
@@ -186,7 +186,7 @@ class LiveEventDetailPage extends ConsumerWidget {
           padding: const EdgeInsets.only(left: GBTSpacing.xs),
           child: _OverlayIconButton(
             tooltip: '뒤로 가기',
-            icon: Icons.arrow_back_ios_new_rounded,
+            icon: _platformBackIcon(context),
             onPressed: () => Navigator.of(context).maybePop(),
           ),
         ),
@@ -554,7 +554,8 @@ class _LiveAttendanceSection extends StatelessWidget {
         : GBTColors.textSecondary;
     final statusColor = _attendanceStatusColor(isDark, attendance.status);
     final isOffLocked = attendance.attended && !attendance.canUndo;
-    final switchEnabled = !state.isSubmitting && !state.isLoading && !isOffLocked;
+    final switchEnabled =
+        !state.isSubmitting && !state.isLoading && !isOffLocked;
 
     return Container(
       width: double.infinity,
@@ -797,6 +798,14 @@ class _InfoCard extends StatelessWidget {
       ),
     );
   }
+}
+
+IconData _platformBackIcon(BuildContext context) {
+  final platform = Theme.of(context).platform;
+  if (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS) {
+    return Icons.arrow_back_ios_new_rounded;
+  }
+  return Icons.arrow_back_rounded;
 }
 
 /// EN: Circular overlay icon button — 40px circle, 48px tap target.

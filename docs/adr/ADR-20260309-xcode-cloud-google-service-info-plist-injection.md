@@ -11,21 +11,28 @@ Accepted
   - `Build input file cannot be found: .../ios/Runner/GoogleService-Info.plist`
 
 ## Decision
-- Extend root `ci_post_clone.sh` to guarantee plist presence before iOS build
-  using secret-only sources:
+- Extend root `ci_post_clone.sh` and `ios/ci_scripts/ci_post_clone.sh` to
+  guarantee plist presence before iOS build with resilient resolution order:
   1. use `GOOGLE_SERVICE_INFO_PLIST` when provided
-  2. decode `GOOGLE_SERVICE_INFO_PLIST_B64` when provided
-  3. fail fast when neither secret is present or decoding fails
-- Add `ci_scripts/ci_post_clone.sh` wrapper that forwards to root script to
-  support Xcode Cloud configurations expecting the `ci_scripts/` path.
+  2. decode `GOOGLE_SERVICE_INFO_PLIST_B64` (including whitespace-normalized
+     retry)
+  3. if `*_B64` contains raw plist by mistake, use it as-is
+  4. compose plist from `FIREBASE_IOS_*` discrete values when fully provided
+  5. fail fast when none of the above sources are valid
+- Keep path compatibility for Xcode Cloud script discovery (`ci_post_clone.sh`,
+  `ios/ci_scripts/ci_post_clone.sh`, and `ci_scripts/` wrapper).
+- Harden `ios/ci_scripts/ci_post_clone.sh` execution preconditions:
+  - require `CI_PRIMARY_REPOSITORY_PATH` explicitly,
+  - quote repository path before `cd`,
+  - use `pod install --repo-update` for better pod spec consistency.
 
 ## Consequences
 - Xcode Cloud archive no longer fails due to missing plist input file.
 - Teams can keep Firebase config out of git while still building in CI.
-- Build behavior is deterministic and secure:
+- Build behavior stays strict enough for correctness:
   - no placeholder plist generation
-  - no silent fallback from partial env configuration
-  - missing secret is surfaced immediately in `ci_post_clone` logs.
+  - no silent fallback from partial `FIREBASE_IOS_*` configuration
+  - missing/invalid input is surfaced in `ci_post_clone` logs with hints.
 
 ## Verification
 - `bash -n ci_post_clone.sh`

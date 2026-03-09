@@ -24,6 +24,7 @@ class GBTImage extends StatelessWidget {
     this.useShimmer = true,
     this.placeholder,
     this.errorWidget,
+    this.onError,
   });
 
   /// EN: Image URL.
@@ -62,6 +63,10 @@ class GBTImage extends StatelessWidget {
   /// KO: 커스텀 에러 위젯.
   final Widget? errorWidget;
 
+  /// EN: Optional callback invoked when image loading fails.
+  /// KO: 이미지 로딩 실패 시 호출되는 선택 콜백입니다.
+  final VoidCallback? onError;
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -78,7 +83,10 @@ class GBTImage extends StatelessWidget {
       memCacheWidth: cacheWidth,
       memCacheHeight: cacheHeight,
       placeholder: (context, _) => _buildPlaceholder(isDark: isDark),
-      errorWidget: (context, _, __) => _buildError(isDark: isDark),
+      errorWidget: (context, _, __) {
+        onError?.call();
+        return _buildError(isDark: isDark);
+      },
       imageBuilder: (context, imageProvider) {
         return Image(
           image: imageProvider,

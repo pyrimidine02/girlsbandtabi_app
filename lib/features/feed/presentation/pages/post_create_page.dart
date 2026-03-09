@@ -21,6 +21,7 @@ import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/media_url.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
+import '../../../../core/widgets/dialogs/gbt_adaptive_dialog.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../application/feed_controller.dart';
 import '../../domain/entities/feed_entities.dart';
@@ -190,22 +191,12 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
       return true;
     }
 
-    final shouldDiscard = await showDialog<bool>(
+    final shouldDiscard = await showGBTAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('작성 중인 내용을 나갈까요?'),
-        content: const Text('현재 입력 내용은 임시 저장되어 다음에 복구할 수 있어요.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('계속 작성'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('나가기'),
-          ),
-        ],
-      ),
+      title: '작성 중인 내용을 나갈까요?',
+      message: '현재 입력 내용은 임시 저장되어 다음에 복구할 수 있어요.',
+      confirmLabel: '나가기',
+      cancelLabel: '계속 작성',
     );
 
     return shouldDiscard ?? false;
@@ -884,8 +875,14 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
         final uploads = await _uploadImages();
         // EN: Collect both IDs (for the server) and URLs (for markdown embed).
         // KO: 서버용 ID와 마크다운 삽입용 URL을 모두 수집합니다.
-        imageUploadIds = uploads.map((u) => u.uploadId).toList();
-        imageUrls = uploads.map((u) => u.url).toList();
+        imageUploadIds = uploads
+            .map((upload) => upload.uploadId)
+            .where((uploadId) => uploadId.isNotEmpty)
+            .toList();
+        imageUrls = uploads
+            .map((upload) => upload.url)
+            .where((url) => url.isNotEmpty)
+            .toList();
       } on Failure catch (failure) {
         setState(() {
           _errorMessage = failure.userMessage;
@@ -918,6 +915,10 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     }
 
     if (result case Success<PostDetail>(:final data)) {
+      final category = (_selectedTopic != null && _selectedTopic!.trim().isNotEmpty)
+          ? _selectedTopic!.trim()
+          : 'general';
+      unawaited(ref.read(analyticsServiceProvider).logPostCreate(category));
       await ref
           .read(communityFeedControllerProvider.notifier)
           .reload(forceRefresh: true);
@@ -1055,7 +1056,11 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
         Err(:final failure) => throw failure,
       };
 
-      if (upload.url.isNotEmpty) {
+      // EN: Keep uploadId even when URL is temporarily empty so the backend
+      // can still derive summary thumbnail/image from imageUploadIds.
+      // KO: URL이 일시적으로 비어 있어도 imageUploadIds 기반 썸네일/이미지
+      // 파생을 위해 uploadId는 유지합니다.
+      if (upload.uploadId.isNotEmpty) {
         uploads.add(upload);
       }
     }

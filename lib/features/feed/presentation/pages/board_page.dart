@@ -22,6 +22,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/common/gbt_action_icons.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
+import '../../../../core/widgets/dialogs/gbt_adaptive_dialog.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../ads/domain/entities/ad_slot_entities.dart';
@@ -374,7 +375,7 @@ class _FeedSectionState extends ConsumerState<_FeedSection>
     unawaited(_feedController.startRealtimeSync());
     _scrollController.addListener(_handleScroll);
     _foregroundRefreshTimer = Timer.periodic(
-      const Duration(seconds: 35),
+      const Duration(seconds: 25),
       (_) => _refreshFeedIfVisible(),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -421,7 +422,9 @@ class _FeedSectionState extends ConsumerState<_FeedSection>
     if (!mounted || !_isAppResumed) return;
     final route = ModalRoute.of(context);
     if (route != null && !route.isCurrent) return;
-    _feedController.refreshInBackground();
+    _feedController.refreshInBackground(
+      minInterval: const Duration(seconds: 25),
+    );
   }
 
   Future<void> _openSearchSheet() async {
@@ -821,7 +824,7 @@ class _CommunityTabState extends ConsumerState<_CommunityTab>
     unawaited(_feedController.startRealtimeSync());
     _scrollController.addListener(_handleScroll);
     _foregroundRefreshTimer = Timer.periodic(
-      const Duration(seconds: 35),
+      const Duration(seconds: 25),
       (_) => _refreshFeedIfVisible(),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -872,7 +875,9 @@ class _CommunityTabState extends ConsumerState<_CommunityTab>
     if (!mounted || !_isAppResumed) return;
     final route = ModalRoute.of(context);
     if (route != null && !route.isCurrent) return;
-    _feedController.refreshInBackground();
+    _feedController.refreshInBackground(
+      minInterval: const Duration(seconds: 25),
+    );
   }
 
   void _syncSectionMode({bool? previousWasDiscover}) {
@@ -2144,10 +2149,10 @@ class _CommunityPostCard extends ConsumerWidget {
         ? GBTColors.darkPrimary
         : GBTColors.accentBlue;
 
-    // EN: Prefer server thumbnail (derived from first upload) for feed preview.
-    // KO: 피드 미리보기는 서버 썸네일(첫 업로드 기준)을 우선 사용합니다.
-    final firstImageUrl = _resolvePreviewImageUrl(post);
-    final hasThumbnailImage = firstImageUrl != null && firstImageUrl.isNotEmpty;
+    // EN: Prefer server thumbnail, then fallback list/content-derived images.
+    // KO: 서버 썸네일 우선, 그 다음 목록/본문 기반 이미지로 폴백합니다.
+    final previewImageUrls = _resolvePreviewImageUrls(post);
+    final hasThumbnailImage = previewImageUrls.isNotEmpty;
     final contentRaw = post.content?.trim() ?? '';
     String previewText = '';
     if (contentRaw.isNotEmpty) {
@@ -2256,7 +2261,8 @@ class _CommunityPostCard extends ConsumerWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => context.goToPostDetail(post.id),
+          onTap: () =>
+              context.goToPostDetail(post.id, projectCode: post.projectId),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(0, 14, 0, 12),
             child: Column(
@@ -2379,7 +2385,10 @@ class _CommunityPostCard extends ConsumerWidget {
                         padding: EdgeInsets.zero,
                         onSelected: (action) {
                           if (action == _PostCardAction.edit) {
-                            context.goToPostDetail(post.id);
+                            context.goToPostDetail(
+                              post.id,
+                              projectCode: post.projectId,
+                            );
                             return;
                           }
                           if (action == _PostCardAction.delete) {
@@ -2552,8 +2561,10 @@ class _CommunityPostCard extends ConsumerWidget {
                                 top: GBTSpacing.xs,
                               ),
                               child: TextButton(
-                                onPressed: () =>
-                                    context.goToPostDetail(post.id),
+                                onPressed: () => context.goToPostDetail(
+                                  post.id,
+                                  projectCode: post.projectId,
+                                ),
                                 style: TextButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 4,
@@ -2606,8 +2617,8 @@ class _CommunityPostCard extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(12),
                         child: AspectRatio(
                           aspectRatio: 16 / 10,
-                          child: GBTImage(
-                            imageUrl: firstImageUrl,
+                          child: _FallbackPreviewImage(
+                            imageUrls: previewImageUrls,
                             fit: BoxFit.cover,
                             semanticLabel:
                                 '${post.title} ${context.l10n(ko: "첨부 이미지", en: "attached image", ja: "添付画像")}',
@@ -2619,7 +2630,7 @@ class _CommunityPostCard extends ConsumerWidget {
                 const SizedBox(height: GBTSpacing.sm),
                 Semantics(
                   label:
-                      '${context.l10n(ko: "좋아요", en: "Likes", ja: "いいね")} $likeCount${context.l10n(ko: "개", en: "", ja: "件")}, ${context.l10n(ko: "댓글", en: "Comments", ja: "コメント")} $commentCount${context.l10n(ko: "개", en: "", ja: "件")}, ${context.l10n(ko: "북마크", en: "Bookmark", ja: "ブックマーク")} ${isBookmarked ? context.l10n(ko: "설정됨", en: "on", ja: "オン") : context.l10n(ko: "해제됨", en: "off", ja: "オフ")}',
+                      '${context.l10n(ko: "좋아요", en: "Likes", ja: "いいね")} $likeCount${context.l10n(ko: "개", en: "", ja: "件")}, ${context.l10n(ko: "댓글", en: "Comments", ja: "コメント")} $commentCount${context.l10n(ko: "개", en: "", ja: "件")}, ${context.l10n(ko: "북마크", en: "Bookmark", ja: "ブックマーク")} ${isBookmarked ? context.l10n(ko: "저장됨", en: "saved", ja: "保存済み") : context.l10n(ko: "미저장", en: "not saved", ja: "未保存")}',
                   child: Row(
                     children: [
                       _AnimatedLikeButton(
@@ -2637,7 +2648,10 @@ class _CommunityPostCard extends ConsumerWidget {
                         color: commentActionColor,
                         semanticsLabel:
                             '${context.l10n(ko: "댓글", en: "Comments", ja: "コメント")} $commentCount',
-                        onTap: () => context.goToPostDetail(post.id),
+                        onTap: () => context.goToPostDetail(
+                          post.id,
+                          projectCode: post.projectId,
+                        ),
                       ),
                       const SizedBox(width: GBTSpacing.sm),
                       _AnimatedBookmarkButton(
@@ -2646,6 +2660,9 @@ class _CommunityPostCard extends ConsumerWidget {
                         onTap: () => _toggleBookmark(context, ref),
                         activeColor: bookmarkActionColor,
                         inactiveColor: tertiaryColor,
+                        textLabel: isBookmarked
+                            ? context.l10n(ko: '저장됨', en: 'Saved', ja: '保存済み')
+                            : context.l10n(ko: '저장', en: 'Save', ja: '保存'),
                       ),
                       const Spacer(),
                     ],
@@ -2678,38 +2695,27 @@ class _CommunityPostCard extends ConsumerWidget {
     return painter.didExceedMaxLines;
   }
 
-  /// EN: Resolve post preview image with deterministic priority:
-  ///     1) thumbnailUrl (server-selected first upload)
-  ///     2) first valid imageUrls entry
-  ///     3) first image extracted from content markdown/html
-  /// KO: 게시글 미리보기 이미지 우선순위를 고정합니다:
-  ///     1) thumbnailUrl(서버가 선택한 첫 업로드)
-  ///     2) imageUrls의 첫 유효 항목
-  ///     3) 본문 마크다운/HTML에서 추출한 첫 이미지
-  String? _resolvePreviewImageUrl(PostSummary post) {
-    final thumbnail = _normalizePreviewUrl(post.thumbnailUrl);
-    if (thumbnail != null) {
-      return thumbnail;
-    }
-
-    final firstListImage = _firstValidPreviewUrl(post.imageUrls);
-    if (firstListImage != null) {
-      return firstListImage;
-    }
-
-    return _firstValidPreviewUrl(extractImageUrls(post.content));
-  }
-
-  /// EN: Returns first valid URL from candidates after normalization.
-  /// KO: 후보 URL을 정규화한 뒤 첫 번째 유효 URL을 반환합니다.
-  String? _firstValidPreviewUrl(Iterable<String?> candidates) {
-    for (final candidate in candidates) {
-      final normalized = _normalizePreviewUrl(candidate);
-      if (normalized != null) {
-        return normalized;
+  /// EN: Resolve post preview image candidates with deterministic priority.
+  /// KO: 고정 우선순위로 게시글 미리보기 이미지 후보를 해석합니다.
+  List<String> _resolvePreviewImageUrls(PostSummary post) {
+    final ordered = <String>[];
+    final seen = <String>{};
+    void addIfValid(String? raw) {
+      final normalized = _normalizePreviewUrl(raw);
+      if (normalized == null) return;
+      if (seen.add(normalized)) {
+        ordered.add(normalized);
       }
     }
-    return null;
+
+    addIfValid(post.thumbnailUrl);
+    for (final url in post.imageUrls) {
+      addIfValid(url);
+    }
+    for (final url in extractImageUrls(post.content)) {
+      addIfValid(url);
+    }
+    return ordered;
   }
 
   /// EN: Normalize/validate preview URL for safe image rendering.
@@ -2754,7 +2760,7 @@ class _CommunityPostCard extends ConsumerWidget {
       _showSnackBar(
         context,
         context.l10n(
-          ko: '좋아요/좋아요 취소를 반영하지 못했어요',
+          ko: '좋아요 상태를 반영하지 못했어요',
           en: 'Failed to update like',
           ja: 'いいねの反映に失敗しました',
         ),
@@ -2783,9 +2789,9 @@ class _CommunityPostCard extends ConsumerWidget {
       _showSnackBar(
         context,
         context.l10n(
-          ko: '북마크를 반영하지 못했어요',
-          en: 'Failed to update bookmark',
-          ja: 'ブックマークの反映に失敗しました',
+          ko: '저장 상태를 반영하지 못했어요',
+          en: 'Failed to update save state',
+          ja: '保存状態の反映に失敗しました',
         ),
       );
     }
@@ -2810,28 +2816,17 @@ class _CommunityPostCard extends ConsumerWidget {
       return;
     }
 
-    final confirm = await showDialog<bool>(
+    final confirm = await showGBTAdaptiveConfirmDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(context.l10n(ko: '게시글 삭제', en: 'Delete post', ja: '投稿削除')),
-        content: Text(
-          context.l10n(
-            ko: '정말로 이 게시글을 삭제할까요?',
-            en: 'Do you want to delete this post?',
-            ja: 'この投稿を削除しますか？',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(context.l10n(ko: '삭제', en: 'Delete', ja: '削除')),
-          ),
-        ],
+      title: context.l10n(ko: '게시글 삭제', en: 'Delete post', ja: '投稿削除'),
+      message: context.l10n(
+        ko: '정말로 이 게시글을 삭제할까요?',
+        en: 'Do you want to delete this post?',
+        ja: 'この投稿を削除しますか？',
       ),
+      cancelLabel: context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル'),
+      confirmLabel: context.l10n(ko: '삭제', en: 'Delete', ja: '削除'),
+      isDestructive: true,
     );
 
     if (confirm != true || !context.mounted) return;
@@ -2899,28 +2894,16 @@ class _CommunityPostCard extends ConsumerWidget {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showGBTAdaptiveConfirmDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(context.l10n(ko: '신고 접수', en: 'Submit report', ja: '通報受付')),
-        content: Text(
-          context.l10n(
-            ko: '게시글을 "${payload.reason.label}" 사유로 신고합니다.\n접수하시겠어요?',
-            en: 'Report this post for "${payload.reason.label}"?\nDo you want to submit?',
-            ja: 'この投稿を「${payload.reason.label}」理由で通報します。\n受付しますか？',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(context.l10n(ko: '신고 접수', en: 'Submit', ja: '受付')),
-          ),
-        ],
+      title: context.l10n(ko: '신고 접수', en: 'Submit report', ja: '通報受付'),
+      message: context.l10n(
+        ko: '게시글을 "${payload.reason.label}" 사유로 신고합니다.\n접수하시겠어요?',
+        en: 'Report this post for "${payload.reason.label}"?\nDo you want to submit?',
+        ja: 'この投稿を「${payload.reason.label}」理由で通報します。\n受付しますか？',
       ),
+      cancelLabel: context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル'),
+      confirmLabel: context.l10n(ko: '신고 접수', en: 'Submit', ja: '受付'),
     );
     if (confirmed != true || !context.mounted) {
       return;
@@ -3015,33 +2998,17 @@ class _CommunityPostCard extends ConsumerWidget {
       return;
     }
 
-    final confirm = await showDialog<bool>(
+    final confirm = await showGBTAdaptiveConfirmDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          context.l10n(ko: '커뮤니티 제재', en: 'Community ban', ja: 'コミュニティ制裁'),
-        ),
-        content: Text(
-          context.l10n(
-            ko: '$authorLabel 사용자를 이 프로젝트 커뮤니티에서 제재할까요?',
-            en: 'Ban $authorLabel from this project community?',
-            ja: '$authorLabel さんをこのプロジェクトコミュニティで制裁しますか？',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(dialogContext).colorScheme.error,
-            ),
-            child: Text(context.l10n(ko: '차단', en: 'Ban', ja: '制裁')),
-          ),
-        ],
+      title: context.l10n(ko: '커뮤니티 제재', en: 'Community ban', ja: 'コミュニティ制裁'),
+      message: context.l10n(
+        ko: '$authorLabel 사용자를 이 프로젝트 커뮤니티에서 제재할까요?',
+        en: 'Ban $authorLabel from this project community?',
+        ja: '$authorLabel さんをこのプロジェクトコミュニティで制裁しますか？',
       ),
+      cancelLabel: context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル'),
+      confirmLabel: context.l10n(ko: '차단', en: 'Ban', ja: '制裁'),
+      isDestructive: true,
     );
 
     if (confirm != true || !context.mounted) return;
@@ -3084,6 +3051,66 @@ class _CommunityPostCard extends ConsumerWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+/// EN: Tries multiple preview image URLs and falls back on load failure.
+/// KO: 여러 미리보기 이미지 URL을 시도하고 로드 실패 시 다음 후보로 전환합니다.
+class _FallbackPreviewImage extends StatefulWidget {
+  const _FallbackPreviewImage({
+    required this.imageUrls,
+    required this.fit,
+    required this.semanticLabel,
+  });
+
+  final List<String> imageUrls;
+  final BoxFit fit;
+  final String semanticLabel;
+
+  @override
+  State<_FallbackPreviewImage> createState() => _FallbackPreviewImageState();
+}
+
+class _FallbackPreviewImageState extends State<_FallbackPreviewImage> {
+  int _currentIndex = 0;
+  bool _advanceScheduled = false;
+
+  @override
+  void didUpdateWidget(covariant _FallbackPreviewImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.imageUrls != widget.imageUrls) {
+      _currentIndex = 0;
+      _advanceScheduled = false;
+    }
+  }
+
+  void _advanceImage() {
+    if (_advanceScheduled) return;
+    if (_currentIndex >= widget.imageUrls.length - 1) return;
+    _advanceScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _advanceScheduled = false;
+      if (_currentIndex >= widget.imageUrls.length - 1) return;
+      setState(() {
+        _currentIndex += 1;
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.imageUrls.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final resolvedIndex = _currentIndex.clamp(0, widget.imageUrls.length - 1);
+    return GBTImage(
+      key: ValueKey(widget.imageUrls[resolvedIndex]),
+      imageUrl: widget.imageUrls[resolvedIndex],
+      fit: widget.fit,
+      semanticLabel: widget.semanticLabel,
+      onError: _advanceImage,
+    );
   }
 }
 
@@ -3287,6 +3314,7 @@ class _AnimatedBookmarkButton extends StatefulWidget {
     required this.onTap,
     required this.activeColor,
     required this.inactiveColor,
+    required this.textLabel,
   });
 
   final bool isBookmarked;
@@ -3294,6 +3322,7 @@ class _AnimatedBookmarkButton extends StatefulWidget {
   final VoidCallback onTap;
   final Color activeColor;
   final Color inactiveColor;
+  final String textLabel;
 
   @override
   State<_AnimatedBookmarkButton> createState() =>
@@ -3359,8 +3388,8 @@ class _AnimatedBookmarkButtonState extends State<_AnimatedBookmarkButton>
       enabled: widget.enabled,
       toggled: widget.isBookmarked,
       label: widget.isBookmarked
-          ? context.l10n(ko: '북마크 해제', en: 'Remove bookmark', ja: 'ブックマーク解除')
-          : context.l10n(ko: '북마크', en: 'Bookmark', ja: 'ブックマーク'),
+          ? context.l10n(ko: '내 저장 해제', en: 'Remove from saved', ja: '保存解除')
+          : context.l10n(ko: '내 저장', en: 'Save for me', ja: '保存'),
       child: InkWell(
         borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
         onTap: widget.enabled ? _handleTap : null,
@@ -3373,18 +3402,30 @@ class _AnimatedBookmarkButtonState extends State<_AnimatedBookmarkButton>
             ),
             child: ScaleTransition(
               scale: _scaleAnim,
-              child: AnimatedSwitcher(
-                duration: _duration,
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                child: Icon(
-                  widget.isBookmarked
-                      ? GBTActionIcons.bookmarkActive
-                      : GBTActionIcons.bookmark,
-                  key: ValueKey(widget.isBookmarked),
-                  size: 17,
-                  color: color,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedSwitcher(
+                    duration: _duration,
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    child: Icon(
+                      widget.isBookmarked
+                          ? GBTActionIcons.bookmarkActive
+                          : GBTActionIcons.bookmark,
+                      key: ValueKey(widget.isBookmarked),
+                      size: 17,
+                      color: color,
+                    ),
+                  ),
+                  if (widget.textLabel.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Text(
+                      widget.textLabel,
+                      style: GBTTypography.labelSmall.copyWith(color: color),
+                    ),
+                  ],
+                ],
               ),
             ),
           ),

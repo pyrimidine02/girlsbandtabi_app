@@ -2,6 +2,8 @@
 /// KO: 홈 페이지 — 인사말 헤더 + 캐러셀 + 컴팩트 뉴스
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -266,9 +268,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final headerImageUrl = _pickHeaderImage(summary, featuredLive);
 
     return CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
+      physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         // 1. GBTGreetingHeader (includes SafeArea + AppBar space)
         SliverToBoxAdapter(
@@ -279,7 +279,15 @@ class _HomePageState extends ConsumerState<HomePage> {
             featuredPosterUrl: featuredLive?.posterUrl,
             onFeaturedTap: featuredLive == null
                 ? null
-                : () => context.goToLiveDetail(featuredLive.id),
+                : () {
+                    unawaited(
+                      ref.read(analyticsServiceProvider).logLiveEventView(
+                        featuredLive.id,
+                        eventName: featuredLive.title,
+                      ),
+                    );
+                    context.goToLiveDetail(featuredLive.id);
+                  },
           ),
         ),
 
@@ -363,7 +371,15 @@ class _HomePageState extends ConsumerState<HomePage> {
                         ja: '${place.visitCount}回訪問',
                       ),
                   imageUrl: place.imageUrl,
-                  onTap: () => context.goToPlaceDetail(place.id),
+                  onTap: () {
+                    unawaited(
+                      ref.read(analyticsServiceProvider).logPlaceVisit(
+                        place.id,
+                        placeName: place.name,
+                      ),
+                    );
+                    context.goToPlaceDetail(place.id);
+                  },
                 );
               },
             ),
@@ -394,7 +410,15 @@ class _HomePageState extends ConsumerState<HomePage> {
                   date: event.dateLabel,
                   posterUrl: event.posterUrl,
                   isLive: event.isLive,
-                  onTap: () => context.goToLiveDetail(event.id),
+                  onTap: () {
+                    unawaited(
+                      ref.read(analyticsServiceProvider).logLiveEventView(
+                        event.id,
+                        eventName: event.title,
+                      ),
+                    );
+                    context.goToLiveDetail(event.id);
+                  },
                 );
               },
             ),

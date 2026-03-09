@@ -21,6 +21,7 @@ import '../../../../core/utils/image_url_extractor.dart';
 import '../../../../core/utils/media_url.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
+import '../../../../core/widgets/dialogs/gbt_adaptive_dialog.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../application/feed_controller.dart';
 import '../../domain/entities/feed_entities.dart';
@@ -226,22 +227,12 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
       return true;
     }
 
-    final shouldDiscard = await showDialog<bool>(
+    final shouldDiscard = await showGBTAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('작성 중인 내용을 나갈까요?'),
-        content: const Text('현재 입력 내용은 임시 저장되어 다음에 복구할 수 있어요.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('계속 작성'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('나가기'),
-          ),
-        ],
-      ),
+      title: '작성 중인 내용을 나갈까요?',
+      message: '현재 입력 내용은 임시 저장되어 다음에 복구할 수 있어요.',
+      confirmLabel: '나가기',
+      cancelLabel: '계속 작성',
     );
 
     return shouldDiscard ?? false;

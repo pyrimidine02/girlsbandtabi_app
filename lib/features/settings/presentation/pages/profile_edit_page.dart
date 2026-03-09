@@ -16,6 +16,7 @@ import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/utils/sensitive_text_utils.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
+import '../../../../core/widgets/dialogs/gbt_adaptive_dialog.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/legal/legal_policy_links_section.dart';
 import '../../../uploads/application/uploads_controller.dart';
@@ -120,25 +121,12 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
   Future<bool> _handleWillPop() async {
     if (_isBusy) return false;
     if (!_hasPendingChanges) return true;
-    final shouldDiscard = await showDialog<bool>(
+    final shouldDiscard = await showGBTAdaptiveConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
-        ),
-        title: const Text('저장하지 않고 나갈까요?'),
-        content: const Text('프로필 변경 사항이 사라집니다.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('계속 수정'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('나가기'),
-          ),
-        ],
-      ),
+      title: '저장하지 않고 나갈까요?',
+      message: '프로필 변경 사항이 사라집니다.',
+      confirmLabel: '나가기',
+      cancelLabel: '계속 수정',
     );
     return shouldDiscard ?? false;
   }
@@ -434,9 +422,7 @@ class _ProfileForm extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
+        physics: const AlwaysScrollableScrollPhysics(),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.symmetric(
           horizontal: GBTSpacing.md,

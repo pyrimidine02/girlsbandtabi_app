@@ -2,6 +2,8 @@
 /// KO: 장소 리스트/상세 컨트롤러.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/error/failure.dart';
@@ -231,12 +233,12 @@ class PlacesRegionOptionsController
 class PlaceDetailController extends StateNotifier<AsyncValue<PlaceDetail>> {
   PlaceDetailController(this._ref, this.placeId) : super(const AsyncLoading()) {
     _ref.listen<String?>(selectedProjectKeyProvider, (_, __) {
-      if (mounted && _isPlacesTabActive(_ref)) {
+      if (mounted) {
         load(forceRefresh: true);
       }
     });
     _ref.listen<String?>(selectedProjectIdProvider, (_, __) {
-      if (mounted && _isPlacesTabActive(_ref)) {
+      if (mounted) {
         load(forceRefresh: true);
       }
     });
@@ -246,10 +248,10 @@ class PlaceDetailController extends StateNotifier<AsyncValue<PlaceDetail>> {
   final String placeId;
 
   Future<void> load({bool forceRefresh = false}) async {
-    if (!_isPlacesTabActive(_ref)) {
+    final resolvedProjectKey = await _resolveProjectKey();
+    if (!mounted) {
       return;
     }
-    final resolvedProjectKey = await _resolveProjectKey();
     if (resolvedProjectKey == null || resolvedProjectKey.isEmpty) {
       // EN: Surface explicit error instead of leaving the detail page in
       // EN: indefinite loading when project context is missing.
@@ -271,18 +273,35 @@ class PlaceDetailController extends StateNotifier<AsyncValue<PlaceDetail>> {
       placeId: placeId,
       forceRefresh: forceRefresh,
     );
+    final attemptedProjectKeys = <String>{resolvedProjectKey};
     final selectedProjectId = _ref.read(selectedProjectIdProvider);
     if (result is Err<PlaceDetail> &&
         selectedProjectId != null &&
         selectedProjectId.isNotEmpty &&
         selectedProjectId != resolvedProjectKey) {
+      attemptedProjectKeys.add(selectedProjectId);
       result = await repository.getPlaceDetail(
         projectId: selectedProjectId,
         placeId: placeId,
         forceRefresh: forceRefresh,
       );
     }
+    if (result is Err<PlaceDetail>) {
+      final fallbackProjectKeys = await _fallbackProjectKeys(
+        attemptedProjectKeys,
+      );
+      if (fallbackProjectKeys.isNotEmpty) {
+        result = await _resolvePlaceDetailFromFallbackProjects(
+          repository: repository,
+          projectKeys: fallbackProjectKeys,
+          forceRefresh: forceRefresh,
+        );
+      }
+    }
 
+    if (!mounted) {
+      return;
+    }
     if (result is Success<PlaceDetail>) {
       state = AsyncData(result.data);
     } else if (result is Err<PlaceDetail>) {
@@ -321,6 +340,82 @@ class PlaceDetailController extends StateNotifier<AsyncValue<PlaceDetail>> {
     }
 
     return null;
+  }
+
+  Future<List<String>> _fallbackProjectKeys(Set<String> attempted) async {
+    final repository = await _ref.read(projectsRepositoryProvider.future);
+    final projectsResult = await repository.getProjects();
+    if (projectsResult is! Success<List<Project>>) {
+      return const [];
+    }
+
+    final keys = <String>[];
+    for (final project in projectsResult.data) {
+      final code = project.code.trim();
+      if (code.isNotEmpty && attempted.add(code)) {
+        keys.add(code);
+      }
+      final id = project.id.trim();
+      if (id.isNotEmpty && attempted.add(id)) {
+        keys.add(id);
+      }
+    }
+    return keys;
+  }
+
+  Future<Result<PlaceDetail>> _resolvePlaceDetailFromFallbackProjects({
+    required PlacesRepository repository,
+    required List<String> projectKeys,
+    required bool forceRefresh,
+  }) async {
+    if (projectKeys.isEmpty) {
+      return const Result.failure(
+        UnknownFailure(
+          'Unable to resolve place detail project',
+          code: 'place_detail_project_unresolved',
+        ),
+      );
+    }
+
+    final completer = Completer<Result<PlaceDetail>>();
+    Err<PlaceDetail>? lastError;
+    var remaining = projectKeys.length;
+
+    for (final projectKey in projectKeys) {
+      unawaited(() async {
+        final candidate = await repository.getPlaceDetail(
+          projectId: projectKey,
+          placeId: placeId,
+          forceRefresh: forceRefresh,
+        );
+
+        if (candidate is Success<PlaceDetail>) {
+          if (!completer.isCompleted) {
+            completer.complete(candidate);
+          }
+        } else if (candidate is Err<PlaceDetail>) {
+          lastError = candidate;
+        }
+
+        remaining -= 1;
+        if (remaining == 0 && !completer.isCompleted) {
+          if (lastError != null) {
+            completer.complete(Result.failure(lastError!.failure));
+          } else {
+            completer.complete(
+              const Result.failure(
+                UnknownFailure(
+                  'Unable to resolve place detail project',
+                  code: 'place_detail_project_unresolved',
+                ),
+              ),
+            );
+          }
+        }
+      }());
+    }
+
+    return completer.future;
   }
 }
 

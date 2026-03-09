@@ -339,7 +339,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     name: AppRoutes.postDetail,
                     builder: (context, state) {
                       final postId = state.pathParameters['postId']!;
-                      return PostDetailPage(postId: postId);
+                      final projectCodeHint =
+                          state.uri.queryParameters['projectCode'];
+                      return PostDetailPage(
+                        postId: postId,
+                        projectCodeHint: projectCodeHint,
+                      );
                     },
                   ),
                   GoRoute(
@@ -597,9 +602,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.overlayPostDetail,
         pageBuilder: (context, state) {
           final postId = state.pathParameters['postId']!;
+          final projectCodeHint = state.uri.queryParameters['projectCode'];
           return _buildAdaptiveDetailPage(
             key: state.pageKey,
-            child: PostDetailPage(postId: postId),
+            child: PostDetailPage(
+              postId: postId,
+              projectCodeHint: projectCodeHint,
+            ),
           );
         },
       ),
@@ -889,17 +898,24 @@ extension AppRouterExtension on BuildContext {
 
   /// EN: Navigate to post detail
   /// KO: 게시글 상세로 이동
-  void goToPostDetail(String postId) {
+  void goToPostDetail(String postId, {String? projectCode}) {
+    final trimmedProjectCode = projectCode?.trim();
+    final Map<String, dynamic> queryParameters =
+        trimmedProjectCode != null && trimmedProjectCode.isNotEmpty
+        ? <String, String>{'projectCode': trimmedProjectCode}
+        : <String, dynamic>{};
     if (_isInOverlayContext()) {
       final router = GoRouter.of(this);
       final targetPath = router.namedLocation(
         AppRoutes.overlayPostDetail,
         pathParameters: {'postId': postId},
+        queryParameters: queryParameters,
       );
       final now = DateTime.now();
       final lastAt = _lastPostDetailNavigationAt;
-      final currentPath = router.routeInformationProvider.value.uri.path;
-      if (currentPath == targetPath) {
+      final currentLocation = router.routeInformationProvider.value.uri
+          .toString();
+      if (currentLocation == targetPath) {
         return;
       }
       if (lastAt != null &&
@@ -912,6 +928,7 @@ extension AppRouterExtension on BuildContext {
       pushNamed(
         AppRoutes.overlayPostDetail,
         pathParameters: {'postId': postId},
+        queryParameters: queryParameters,
       );
       return;
     }
@@ -919,6 +936,7 @@ extension AppRouterExtension on BuildContext {
     final targetPath = router.namedLocation(
       AppRoutes.postDetail,
       pathParameters: {'postId': postId},
+      queryParameters: queryParameters,
     );
     final navigationAction = _resolveShellNavigationAction(targetPath);
     final now = DateTime.now();
@@ -944,7 +962,11 @@ extension AppRouterExtension on BuildContext {
       case _ShellNavigationAction.none:
         return;
       case _ShellNavigationAction.push:
-        pushNamed(AppRoutes.postDetail, pathParameters: {'postId': postId});
+        pushNamed(
+          AppRoutes.postDetail,
+          pathParameters: {'postId': postId},
+          queryParameters: queryParameters,
+        );
         return;
     }
   }

@@ -26,6 +26,8 @@ import 'features/notifications/application/notifications_controller.dart';
 import 'features/notifications/domain/entities/notification_navigation.dart';
 import 'features/settings/application/mandatory_consent_controller.dart';
 
+String? _lastTrackedScreenPath;
+
 /// EN: Main application widget
 /// KO: 메인 앱 위젯
 class GBTApp extends ConsumerWidget {
@@ -41,6 +43,7 @@ class GBTApp extends ConsumerWidget {
     ref.watch(remotePushBootstrapProvider);
 
     final router = ref.watch(appRouterProvider);
+    _trackScreenViewIfNeeded(ref: ref, router: router);
     ref.listen<AsyncValue<LocalNotificationTapEvent>>(
       localNotificationTapEventsProvider,
       (_, next) {
@@ -111,6 +114,8 @@ class GBTApp extends ConsumerWidget {
         // KO: 테마에 따라 아이콘 밝기를 반전시켜 라이트/다크 모드 모두에서
         //     상태 바·네비게이션 바 아이콘이 잘 보이도록 합니다 (엣지 투 엣지).
         final iconBrightness = isDark ? Brightness.light : Brightness.dark;
+        final platform = Theme.of(context).platform;
+        final maxTextScale = platform == TargetPlatform.android ? 1.6 : 1.3;
 
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle(
@@ -126,7 +131,9 @@ class GBTApp extends ConsumerWidget {
             // KO: 접근성을 위해 텍스트 스케일링을 1.3배 이하로 제한
             data: MediaQuery.of(context).copyWith(
               textScaler: TextScaler.linear(
-                MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.3),
+                MediaQuery.of(
+                  context,
+                ).textScaler.scale(1.0).clamp(0.8, maxTextScale),
               ),
             ),
             child: GestureDetector(
@@ -157,6 +164,49 @@ class GBTApp extends ConsumerWidget {
       'dark' => ThemeMode.dark,
       _ => ThemeMode.system,
     };
+  }
+
+  void _trackScreenViewIfNeeded({
+    required WidgetRef ref,
+    required GoRouter router,
+  }) {
+    final path = router.routeInformationProvider.value.uri.path;
+    if (path.isEmpty || path == _lastTrackedScreenPath) {
+      return;
+    }
+    _lastTrackedScreenPath = path;
+    final screenName = _normalizeScreenName(path);
+    unawaited(ref.read(analyticsServiceProvider).logScreenView(screenName));
+  }
+
+  String _normalizeScreenName(String path) {
+    final normalizedPath = path.startsWith('/') ? path.substring(1) : path;
+    if (normalizedPath.isEmpty) {
+      return 'root';
+    }
+    final segments = normalizedPath
+        .split('/')
+        .where((segment) => segment.isNotEmpty)
+        .map((segment) {
+          final lower = segment.toLowerCase();
+          if (_isUuidLike(lower) || _isNumericLike(lower)) {
+            return 'id';
+          }
+          return lower.replaceAll('-', '_');
+        })
+        .toList(growable: false);
+    return segments.join('_');
+  }
+
+  bool _isUuidLike(String value) {
+    final uuidPattern = RegExp(
+      r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+    );
+    return uuidPattern.hasMatch(value);
+  }
+
+  bool _isNumericLike(String value) {
+    return RegExp(r'^\d+$').hasMatch(value);
   }
 
   void _handleLocalNotificationTap({

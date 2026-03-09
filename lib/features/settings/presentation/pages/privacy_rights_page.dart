@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/constants/api_constants.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/localization/locale_text.dart';
 import '../../../../core/providers/core_providers.dart';
@@ -14,7 +13,11 @@ import '../../../../core/storage/local_storage.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
+import '../../../../core/widgets/dialogs/gbt_adaptive_dialog.dart';
+import '../../../../core/widgets/sheets/gbt_bottom_sheet.dart';
 import '../../../auth/application/auth_controller.dart';
+import '../../application/settings_controller.dart';
+import '../../domain/entities/privacy_rights.dart';
 
 class PrivacyRightsPage extends ConsumerStatefulWidget {
   const PrivacyRightsPage({super.key});
@@ -30,7 +33,7 @@ class _PrivacyRightsPageState extends ConsumerState<PrivacyRightsPage> {
   DateTime? _privacySettingsUpdatedAt;
   bool _isSavingTranslation = false;
   bool _isDeletingAccount = false;
-  List<_PrivacyRequestRecord> _privacyRequests = const [];
+  List<PrivacyRequestRecord> _privacyRequests = const [];
   final TextEditingController _restrictionReasonController =
       TextEditingController();
 
@@ -49,33 +52,12 @@ class _PrivacyRightsPageState extends ConsumerState<PrivacyRightsPage> {
   Future<void> _loadPrivacyState() async {
     final storage = await ref.read(localStorageProvider.future);
     final localValue = storage.getBool(LocalStorageKeys.autoTranslationEnabled);
-    final localHistory = storage.getJsonList(
-      LocalStorageKeys.privacyRequestHistory,
-    );
-
-    final apiClient = ref.read(apiClientProvider);
-    final settingsResult = await apiClient.get<_PrivacySettingsPayload>(
-      ApiEndpoints.userPrivacySettings,
-      fromJson: (json) => _PrivacySettingsPayload.fromJson(
-        json is Map<String, dynamic> ? json : const <String, dynamic>{},
-      ),
-    );
-    final requestsResult = await apiClient.get<List<_PrivacyRequestRecord>>(
-      ApiEndpoints.userPrivacyRequests,
-      queryParameters: const {
-        'page': 0,
-        'size': 20,
-        'sort': 'requestedAt,desc',
-      },
-      fromJson: _parsePrivacyRequestRecords,
-    );
+    final repository = await ref.read(settingsRepositoryProvider.future);
+    final settingsResult = await repository.getPrivacySettings();
+    final requestsResult = await repository.getPrivacyRequests();
 
     final resolvedSettings = settingsResult.dataOrNull;
-    final resolvedRequests = requestsResult.dataOrNull;
-    final fallbackRequests = (localHistory ?? const <Map<String, dynamic>>[])
-        .whereType<Map<String, dynamic>>()
-        .map(_PrivacyRequestRecord.fromLocalJson)
-        .toList(growable: false);
+    final resolvedRequests = requestsResult.dataOrNull ?? const [];
 
     if (resolvedSettings != null) {
       await storage.setBool(
@@ -90,7 +72,7 @@ class _PrivacyRightsPageState extends ConsumerState<PrivacyRightsPage> {
           resolvedSettings?.allowAutoTranslation ?? localValue ?? true;
       _privacySettingsVersion = resolvedSettings?.version;
       _privacySettingsUpdatedAt = resolvedSettings?.updatedAt;
-      _privacyRequests = resolvedRequests ?? fallbackRequests;
+      _privacyRequests = resolvedRequests;
       _isLoading = false;
     });
   }
@@ -105,20 +87,14 @@ class _PrivacyRightsPageState extends ConsumerState<PrivacyRightsPage> {
     final storage = await ref.read(localStorageProvider.future);
     await storage.setBool(LocalStorageKeys.autoTranslationEnabled, value);
 
-    final apiClient = ref.read(apiClientProvider);
-    final result = await apiClient.patch<_PrivacySettingsPayload>(
-      ApiEndpoints.userPrivacySettings,
-      data: {
-        'allowAutoTranslation': value,
-        if (_privacySettingsVersion != null) 'version': _privacySettingsVersion,
-      },
-      fromJson: (json) => _PrivacySettingsPayload.fromJson(
-        json is Map<String, dynamic> ? json : const <String, dynamic>{},
-      ),
+    final repository = await ref.read(settingsRepositoryProvider.future);
+    final result = await repository.updatePrivacySettings(
+      allowAutoTranslation: value,
+      version: _privacySettingsVersion,
     );
 
     if (!mounted) return;
-    if (result is Err<_PrivacySettingsPayload>) {
+    if (result is Err<PrivacySettings>) {
       setState(() {
         _autoTranslationEnabled = previous;
         _isSavingTranslation = false;
@@ -197,20 +173,17 @@ class _PrivacyRightsPageState extends ConsumerState<PrivacyRightsPage> {
       return;
     }
 
-    final apiClient = ref.read(apiClientProvider);
-    final remoteResult = await apiClient.post<_PrivacyRequestRecord>(
-      ApiEndpoints.userPrivacyRequests,
-      data: {'requestType': 'RESTRICTION', 'reason': reason},
-      fromJson: (json) => _PrivacyRequestRecord.fromJson(
-        json is Map<String, dynamic> ? json : const <String, dynamic>{},
-      ),
+    final repository = await ref.read(settingsRepositoryProvider.future);
+    final remoteResult = await repository.createPrivacyRequest(
+      requestType: 'RESTRICTION',
+      reason: reason,
     );
 
     _restrictionReasonController.clear();
     if (!mounted) return;
     Navigator.of(context).pop();
 
-    if (remoteResult is Success<_PrivacyRequestRecord>) {
+    if (remoteResult is Success<PrivacyRequestRecord>) {
       setState(() {
         _privacyRequests = [remoteResult.data, ..._privacyRequests];
       });
@@ -228,21 +201,16 @@ class _PrivacyRightsPageState extends ConsumerState<PrivacyRightsPage> {
       return;
     }
 
-    final failure = (remoteResult as Err<_PrivacyRequestRecord>).failure;
+    final failure = (remoteResult as Err<PrivacyRequestRecord>).failure;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(_privacyRequestFailureMessage(failure, context))),
     );
   }
 
   Future<void> _reloadPrivacySettings() async {
-    final apiClient = ref.read(apiClientProvider);
+    final repository = await ref.read(settingsRepositoryProvider.future);
     final storage = await ref.read(localStorageProvider.future);
-    final result = await apiClient.get<_PrivacySettingsPayload>(
-      ApiEndpoints.userPrivacySettings,
-      fromJson: (json) => _PrivacySettingsPayload.fromJson(
-        json is Map<String, dynamic> ? json : const <String, dynamic>{},
-      ),
-    );
+    final result = await repository.getPrivacySettings(forceRefresh: true);
     final payload = result.dataOrNull;
     if (payload == null || !mounted) return;
     await storage.setBool(
@@ -338,35 +306,17 @@ class _PrivacyRightsPageState extends ConsumerState<PrivacyRightsPage> {
   }
 
   Future<void> _deleteAccount() async {
-    final confirm = await showDialog<bool>(
+    final confirm = await showGBTAdaptiveConfirmDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            context.l10n(ko: '회원 탈퇴', en: 'Delete account', ja: 'アカウント削除'),
-          ),
-          content: Text(
-            context.l10n(
-              ko: '탈퇴 시 계정 접근이 차단되며, 일부 데이터는 관련 법령 및 운영정책에 따라 일정 기간 보관 후 파기됩니다.\n정말 진행할까요?',
-              en: 'Deleting your account blocks access. Some data may be retained for a limited legal/operational period before deletion.\nDo you want to continue?',
-              ja: '退会するとアカウントアクセスが停止されます。一部データは法令・運用方針に基づき一定期間保管後に削除されます。\n続行しますか？',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル')),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
-              child: Text(
-                context.l10n(ko: '탈퇴 진행', en: 'Delete account', ja: '削除する'),
-              ),
-            ),
-          ],
-        );
-      },
+      title: context.l10n(ko: '회원 탈퇴', en: 'Delete account', ja: 'アカウント削除'),
+      message: context.l10n(
+        ko: '탈퇴 시 계정 접근이 차단되며, 일부 데이터는 관련 법령 및 운영정책에 따라 일정 기간 보관 후 파기됩니다.\n정말 진행할까요?',
+        en: 'Deleting your account blocks access. Some data may be retained for a limited legal/operational period before deletion.\nDo you want to continue?',
+        ja: '退会するとアカウントアクセスが停止されます。一部データは法令・運用方針に基づき一定期間保管後に削除されます。\n続行しますか？',
+      ),
+      cancelLabel: context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル'),
+      confirmLabel: context.l10n(ko: '탈퇴 진행', en: 'Delete account', ja: '削除する'),
+      isDestructive: true,
     );
 
     if (confirm != true) return;
@@ -374,11 +324,8 @@ class _PrivacyRightsPageState extends ConsumerState<PrivacyRightsPage> {
 
     setState(() => _isDeletingAccount = true);
 
-    final apiClient = ref.read(apiClientProvider);
-    final result = await apiClient.delete<void>(
-      ApiEndpoints.userMe,
-      fromJson: (_) {},
-    );
+    final repository = await ref.read(settingsRepositoryProvider.future);
+    final result = await repository.deleteAccount();
 
     if (!mounted) return;
 
@@ -602,68 +549,52 @@ class _PrivacyRightsPageState extends ConsumerState<PrivacyRightsPage> {
   }
 
   void _showDataViewLinks() {
-    showModalBottomSheet<void>(
+    showGBTBottomSheet<void>(
       context: context,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.person_outline_rounded),
-                title: Text(
-                  context.l10n(ko: '프로필 정보', en: 'Profile', ja: 'プロフィール'),
+      title: context.l10n(ko: '내 데이터 열람', en: 'View my data', ja: 'データ閲覧'),
+      child: Builder(
+        builder: (context) {
+          return SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.person_outline_rounded),
+                  title: Text(
+                    context.l10n(ko: '프로필 정보', en: 'Profile', ja: 'プロフィール'),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    this.context.push('/settings/profile');
+                  },
                 ),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  this.context.push('/settings/profile');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.check_circle_outline_rounded),
-                title: Text(
-                  context.l10n(ko: '방문 기록', en: 'Visit history', ja: '訪問履歴'),
+                ListTile(
+                  leading: const Icon(Icons.check_circle_outline_rounded),
+                  title: Text(
+                    context.l10n(ko: '방문 기록', en: 'Visit history', ja: '訪問履歴'),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    this.context.push('/visits');
+                  },
                 ),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  this.context.push('/visits');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.favorite_border_rounded),
-                title: Text(
-                  context.l10n(ko: '즐겨찾기', en: 'Favorites', ja: 'お気に入り'),
+                ListTile(
+                  leading: const Icon(Icons.favorite_border_rounded),
+                  title: Text(
+                    context.l10n(ko: '즐겨찾기', en: 'Favorites', ja: 'お気に入り'),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    this.context.push('/favorites');
+                  },
                 ),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  this.context.push('/favorites');
-                },
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
-}
-
-List<_PrivacyRequestRecord> _parsePrivacyRequestRecords(dynamic json) {
-  if (json is List) {
-    return json
-        .whereType<Map<String, dynamic>>()
-        .map(_PrivacyRequestRecord.fromJson)
-        .toList(growable: false);
-  }
-  if (json is Map<String, dynamic>) {
-    final items = json['items'] ?? json['content'] ?? json['results'];
-    if (items is List) {
-      return items
-          .whereType<Map<String, dynamic>>()
-          .map(_PrivacyRequestRecord.fromJson)
-          .toList(growable: false);
-    }
-  }
-  return const [];
 }
 
 String _formatDateTime(DateTime value) {
@@ -675,77 +606,10 @@ String _formatDateTime(DateTime value) {
   return '${local.year}-$month-$day $hour:$minute';
 }
 
-class _PrivacySettingsPayload {
-  const _PrivacySettingsPayload({
-    required this.allowAutoTranslation,
-    this.version,
-    this.updatedAt,
-  });
-
-  final bool allowAutoTranslation;
-  final int? version;
-  final DateTime? updatedAt;
-
-  factory _PrivacySettingsPayload.fromJson(Map<String, dynamic> json) {
-    final updatedAtRaw = json['updatedAt'];
-    return _PrivacySettingsPayload(
-      allowAutoTranslation: json['allowAutoTranslation'] as bool? ?? true,
-      version: _parseInt(json['version']),
-      updatedAt: updatedAtRaw is String
-          ? DateTime.tryParse(updatedAtRaw)
-          : null,
-    );
-  }
-}
-
-class _PrivacyRequestRecord {
-  const _PrivacyRequestRecord({
-    required this.requestType,
-    required this.status,
-    required this.requestedAt,
-    this.reason,
-  });
-
-  final String requestType;
-  final String status;
-  final DateTime requestedAt;
-  final String? reason;
-
-  factory _PrivacyRequestRecord.fromJson(Map<String, dynamic> json) {
-    final requestedAt =
-        DateTime.tryParse(json['requestedAt'] as String? ?? '') ??
-        DateTime.now().toUtc();
-    return _PrivacyRequestRecord(
-      requestType:
-          json['requestType'] as String? ??
-          json['type'] as String? ??
-          'RESTRICTION',
-      status: json['status'] as String? ?? 'RECEIVED',
-      requestedAt: requestedAt,
-      reason: json['reason'] as String?,
-    );
-  }
-
-  factory _PrivacyRequestRecord.fromLocalJson(Map<String, dynamic> json) {
-    final requestedAt =
-        DateTime.tryParse(json['requestedAt'] as String? ?? '') ??
-        DateTime.now().toUtc();
-    return _PrivacyRequestRecord(
-      requestType:
-          json['requestType'] as String? ??
-          json['type'] as String? ??
-          'RESTRICTION',
-      status: json['status'] as String? ?? 'RECEIVED',
-      requestedAt: requestedAt,
-      reason: json['reason'] as String?,
-    );
-  }
-}
-
 class _PrivacyRequestRow extends StatelessWidget {
   const _PrivacyRequestRow({required this.item});
 
-  final _PrivacyRequestRecord item;
+  final PrivacyRequestRecord item;
 
   @override
   Widget build(BuildContext context) {
@@ -797,13 +661,6 @@ class _PrivacyRequestRow extends StatelessWidget {
       ),
     );
   }
-}
-
-int? _parseInt(dynamic value) {
-  if (value is int) return value;
-  if (value is num) return value.toInt();
-  if (value is String) return int.tryParse(value);
-  return null;
 }
 
 class _SectionCard extends StatelessWidget {

@@ -6,8 +6,10 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/utils/result.dart';
 import '../dto/account_tools_dto.dart';
+import '../dto/consent_history_dto.dart';
 import '../dto/notification_device_dto.dart';
 import '../dto/notification_settings_dto.dart';
+import '../dto/privacy_rights_dto.dart';
 import '../dto/user_profile_dto.dart';
 
 class SettingsRemoteDataSource {
@@ -68,8 +70,16 @@ class SettingsRemoteDataSource {
     return _apiClient.put<NotificationSettingsDto>(
       ApiEndpoints.notificationSettings,
       data: settings.toJson(),
-      fromJson: (json) =>
-          NotificationSettingsDto.fromJson(json as Map<String, dynamic>),
+      fromJson: (json) {
+        if (json is Map<String, dynamic>) {
+          return NotificationSettingsDto.fromJson(json);
+        }
+        // EN: Some environments can acknowledge settings update with an empty
+        // EN: payload; keep UI state consistent by falling back to request body.
+        // KO: 일부 환경에서는 설정 저장 응답이 빈 페이로드일 수 있으므로
+        // KO: 요청 본문으로 폴백해 UI 상태를 일관되게 유지합니다.
+        return settings;
+      },
     );
   }
 
@@ -83,6 +93,82 @@ class SettingsRemoteDataSource {
         json is Map<String, dynamic> ? json : const <String, dynamic>{},
       ),
     );
+  }
+
+  Future<Result<PrivacySettingsDto>> fetchPrivacySettings() {
+    return _apiClient.get<PrivacySettingsDto>(
+      ApiEndpoints.userPrivacySettings,
+      fromJson: (json) => PrivacySettingsDto.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
+    );
+  }
+
+  Future<Result<PrivacySettingsDto>> updatePrivacySettings({
+    required bool allowAutoTranslation,
+    int? version,
+  }) {
+    final payload = PrivacySettingsDto(
+      allowAutoTranslation: allowAutoTranslation,
+      version: version,
+      updatedAt: null,
+    );
+    return _apiClient.patch<PrivacySettingsDto>(
+      ApiEndpoints.userPrivacySettings,
+      data: payload.toPatchJson(),
+      fromJson: (json) => PrivacySettingsDto.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
+    );
+  }
+
+  Future<Result<List<PrivacyRequestRecordDto>>> fetchPrivacyRequests({
+    int page = 0,
+    int size = 20,
+  }) {
+    return _apiClient.get<List<PrivacyRequestRecordDto>>(
+      ApiEndpoints.userPrivacyRequests,
+      queryParameters: {'page': page, 'size': size, 'sort': 'requestedAt,desc'},
+      fromJson: (json) {
+        final items = _extractList(json);
+        return items
+            .map(PrivacyRequestRecordDto.fromJson)
+            .toList(growable: false);
+      },
+    );
+  }
+
+  Future<Result<PrivacyRequestRecordDto>> createPrivacyRequest({
+    required String requestType,
+    required String reason,
+  }) {
+    return _apiClient.post<PrivacyRequestRecordDto>(
+      ApiEndpoints.userPrivacyRequests,
+      data: {'requestType': requestType, 'reason': reason},
+      fromJson: (json) => PrivacyRequestRecordDto.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
+    );
+  }
+
+  Future<Result<List<ConsentHistoryItemDto>>> fetchConsentHistory({
+    int page = 0,
+    int size = 50,
+  }) {
+    return _apiClient.get<List<ConsentHistoryItemDto>>(
+      ApiEndpoints.userConsents,
+      queryParameters: {'page': page, 'size': size, 'sort': 'agreedAt,desc'},
+      fromJson: (json) {
+        final items = _extractList(json);
+        return items
+            .map(ConsentHistoryItemDto.fromJson)
+            .toList(growable: false);
+      },
+    );
+  }
+
+  Future<Result<void>> deleteAccount() {
+    return _apiClient.delete<void>(ApiEndpoints.userMe, fromJson: (_) {});
   }
 
   Future<Result<List<UserBlockDto>>> fetchUserBlocks({

@@ -254,9 +254,7 @@ class _BlocksTab extends StatelessWidget {
             );
           }
           return ListView.separated(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(
               horizontal: GBTSpacing.md,
               vertical: GBTSpacing.xs,
@@ -415,9 +413,7 @@ class _AccessLevelTab extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(
           horizontal: GBTSpacing.md,
           vertical: GBTSpacing.xs,
@@ -768,9 +764,7 @@ class _AppealsTab extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(
           horizontal: GBTSpacing.md,
           vertical: GBTSpacing.xs,
@@ -1453,7 +1447,9 @@ class _TargetPickerSheetState extends ConsumerState<_TargetPickerSheet> {
         }
 
         return ListView.separated(
-          physics: const BouncingScrollPhysics(),
+          physics: Theme.of(context).platform == TargetPlatform.android
+              ? const ClampingScrollPhysics()
+              : const BouncingScrollPhysics(),
           itemCount: filtered.length,
           separatorBuilder: (_, __) => Divider(
             height: 1,

@@ -10,12 +10,14 @@ class FavoriteItem {
   const FavoriteItem({
     required this.entityId,
     required this.type,
+    this.projectCode,
     this.title,
     this.thumbnailUrl,
   });
 
   final String entityId;
   final FavoriteType type;
+  final String? projectCode;
   final String? title;
   final String? thumbnailUrl;
 
@@ -23,6 +25,7 @@ class FavoriteItem {
     return FavoriteItem(
       entityId: dto.entityId,
       type: _mapType(dto.entityType),
+      projectCode: dto.projectCode,
       title: dto.title,
       thumbnailUrl: dto.thumbnailUrl,
     );

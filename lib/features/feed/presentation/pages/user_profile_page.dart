@@ -285,9 +285,7 @@ class UserProfilePage extends ConsumerWidget {
             Expanded(
               child: isBlockedProfile && !isMyProfile
                   ? ListView(
-                      physics: const AlwaysScrollableScrollPhysics(
-                        parent: BouncingScrollPhysics(),
-                      ),
+                      physics: const AlwaysScrollableScrollPhysics(),
                       children: [
                         buildProfileHeader(),
                         const Divider(height: 1),
@@ -300,9 +298,7 @@ class UserProfilePage extends ConsumerWidget {
                     )
                   : activityState.when(
                       loading: () => ListView(
-                        physics: const AlwaysScrollableScrollPhysics(
-                          parent: BouncingScrollPhysics(),
-                        ),
+                        physics: const AlwaysScrollableScrollPhysics(),
                         children: [
                           buildProfileHeader(),
                           const Divider(height: 1),
@@ -327,9 +323,7 @@ class UserProfilePage extends ConsumerWidget {
                                 ja: 'アクティビティを読み込めませんでした',
                               );
                         return ListView(
-                          physics: const AlwaysScrollableScrollPhysics(
-                            parent: BouncingScrollPhysics(),
-                          ),
+                          physics: const AlwaysScrollableScrollPhysics(),
                           children: [
                             buildProfileHeader(),
                             const Divider(height: 1),
@@ -787,9 +781,7 @@ class _PostsTab extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           headerBuilder(),
           const Divider(height: 1),
@@ -826,12 +818,11 @@ class _PostsTab extends StatelessWidget {
                           borderRadius: BorderRadius.circular(
                             GBTSpacing.radiusLg,
                           ),
-                          onTap: () async {
-                            await context.pushNamed(
-                              AppRoutes.postDetail,
-                              pathParameters: {'postId': post.id},
+                          onTap: () {
+                            context.goToPostDetail(
+                              post.id,
+                              projectCode: post.projectId,
                             );
-                            await onRefresh();
                           },
                           child: Ink(
                             padding: const EdgeInsets.all(GBTSpacing.sm),
@@ -910,9 +901,7 @@ class _CommentsTab extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           headerBuilder(),
           const Divider(height: 1),
@@ -949,12 +938,11 @@ class _CommentsTab extends StatelessWidget {
                           borderRadius: BorderRadius.circular(
                             GBTSpacing.radiusLg,
                           ),
-                          onTap: () async {
-                            await context.pushNamed(
-                              AppRoutes.postDetail,
-                              pathParameters: {'postId': comment.postId},
+                          onTap: () {
+                            context.goToPostDetail(
+                              comment.postId,
+                              projectCode: comment.projectId,
                             );
-                            await onRefresh();
                           },
                           child: Ink(
                             padding: const EdgeInsets.all(GBTSpacing.sm),
