@@ -41,5 +41,28 @@ void main() {
       expect(dto.reviewerMemo, '재검토 중');
       expect(dto.resolvedAt, isNotNull);
     });
+
+    test('ProjectRoleRequestDto parses pageable payload', () {
+      final dtos = ProjectRoleRequestDto.listFromAny({
+        'content': [
+          {
+            'id': 'request-1',
+            'projectId': 'project-1',
+            'projectCode': 'girls-band-cry',
+            'projectName': '걸즈 밴드 크라이',
+            'requestedRole': 'COMMUNITY_MODERATOR',
+            'status': 'PENDING',
+            'justification': '커뮤니티 운영을 위해 권한이 필요합니다.',
+            'createdAt': '2026-03-09T03:00:00Z',
+          },
+        ],
+      });
+
+      expect(dtos, hasLength(1));
+      expect(dtos.first.id, 'request-1');
+      expect(dtos.first.projectCode, 'girls-band-cry');
+      expect(dtos.first.requestedRole, 'COMMUNITY_MODERATOR');
+      expect(dtos.first.status, 'PENDING');
+    });
   });
 }

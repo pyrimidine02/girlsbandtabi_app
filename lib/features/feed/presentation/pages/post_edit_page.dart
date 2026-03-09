@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 
 import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/logging/app_logger.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -28,6 +29,7 @@ import '../../domain/entities/feed_entities.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../../settings/application/settings_controller.dart';
 import '../../../uploads/application/uploads_controller.dart';
+import '../../../uploads/domain/entities/upload_entity.dart';
 import '../../../uploads/utils/webp_image_converter.dart';
 import '../widgets/post_compose_components.dart';
 
@@ -1166,7 +1168,7 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     }
 
     final uploadController = ref.read(uploadsControllerProvider.notifier);
-    final uploadUrls = <String>[];
+    final uploads = <UploadInfo>[];
 
     for (final image in _images) {
       final payload = await convertToWebp(
@@ -1192,12 +1194,83 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
         Err(:final failure) => throw failure,
       };
 
-      if (upload.url.isNotEmpty) {
-        uploadUrls.add(upload.url);
+      if (upload.uploadId.isNotEmpty) {
+        uploads.add(upload);
       }
     }
 
-    return uploadUrls;
+    final hydratedUploads = await _hydrateUploadUrlsFromMyUploads(
+      uploads,
+      uploadController,
+    );
+    return hydratedUploads
+        .map((upload) => upload.url)
+        .where((url) => url.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  Future<List<UploadInfo>> _hydrateUploadUrlsFromMyUploads(
+    List<UploadInfo> uploads,
+    UploadsController uploadController,
+  ) async {
+    if (uploads.isEmpty) {
+      return const [];
+    }
+
+    var resolved = List<UploadInfo>.from(uploads);
+    if (resolved.every((upload) => upload.url.isNotEmpty)) {
+      return resolved;
+    }
+
+    const maxRetries = 3;
+    for (var attempt = 0; attempt < maxRetries; attempt += 1) {
+      if (resolved.every((upload) => upload.url.isNotEmpty)) {
+        break;
+      }
+      if (attempt > 0) {
+        await Future<void>.delayed(Duration(milliseconds: 350 * attempt));
+      }
+
+      await uploadController.load(forceRefresh: true);
+      final latestUploads = ref.read(uploadsControllerProvider).valueOrNull;
+      if (latestUploads == null || latestUploads.isEmpty) {
+        continue;
+      }
+
+      final latestById = <String, UploadInfo>{
+        for (final item in latestUploads)
+          if (item.uploadId.isNotEmpty) item.uploadId: item,
+      };
+      resolved = resolved
+          .map((upload) {
+            if (upload.url.isNotEmpty || upload.uploadId.isEmpty) {
+              return upload;
+            }
+            final latest = latestById[upload.uploadId];
+            if (latest == null || latest.url.isEmpty) {
+              return upload;
+            }
+            return UploadInfo(
+              uploadId: upload.uploadId,
+              url: latest.url,
+              filename: latest.filename.isNotEmpty
+                  ? latest.filename
+                  : upload.filename,
+              isApproved: latest.isApproved,
+            );
+          })
+          .toList(growable: false);
+    }
+
+    final unresolved = resolved.where((upload) => upload.url.isEmpty).length;
+    if (unresolved > 0) {
+      AppLogger.warning(
+        'Some uploaded image URLs are unresolved after retries',
+        tag: 'PostEditPage',
+        data: {'total': resolved.length, 'unresolved': unresolved},
+      );
+    }
+    return resolved;
   }
 
   List<String> _normalizeImageUrls(Iterable<String> rawUrls) {

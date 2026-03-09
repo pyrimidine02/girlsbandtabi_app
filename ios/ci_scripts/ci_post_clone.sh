@@ -3,13 +3,39 @@
 # Fail this script if any command fails.
 set -eu
 
-# Ensure Xcode Cloud repository path is available.
-: "${CI_PRIMARY_REPOSITORY_PATH:?CI_PRIMARY_REPOSITORY_PATH is required}"
+log() {
+  printf '[ci_post_clone] %s\n' "$1"
+}
+
+resolve_repo_root() {
+  if [ -n "${CI_PRIMARY_REPOSITORY_PATH:-}" ] &&
+    [ -d "${CI_PRIMARY_REPOSITORY_PATH:-}" ]; then
+    printf '%s' "$CI_PRIMARY_REPOSITORY_PATH"
+    return 0
+  fi
+
+  script_dir="$(cd "$(dirname "$0")" && pwd)"
+  script_based_root="$(cd "$script_dir/../.." && pwd)"
+  if [ -d "$script_based_root/ios" ]; then
+    printf '%s' "$script_based_root"
+    return 0
+  fi
+
+  if [ -d "/Volumes/workspace/repository/ios" ]; then
+    printf '%s' "/Volumes/workspace/repository"
+    return 0
+  fi
+
+  pwd
+}
+
+REPO_ROOT="$(resolve_repo_root)"
 
 # The default execution directory of this script is the ci_scripts directory.
-cd "$CI_PRIMARY_REPOSITORY_PATH" # change working directory to the root of your cloned repo.
+cd "$REPO_ROOT" # change working directory to the root of your cloned repo.
+log "Repository root: $REPO_ROOT"
 
-IOS_PLIST_PATH="$CI_PRIMARY_REPOSITORY_PATH/ios/Runner/GoogleService-Info.plist"
+IOS_PLIST_PATH="$REPO_ROOT/ios/Runner/GoogleService-Info.plist"
 
 decode_base64_to_file() {
   encoded="$1"
@@ -124,27 +150,34 @@ create_ios_google_service_info_plist
 
 # Install Flutter only when unavailable.
 if command -v flutter >/dev/null 2>&1; then
-  echo "Using preinstalled Flutter: $(flutter --version | head -n 1)"
+  log "Using preinstalled Flutter: $(flutter --version | head -n 1)"
 else
   if [ ! -d "$HOME/flutter" ]; then
+    log "Flutter not found. Cloning stable SDK into $HOME/flutter"
     git clone https://github.com/flutter/flutter.git --depth 1 -b stable "$HOME/flutter"
   fi
   export PATH="$PATH:$HOME/flutter/bin"
+  log "Using cloned Flutter: $(flutter --version | head -n 1)"
 fi
 
 # Install Flutter artifacts for iOS (--ios), or macOS (--macos) platforms.
+log "Running flutter precache --ios"
 flutter precache --ios
 
 # Install Flutter dependencies.
+log "Running flutter pub get"
 flutter pub get
 
 # Install CocoaPods only when unavailable.
 if command -v pod >/dev/null 2>&1; then
-  echo "Using preinstalled CocoaPods: $(pod --version)"
+  log "Using preinstalled CocoaPods: $(pod --version)"
 else
   HOMEBREW_NO_AUTO_UPDATE=1
+  log "CocoaPods not found. Installing via Homebrew"
   brew install cocoapods
 fi
 
 # Install CocoaPods dependencies.
+log "Running pod install --repo-update"
 cd ios && pod install --repo-update # run `pod install` in the `ios` directory.
+log "ci_post_clone completed successfully"

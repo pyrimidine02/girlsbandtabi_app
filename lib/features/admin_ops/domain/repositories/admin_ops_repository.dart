@@ -42,4 +42,44 @@ abstract class AdminOpsRepository {
     required AdminReportStatus status,
     String? note,
   });
+
+  Future<Result<List<AdminProjectRoleRequest>>> getProjectRoleRequests({
+    String? status,
+    int page = 0,
+    int size = 30,
+    bool forceRefresh = false,
+  });
+
+  Future<Result<void>> reviewProjectRoleRequest({
+    required String requestId,
+    required AdminRoleRequestDecision decision,
+    String? adminMemo,
+  });
+
+  Future<Result<void>> grantProjectRole({
+    required String projectId,
+    required String userId,
+    required String role,
+    String? reason,
+  });
+
+  Future<Result<void>> revokeProjectRole({
+    required String projectId,
+    required String userId,
+    required String role,
+    String? reason,
+  });
+
+  Future<Result<void>> grantUserAccess({
+    required String userId,
+    required String accessLevel,
+    String? expiresAt,
+    String? reason,
+  });
+
+  Future<Result<void>> revokeUserAccessGrant({
+    required String userId,
+    required String grantId,
+    String? reason,
+  });
 }

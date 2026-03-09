@@ -224,6 +224,11 @@ abstract final class CacheProfiles {
     ttl: Duration(minutes: 5),
   );
 
+  static const settingsProjectRoleRequests = CacheProfile(
+    readPolicy: CachePolicy.staleWhileRevalidate,
+    ttl: Duration(minutes: 2),
+  );
+
   static const settingsVerificationAppeals = CacheProfile(
     readPolicy: CachePolicy.staleWhileRevalidate,
     ttl: Duration(minutes: 3),
@@ -260,5 +265,10 @@ abstract final class CacheProfiles {
     readPolicy: CachePolicy.cacheFirst,
     ttl: Duration(minutes: 5),
     revalidateAfter: Duration(minutes: 1),
+  );
+
+  static const adminProjectRoleRequests = CacheProfile(
+    readPolicy: CachePolicy.staleWhileRevalidate,
+    ttl: Duration(minutes: 1),
   );
 }

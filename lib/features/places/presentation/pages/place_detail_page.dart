@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/localization/locale_text.dart';
+import '../../../../core/providers/core_providers.dart';
 import '../../../../core/security/user_access_level.dart';
 import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
@@ -176,6 +177,7 @@ class PlaceDetailPage extends ConsumerWidget {
         ? GBTColors.darkTextTertiary
         : GBTColors.textTertiary;
     final selection = ref.watch(projectSelectionControllerProvider);
+    final selectedProjectId = ref.watch(selectedProjectIdProvider);
     final favoritesState = ref.watch(favoritesControllerProvider);
     final profileState = ref.watch(userProfileControllerProvider);
     final isFavorite = favoritesState.maybeWhen(
@@ -188,6 +190,9 @@ class PlaceDetailPage extends ConsumerWidget {
       data: (profile) => _isAdminRole(
         effectiveAccessLevel: profile?.effectiveAccessLevel,
         accountRole: profile?.accountRole,
+        projectRolesByProject: profile?.projectRolesByProject,
+        projectId: selectedProjectId,
+        projectCode: selection.projectKey,
       ),
       orElse: () => false,
     );
@@ -1489,10 +1494,19 @@ bool _isForbidden(Object error) {
   return error is AuthFailure && error.code == '403';
 }
 
-bool _isAdminRole({String? effectiveAccessLevel, String? accountRole}) {
-  return canModerateCommunity(
+bool _isAdminRole({
+  String? effectiveAccessLevel,
+  String? accountRole,
+  Map<String, List<String>>? projectRolesByProject,
+  String? projectId,
+  String? projectCode,
+}) {
+  return canModerateProjectCommunity(
     effectiveAccessLevel: effectiveAccessLevel,
     accountRole: accountRole,
+    projectRolesByProject: projectRolesByProject,
+    projectId: projectId,
+    projectCode: projectCode,
   );
 }
 

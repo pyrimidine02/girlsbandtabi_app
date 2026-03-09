@@ -214,6 +214,13 @@ void main() {
         (path: ApiEndpoints.uploadsDelete('{uploadId}'), method: 'DELETE'),
         (path: ApiEndpoints.verificationAppeals('{projectId}'), method: 'GET'),
         (path: ApiEndpoints.verificationAppeals('{projectId}'), method: 'POST'),
+        (path: ApiEndpoints.projectRoleRequests, method: 'GET'),
+        (path: ApiEndpoints.projectRoleRequests, method: 'POST'),
+        (path: ApiEndpoints.projectRoleRequest('{requestId}'), method: 'GET'),
+        (
+          path: ApiEndpoints.projectRoleRequest('{requestId}'),
+          method: 'DELETE',
+        ),
         (path: ApiEndpoints.adminUserAccessLevel('{userId}'), method: 'GET'),
         (path: ApiEndpoints.adminUserAccessGrants('{userId}'), method: 'POST'),
         (
@@ -235,6 +242,15 @@ void main() {
         ),
         (
           path: ApiEndpoints.adminCommunityReportAssign('{reportId}'),
+          method: 'PATCH',
+        ),
+        (path: ApiEndpoints.adminProjectRoleRequests, method: 'GET'),
+        (
+          path: ApiEndpoints.adminProjectRoleRequest('{requestId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.adminProjectRoleRequestReview('{requestId}'),
           method: 'PATCH',
         ),
       ];

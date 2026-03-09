@@ -14,6 +14,7 @@ class UserProfile {
     required this.accountRole,
     required this.baselineAccessLevel,
     required this.effectiveAccessLevel,
+    required this.projectRolesByProject,
     required this.createdAt,
     this.avatarUrl,
     this.bio,
@@ -27,6 +28,7 @@ class UserProfile {
   final String accountRole;
   final String baselineAccessLevel;
   final String effectiveAccessLevel;
+  final Map<String, List<String>> projectRolesByProject;
   final DateTime createdAt;
   final String? avatarUrl;
   final String? bio;
@@ -67,6 +69,30 @@ class UserProfile {
     );
   }
 
+  /// EN: Whether this profile can edit content in a specific project.
+  /// KO: 특정 프로젝트에서 콘텐츠를 편집할 수 있는지 여부입니다.
+  bool canEditProjectContent({String? projectId, String? projectCode}) {
+    return access.canEditProjectContent(
+      effectiveAccessLevel: effectiveAccessLevel,
+      accountRole: accountRole,
+      projectId: projectId,
+      projectCode: projectCode,
+      projectRolesByProject: projectRolesByProject,
+    );
+  }
+
+  /// EN: Whether this profile can moderate community in a specific project.
+  /// KO: 특정 프로젝트 커뮤니티를 운영할 수 있는지 여부입니다.
+  bool canModerateProjectCommunity({String? projectId, String? projectCode}) {
+    return access.canModerateProjectCommunity(
+      effectiveAccessLevel: effectiveAccessLevel,
+      accountRole: accountRole,
+      projectId: projectId,
+      projectCode: projectCode,
+      projectRolesByProject: projectRolesByProject,
+    );
+  }
+
   factory UserProfile.fromDto(UserProfileDto dto) {
     return UserProfile(
       id: dto.id,
@@ -77,6 +103,7 @@ class UserProfile {
       accountRole: dto.accountRole,
       baselineAccessLevel: dto.baselineAccessLevel,
       effectiveAccessLevel: dto.effectiveAccessLevel,
+      projectRolesByProject: dto.projectRolesByProject,
       createdAt: dto.createdAt,
       bio: dto.bio,
       coverImageUrl: dto.coverImageUrl,

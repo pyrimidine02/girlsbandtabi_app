@@ -1,6 +1,25 @@
 # Changelog
 
 ## 2026-03-09
+- **ADMIN AUTHZ DOC (10/11) ROLE-REQUEST FLOW INTEGRATION**:
+  - Added endpoint constants + v3 contract coverage for role-request APIs:
+    - `/projects/role-requests` (GET/POST)
+    - `/projects/role-requests/{requestId}` (GET/DELETE)
+    - `/admin/projects/role-requests` (GET)
+    - `/admin/projects/role-requests/{requestId}` (GET)
+    - `/admin/projects/role-requests/{requestId}/review` (PATCH)
+  - Replaced account-tools permission-request clipboard template flow with
+    actual API-backed create/list/cancel flow.
+  - Added admin-ops role-request moderation tab:
+    - request list filters (전체/대기/승인/거절)
+    - approve/reject actions with optional admin memo.
+  - Added DTO/domain/controller/repository wiring + tests:
+    - `account_tools_dto_test`
+    - `admin_ops_dto_test`
+    - `api_endpoints_contract_test`
+  - Added ADR:
+    - `docs/adr/ADR-20260309-admin-role-request-flow-integration.md`
+
 - **CODE AUDIT REMEDIATION BATCH (P1/P2 CORE)**:
   - Settings 아키텍처 경계 정리:
     - `privacy_rights_page`/`consent_history_page`의 직접 `ApiClient` 호출 제거.
@@ -211,6 +230,11 @@
     - enforce `CI_PRIMARY_REPOSITORY_PATH` presence with explicit failure,
     - quote repository path before `cd`,
     - use `pod install --repo-update` to reduce stale-spec failures.
+  - Added extra runtime hardening/logging in `ios/ci_scripts/ci_post_clone.sh`:
+    - repository root auto-resolution fallback when `CI_PRIMARY_REPOSITORY_PATH`
+      is unavailable,
+    - step-by-step `[ci_post_clone]` logs for faster root-cause triage in
+      Xcode Cloud build logs.
   - Added clearer decode-failure hint message for secret regeneration.
   - Validation:
     - `bash -n ci_post_clone.sh`
@@ -1900,3 +1924,87 @@
     so iOS builds consistently bundle Firebase config.
 - Validation:
   - `flutter analyze lib/features/settings/application/settings_controller.dart lib/core/notifications/remote_push_service.dart lib/core/notifications/local_notifications_service.dart`
+
+## 2026-03-09 (continued)
+- Android feed thumbnail compatibility hardening:
+  - Strengthened media URL normalization for feed/board preview images:
+    - supports scheme-less URLs (`r2.pyrimidines.org/...`)
+    - resolves relative upload object keys (`uploads/...`,
+      `uploads%2F...`) to public CDN URL
+    - resolves non-upload relative media paths against API origin.
+  - Expanded content image extractor compatibility:
+    - markdown/html image parsing now accepts relative and scheme-less URLs
+      (not only `http(s)`),
+    - image-likelihood check now validates after media URL normalization.
+  - Extended upload DTO compatibility for backend payload variance:
+    - upload id key fallback (`uploadId`, `upload_id`, `id`, `fileId`,
+      `file_id`)
+    - URL key fallback (`url`, `fileUrl`, `publicUrl`, `cdnUrl`, `path`)
+    - approval state key fallback (`isApproved`, `approved`).
+  - Added regression tests:
+    - `test/core/utils/media_url_test.dart`
+    - `test/core/utils/image_url_extractor_test.dart`
+    - `test/features/uploads/data/upload_dto_test.dart`
+- Validation:
+  - `flutter test test/core/utils/media_url_test.dart test/core/utils/image_url_extractor_test.dart test/features/uploads/data/upload_dto_test.dart`
+  - `flutter analyze lib/core/utils/media_url.dart lib/core/utils/image_url_extractor.dart lib/features/uploads/data/dto/upload_dto.dart`
+- Home project-switch instant apply improvement:
+  - Home controller now listens to both `selectedProjectKey` and
+    `selectedProjectId`, then coalesces updates in microtask to avoid
+    key/id race during project selection.
+  - Added in-memory per-project summary cache from by-project payloads so
+    switching projects on Home applies cached summary immediately.
+  - Added latest-request-only guard (`request serial`) to prevent stale,
+    slower responses from overriding newer selected-project state.
+  - Improved project identifier resolution by mapping selected key against
+    loaded project list first (fallback to selected id/key).
+- Validation:
+  - `flutter analyze lib/features/home/application/home_controller.dart`
+  - `flutter test test/features/home/data/home_summary_dto_test.dart test/features/home/domain/home_summary_test.dart`
+- Samsung/real-device upload URL hydration hardening:
+  - Post create/edit now retries resolving uploaded image URLs from
+    `/uploads/my` cache path when direct upload response has empty `url`.
+  - This keeps `content` markdown image URLs and feed preview fallback
+    candidates populated even on delayed/partial upload responses seen on
+    some physical Android devices.
+  - Added warning logs when URLs remain unresolved after retry budget.
+- Validation:
+  - `flutter analyze lib/features/feed/presentation/pages/post_create_page.dart lib/features/feed/presentation/pages/post_edit_page.dart`
+  - `flutter test test/features/feed/presentation/post_compose_components_test.dart test/features/feed/data/post_comment_dto_test.dart`
+- Admin permission-resolution hardening:
+  - Expanded access-level parser alias support for mixed payload formats:
+    - access/account tokens now normalize separators and legacy prefixes
+      (e.g. `ROLE_ADMIN`, `super-admin`, `community_moderator`).
+    - resolver now maps admin/moderator/editor aliases consistently before
+      fallbacking to `unknown`.
+  - Hardened user profile DTO contract compatibility:
+    - supports snake_case user/profile fields and access-level keys,
+    - derives `accountRole` from legacy `role/roles/authorities` when
+      `accountRole` is missing,
+    - normalizes `effectiveAccessLevel`/`baselineAccessLevel` aliases.
+  - Prevented transient `/users/me` failures from clearing already-resolved
+    admin UI state by keeping previous profile data during refresh errors.
+- Validation:
+  - `flutter analyze lib/core/security/user_access_level.dart lib/features/settings/data/dto/user_profile_dto.dart lib/features/settings/application/settings_controller.dart`
+  - `flutter test test/core/security/user_access_level_test.dart test/features/settings/data/user_profile_dto_test.dart`
+
+## 2026-03-09 (continued)
+- Admin/Authz model alignment with backend request FE-REQ-ADMIN-AUTHZ-MODEL-20260309:
+  - Updated account-role fallback policy to match server baseline rule:
+    - `accountRole=ADMIN` now resolves to `PLATFORM_SUPER_ADMIN`
+    - `accountRole=USER` resolves to `USER_BASE`.
+  - Tightened ops-center gate semantics:
+    - core `hasAdminOpsAccess` now requires `ADMIN_NON_SENSITIVE` or higher.
+  - Added project-scope authorization helpers:
+    - `canEditProjectContent(...)`
+    - `canModerateProjectCommunity(...)`
+    using global access level + per-project `ProjectRole` combination.
+  - Extended user profile DTO/domain model with project-role map support
+    (`projectRolesByProject`) and parser compatibility for map/list payload
+    variants.
+  - Applied project-scope moderation checks in feed/board/place detail UIs so
+    project role holders can access moderation actions without requiring global
+    moderator level.
+- Validation:
+  - `flutter analyze lib/core/security/user_access_level.dart lib/features/settings/data/dto/user_profile_dto.dart lib/features/settings/domain/entities/user_profile.dart lib/features/feed/presentation/pages/board_page.dart lib/features/feed/presentation/pages/post_detail_page.dart lib/features/places/presentation/pages/place_detail_page.dart`
+  - `flutter test test/core/security/user_access_level_test.dart test/features/settings/data/user_profile_dto_test.dart test/features/admin_ops/domain/admin_ops_entities_test.dart`

@@ -111,4 +111,108 @@ class AdminOpsRemoteDataSource {
       fromJson: (_) {},
     );
   }
+
+  Future<Result<List<AdminProjectRoleRequestDto>>> fetchProjectRoleRequests({
+    String? status,
+    int page = 0,
+    int size = 30,
+  }) {
+    final query = <String, dynamic>{
+      'page': page,
+      'size': size,
+      'pageable': '$page,$size',
+      if (status != null && status.isNotEmpty) 'status': status,
+      'sort': 'createdAt,desc',
+    };
+
+    return _apiClient.get<List<AdminProjectRoleRequestDto>>(
+      ApiEndpoints.adminProjectRoleRequests,
+      queryParameters: query,
+      fromJson: (json) => AdminProjectRoleRequestDto.listFromAny(json),
+    );
+  }
+
+  Future<Result<void>> reviewProjectRoleRequest({
+    required String requestId,
+    required String decision,
+    String? adminMemo,
+  }) {
+    return _apiClient.patch<void>(
+      ApiEndpoints.adminProjectRoleRequestReview(requestId),
+      data: {
+        'decision': decision,
+        if (adminMemo != null && adminMemo.trim().isNotEmpty)
+          'adminMemo': adminMemo.trim(),
+      },
+      fromJson: (_) {},
+    );
+  }
+
+  Future<Result<void>> grantProjectRole({
+    required String projectId,
+    required String userId,
+    required String role,
+    String? reason,
+  }) {
+    return _apiClient.post<void>(
+      ApiEndpoints.projectRolesGrant(projectId),
+      data: {
+        'userId': userId,
+        'role': role,
+        'projectRole': role,
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      },
+      fromJson: (_) {},
+    );
+  }
+
+  Future<Result<void>> revokeProjectRole({
+    required String projectId,
+    required String userId,
+    required String role,
+    String? reason,
+  }) {
+    return _apiClient.post<void>(
+      ApiEndpoints.projectRolesRevoke(projectId),
+      data: {
+        'userId': userId,
+        'role': role,
+        'projectRole': role,
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      },
+      fromJson: (_) {},
+    );
+  }
+
+  Future<Result<void>> grantUserAccess({
+    required String userId,
+    required String accessLevel,
+    String? expiresAt,
+    String? reason,
+  }) {
+    return _apiClient.post<void>(
+      ApiEndpoints.adminUserAccessGrants(userId),
+      data: {
+        'accessLevel': accessLevel,
+        if (expiresAt != null && expiresAt.trim().isNotEmpty)
+          'expiresAt': expiresAt.trim(),
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      },
+      fromJson: (_) {},
+    );
+  }
+
+  Future<Result<void>> revokeUserAccessGrant({
+    required String userId,
+    required String grantId,
+    String? reason,
+  }) {
+    return _apiClient.post<void>(
+      ApiEndpoints.adminUserAccessGrantRevoke(userId, grantId),
+      data: {
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      },
+      fromJson: (_) {},
+    );
+  }
 }

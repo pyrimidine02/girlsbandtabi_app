@@ -2,6 +2,8 @@
 /// KO: 홈 요약을 로드하는 홈 컨트롤러.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
@@ -23,12 +25,10 @@ const int _kHomeNavIndex = 0;
 class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
   HomeController(this._ref) : super(const AsyncLoading()) {
     _ref.listen<String?>(selectedProjectKeyProvider, (_, __) {
-      // EN: Use cache on project switch — no forced network round-trip.
-      // KO: 프로젝트 전환 시 캐시 사용 — 강제 네트워크 호출 없음.
-      if (!_isHomeTabActive()) {
-        return;
-      }
-      load();
+      _scheduleProjectSelectionReload();
+    });
+    _ref.listen<String?>(selectedProjectIdProvider, (_, __) {
+      _scheduleProjectSelectionReload();
     });
     _ref.listen<List<String>>(selectedUnitIdsProvider, (_, __) {
       // EN: Re-fetch summary when unit filters change.
@@ -53,9 +53,46 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
   String? _lastRequestKey;
   DateTime? _lastFailureAt;
   bool _isLoading = false;
+  bool _projectSelectionReloadScheduled = false;
+  int _requestSerial = 0;
+  int _activeRequestSerial = 0;
+  final Map<String, HomeSummary> _summaryMemoryCache = <String, HomeSummary>{};
 
   bool _isHomeTabActive() {
     return _ref.read(currentNavIndexProvider) == _kHomeNavIndex;
+  }
+
+  void _scheduleProjectSelectionReload() {
+    if (!_isHomeTabActive() || _projectSelectionReloadScheduled) {
+      return;
+    }
+    _projectSelectionReloadScheduled = true;
+    Future<void>.microtask(() {
+      _projectSelectionReloadScheduled = false;
+      if (!mounted || !_isHomeTabActive()) {
+        return;
+      }
+
+      final selectedProjectKey = _ref.read(selectedProjectKeyProvider);
+      if (selectedProjectKey == null || selectedProjectKey.isEmpty) {
+        return;
+      }
+      final selectedProjectId = _ref.read(selectedProjectIdProvider);
+      final cached = _findCachedSummary(
+        selectedProjectKey: selectedProjectKey,
+        selectedProjectId: selectedProjectId,
+      );
+      if (cached != null) {
+        // EN: Switch instantly with cached per-project summary.
+        // KO: 프로젝트별 메모리 캐시로 즉시 전환합니다.
+        state = AsyncData(cached);
+      } else if (state.hasValue) {
+        // EN: No cache hit for the new project — show loading explicitly.
+        // KO: 신규 프로젝트 캐시가 없으면 로딩 상태를 명시적으로 노출합니다.
+        state = const AsyncLoading();
+      }
+      unawaited(load());
+    });
   }
 
   Future<void> load({bool forceRefresh = false}) async {
@@ -64,9 +101,10 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
       return;
     }
     final selectedProjectId = _ref.read(selectedProjectIdProvider);
-    final selectedProjectIdentifier = selectedProjectId?.isNotEmpty == true
-        ? selectedProjectId!
-        : selectedProjectKey;
+    final selectedProjectIdentifier = _resolveProjectIdentifier(
+      selectedProjectKey: selectedProjectKey,
+      selectedProjectId: selectedProjectId,
+    );
 
     final unitIds = _ref.read(selectedUnitIdsProvider);
     final requestKey = '$selectedProjectIdentifier:${unitIds.join(',')}';
@@ -89,6 +127,8 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
     _lastProjectKey = selectedProjectIdentifier;
     _lastRequestKey = requestKey;
     _isLoading = true;
+    final requestSerial = ++_requestSerial;
+    _activeRequestSerial = requestSerial;
 
     // EN: Keep previous data visible while loading (no full-screen spinner).
     // KO: 로딩 중 이전 데이터를 유지합니다 (전체 화면 스피너 없음).
@@ -107,9 +147,12 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
       // KO: 500 같은 지속적 5xx는 재시도하지 않아 불필요한 루프를 막습니다.
       Result<HomeSummary>? result;
       for (var attempt = 0; attempt <= _kMaxRetries; attempt++) {
+        if (requestSerial != _activeRequestSerial) {
+          return;
+        }
         if (attempt > 0) {
           await Future<void>.delayed(Duration(seconds: attempt));
-          if (!mounted) return;
+          if (!mounted || requestSerial != _activeRequestSerial) return;
           AppLogger.info(
             'Retrying home summary load (attempt $attempt)',
             tag: 'HomeController',
@@ -124,6 +167,11 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
         );
         if (result is Success<HomeSummary>) {
           _lastFailureAt = null;
+          _cacheSummaryForProject(
+            selectedProjectKey: selectedProjectKey,
+            selectedProjectId: selectedProjectId,
+            summary: result.data,
+          );
           break;
         }
         if (result is Err<HomeSummary>) {
@@ -136,7 +184,7 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
         }
       }
 
-      if (!mounted) return;
+      if (!mounted || requestSerial != _activeRequestSerial) return;
       if (result is Success<HomeSummary>) {
         AppLogger.debug(
           'Home sourceCounts loaded',
@@ -161,7 +209,9 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
         state = AsyncError(result.failure, StackTrace.current);
       }
     } finally {
-      _isLoading = false;
+      if (_activeRequestSerial == requestSerial) {
+        _isLoading = false;
+      }
     }
   }
 
@@ -181,6 +231,7 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
         forceRefresh: forceRefresh,
       );
       if (batchResult is Success<List<HomeSummaryByProjectItem>>) {
+        _cacheBatchSummaries(batchResult.data);
         final summary = _selectSummaryFromBatch(
           items: batchResult.data,
           selectedProjectKey: selectedProjectKey,
@@ -215,6 +266,79 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
       forceRefresh: forceRefresh,
     );
   }
+
+  String _resolveProjectIdentifier({
+    required String selectedProjectKey,
+    required String? selectedProjectId,
+  }) {
+    final projects = _ref.read(projectsControllerProvider).valueOrNull;
+    if (projects != null && projects.isNotEmpty) {
+      for (final project in projects) {
+        if (project.code == selectedProjectKey ||
+            project.id == selectedProjectKey) {
+          if (project.id.isNotEmpty) {
+            return project.id;
+          }
+          break;
+        }
+      }
+    }
+
+    if (selectedProjectId != null && selectedProjectId.isNotEmpty) {
+      return selectedProjectId;
+    }
+    return selectedProjectKey;
+  }
+
+  void _cacheBatchSummaries(List<HomeSummaryByProjectItem> items) {
+    for (final item in items) {
+      final projectId = item.projectId.trim();
+      final projectCode = item.projectCode.trim();
+      if (projectId.isNotEmpty) {
+        _summaryMemoryCache[_cacheKey(projectId)] = item.summary;
+      }
+      if (projectCode.isNotEmpty) {
+        _summaryMemoryCache[_cacheKey(projectCode)] = item.summary;
+      }
+    }
+  }
+
+  void _cacheSummaryForProject({
+    required String selectedProjectKey,
+    required String? selectedProjectId,
+    required HomeSummary summary,
+  }) {
+    final projectKey = selectedProjectKey.trim();
+    if (projectKey.isNotEmpty) {
+      _summaryMemoryCache[_cacheKey(projectKey)] = summary;
+    }
+
+    final projectId = selectedProjectId?.trim();
+    if (projectId != null && projectId.isNotEmpty) {
+      _summaryMemoryCache[_cacheKey(projectId)] = summary;
+    }
+  }
+
+  HomeSummary? _findCachedSummary({
+    required String selectedProjectKey,
+    required String? selectedProjectId,
+  }) {
+    final projectId = selectedProjectId?.trim();
+    if (projectId != null && projectId.isNotEmpty) {
+      final byId = _summaryMemoryCache[_cacheKey(projectId)];
+      if (byId != null) {
+        return byId;
+      }
+    }
+
+    final projectKey = selectedProjectKey.trim();
+    if (projectKey.isEmpty) {
+      return null;
+    }
+    return _summaryMemoryCache[_cacheKey(projectKey)];
+  }
+
+  String _cacheKey(String value) => value.toLowerCase();
 
   List<String> _projectIdentifiers(List<Project> projects) {
     final seen = <String>{};

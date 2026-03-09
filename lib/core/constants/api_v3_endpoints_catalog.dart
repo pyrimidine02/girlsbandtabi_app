@@ -41,6 +41,9 @@ class ApiV3EndpointCatalog {
     '/api/v1/admin/moderation/dashboard': ['GET'],
     '/api/v1/admin/password-security/config': ['GET'],
     '/api/v1/admin/password-security/test': ['GET'],
+    '/api/v1/admin/projects/role-requests': ['GET'],
+    '/api/v1/admin/projects/role-requests/{requestId}': ['GET'],
+    '/api/v1/admin/projects/role-requests/{requestId}/review': ['PATCH'],
     '/api/v1/admin/projects/{projectId}/verification-appeals': ['GET'],
     '/api/v1/admin/projects/{projectId}/verification-appeals/{appealId}': [
       'GET',
@@ -228,6 +231,8 @@ class ApiV3EndpointCatalog {
     '/api/v1/projects/{projectId}/roles': ['GET'],
     '/api/v1/projects/{projectId}/roles/grant': ['POST'],
     '/api/v1/projects/{projectId}/roles/revoke': ['POST'],
+    '/api/v1/projects/role-requests': ['GET', 'POST'],
+    '/api/v1/projects/role-requests/{requestId}': ['DELETE', 'GET'],
     '/api/v1/projects/{projectId}/units': ['GET', 'POST'],
     '/api/v1/projects/{projectId}/units/search': ['GET'],
     '/api/v1/projects/{projectId}/units/{unitId}/members': ['GET', 'POST'],

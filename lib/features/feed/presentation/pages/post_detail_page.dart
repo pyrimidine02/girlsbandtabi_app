@@ -175,21 +175,26 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       postCommentsRouteControllerProvider(routeTarget),
     );
     final isAuthenticated = ref.watch(isAuthenticatedProvider);
+    final selectedProjectId = ref.watch(selectedProjectIdProvider);
+    final selectedProjectKey = ref.watch(selectedProjectKeyProvider);
     final profileState = ref.watch(userProfileControllerProvider);
     final currentUserId = profileState.maybeWhen(
       data: (profile) => profile?.id,
+      orElse: () => null,
+    );
+    final currentPost = state.maybeWhen(
+      data: (post) => post,
       orElse: () => null,
     );
     final isAdmin = profileState.maybeWhen(
       data: (profile) => _isAdminRole(
         effectiveAccessLevel: profile?.effectiveAccessLevel,
         accountRole: profile?.accountRole,
+        projectRolesByProject: profile?.projectRolesByProject,
+        projectId: currentPost?.projectId ?? selectedProjectId,
+        projectCode: currentPost?.projectId ?? selectedProjectKey,
       ),
       orElse: () => false,
-    );
-    final currentPost = state.maybeWhen(
-      data: (post) => post,
-      orElse: () => null,
     );
     final likeState = currentPost == null
         ? const AsyncLoading<PostLikeStatus>()
@@ -2883,10 +2888,19 @@ class _CommentThreadNodeView extends StatelessWidget {
   }
 }
 
-bool _isAdminRole({String? effectiveAccessLevel, String? accountRole}) {
-  return canModerateCommunity(
+bool _isAdminRole({
+  String? effectiveAccessLevel,
+  String? accountRole,
+  Map<String, List<String>>? projectRolesByProject,
+  String? projectId,
+  String? projectCode,
+}) {
+  return canModerateProjectCommunity(
     effectiveAccessLevel: effectiveAccessLevel,
     accountRole: accountRole,
+    projectRolesByProject: projectRolesByProject,
+    projectId: projectId,
+    projectCode: projectCode,
   );
 }
 

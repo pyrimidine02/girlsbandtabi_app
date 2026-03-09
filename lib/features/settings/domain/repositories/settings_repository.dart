@@ -65,6 +65,19 @@ abstract class SettingsRepository {
 
   Future<Result<void>> unblockUser({required String targetUserId});
 
+  Future<Result<List<ProjectRoleRequest>>> getProjectRoleRequests({
+    bool forceRefresh = false,
+    String? status,
+  });
+
+  Future<Result<ProjectRoleRequest>> createProjectRoleRequest({
+    required String projectId,
+    required String requestedRole,
+    required String justification,
+  });
+
+  Future<Result<void>> cancelProjectRoleRequest({required String requestId});
+
   Future<Result<List<VerificationAppeal>>> getVerificationAppeals({
     required String projectId,
     bool forceRefresh = false,

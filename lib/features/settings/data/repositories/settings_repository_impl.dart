@@ -457,6 +457,95 @@ class SettingsRepositoryImpl implements SettingsRepository {
   }
 
   @override
+  Future<Result<List<ProjectRoleRequest>>> getProjectRoleRequests({
+    bool forceRefresh = false,
+    String? status,
+  }) async {
+    final profile = CacheProfiles.settingsProjectRoleRequests;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
+    final cacheKey = _projectRoleRequestsCacheKey(status);
+    try {
+      final cacheResult = await _cacheManager
+          .resolve<List<ProjectRoleRequestDto>>(
+            key: cacheKey,
+            policy: policy,
+            ttl: profile.ttl,
+            revalidateAfter: profile.revalidateAfter,
+            fetcher: () => _fetchProjectRoleRequests(status: status),
+            toJson: (dtos) => {
+              'items': dtos.map(_projectRoleRequestToJson).toList(),
+            },
+            fromJson: (json) {
+              final items = json['items'];
+              if (items is List) {
+                return items
+                    .whereType<Map<String, dynamic>>()
+                    .map(ProjectRoleRequestDto.fromJson)
+                    .toList(growable: false);
+              }
+              return const <ProjectRoleRequestDto>[];
+            },
+          );
+      return Result.success(
+        cacheResult.data
+            .map(ProjectRoleRequest.fromDto)
+            .toList(growable: false),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<ProjectRoleRequest>> createProjectRoleRequest({
+    required String projectId,
+    required String requestedRole,
+    required String justification,
+  }) async {
+    try {
+      final result = await _remoteDataSource.createProjectRoleRequest(
+        request: ProjectRoleRequestCreateRequestDto(
+          projectId: projectId,
+          requestedRole: requestedRole,
+          justification: justification,
+        ),
+      );
+      if (result is Success<ProjectRoleRequestDto>) {
+        await _cacheManager.removeByPrefix('project_role_requests:');
+        return Result.success(ProjectRoleRequest.fromDto(result.data));
+      }
+      if (result is Err<ProjectRoleRequestDto>) {
+        return Result.failure(result.failure);
+      }
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown project role request create result',
+          code: 'unknown_project_role_request_create',
+        ),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<void>> cancelProjectRoleRequest({
+    required String requestId,
+  }) async {
+    try {
+      final result = await _remoteDataSource.cancelProjectRoleRequest(
+        requestId: requestId,
+      );
+      if (result is Success<void>) {
+        await _cacheManager.removeByPrefix('project_role_requests:');
+      }
+      return result;
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
   Future<Result<List<VerificationAppeal>>> getVerificationAppeals({
     required String projectId,
     bool forceRefresh = false,
@@ -650,6 +739,24 @@ class SettingsRepositoryImpl implements SettingsRepository {
     );
   }
 
+  Future<List<ProjectRoleRequestDto>> _fetchProjectRoleRequests({
+    String? status,
+  }) async {
+    final result = await _remoteDataSource.fetchProjectRoleRequests(
+      status: status,
+    );
+    if (result is Success<List<ProjectRoleRequestDto>>) {
+      return result.data;
+    }
+    if (result is Err<List<ProjectRoleRequestDto>>) {
+      throw result.failure;
+    }
+    throw const UnknownFailure(
+      'Unknown project role requests result',
+      code: 'unknown_project_role_requests',
+    );
+  }
+
   Future<List<VerificationAppealDto>> _fetchVerificationAppeals(
     String projectId,
   ) async {
@@ -672,6 +779,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
   static const String _notificationCacheKey = 'notification_settings';
   static const String _privacySettingsCacheKey = 'privacy_settings';
   static const String _userBlocksCacheKey = 'user_blocks';
+  static const String _projectRoleRequestsCacheKeyPrefix =
+      'project_role_requests';
 
   String _userProfileCacheKey(String userId) {
     return 'user_profile:$userId';
@@ -679,6 +788,13 @@ class SettingsRepositoryImpl implements SettingsRepository {
 
   String _verificationAppealsCacheKey(String projectId) {
     return 'verification_appeals:$projectId';
+  }
+
+  String _projectRoleRequestsCacheKey(String? status) {
+    final normalized = status == null || status.trim().isEmpty
+        ? 'ALL'
+        : status.trim().toUpperCase();
+    return '$_projectRoleRequestsCacheKeyPrefix:$normalized';
   }
 
   String _privacyRequestsCacheKey(int page, int size) {
@@ -704,6 +820,23 @@ Map<String, dynamic> _userBlockToJson(UserBlockDto dto) {
     'blockedUser': _blockedUserToJson(dto.blockedUser),
     if (dto.reason != null) 'reason': dto.reason,
     'createdAt': dto.createdAt.toIso8601String(),
+  };
+}
+
+Map<String, dynamic> _projectRoleRequestToJson(ProjectRoleRequestDto dto) {
+  return {
+    'id': dto.id,
+    'projectId': dto.projectId,
+    if (dto.projectCode != null) 'projectCode': dto.projectCode,
+    if (dto.projectName != null) 'projectName': dto.projectName,
+    'requestedRole': dto.requestedRole,
+    'status': dto.status,
+    'justification': dto.justification,
+    'createdAt': dto.createdAt.toIso8601String(),
+    if (dto.adminMemo != null) 'adminMemo': dto.adminMemo,
+    if (dto.reviewedAt != null) 'reviewedAt': dto.reviewedAt!.toIso8601String(),
+    if (dto.reviewerId != null) 'reviewerId': dto.reviewerId,
+    if (dto.reviewerName != null) 'reviewerName': dto.reviewerName,
   };
 }
 

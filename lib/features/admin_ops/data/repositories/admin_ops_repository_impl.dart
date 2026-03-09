@@ -175,6 +175,161 @@ class AdminOpsRepositoryImpl implements AdminOpsRepository {
     }
   }
 
+  @override
+  Future<Result<List<AdminProjectRoleRequest>>> getProjectRoleRequests({
+    String? status,
+    int page = 0,
+    int size = 30,
+    bool forceRefresh = false,
+  }) async {
+    final profile = CacheProfiles.adminProjectRoleRequests;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
+    final cacheKey =
+        'admin_project_role_requests:${status ?? 'ALL'}:$page:$size';
+
+    try {
+      final cacheResult = await _cacheManager
+          .resolve<List<AdminProjectRoleRequestDto>>(
+            key: cacheKey,
+            policy: policy,
+            ttl: profile.ttl,
+            revalidateAfter: profile.revalidateAfter,
+            fetcher: () => _fetchProjectRoleRequests(
+              status: status,
+              page: page,
+              size: size,
+            ),
+            toJson: (dtos) => {
+              'items': dtos.map((dto) => dto.toJson()).toList(growable: false),
+            },
+            fromJson: (json) {
+              final raw = json['items'];
+              return AdminProjectRoleRequestDto.listFromAny(raw);
+            },
+          );
+
+      return Result.success(
+        cacheResult.data.map(_toRoleRequestEntity).toList(growable: false),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<void>> reviewProjectRoleRequest({
+    required String requestId,
+    required AdminRoleRequestDecision decision,
+    String? adminMemo,
+  }) async {
+    try {
+      final result = await _remoteDataSource.reviewProjectRoleRequest(
+        requestId: requestId,
+        decision: decision.apiValue,
+        adminMemo: adminMemo,
+      );
+
+      if (result is Success<void>) {
+        await _cacheManager.removeByPrefix('admin_project_role_requests:');
+        return const Result.success(null);
+      }
+      if (result is Err<void>) {
+        return Result.failure(result.failure);
+      }
+
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown role request review result',
+          code: 'unknown_role_request_review_result',
+        ),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<void>> grantProjectRole({
+    required String projectId,
+    required String userId,
+    required String role,
+    String? reason,
+  }) async {
+    try {
+      final result = await _remoteDataSource.grantProjectRole(
+        projectId: projectId,
+        userId: userId,
+        role: role,
+        reason: reason,
+      );
+      if (result is Success<void>) {
+        await _cacheManager.removeByPrefix('admin_project_role_requests:');
+      }
+      return result;
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<void>> revokeProjectRole({
+    required String projectId,
+    required String userId,
+    required String role,
+    String? reason,
+  }) async {
+    try {
+      final result = await _remoteDataSource.revokeProjectRole(
+        projectId: projectId,
+        userId: userId,
+        role: role,
+        reason: reason,
+      );
+      if (result is Success<void>) {
+        await _cacheManager.removeByPrefix('admin_project_role_requests:');
+      }
+      return result;
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<void>> grantUserAccess({
+    required String userId,
+    required String accessLevel,
+    String? expiresAt,
+    String? reason,
+  }) async {
+    try {
+      return await _remoteDataSource.grantUserAccess(
+        userId: userId,
+        accessLevel: accessLevel,
+        expiresAt: expiresAt,
+        reason: reason,
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<void>> revokeUserAccessGrant({
+    required String userId,
+    required String grantId,
+    String? reason,
+  }) async {
+    try {
+      return await _remoteDataSource.revokeUserAccessGrant(
+        userId: userId,
+        grantId: grantId,
+        reason: reason,
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
   Future<AdminDashboardDto> _fetchDashboardWithFallback() async {
     final dashboardResult = await _remoteDataSource.fetchDashboard();
     if (dashboardResult is Success<AdminDashboardDto>) {
@@ -244,6 +399,30 @@ class AdminOpsRepositoryImpl implements AdminOpsRepository {
     );
   }
 
+  Future<List<AdminProjectRoleRequestDto>> _fetchProjectRoleRequests({
+    String? status,
+    int page = 0,
+    int size = 30,
+  }) async {
+    final result = await _remoteDataSource.fetchProjectRoleRequests(
+      status: status,
+      page: page,
+      size: size,
+    );
+
+    if (result is Success<List<AdminProjectRoleRequestDto>>) {
+      return result.data;
+    }
+    if (result is Err<List<AdminProjectRoleRequestDto>>) {
+      throw result.failure;
+    }
+
+    throw const UnknownFailure(
+      'Unknown project role requests result',
+      code: 'unknown_admin_project_role_requests_result',
+    );
+  }
+
   AdminDashboardSummary _toDashboardEntity(AdminDashboardDto dto) {
     return AdminDashboardSummary(
       openReports: dto.openReports,
@@ -271,6 +450,23 @@ class AdminOpsRepositoryImpl implements AdminOpsRepository {
       assigneeName: dto.assigneeName,
       description: dto.description,
       previewText: dto.previewText,
+    );
+  }
+
+  AdminProjectRoleRequest _toRoleRequestEntity(AdminProjectRoleRequestDto dto) {
+    return AdminProjectRoleRequest(
+      id: dto.id,
+      projectId: dto.projectId,
+      projectCode: dto.projectCode,
+      projectName: dto.projectName,
+      requesterId: dto.requesterId,
+      requesterName: dto.requesterName,
+      requestedRole: dto.requestedRole,
+      status: dto.status,
+      justification: dto.justification,
+      createdAt: dto.createdAt,
+      adminMemo: dto.adminMemo,
+      reviewedAt: dto.reviewedAt,
     );
   }
 }

@@ -453,6 +453,16 @@ class ApiEndpoints {
       '${projectRoles(projectId)}/grant';
   static String projectRolesRevoke(String projectId) =>
       '${projectRoles(projectId)}/revoke';
+  static const String projectRoleRequests =
+      '$apiVersion/projects/role-requests';
+  static String projectRoleRequest(String requestId) =>
+      '$projectRoleRequests/$requestId';
+  static const String adminProjectRoleRequests =
+      '$apiVersion/admin/projects/role-requests';
+  static String adminProjectRoleRequest(String requestId) =>
+      '$adminProjectRoleRequests/$requestId';
+  static String adminProjectRoleRequestReview(String requestId) =>
+      '${adminProjectRoleRequest(requestId)}/review';
   static const String adminPasswordSecurityConfig =
       '$apiVersion/admin/password-security/config';
   static const String adminPasswordSecurityTest =

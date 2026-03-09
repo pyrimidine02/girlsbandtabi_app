@@ -192,6 +192,60 @@ class SettingsRemoteDataSource {
     );
   }
 
+  Future<Result<List<ProjectRoleRequestDto>>> fetchProjectRoleRequests({
+    int page = ApiPagination.defaultPage,
+    int size = ApiPagination.defaultSize,
+    String? status,
+  }) {
+    return _apiClient.get<List<ProjectRoleRequestDto>>(
+      ApiEndpoints.projectRoleRequests,
+      queryParameters: {
+        'page': page,
+        'size': size,
+        'pageable': '$page,$size',
+        if (status != null && status.isNotEmpty) 'status': status,
+        'sort': 'createdAt,desc',
+      },
+      fromJson: (json) => ProjectRoleRequestDto.listFromAny(json),
+    );
+  }
+
+  Future<Result<ProjectRoleRequestDto>> fetchProjectRoleRequestDetail({
+    required String requestId,
+  }) {
+    return _apiClient.get<ProjectRoleRequestDto>(
+      ApiEndpoints.projectRoleRequest(requestId),
+      fromJson: (json) {
+        final payload = json is Map<String, dynamic>
+            ? json
+            : const <String, dynamic>{};
+        return ProjectRoleRequestDto.fromJson(payload);
+      },
+    );
+  }
+
+  Future<Result<ProjectRoleRequestDto>> createProjectRoleRequest({
+    required ProjectRoleRequestCreateRequestDto request,
+  }) {
+    return _apiClient.post<ProjectRoleRequestDto>(
+      ApiEndpoints.projectRoleRequests,
+      data: request.toJson(),
+      fromJson: (json) {
+        final payload = json is Map<String, dynamic>
+            ? json
+            : const <String, dynamic>{};
+        return ProjectRoleRequestDto.fromJson(payload);
+      },
+    );
+  }
+
+  Future<Result<void>> cancelProjectRoleRequest({required String requestId}) {
+    return _apiClient.delete<void>(
+      ApiEndpoints.projectRoleRequest(requestId),
+      fromJson: (_) {},
+    );
+  }
+
   Future<Result<List<VerificationAppealDto>>> fetchVerificationAppeals({
     required String projectId,
     int page = ApiPagination.defaultPage,

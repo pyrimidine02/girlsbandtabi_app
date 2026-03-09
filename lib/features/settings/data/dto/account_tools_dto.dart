@@ -141,6 +141,126 @@ class VerificationAppealCreateRequestDto {
   }
 }
 
+class ProjectRoleRequestDto {
+  const ProjectRoleRequestDto({
+    required this.id,
+    required this.projectId,
+    required this.projectCode,
+    required this.projectName,
+    required this.requestedRole,
+    required this.status,
+    required this.justification,
+    required this.createdAt,
+    this.adminMemo,
+    this.reviewedAt,
+    this.reviewerId,
+    this.reviewerName,
+  });
+
+  final String id;
+  final String projectId;
+  final String? projectCode;
+  final String? projectName;
+  final String requestedRole;
+  final String status;
+  final String justification;
+  final DateTime createdAt;
+  final String? adminMemo;
+  final DateTime? reviewedAt;
+  final String? reviewerId;
+  final String? reviewerName;
+
+  factory ProjectRoleRequestDto.fromJson(Map<String, dynamic> json) {
+    final project = json['project'];
+    final projectMap = project is Map<String, dynamic>
+        ? project
+        : const <String, dynamic>{};
+    final reviewer = json['reviewer'];
+    final reviewerMap = reviewer is Map<String, dynamic>
+        ? reviewer
+        : const <String, dynamic>{};
+
+    return ProjectRoleRequestDto(
+      id: _string(json, const ['id', 'requestId']) ?? '',
+      projectId:
+          _string(json, const ['projectId']) ??
+          _string(projectMap, const ['id']) ??
+          '',
+      projectCode:
+          _string(json, const ['projectCode', 'projectSlug']) ??
+          _string(projectMap, const ['code', 'slug']),
+      projectName:
+          _string(json, const ['projectName']) ??
+          _string(projectMap, const ['name']),
+      requestedRole:
+          _string(json, const ['requestedRole', 'role']) ?? 'PLACE_EDITOR',
+      status: _string(json, const ['status']) ?? 'PENDING',
+      justification:
+          _string(json, const ['justification', 'reason']) ?? '(No reason)',
+      createdAt:
+          _dateTime(json, const [
+            'createdAt',
+            'requestedAt',
+            'created_at',
+            'updatedAt',
+          ]) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      adminMemo: _string(json, const ['adminMemo', 'reviewMemo']),
+      reviewedAt: _dateTime(json, const ['reviewedAt', 'resolvedAt']),
+      reviewerId:
+          _string(json, const ['reviewerId']) ??
+          _string(reviewerMap, const ['id']),
+      reviewerName:
+          _string(json, const ['reviewerName']) ??
+          _string(reviewerMap, const ['displayName', 'name']),
+    );
+  }
+
+  static List<ProjectRoleRequestDto> listFromAny(dynamic raw) {
+    final list = _extractList(raw);
+    return list
+        .whereType<Map<String, dynamic>>()
+        .map(ProjectRoleRequestDto.fromJson)
+        .toList(growable: false);
+  }
+}
+
+class ProjectRoleRequestCreateRequestDto {
+  const ProjectRoleRequestCreateRequestDto({
+    required this.projectId,
+    required this.requestedRole,
+    required this.justification,
+  });
+
+  final String projectId;
+  final String requestedRole;
+  final String justification;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'projectId': projectId,
+      'requestedRole': requestedRole,
+      'justification': justification,
+    };
+  }
+}
+
+List<Map<String, dynamic>> _extractList(dynamic json) {
+  if (json is List) {
+    return json.whereType<Map<String, dynamic>>().toList(growable: false);
+  }
+  if (json is Map<String, dynamic>) {
+    final items = json['items'] ?? json['content'] ?? json['results'];
+    if (items is List) {
+      return items.whereType<Map<String, dynamic>>().toList(growable: false);
+    }
+    if (json.containsKey('id') || json.containsKey('requestId')) {
+      return <Map<String, dynamic>>[json];
+    }
+  }
+  return const <Map<String, dynamic>>[];
+}
+
 String? _string(Map<String, dynamic> json, List<String> keys) {
   for (final key in keys) {
     final value = json[key];

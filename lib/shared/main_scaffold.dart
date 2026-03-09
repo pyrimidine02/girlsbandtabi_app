@@ -54,6 +54,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     final currentPath = currentUri.path;
     final currentLocation = currentUri.toString();
     final isBoardBranch = currentIndex == 3;
+    final isBoardRoot = isBoardBranch && _isBoardRootRoute(currentPath);
     final shouldShowBottomNav = _shouldShowBottomNav(
       currentIndex: currentIndex,
       currentPath: currentPath,
@@ -69,6 +70,13 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       canPop: canNavigateBack,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop || canNavigateBack) return;
+        if (defaultTargetPlatform == TargetPlatform.android && isBoardRoot) {
+          final target = _lastNonBoardLocation;
+          context.go(
+            target.startsWith('/board') || target.isEmpty ? '/home' : target,
+          );
+          return;
+        }
         if (defaultTargetPlatform != TargetPlatform.android) {
           return;
         }

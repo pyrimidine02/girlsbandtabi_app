@@ -107,11 +107,16 @@ class _BoardPageState extends ConsumerState<BoardPage> {
   @override
   Widget build(BuildContext context) {
     final isAuthenticated = ref.watch(isAuthenticatedProvider);
+    final selectedProjectId = ref.watch(selectedProjectIdProvider);
+    final selectedProjectKey = ref.watch(selectedProjectKeyProvider);
     final profileState = ref.watch(userProfileControllerProvider);
     final isAdmin = profileState.maybeWhen(
       data: (profile) => _isAdminRole(
         effectiveAccessLevel: profile?.effectiveAccessLevel,
         accountRole: profile?.accountRole,
+        projectRolesByProject: profile?.projectRolesByProject,
+        projectId: selectedProjectId,
+        projectCode: selectedProjectKey,
       ),
       orElse: () => false,
     );
@@ -2213,6 +2218,9 @@ class _CommunityPostCard extends ConsumerWidget {
       data: (profile) => _isAdminRole(
         effectiveAccessLevel: profile?.effectiveAccessLevel,
         accountRole: profile?.accountRole,
+        projectRolesByProject: profile?.projectRolesByProject,
+        projectId: post.projectId,
+        projectCode: post.projectId,
       ),
       orElse: () => false,
     );
@@ -3503,10 +3511,19 @@ IconData _searchScopeIcon(CommunitySearchScope scope) {
 
 /// EN: Returns true when profile can perform moderation actions.
 /// KO: 프로필이 모더레이션 액션을 수행할 수 있는지 반환합니다.
-bool _isAdminRole({String? effectiveAccessLevel, String? accountRole}) {
-  return canModerateCommunity(
+bool _isAdminRole({
+  String? effectiveAccessLevel,
+  String? accountRole,
+  Map<String, List<String>>? projectRolesByProject,
+  String? projectId,
+  String? projectCode,
+}) {
+  return canModerateProjectCommunity(
     effectiveAccessLevel: effectiveAccessLevel,
     accountRole: accountRole,
+    projectRolesByProject: projectRolesByProject,
+    projectId: projectId,
+    projectCode: projectCode,
   );
 }
 

@@ -28,14 +28,32 @@ class UserProfileController extends StateNotifier<AsyncValue<UserProfile?>> {
       return;
     }
 
-    state = const AsyncLoading();
+    final previousProfile = state.valueOrNull;
+    if (previousProfile == null) {
+      state = const AsyncLoading();
+    } else {
+      // EN: Keep previously resolved profile during refresh to avoid
+      // EN: permission flicker on transient /users/me failures.
+      // KO: /users/me 일시 오류 시 권한 UI가 깜빡이지 않도록
+      // KO: 새로고침 중에는 이전 프로필 상태를 유지합니다.
+      state = AsyncData(previousProfile);
+    }
     final repository = await _ref.read(settingsRepositoryProvider.future);
     final result = await repository.getUserProfile(forceRefresh: forceRefresh);
 
     if (result is Success<UserProfile>) {
       state = AsyncData(result.data);
     } else if (result is Err<UserProfile>) {
-      state = AsyncError(result.failure, StackTrace.current);
+      if (previousProfile != null) {
+        AppLogger.warning(
+          'Failed to refresh user profile; keeping previous profile cache',
+          data: result.failure,
+          tag: 'UserProfileController',
+        );
+        state = AsyncData(previousProfile);
+      } else {
+        state = AsyncError(result.failure, StackTrace.current);
+      }
     }
   }
 
@@ -347,6 +365,89 @@ class UserBlocksController extends StateNotifier<AsyncValue<List<UserBlock>>> {
   }
 }
 
+class ProjectRoleRequestsController
+    extends StateNotifier<AsyncValue<List<ProjectRoleRequest>>> {
+  ProjectRoleRequestsController(this._ref) : super(const AsyncLoading());
+
+  final Ref _ref;
+
+  String? _resolveProjectId() {
+    final projectId = _ref.read(selectedProjectIdProvider);
+    if (projectId != null && projectId.isNotEmpty) {
+      return projectId;
+    }
+    final projectKey = _ref.read(selectedProjectKeyProvider);
+    if (projectKey != null && projectKey.isNotEmpty) {
+      return projectKey;
+    }
+    return null;
+  }
+
+  Future<void> load({bool forceRefresh = false}) async {
+    final isAuthenticated = _ref.read(isAuthenticatedProvider);
+    if (!isAuthenticated) {
+      state = const AsyncData(<ProjectRoleRequest>[]);
+      return;
+    }
+
+    state = const AsyncLoading();
+    final repository = await _ref.read(settingsRepositoryProvider.future);
+    final result = await repository.getProjectRoleRequests(
+      forceRefresh: forceRefresh,
+    );
+
+    if (result is Success<List<ProjectRoleRequest>>) {
+      state = AsyncData(result.data);
+    } else if (result is Err<List<ProjectRoleRequest>>) {
+      state = AsyncError(result.failure, StackTrace.current);
+    }
+  }
+
+  Future<Result<ProjectRoleRequest>> create({
+    required String requestedRole,
+    required String justification,
+  }) async {
+    final trimmed = justification.trim();
+    if (trimmed.length < 20 || trimmed.length > 2000) {
+      return const Result.failure(
+        ValidationFailure(
+          'Justification must be between 20 and 2000 characters',
+          code: 'invalid_justification_length',
+        ),
+      );
+    }
+
+    final projectId = _resolveProjectId();
+    if (projectId == null || projectId.isEmpty) {
+      return const Result.failure(
+        ValidationFailure('Project is required', code: 'project_required'),
+      );
+    }
+
+    final repository = await _ref.read(settingsRepositoryProvider.future);
+    final result = await repository.createProjectRoleRequest(
+      projectId: projectId,
+      requestedRole: requestedRole,
+      justification: trimmed,
+    );
+    if (result is Success<ProjectRoleRequest>) {
+      await load(forceRefresh: true);
+    }
+    return result;
+  }
+
+  Future<Result<void>> cancel({required String requestId}) async {
+    final repository = await _ref.read(settingsRepositoryProvider.future);
+    final result = await repository.cancelProjectRoleRequest(
+      requestId: requestId,
+    );
+    if (result is Success<void>) {
+      await load(forceRefresh: true);
+    }
+    return result;
+  }
+}
+
 class VerificationAppealsController
     extends StateNotifier<AsyncValue<List<VerificationAppeal>>> {
   VerificationAppealsController(this._ref) : super(const AsyncLoading());
@@ -461,6 +562,16 @@ final userBlocksControllerProvider =
       ref,
     ) {
       return UserBlocksController(ref)..load();
+    });
+
+/// EN: Project role request controller provider.
+/// KO: 프로젝트 권한 요청 컨트롤러 프로바이더.
+final projectRoleRequestsControllerProvider =
+    StateNotifierProvider<
+      ProjectRoleRequestsController,
+      AsyncValue<List<ProjectRoleRequest>>
+    >((ref) {
+      return ProjectRoleRequestsController(ref)..load();
     });
 
 /// EN: Verification appeals controller provider.

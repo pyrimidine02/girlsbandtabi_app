@@ -166,6 +166,98 @@ class AdminReportsController extends StateNotifier<AdminReportsState> {
   }
 }
 
+class AdminRoleRequestsState {
+  const AdminRoleRequestsState({
+    required this.filter,
+    required this.requests,
+    this.isMutating = false,
+  });
+
+  factory AdminRoleRequestsState.initial() {
+    return const AdminRoleRequestsState(
+      filter: AdminProjectRoleRequestFilter.pending,
+      requests: AsyncLoading(),
+      isMutating: false,
+    );
+  }
+
+  final AdminProjectRoleRequestFilter filter;
+  final AsyncValue<List<AdminProjectRoleRequest>> requests;
+  final bool isMutating;
+
+  AdminRoleRequestsState copyWith({
+    AdminProjectRoleRequestFilter? filter,
+    AsyncValue<List<AdminProjectRoleRequest>>? requests,
+    bool? isMutating,
+  }) {
+    return AdminRoleRequestsState(
+      filter: filter ?? this.filter,
+      requests: requests ?? this.requests,
+      isMutating: isMutating ?? this.isMutating,
+    );
+  }
+}
+
+class AdminRoleRequestsController
+    extends StateNotifier<AdminRoleRequestsState> {
+  AdminRoleRequestsController(this._ref)
+    : super(AdminRoleRequestsState.initial()) {
+    load();
+  }
+
+  final Ref _ref;
+
+  Future<void> load({
+    bool forceRefresh = false,
+    AdminProjectRoleRequestFilter? filter,
+  }) async {
+    final nextFilter = filter ?? state.filter;
+    state = state.copyWith(filter: nextFilter, requests: const AsyncLoading());
+
+    final repository = await _ref.read(adminOpsRepositoryProvider.future);
+    final result = await repository.getProjectRoleRequests(
+      status: nextFilter.apiStatus,
+      page: 0,
+      size: 50,
+      forceRefresh: forceRefresh,
+    );
+
+    if (result is Success<List<AdminProjectRoleRequest>>) {
+      state = state.copyWith(requests: AsyncData(result.data));
+      return;
+    }
+    if (result is Err<List<AdminProjectRoleRequest>>) {
+      state = state.copyWith(
+        requests: AsyncError(result.failure, StackTrace.current),
+      );
+    }
+  }
+
+  Future<Result<void>> review({
+    required String requestId,
+    required AdminRoleRequestDecision decision,
+    String? adminMemo,
+  }) async {
+    state = state.copyWith(isMutating: true);
+    final repository = await _ref.read(adminOpsRepositoryProvider.future);
+    final result = await repository.reviewProjectRoleRequest(
+      requestId: requestId,
+      decision: decision,
+      adminMemo: adminMemo,
+    );
+    state = state.copyWith(isMutating: false);
+
+    if (result is Success<void>) {
+      await load(forceRefresh: true);
+      return const Result.success(null);
+    }
+    if (result is Err<void>) {
+      return Result.failure(result.failure);
+    }
+    return const Result.success(null);
+  }
+}
+
 /// EN: Dashboard controller provider.
 /// KO: 운영 대시보드 컨트롤러 프로바이더.
 final adminDashboardControllerProvider =
@@ -181,6 +273,13 @@ final adminDashboardControllerProvider =
 final adminReportsControllerProvider =
     StateNotifierProvider<AdminReportsController, AdminReportsState>((ref) {
       return AdminReportsController(ref);
+    });
+
+final adminRoleRequestsControllerProvider =
+    StateNotifierProvider<AdminRoleRequestsController, AdminRoleRequestsState>((
+      ref,
+    ) {
+      return AdminRoleRequestsController(ref);
     });
 
 /// EN: Report detail provider.

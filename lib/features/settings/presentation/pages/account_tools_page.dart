@@ -4,7 +4,6 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/security/user_access_level.dart';
@@ -69,9 +68,14 @@ class _AccountToolsPageState extends ConsumerState<AccountToolsPage>
             .read(userBlocksControllerProvider.notifier)
             .load(forceRefresh: true);
       case _AccountToolsTab.accessLevel:
-        await ref
-            .read(userProfileControllerProvider.notifier)
-            .load(forceRefresh: true);
+        await Future.wait([
+          ref
+              .read(userProfileControllerProvider.notifier)
+              .load(forceRefresh: true),
+          ref
+              .read(projectRoleRequestsControllerProvider.notifier)
+              .load(forceRefresh: true),
+        ]);
       case _AccountToolsTab.appeals:
         await ref
             .read(verificationAppealsControllerProvider.notifier)
@@ -84,6 +88,7 @@ class _AccountToolsPageState extends ConsumerState<AccountToolsPage>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final blocksState = ref.watch(userBlocksControllerProvider);
     final profileState = ref.watch(userProfileControllerProvider);
+    final roleRequestsState = ref.watch(projectRoleRequestsControllerProvider);
     final appealsState = ref.watch(verificationAppealsControllerProvider);
 
     return Scaffold(
@@ -138,8 +143,22 @@ class _AccountToolsPageState extends ConsumerState<AccountToolsPage>
               ),
               _AccountToolsTab.accessLevel => _AccessLevelTab(
                 profileState: profileState,
+                roleRequestsState: roleRequestsState,
                 isDark: isDark,
                 onRefresh: _refreshCurrentTab,
+                onSubmitRequest: (requestedRole, justification) async {
+                  return ref
+                      .read(projectRoleRequestsControllerProvider.notifier)
+                      .create(
+                        requestedRole: requestedRole,
+                        justification: justification,
+                      );
+                },
+                onCancelRequest: (requestId) async {
+                  return ref
+                      .read(projectRoleRequestsControllerProvider.notifier)
+                      .cancel(requestId: requestId);
+                },
               ),
               _AccountToolsTab.appeals => _AppealsTab(
                 state: appealsState,
@@ -389,13 +408,23 @@ class _BlockItemRow extends StatelessWidget {
 class _AccessLevelTab extends StatelessWidget {
   const _AccessLevelTab({
     required this.profileState,
+    required this.roleRequestsState,
     required this.isDark,
     required this.onRefresh,
+    required this.onSubmitRequest,
+    required this.onCancelRequest,
   });
 
   final AsyncValue<UserProfile?> profileState;
+  final AsyncValue<List<ProjectRoleRequest>> roleRequestsState;
   final bool isDark;
   final Future<void> Function() onRefresh;
+  final Future<Result<ProjectRoleRequest>> Function(
+    String requestedRole,
+    String justification,
+  )
+  onSubmitRequest;
+  final Future<Result<void>> Function(String requestId) onCancelRequest;
 
   @override
   Widget build(BuildContext context) {
@@ -498,9 +527,8 @@ class _AccessLevelTab extends StatelessWidget {
                       isRequestable: canRequestEditor,
                       onRequest: () => _showPermissionRequestDialog(
                         context,
-                        profile: profile,
-                        requestType: '수정권한 요청',
-                        targetAccessLevel: UserAccessLevel.contentEditor,
+                        title: '수정권한 요청',
+                        requestedRole: 'PLACE_EDITOR',
                       ),
                     ),
                     const SizedBox(height: GBTSpacing.sm),
@@ -510,9 +538,8 @@ class _AccessLevelTab extends StatelessWidget {
                       isRequestable: canRequestModerator,
                       onRequest: () => _showPermissionRequestDialog(
                         context,
-                        profile: profile,
-                        requestType: '관리권한 요청',
-                        targetAccessLevel: UserAccessLevel.communityModerator,
+                        title: '관리권한 요청',
+                        requestedRole: 'COMMUNITY_MODERATOR',
                       ),
                     ),
                     if (!canRequestEditor && !canRequestModerator) ...[
@@ -537,7 +564,7 @@ class _AccessLevelTab extends StatelessWidget {
                     ],
                     const SizedBox(height: GBTSpacing.sm),
                     Text(
-                      '요청서를 복사해 운영자에게 전달하면 검토 후 권한이 반영됩니다.',
+                      '요청을 제출하면 운영자가 검토 후 승인/거절합니다.',
                       style: GBTTypography.bodySmall.copyWith(
                         color: textSecondary,
                         height: 1.4,
@@ -548,6 +575,48 @@ class _AccessLevelTab extends StatelessWidget {
               );
             },
           ),
+          const SizedBox(height: GBTSpacing.sm),
+          Text(
+            '내 권한 요청 내역',
+            style: GBTTypography.labelMedium.copyWith(
+              color: textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: GBTSpacing.xs),
+          roleRequestsState.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: GBTSpacing.lg),
+              child: GBTLoading(message: '요청 내역을 불러오는 중...'),
+            ),
+            error: (error, _) {
+              final message = error is Failure
+                  ? error.userMessage
+                  : '요청 내역을 불러오지 못했어요';
+              return GBTErrorState(message: message, onRetry: onRefresh);
+            },
+            data: (items) {
+              if (items.isEmpty) {
+                return const GBTEmptyState(message: '아직 제출한 권한 요청이 없습니다');
+              }
+              return Column(
+                children: items
+                    .map(
+                      (request) => Padding(
+                        padding: const EdgeInsets.only(bottom: GBTSpacing.xs),
+                        child: _ProjectRoleRequestCard(
+                          request: request,
+                          isDark: isDark,
+                          onCancel: request.isPending
+                              ? () => _cancelRequest(context, request.id)
+                              : null,
+                        ),
+                      ),
+                    )
+                    .toList(growable: false),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -555,24 +624,20 @@ class _AccessLevelTab extends StatelessWidget {
 
   Future<void> _showPermissionRequestDialog(
     BuildContext context, {
-    required UserProfile profile,
-    required String requestType,
-    required UserAccessLevel targetAccessLevel,
+    required String title,
+    required String requestedRole,
   }) async {
     final reasonController = TextEditingController();
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: Text(requestType),
+          title: Text(title),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '요청 사유를 입력하면 운영자 전달용 텍스트를 복사합니다.',
-                style: GBTTypography.bodySmall,
-              ),
+              Text('요청 사유를 20자 이상 작성해주세요.', style: GBTTypography.bodySmall),
               const SizedBox(height: GBTSpacing.sm),
               TextField(
                 controller: reasonController,
@@ -592,33 +657,47 @@ class _AccessLevelTab extends StatelessWidget {
             ),
             FilledButton(
               onPressed: () async {
-                final now = DateTime.now().toIso8601String();
                 final reason = reasonController.text.trim().isEmpty
                     ? '-'
                     : reasonController.text.trim();
-                final requestTemplate =
-                    '[권한 요청]\n'
-                    'userId: ${profile.id}\n'
-                    'displayName: ${profile.displayName}\n'
-                    'requestType: $requestType\n'
-                    'targetAccessLevel: ${targetAccessLevel.apiValue}\n'
-                    'reason: $reason\n'
-                    'requestedAt: $now';
-
-                await Clipboard.setData(ClipboardData(text: requestTemplate));
-                if (!dialogContext.mounted) return;
+                final result = await onSubmitRequest(requestedRole, reason);
+                if (!dialogContext.mounted || !context.mounted) {
+                  return;
+                }
                 Navigator.of(dialogContext).pop();
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('요청서가 클립보드에 복사되었습니다')),
-                );
+                if (result is Success<ProjectRoleRequest>) {
+                  _showSnackBar(context, '권한 요청을 제출했습니다');
+                  return;
+                }
+                if (result is Err<ProjectRoleRequest>) {
+                  _showSnackBar(context, result.failure.userMessage);
+                }
               },
-              child: const Text('요청서 복사'),
+              child: const Text('요청 제출'),
             ),
           ],
         );
       },
     );
+    reasonController.dispose();
+  }
+
+  Future<void> _cancelRequest(BuildContext context, String requestId) async {
+    final result = await onCancelRequest(requestId);
+    if (!context.mounted) return;
+    if (result is Success<void>) {
+      _showSnackBar(context, '요청을 취소했습니다');
+      return;
+    }
+    if (result is Err<void>) {
+      _showSnackBar(context, result.failure.userMessage);
+    }
+  }
+
+  void _showSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -699,6 +778,136 @@ class _PermissionRequestCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _ProjectRoleRequestCard extends StatelessWidget {
+  const _ProjectRoleRequestCard({
+    required this.request,
+    required this.isDark,
+    this.onCancel,
+  });
+
+  final ProjectRoleRequest request;
+  final bool isDark;
+  final VoidCallback? onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = isDark ? GBTColors.darkBorderSubtle : GBTColors.border;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final statusColor = _statusColor(request.status);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(GBTSpacing.sm),
+      decoration: BoxDecoration(
+        border: Border.all(color: borderColor, width: 0.5),
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  request.projectName ??
+                      request.projectCode ??
+                      request.projectId,
+                  style: GBTTypography.bodyMedium.copyWith(
+                    color: textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: GBTSpacing.xs,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+                ),
+                child: Text(
+                  request.statusLabel,
+                  style: GBTTypography.labelSmall.copyWith(
+                    color: statusColor,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            request.requestedRoleLabel,
+            style: GBTTypography.bodySmall.copyWith(
+              color: textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: GBTSpacing.xs),
+          Text(
+            request.justification,
+            style: GBTTypography.bodySmall.copyWith(
+              color: textSecondary,
+              height: 1.35,
+            ),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: GBTSpacing.xs),
+          Row(
+            children: [
+              Text(
+                _dateLabel(request.createdAt),
+                style: GBTTypography.labelSmall.copyWith(color: textSecondary),
+              ),
+              const Spacer(),
+              if (onCancel != null)
+                TextButton(
+                  onPressed: onCancel,
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 30),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: GBTSpacing.sm,
+                    ),
+                  ),
+                  child: const Text('요청 취소'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _statusColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'APPROVED':
+      case 'GRANTED':
+        return GBTColors.success;
+      case 'REJECTED':
+      case 'DENIED':
+        return GBTColors.error;
+      case 'CANCELED':
+      case 'CANCELLED':
+        return GBTColors.textTertiary;
+      case 'PENDING':
+      case 'OPEN':
+      case 'REQUESTED':
+      default:
+        return GBTColors.info;
+    }
   }
 }
 

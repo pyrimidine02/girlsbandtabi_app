@@ -117,6 +117,129 @@ extension AdminReportFilterX on AdminReportFilter {
   }
 }
 
+enum AdminProjectRoleRequestFilter { all, pending, approved, rejected }
+
+extension AdminProjectRoleRequestFilterX on AdminProjectRoleRequestFilter {
+  String get label {
+    switch (this) {
+      case AdminProjectRoleRequestFilter.all:
+        return '전체';
+      case AdminProjectRoleRequestFilter.pending:
+        return '대기';
+      case AdminProjectRoleRequestFilter.approved:
+        return '승인';
+      case AdminProjectRoleRequestFilter.rejected:
+        return '거절';
+    }
+  }
+
+  String? get apiStatus {
+    switch (this) {
+      case AdminProjectRoleRequestFilter.all:
+        return null;
+      case AdminProjectRoleRequestFilter.pending:
+        return 'PENDING';
+      case AdminProjectRoleRequestFilter.approved:
+        return 'APPROVED';
+      case AdminProjectRoleRequestFilter.rejected:
+        return 'REJECTED';
+    }
+  }
+}
+
+enum AdminRoleRequestDecision { approve, reject }
+
+extension AdminRoleRequestDecisionX on AdminRoleRequestDecision {
+  String get apiValue {
+    switch (this) {
+      case AdminRoleRequestDecision.approve:
+        return 'APPROVE';
+      case AdminRoleRequestDecision.reject:
+        return 'REJECT';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case AdminRoleRequestDecision.approve:
+        return '승인';
+      case AdminRoleRequestDecision.reject:
+        return '거절';
+    }
+  }
+}
+
+class AdminProjectRoleRequest {
+  const AdminProjectRoleRequest({
+    required this.id,
+    required this.projectId,
+    required this.requestedRole,
+    required this.status,
+    required this.justification,
+    required this.createdAt,
+    this.projectCode,
+    this.projectName,
+    this.requesterId,
+    this.requesterName,
+    this.adminMemo,
+    this.reviewedAt,
+  });
+
+  final String id;
+  final String projectId;
+  final String? projectCode;
+  final String? projectName;
+  final String? requesterId;
+  final String? requesterName;
+  final String requestedRole;
+  final String status;
+  final String justification;
+  final DateTime createdAt;
+  final String? adminMemo;
+  final DateTime? reviewedAt;
+
+  bool get isPending {
+    return status.toUpperCase() == 'PENDING' ||
+        status.toUpperCase() == 'OPEN' ||
+        status.toUpperCase() == 'REQUESTED';
+  }
+
+  String get statusLabel {
+    switch (status.toUpperCase()) {
+      case 'PENDING':
+      case 'OPEN':
+      case 'REQUESTED':
+        return '대기중';
+      case 'APPROVED':
+      case 'GRANTED':
+        return '승인됨';
+      case 'REJECTED':
+      case 'DENIED':
+        return '거절됨';
+      case 'CANCELED':
+      case 'CANCELLED':
+        return '취소됨';
+      default:
+        return status;
+    }
+  }
+
+  String get requestedRoleLabel {
+    switch (requestedRole.toUpperCase()) {
+      case 'PLACE_EDITOR':
+        return '콘텐츠 편집';
+      case 'COMMUNITY_MODERATOR':
+        return '커뮤니티 운영';
+      case 'ADMIN':
+        return '프로젝트 관리자';
+      case 'MEMBER':
+        return '멤버';
+      default:
+        return requestedRole;
+    }
+  }
+}
+
 /// EN: Dashboard metrics for admin operations.
 /// KO: 운영 대시보드 지표.
 class AdminDashboardSummary {

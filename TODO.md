@@ -1,5 +1,26 @@
 # TODO
 
+- Run QA for admin role-request flow integration (2026-03-09):
+  - 계정도구 `권한 요청` 탭에서 `수정권한/관리권한` 요청 생성이 실제 API(`POST /projects/role-requests`)로 반영되는지 확인.
+  - 내 요청 목록(`GET /projects/role-requests`) 상태 배지와 취소(`DELETE /projects/role-requests/{requestId}`) 동작 확인.
+  - 운영센터 `권한 요청` 탭에서 목록 필터/승인/거절(`PATCH /admin/projects/role-requests/{requestId}/review`) 동작 확인.
+  - 승인/거절 후 목록 상태가 즉시 갱신되고 중복 처리(연타) 시 UI가 안정적인지 확인.
+
+- Run QA for home project-switch instant cache apply (2026-03-09):
+  - 홈에서 프로젝트 칩을 바꿀 때 수동 새로고침 없이 요약 섹션이 즉시 전환되는지 확인.
+  - 프로젝트 연속 전환(빠르게 2~3회) 시 마지막 선택 프로젝트 요약만 남는지 확인.
+  - selectedProjectKey/selectedProjectId 갱신 경계에서 이전 프로젝트 데이터가 재등장하지 않는지 확인.
+
+- Run QA for Samsung physical-device community thumbnail issue (2026-03-09):
+  - Samsung Galaxy 실기기에서 게시글 작성 직후 피드/게시판 카드 썸네일이 즉시 노출되는지 확인.
+  - 작성 직후 게시글 상세/수정 페이지에서 이미지 URL이 비어 있지 않은지 확인.
+  - 로그에서 `PostCreatePage`/`PostEditPage` unresolved URL warning이 반복되는지 확인.
+
+- Run QA for Android post thumbnail normalization hardening (2026-03-09):
+  - Android에서 새 게시글 작성 직후 피드/게시판 카드에 썸네일이 즉시 노출되는지 확인.
+  - 상대경로/스킴 없는 URL 응답(`uploads/...`, `r2.pyrimidines.org/...`) 케이스에서도 카드 썸네일이 깨지지 않는지 확인.
+  - 게시글 상세 진입 시 기존 이미지 노출/확대보기 동작이 회귀 없이 유지되는지 확인.
+
 - Run QA for settings privacy/consent repository migration (2026-03-09):
   - 개인정보 및 권리행사 페이지 진입 시 privacy settings/요청 이력이
     repository 경유로 정상 로드되는지 확인.
@@ -699,6 +720,16 @@
   - ensure workflow executes either root `ci_post_clone.sh` or
     `ci_scripts/ci_post_clone.sh` (both now supported).
   - confirm logs include `flutter pub get` and `pod install --repo-update`.
+- Confirm `/api/v1/users/me` auth profile contract stabilization:
+  - ensure backend consistently returns `accountRole` +
+    `effectiveAccessLevel` (camelCase) without relying on legacy `role/roles`.
+  - remove mobile-side alias/fallback compatibility mapping after one release
+    cycle once payload format is fully stabilized in production.
+- Confirm `/api/v1/users/me` project-role payload contract:
+  - finalize canonical field shape for per-project roles
+    (`projectRoles` map vs list form, key as project UUID/slug/code).
+  - align backend response examples so mobile project-scope authorization can
+    remove compatibility parser fallbacks.
 - QA home by-project summary integration:
   - verify project switch uses by-project payload first and falls back to
     single-summary endpoint only on errors/missing row.

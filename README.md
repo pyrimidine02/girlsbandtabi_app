@@ -1,16 +1,37 @@
-# girlsbandtabi_app
+# GirlsBandTabi
 
-girlsbandtabi_app
+걸즈 밴드 콘텐츠를 **찾고, 저장하고, 함께 이야기하는** 팬 커뮤니티 앱입니다.  
+지도 기반 성지 탐방부터 라이브 일정, 프로젝트별 피드까지 한 앱에서 연결합니다.
 
-## Getting Started
+## 앱 소개
 
-This project is a starting point for a Flutter application.
+**GirlsBandTabi**는 다음 경험을 빠르게 제공합니다.
 
-A few resources to get you started if this is your first Flutter project:
+- 프로젝트별 홈 요약: 지금 봐야 할 소식과 핵심 정보 확인
+- 성지/장소 탐색: 지도 기반으로 장소를 찾고 방문 기록 관리
+- 라이브 이벤트: 일정 확인, 관심 이벤트 저장
+- 커뮤니티 피드: 추천/팔로잉 피드에서 글·댓글·답글로 소통
+- 관심 콘텐츠 관리: 즐겨찾기, 알림, 검색으로 필요한 정보만 모아보기
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 이런 분께 추천합니다
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- 좋아하는 밴드/프로젝트 소식을 한곳에서 관리하고 싶은 분
+- 성지 방문 계획을 세우고 기록을 남기고 싶은 분
+- 팬들과 실시간으로 정보와 후기를 나누고 싶은 분
+
+## 핵심 가치
+
+- **빠른 탐색**: 프로젝트 전환과 피드 탐색을 직관적으로
+- **실사용 중심**: 읽기/쓰기/반응(좋아요·북마크·댓글) 흐름 최적화
+- **지속 업데이트**: 커뮤니티 UX와 성능을 계속 개선
+
+## 이용 안내
+
+- 현재 모바일 앱(Flutter) 기반으로 운영됩니다.
+- 계정 로그인 후 커뮤니티, 장소, 일정 기능을 바로 사용할 수 있습니다.
+- 피드 작성 시 이미지 첨부(카메라/갤러리)를 지원합니다.
+
+## 문의
+
+서비스 이용 중 불편 사항이나 개선 의견은 이 저장소의 이슈 또는 운영 채널로 전달해 주세요.  
+사용자 피드백을 우선순위로 반영합니다.

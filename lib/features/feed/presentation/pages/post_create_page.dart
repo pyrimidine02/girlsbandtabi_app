@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 
 import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/logging/app_logger.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
@@ -915,7 +916,8 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     }
 
     if (result case Success<PostDetail>(:final data)) {
-      final category = (_selectedTopic != null && _selectedTopic!.trim().isNotEmpty)
+      final category =
+          (_selectedTopic != null && _selectedTopic!.trim().isNotEmpty)
           ? _selectedTopic!.trim()
           : 'general';
       unawaited(ref.read(analyticsServiceProvider).logPostCreate(category));
@@ -1065,7 +1067,71 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
       }
     }
 
-    return uploads;
+    return _hydrateUploadUrlsFromMyUploads(uploads, uploadController);
+  }
+
+  Future<List<UploadInfo>> _hydrateUploadUrlsFromMyUploads(
+    List<UploadInfo> uploads,
+    UploadsController uploadController,
+  ) async {
+    if (uploads.isEmpty) {
+      return const [];
+    }
+
+    var resolved = List<UploadInfo>.from(uploads);
+    if (resolved.every((upload) => upload.url.isNotEmpty)) {
+      return resolved;
+    }
+
+    const maxRetries = 3;
+    for (var attempt = 0; attempt < maxRetries; attempt += 1) {
+      if (resolved.every((upload) => upload.url.isNotEmpty)) {
+        break;
+      }
+      if (attempt > 0) {
+        await Future<void>.delayed(Duration(milliseconds: 350 * attempt));
+      }
+
+      await uploadController.load(forceRefresh: true);
+      final latestUploads = ref.read(uploadsControllerProvider).valueOrNull;
+      if (latestUploads == null || latestUploads.isEmpty) {
+        continue;
+      }
+
+      final latestById = <String, UploadInfo>{
+        for (final item in latestUploads)
+          if (item.uploadId.isNotEmpty) item.uploadId: item,
+      };
+      resolved = resolved
+          .map((upload) {
+            if (upload.url.isNotEmpty || upload.uploadId.isEmpty) {
+              return upload;
+            }
+            final latest = latestById[upload.uploadId];
+            if (latest == null || latest.url.isEmpty) {
+              return upload;
+            }
+            return UploadInfo(
+              uploadId: upload.uploadId,
+              url: latest.url,
+              filename: latest.filename.isNotEmpty
+                  ? latest.filename
+                  : upload.filename,
+              isApproved: latest.isApproved,
+            );
+          })
+          .toList(growable: false);
+    }
+
+    final unresolved = resolved.where((upload) => upload.url.isEmpty).length;
+    if (unresolved > 0) {
+      AppLogger.warning(
+        'Some uploaded image URLs are unresolved after retries',
+        tag: 'PostCreatePage',
+        data: {'total': resolved.length, 'unresolved': unresolved},
+      );
+    }
+    return resolved;
   }
 }
 
