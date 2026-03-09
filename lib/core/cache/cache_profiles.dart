@@ -204,6 +204,21 @@ abstract final class CacheProfiles {
     ttl: Duration(minutes: 5),
   );
 
+  static const settingsPrivacySettings = CacheProfile(
+    readPolicy: CachePolicy.staleWhileRevalidate,
+    ttl: Duration(minutes: 3),
+  );
+
+  static const settingsPrivacyRequests = CacheProfile(
+    readPolicy: CachePolicy.staleWhileRevalidate,
+    ttl: Duration(minutes: 2),
+  );
+
+  static const settingsConsentHistory = CacheProfile(
+    readPolicy: CachePolicy.staleWhileRevalidate,
+    ttl: Duration(minutes: 10),
+  );
+
   static const settingsUserBlocks = CacheProfile(
     readPolicy: CachePolicy.staleWhileRevalidate,
     ttl: Duration(minutes: 5),

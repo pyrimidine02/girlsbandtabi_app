@@ -16,6 +16,7 @@ import '../../../../core/utils/media_url.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/common/gbt_action_icons.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
+import '../../../../core/widgets/dialogs/gbt_adaptive_dialog.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
@@ -44,13 +45,13 @@ class FeedPage extends ConsumerStatefulWidget {
 class _FeedPageState extends ConsumerState<FeedPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  bool _showCommunityFab = false;
+  late final ValueNotifier<bool> _showCommunityFabNotifier;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _showCommunityFab = _tabController.index == 1;
+    _showCommunityFabNotifier = ValueNotifier<bool>(_tabController.index == 1);
     _tabController.addListener(_handleTabChange);
   }
 
@@ -58,14 +59,15 @@ class _FeedPageState extends ConsumerState<FeedPage>
   void dispose() {
     _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
+    _showCommunityFabNotifier.dispose();
     super.dispose();
   }
 
   void _handleTabChange() {
     if (!mounted) return;
     final shouldShow = _tabController.index == 1;
-    if (shouldShow == _showCommunityFab) return;
-    setState(() => _showCommunityFab = shouldShow);
+    if (shouldShow == _showCommunityFabNotifier.value) return;
+    _showCommunityFabNotifier.value = shouldShow;
   }
 
   @override
@@ -134,13 +136,19 @@ class _FeedPageState extends ConsumerState<FeedPage>
       ),
       // EN: Compact FAB reduces visual weight in timeline screens.
       // KO: 타임라인 화면에서 시각적 부담을 줄이기 위한 컴팩트 FAB.
-      floatingActionButton: _showCommunityFab
-          ? FloatingActionButton(
-              onPressed: () => context.goToPostCreate(),
-              tooltip: '글쓰기',
-              child: const Icon(Icons.edit_outlined),
-            )
-          : null,
+      floatingActionButton: ValueListenableBuilder<bool>(
+        valueListenable: _showCommunityFabNotifier,
+        builder: (context, showCommunityFab, _) {
+          if (!showCommunityFab) {
+            return const SizedBox.shrink();
+          }
+          return FloatingActionButton(
+            onPressed: () => context.goToPostCreate(),
+            tooltip: '글쓰기',
+            child: const Icon(Icons.edit_outlined),
+          );
+        },
+      ),
     );
   }
 }
@@ -410,10 +418,10 @@ class _CommunityPostCard extends ConsumerWidget {
     final isAuthor = myProfile?.id == post.authorId;
     final showMoreButton = isAuthenticated && !isAuthor;
 
-    // EN: Prefer server thumbnail (first upload) for feed card preview.
-    // KO: 피드 카드 미리보기는 서버 썸네일(첫 업로드)을 우선 사용합니다.
-    final firstImageUrl = _resolvePreviewImageUrl(post);
-    final hasImage = firstImageUrl != null;
+    // EN: Prefer server thumbnail, then fallback list/content-derived images.
+    // KO: 서버 썸네일 우선, 그 다음 목록/본문 기반 이미지로 폴백합니다.
+    final previewImageUrls = _resolvePreviewImageUrls(post);
+    final hasImage = previewImageUrls.isNotEmpty;
 
     // EN: Card container — rounded border, surface background.
     // KO: 카드 컨테이너 — 둥근 테두리, 표면 배경.
@@ -437,7 +445,8 @@ class _CommunityPostCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: () => context.goToPostDetail(post.id),
+          onTap: () =>
+              context.goToPostDetail(post.id, projectCode: post.projectId),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -536,8 +545,8 @@ class _CommunityPostCard extends ConsumerWidget {
                                 SizedBox(
                                   width: 78,
                                   height: 78,
-                                  child: GBTImage(
-                                    imageUrl: firstImageUrl,
+                                  child: _FallbackPreviewImage(
+                                    imageUrls: previewImageUrls,
                                     fit: BoxFit.cover,
                                     semanticLabel: '${post.title} 첨부 이미지',
                                   ),
@@ -693,22 +702,12 @@ class _CommunityPostCard extends ConsumerWidget {
     );
     if (payload == null || !context.mounted) return;
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showGBTAdaptiveConfirmDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('신고 접수'),
-        content: Text('게시글을 "${payload.reason.label}" 사유로 신고합니다.\n접수하시겠어요?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('신고 접수'),
-          ),
-        ],
-      ),
+      title: '신고 접수',
+      message: '게시글을 "${payload.reason.label}" 사유로 신고합니다.\n접수하시겠어요?',
+      cancelLabel: '취소',
+      confirmLabel: '신고 접수',
     );
     if (confirmed != true || !context.mounted) return;
 
@@ -734,38 +733,27 @@ class _CommunityPostCard extends ConsumerWidget {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  /// EN: Resolve post preview image with deterministic priority:
-  ///     1) thumbnailUrl (server-selected first upload)
-  ///     2) first valid imageUrls entry
-  ///     3) first image extracted from content markdown/html
-  /// KO: 게시글 미리보기 이미지를 고정 우선순위로 해석합니다:
-  ///     1) thumbnailUrl(서버 선택 첫 업로드)
-  ///     2) imageUrls의 첫 유효 항목
-  ///     3) 본문에서 추출한 첫 이미지
-  String? _resolvePreviewImageUrl(PostSummary post) {
-    final thumbnail = _normalizePreviewUrl(post.thumbnailUrl);
-    if (thumbnail != null) {
-      return thumbnail;
-    }
-
-    final firstListImage = _firstValidPreviewUrl(post.imageUrls);
-    if (firstListImage != null) {
-      return firstListImage;
-    }
-
-    return _firstValidPreviewUrl(extractImageUrls(post.content));
-  }
-
-  /// EN: Returns first valid URL from candidates after normalization.
-  /// KO: 후보 URL을 정규화한 뒤 첫 번째 유효 URL을 반환합니다.
-  String? _firstValidPreviewUrl(Iterable<String?> candidates) {
-    for (final candidate in candidates) {
-      final normalized = _normalizePreviewUrl(candidate);
-      if (normalized != null) {
-        return normalized;
+  /// EN: Resolve post preview image candidates with deterministic priority.
+  /// KO: 고정 우선순위로 게시글 미리보기 이미지 후보를 해석합니다.
+  List<String> _resolvePreviewImageUrls(PostSummary post) {
+    final ordered = <String>[];
+    final seen = <String>{};
+    void addIfValid(String? raw) {
+      final normalized = _normalizePreviewUrl(raw);
+      if (normalized == null) return;
+      if (seen.add(normalized)) {
+        ordered.add(normalized);
       }
     }
-    return null;
+
+    addIfValid(post.thumbnailUrl);
+    for (final url in post.imageUrls) {
+      addIfValid(url);
+    }
+    for (final url in extractImageUrls(post.content)) {
+      addIfValid(url);
+    }
+    return ordered;
   }
 
   /// EN: Normalize/validate preview URL for safe image rendering.
@@ -783,6 +771,66 @@ class _CommunityPostCard extends ConsumerWidget {
       return null;
     }
     return resolved;
+  }
+}
+
+/// EN: Tries multiple preview image URLs and falls back on load failure.
+/// KO: 여러 미리보기 이미지 URL을 시도하고 로드 실패 시 다음 후보로 전환합니다.
+class _FallbackPreviewImage extends StatefulWidget {
+  const _FallbackPreviewImage({
+    required this.imageUrls,
+    required this.fit,
+    required this.semanticLabel,
+  });
+
+  final List<String> imageUrls;
+  final BoxFit fit;
+  final String semanticLabel;
+
+  @override
+  State<_FallbackPreviewImage> createState() => _FallbackPreviewImageState();
+}
+
+class _FallbackPreviewImageState extends State<_FallbackPreviewImage> {
+  int _currentIndex = 0;
+  bool _advanceScheduled = false;
+
+  @override
+  void didUpdateWidget(covariant _FallbackPreviewImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.imageUrls != widget.imageUrls) {
+      _currentIndex = 0;
+      _advanceScheduled = false;
+    }
+  }
+
+  void _advanceImage() {
+    if (_advanceScheduled) return;
+    if (_currentIndex >= widget.imageUrls.length - 1) return;
+    _advanceScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _advanceScheduled = false;
+      if (_currentIndex >= widget.imageUrls.length - 1) return;
+      setState(() {
+        _currentIndex += 1;
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.imageUrls.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final resolvedIndex = _currentIndex.clamp(0, widget.imageUrls.length - 1);
+    return GBTImage(
+      key: ValueKey(widget.imageUrls[resolvedIndex]),
+      imageUrl: widget.imageUrls[resolvedIndex],
+      fit: widget.fit,
+      semanticLabel: widget.semanticLabel,
+      onError: _advanceImage,
+    );
   }
 }
 

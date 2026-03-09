@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import '../../theme/gbt_colors.dart';
 import '../../theme/gbt_spacing.dart';
 import '../../theme/gbt_typography.dart';
+import '../../theme/gbt_animations.dart';
 
 /// EN: Bottom navigation item definition.
 /// KO: 하단 네비게이션 아이템 정의.
@@ -65,6 +66,11 @@ class GBTBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final platform = Theme.of(context).platform;
+    if (platform == TargetPlatform.android) {
+      return _buildAndroidBottomNav(context);
+    }
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -128,6 +134,34 @@ class GBTBottomNav extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildAndroidBottomNav(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return SafeArea(
+      top: false,
+      child: NavigationBar(
+        selectedIndex: currentIndex,
+        height: height,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        backgroundColor: colorScheme.surface,
+        indicatorColor: colorScheme.primary.withValues(alpha: 0.14),
+        onDestinationSelected: (index) {
+          HapticFeedback.selectionClick();
+          onTap(index);
+        },
+        destinations: items
+            .map(
+              (item) => NavigationDestination(
+                icon: Icon(item.icon),
+                selectedIcon: Icon(item.activeIcon),
+                label: item.label,
+                tooltip: item.semanticLabel ?? item.label,
+              ),
+            )
+            .toList(growable: false),
+      ),
+    );
+  }
 }
 
 /// EN: Individual bottom nav item — vertical icon + label layout (Baemin style).
@@ -170,13 +204,13 @@ class _BottomNavItem extends StatelessWidget {
           splashColor: Colors.transparent,
           highlightColor: Colors.transparent,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
+            duration: GBTAnimations.fast,
+            curve: GBTAnimations.defaultCurve,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
+                  duration: GBTAnimations.fast,
                   child: Icon(
                     isSelected ? item.activeIcon : item.icon,
                     key: ValueKey(isSelected),
@@ -193,8 +227,7 @@ class _BottomNavItem extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GBTTypography.labelSmall.copyWith(
                     color: labelColor,
-                    fontWeight:
-                        isSelected ? FontWeight.w700 : FontWeight.w500,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                     fontSize: 10,
                   ),
                 ),

@@ -60,7 +60,11 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
       username: username,
       password: password,
     );
-    return _handleAuthResult(result);
+    return _handleAuthResult(
+      result,
+      analyticsType: _AuthAnalyticsType.login,
+      analyticsMethod: 'password',
+    );
   }
 
   /// EN: Register with username/password.
@@ -78,7 +82,11 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
       nickname: nickname,
       consents: consents,
     );
-    return _handleAuthResult(result);
+    return _handleAuthResult(
+      result,
+      analyticsType: _AuthAnalyticsType.signup,
+      analyticsMethod: 'password',
+    );
   }
 
   /// EN: Send verification email for registration.
@@ -116,7 +124,11 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
       code: code,
       state: stateParam,
     );
-    return _handleAuthResult(result);
+    return _handleAuthResult(
+      result,
+      analyticsType: _AuthAnalyticsType.login,
+      analyticsMethod: provider.id,
+    );
   }
 
   /// EN: Launch OAuth login flow.
@@ -185,7 +197,11 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     );
   }
 
-  Future<Result<void>> _handleAuthResult(Result<dynamic> result) async {
+  Future<Result<void>> _handleAuthResult(
+    Result<dynamic> result, {
+    _AuthAnalyticsType? analyticsType,
+    String? analyticsMethod,
+  }) async {
     if (result is Success<dynamic>) {
       final hasTokens = await _secureStorage.hasValidTokens();
       if (!hasTokens) {
@@ -200,6 +216,13 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
       _authStateNotifier.setAuthenticated();
       state = const AsyncData(null);
       unawaited(_requestNotificationPermissionOnLogin());
+      if (analyticsType != null &&
+          analyticsMethod != null &&
+          analyticsMethod.isNotEmpty) {
+        unawaited(
+          _logAuthSuccess(analyticsType: analyticsType, method: analyticsMethod),
+        );
+      }
       return const Result.success(null);
     }
 
@@ -216,6 +239,18 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     return Result.failure(
       const UnknownFailure('Unknown auth result', code: 'unknown_auth_result'),
     );
+  }
+
+  Future<void> _logAuthSuccess({
+    required _AuthAnalyticsType analyticsType,
+    required String method,
+  }) async {
+    final analytics = _ref.read(analyticsServiceProvider);
+    if (analyticsType == _AuthAnalyticsType.login) {
+      await analytics.logLogin(method);
+      return;
+    }
+    await analytics.logSignup(method);
   }
 
   /// EN: Prompt runtime notification permission after successful login.
@@ -341,6 +376,8 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     }
   }
 }
+
+enum _AuthAnalyticsType { login, signup }
 
 /// EN: Provider for AuthOAuthService.
 /// KO: AuthOAuthService 프로바이더.

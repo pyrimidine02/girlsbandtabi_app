@@ -248,6 +248,11 @@ class _BoardSubBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final platform = Theme.of(context).platform;
+    if (platform == TargetPlatform.android) {
+      return _buildAndroidBoardSubBottomNav(context);
+    }
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isIos = defaultTargetPlatform == TargetPlatform.iOS;
     final navCornerRadius = isIos ? 38.0 : 34.0;
@@ -431,6 +436,87 @@ class _BoardSubBottomNav extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAndroidBoardSubBottomNav(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final selectedColor = colorScheme.primary;
+    final unselectedColor = colorScheme.onSurfaceVariant;
+
+    return SafeArea(
+      top: false,
+      child: Material(
+        elevation: 8,
+        color: colorScheme.surface,
+        child: SizedBox(
+          height: GBTSpacing.bottomNavHeight,
+          child: Row(
+            children: [
+              const SizedBox(width: 4),
+              IconButton(
+                onPressed: () {
+                  HapticFeedback.selectionClick();
+                  onBackTap();
+                },
+                tooltip: context.l10n(
+                  ko: '이전 화면으로 돌아가기',
+                  en: 'Go back to previous screen',
+                  ja: '前の画面に戻る',
+                ),
+                icon: const Icon(Icons.arrow_back_rounded),
+              ),
+              const SizedBox(width: 2),
+              Expanded(
+                child: Row(
+                  children: _BoardSubSection.values
+                      .map((value) {
+                        final isSelected = value == section;
+                        final itemColor = isSelected
+                            ? selectedColor
+                            : unselectedColor;
+                        return Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              onSectionChanged(value);
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    value.icon,
+                                    color: itemColor,
+                                    size: isSelected ? 24 : 22,
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    value.label(context),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: itemColor,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      })
+                      .toList(growable: false),
+                ),
+              ),
+            ],
           ),
         ),
       ),

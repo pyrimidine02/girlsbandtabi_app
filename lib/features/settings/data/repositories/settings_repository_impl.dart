@@ -8,13 +8,17 @@ import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/account_tools.dart';
+import '../../domain/entities/consent_history.dart';
 import '../../domain/entities/notification_settings.dart';
+import '../../domain/entities/privacy_rights.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../domain/repositories/settings_repository.dart';
 import '../datasources/settings_remote_data_source.dart';
 import '../dto/account_tools_dto.dart';
+import '../dto/consent_history_dto.dart';
 import '../dto/notification_device_dto.dart';
 import '../dto/notification_settings_dto.dart';
+import '../dto/privacy_rights_dto.dart';
 import '../dto/user_profile_dto.dart';
 
 class SettingsRepositoryImpl implements SettingsRepository {
@@ -207,6 +211,204 @@ class SettingsRepositoryImpl implements SettingsRepository {
   }
 
   @override
+  Future<Result<PrivacySettings>> getPrivacySettings({
+    bool forceRefresh = false,
+  }) async {
+    final profile = CacheProfiles.settingsPrivacySettings;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
+    try {
+      final cacheResult = await _cacheManager.resolve<PrivacySettingsDto>(
+        key: _privacySettingsCacheKey,
+        policy: policy,
+        ttl: profile.ttl,
+        revalidateAfter: profile.revalidateAfter,
+        fetcher: _fetchPrivacySettings,
+        toJson: (dto) => <String, dynamic>{
+          'allowAutoTranslation': dto.allowAutoTranslation,
+          if (dto.version != null) 'version': dto.version,
+          if (dto.updatedAt != null)
+            'updatedAt': dto.updatedAt!.toIso8601String(),
+        },
+        fromJson: PrivacySettingsDto.fromJson,
+      );
+      return Result.success(PrivacySettings.fromDto(cacheResult.data));
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<PrivacySettings>> updatePrivacySettings({
+    required bool allowAutoTranslation,
+    int? version,
+  }) async {
+    try {
+      final result = await _remoteDataSource.updatePrivacySettings(
+        allowAutoTranslation: allowAutoTranslation,
+        version: version,
+      );
+      if (result is Success<PrivacySettingsDto>) {
+        await _cacheManager.setJson(_privacySettingsCacheKey, <String, dynamic>{
+          'allowAutoTranslation': result.data.allowAutoTranslation,
+          if (result.data.version != null) 'version': result.data.version,
+          if (result.data.updatedAt != null)
+            'updatedAt': result.data.updatedAt!.toIso8601String(),
+        }, ttl: CacheProfiles.settingsPrivacySettings.ttl);
+        return Result.success(PrivacySettings.fromDto(result.data));
+      }
+      if (result is Err<PrivacySettingsDto>) {
+        return Result.failure(result.failure);
+      }
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown privacy settings update result',
+          code: 'unknown_privacy_settings_update',
+        ),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<List<PrivacyRequestRecord>>> getPrivacyRequests({
+    bool forceRefresh = false,
+    int page = 0,
+    int size = 20,
+  }) async {
+    final profile = CacheProfiles.settingsPrivacyRequests;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
+    final cacheKey = _privacyRequestsCacheKey(page, size);
+    try {
+      final cacheResult = await _cacheManager
+          .resolve<List<PrivacyRequestRecordDto>>(
+            key: cacheKey,
+            policy: policy,
+            ttl: profile.ttl,
+            revalidateAfter: profile.revalidateAfter,
+            fetcher: () => _fetchPrivacyRequests(page: page, size: size),
+            toJson: (dtos) => <String, dynamic>{
+              'items': dtos.map((dto) => dto.toJson()).toList(growable: false),
+            },
+            fromJson: (json) {
+              final items = json['items'];
+              if (items is! List) {
+                return const <PrivacyRequestRecordDto>[];
+              }
+              return items
+                  .whereType<Map<String, dynamic>>()
+                  .map(PrivacyRequestRecordDto.fromJson)
+                  .toList(growable: false);
+            },
+          );
+      return Result.success(
+        cacheResult.data
+            .map(PrivacyRequestRecord.fromDto)
+            .toList(growable: false),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<PrivacyRequestRecord>> createPrivacyRequest({
+    required String requestType,
+    required String reason,
+  }) async {
+    try {
+      final result = await _remoteDataSource.createPrivacyRequest(
+        requestType: requestType,
+        reason: reason,
+      );
+      if (result is Success<PrivacyRequestRecordDto>) {
+        await _cacheManager.removeByPrefix('privacy_requests:');
+        return Result.success(PrivacyRequestRecord.fromDto(result.data));
+      }
+      if (result is Err<PrivacyRequestRecordDto>) {
+        return Result.failure(result.failure);
+      }
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown privacy request create result',
+          code: 'unknown_privacy_request_create',
+        ),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<List<ConsentHistoryItem>>> getConsentHistory({
+    bool forceRefresh = false,
+    int page = 0,
+    int size = 50,
+  }) async {
+    final profile = CacheProfiles.settingsConsentHistory;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
+    final cacheKey = _consentHistoryCacheKey(page, size);
+    try {
+      final cacheResult = await _cacheManager
+          .resolve<List<ConsentHistoryItemDto>>(
+            key: cacheKey,
+            policy: policy,
+            ttl: profile.ttl,
+            revalidateAfter: profile.revalidateAfter,
+            fetcher: () => _fetchConsentHistory(page: page, size: size),
+            toJson: (dtos) => <String, dynamic>{
+              'items': dtos.map((dto) => dto.toJson()).toList(growable: false),
+            },
+            fromJson: (json) {
+              final items = json['items'];
+              if (items is! List) {
+                return const <ConsentHistoryItemDto>[];
+              }
+              return items
+                  .whereType<Map<String, dynamic>>()
+                  .map(ConsentHistoryItemDto.fromJson)
+                  .toList(growable: false);
+            },
+          );
+      final mapped = cacheResult.data
+          .map(ConsentHistoryItem.fromDto)
+          .toList(growable: false);
+      mapped.sort((a, b) {
+        final bTime = b.agreedAt;
+        final aTime = a.agreedAt;
+        if (aTime == null && bTime == null) return 0;
+        if (aTime == null) return 1;
+        if (bTime == null) return -1;
+        return bTime.compareTo(aTime);
+      });
+      return Result.success(mapped);
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<void>> deleteAccount() async {
+    try {
+      final result = await _remoteDataSource.deleteAccount();
+      if (result is Success<void>) {
+        return const Result.success(null);
+      }
+      if (result is Err<void>) {
+        return Result.failure(result.failure);
+      }
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown delete account result',
+          code: 'unknown_delete_account',
+        ),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
   Future<Result<List<UserBlock>>> getUserBlocks({
     bool forceRefresh = false,
   }) async {
@@ -380,6 +582,60 @@ class SettingsRepositoryImpl implements SettingsRepository {
     );
   }
 
+  Future<PrivacySettingsDto> _fetchPrivacySettings() async {
+    final result = await _remoteDataSource.fetchPrivacySettings();
+    if (result is Success<PrivacySettingsDto>) {
+      return result.data;
+    }
+    if (result is Err<PrivacySettingsDto>) {
+      throw result.failure;
+    }
+    throw const UnknownFailure(
+      'Unknown privacy settings result',
+      code: 'unknown_privacy_settings',
+    );
+  }
+
+  Future<List<PrivacyRequestRecordDto>> _fetchPrivacyRequests({
+    required int page,
+    required int size,
+  }) async {
+    final result = await _remoteDataSource.fetchPrivacyRequests(
+      page: page,
+      size: size,
+    );
+    if (result is Success<List<PrivacyRequestRecordDto>>) {
+      return result.data;
+    }
+    if (result is Err<List<PrivacyRequestRecordDto>>) {
+      throw result.failure;
+    }
+    throw const UnknownFailure(
+      'Unknown privacy requests result',
+      code: 'unknown_privacy_requests',
+    );
+  }
+
+  Future<List<ConsentHistoryItemDto>> _fetchConsentHistory({
+    required int page,
+    required int size,
+  }) async {
+    final result = await _remoteDataSource.fetchConsentHistory(
+      page: page,
+      size: size,
+    );
+    if (result is Success<List<ConsentHistoryItemDto>>) {
+      return result.data;
+    }
+    if (result is Err<List<ConsentHistoryItemDto>>) {
+      throw result.failure;
+    }
+    throw const UnknownFailure(
+      'Unknown consent history result',
+      code: 'unknown_consent_history',
+    );
+  }
+
   Future<List<UserBlockDto>> _fetchUserBlocks() async {
     final result = await _remoteDataSource.fetchUserBlocks();
     if (result is Success<List<UserBlockDto>>) {
@@ -414,6 +670,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
 
   static const String _profileCacheKey = 'user_profile';
   static const String _notificationCacheKey = 'notification_settings';
+  static const String _privacySettingsCacheKey = 'privacy_settings';
   static const String _userBlocksCacheKey = 'user_blocks';
 
   String _userProfileCacheKey(String userId) {
@@ -422,6 +679,14 @@ class SettingsRepositoryImpl implements SettingsRepository {
 
   String _verificationAppealsCacheKey(String projectId) {
     return 'verification_appeals:$projectId';
+  }
+
+  String _privacyRequestsCacheKey(int page, int size) {
+    return 'privacy_requests:$page:$size';
+  }
+
+  String _consentHistoryCacheKey(int page, int size) {
+    return 'consent_history:$page:$size';
   }
 }
 

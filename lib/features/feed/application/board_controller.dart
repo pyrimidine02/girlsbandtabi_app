@@ -324,7 +324,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
     final now = DateTime.now();
     if (_lastRealtimeRefreshAt != null &&
         now.difference(_lastRealtimeRefreshAt!) <
-            const Duration(milliseconds: 1200)) {
+            const Duration(milliseconds: 700)) {
       return;
     }
     _lastRealtimeRefreshAt = now;
@@ -427,14 +427,15 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
   }
 
   Future<void> refreshInBackground({
-    Duration minInterval = const Duration(seconds: 35),
+    Duration minInterval = const Duration(seconds: 25),
   }) async {
     if (!_isBoardTabActive(_ref)) {
       return;
     }
-    if (_isRealtimeConnected && minInterval > Duration.zero) {
-      return;
-    }
+    // EN: Keep lightweight polling even when SSE is connected to reduce
+    // EN: perceived lag from delayed/missed realtime events.
+    // KO: SSE가 연결되어 있어도 지연/누락 이벤트 체감을 줄이기 위해
+    // KO: 가벼운 폴링을 함께 유지합니다.
     if (_isBackgroundSyncing || state.isInitialLoading || state.isLoadingMore) {
       return;
     }
@@ -955,8 +956,13 @@ final postListControllerProvider =
 /// EN: Community feed controller provider with mode/search/pagination state.
 /// KO: 모드/검색/페이지네이션 상태를 관리하는 커뮤니티 피드 컨트롤러 프로바이더.
 final communityFeedControllerProvider =
-    StateNotifierProvider<CommunityFeedController, CommunityFeedViewState>((
-      ref,
-    ) {
-      return CommunityFeedController(ref)..initialize();
+    StateNotifierProvider.autoDispose<
+      CommunityFeedController,
+      CommunityFeedViewState
+    >((ref) {
+      final controller = CommunityFeedController(ref)..initialize();
+      ref.onDispose(() {
+        unawaited(controller.stopRealtimeSync());
+      });
+      return controller;
     });

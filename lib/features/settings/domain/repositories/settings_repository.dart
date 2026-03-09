@@ -4,7 +4,9 @@ library;
 
 import '../../../../core/utils/result.dart';
 import '../entities/account_tools.dart';
+import '../entities/consent_history.dart';
 import '../entities/notification_settings.dart';
+import '../entities/privacy_rights.dart';
 import '../entities/user_profile.dart';
 
 abstract class SettingsRepository {
@@ -30,6 +32,34 @@ abstract class SettingsRepository {
   });
 
   Future<Result<void>> deactivateNotificationDevice({required String deviceId});
+
+  Future<Result<PrivacySettings>> getPrivacySettings({
+    bool forceRefresh = false,
+  });
+
+  Future<Result<PrivacySettings>> updatePrivacySettings({
+    required bool allowAutoTranslation,
+    int? version,
+  });
+
+  Future<Result<List<PrivacyRequestRecord>>> getPrivacyRequests({
+    bool forceRefresh = false,
+    int page = 0,
+    int size = 20,
+  });
+
+  Future<Result<PrivacyRequestRecord>> createPrivacyRequest({
+    required String requestType,
+    required String reason,
+  });
+
+  Future<Result<List<ConsentHistoryItem>>> getConsentHistory({
+    bool forceRefresh = false,
+    int page = 0,
+    int size = 50,
+  });
+
+  Future<Result<void>> deleteAccount();
 
   Future<Result<List<UserBlock>>> getUserBlocks({bool forceRefresh = false});
 

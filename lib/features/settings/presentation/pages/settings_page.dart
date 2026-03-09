@@ -16,6 +16,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/sensitive_text_utils.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
+import '../../../../core/widgets/dialogs/gbt_adaptive_dialog.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../auth/application/auth_controller.dart';
@@ -69,9 +70,7 @@ class SettingsPage extends ConsumerWidget {
               .load(forceRefresh: true);
         },
         child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(
             horizontal: GBTSpacing.md,
             vertical: GBTSpacing.sm,
@@ -1433,28 +1432,16 @@ class _ThemeOption extends StatelessWidget {
 }
 
 Future<bool?> _showLogoutConfirm(BuildContext context) {
-  return showDialog<bool>(
+  return showGBTAdaptiveConfirmDialog(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(context.l10n(ko: '로그아웃', en: 'Log out', ja: 'ログアウト')),
-      content: Text(
-        context.l10n(
-          ko: '정말로 로그아웃하시겠어요?',
-          en: 'Are you sure you want to log out?',
-          ja: '本当にログアウトしますか？',
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: Text(context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル')),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: Text(context.l10n(ko: '로그아웃', en: 'Log out', ja: 'ログアウト')),
-        ),
-      ],
+    title: context.l10n(ko: '로그아웃', en: 'Log out', ja: 'ログアウト'),
+    message: context.l10n(
+      ko: '정말로 로그아웃하시겠어요?',
+      en: 'Are you sure you want to log out?',
+      ja: '本当にログアウトしますか？',
     ),
+    confirmLabel: context.l10n(ko: '로그아웃', en: 'Log out', ja: 'ログアウト'),
+    cancelLabel: context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル'),
   );
 }
 

@@ -83,9 +83,7 @@ class _NotificationSettingsView extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ListView(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(
         horizontal: GBTSpacing.md,
         vertical: GBTSpacing.md,

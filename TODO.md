@@ -1,5 +1,63 @@
 # TODO
 
+- Run QA for settings privacy/consent repository migration (2026-03-09):
+  - 개인정보 및 권리행사 페이지 진입 시 privacy settings/요청 이력이
+    repository 경유로 정상 로드되는지 확인.
+  - 자동번역 토글 저장/충돌 복구/처리정지 요청/회원탈퇴 동작이 기존 UX와
+    동일하게 유지되는지 확인.
+  - 동의 이력 페이지에서 로딩/에러/빈상태/리스트 상태가 정상 노출되는지 확인.
+
+- Run QA for board lifecycle and polling policy update (2026-03-09):
+  - Board 탭 진입/이탈 반복 시 SSE 연결/해제가 중복 없이 안정적으로 동작하는지 확인.
+  - foreground 폴링이 25초 간격으로 동작하고, 체감 최신성 문제가 없는지 확인.
+  - 앱 백그라운드 전환 후 복귀 시 즉시 새로고침 동작이 정상인지 확인.
+
+- Test debt: feed integration test environment bootstrap (2026-03-09):
+  - `test/features/feed/presentation/pages/post_compose_autosave_integration_test.dart`
+    실행 시 `AppConfig.baseUrl` 미초기화(`LateInitializationError`) 이슈를
+    공통 테스트 bootstrap에서 해결.
+
+- Run QA for Firebase Analytics event wiring (2026-03-09):
+  - 로그인 성공 시 Firebase DebugView에서 `login(method=password|provider)`
+    이벤트가 수신되는지 확인.
+  - 회원가입 성공 시 `signup(method=password)` 이벤트가 수신되는지 확인.
+  - 통합검색 제출 시 `search(query)` 이벤트가 수신되는지 확인.
+  - 게시글 작성 성공 시 `post_create(category)` 이벤트가 수신되는지 확인.
+  - 홈 `추천 장소/트렌딩 라이브` 카드 탭 시 `place_visit/live_event_view`
+    이벤트가 수신되는지 확인.
+  - 라우트 이동 시 `screen_view`가 경로 변경 기준으로 기록되는지 확인.
+
+- Run QA for Android platform UX branching (2026-03-09):
+  - Android에서 메인 하단 네비가 Material `NavigationBar`로 노출되고
+    탭 ripple/선택 인디케이터가 보이는지 확인.
+  - Android에서 게시판 서브 하단 네비(피드/발견/여행후기)가
+    Material 스타일로 표시되고 back/탭 전환이 정상인지 확인.
+  - iOS에서 기존 유리(blur) 네비게이션 디자인이 유지되는지 확인.
+  - Android 접근성 큰 글꼴(시스템 글꼴 확대)에서 `1.6` 범위까지
+    주요 화면 레이아웃이 깨지지 않는지 확인.
+  - Search/LiveDetail 뒤로 아이콘이 Android/iOS에서 각 플랫폼 스타일로
+    노출되는지 확인.
+  - Home/Settings/Profile 등 주요 세로 스크롤 화면에서 Android는
+    clamping, iOS는 bouncing 체감이 유지되는지 확인.
+
+- Run QA for community/detail/notification stability bundle (2026-03-09):
+  - 커뮤니티 프로필 `작성한 글/댓글`에서 게시글 상세 진입 시 본문/댓글이
+    정상 노출되는지 확인(프로젝트 혼합 데이터 포함).
+  - 즐겨찾기 `장소/게시글` 탭에서 상세 진입이 흰 화면 없이 정상 동작하는지 확인.
+  - 알림 설정 토글을 빠르게 연타해도 저장 실패 토스트 없이 최종 상태가 유지되는지 확인.
+  - 게시글 액션에서 `좋아요`와 `저장` 문구/동작/실패 메시지가 분리되어
+    사용자에게 명확히 전달되는지 확인.
+  - 커뮤니티 피드에서 신규 글/댓글 반영 지연이 기존 대비 줄었는지
+    (SSE + 12초 폴링 보조) 실기기에서 체감 확인.
+
+- Run QA for home-card detail loading fix (2026-03-09):
+  - 홈 `추천 장소` 카드 탭 시 장소 상세가 로딩 고정 없이 정상 노출되는지 확인.
+  - 홈 `트렌딩 라이브` 카드 탭 시 라이브 상세가 로딩 고정 없이 정상 노출되는지 확인.
+  - 프로젝트 선택 직후/앱 재시작 직후(프로젝트 컨텍스트 늦게 준비되는 상황)에도
+    상세 페이지가 무한 로딩이 아닌 정상 로드 또는 명시적 에러로 전환되는지 확인.
+  - 현재 선택 프로젝트와 다른 프로젝트 데이터 카드 탭 시에도 fallback 탐색으로
+    상세를 가져오는지 확인.
+
 - Run QA for Xcode Cloud iOS plist injection flow (2026-03-09):
   - Xcode Cloud Archive 로그에서 `GoogleService-Info.plist` 생성 로그
     (`GOOGLE_SERVICE_INFO_PLIST`/`GOOGLE_SERVICE_INFO_PLIST_B64`)가 노출되는지 확인.
@@ -7,10 +65,14 @@
     에러가 재발하지 않는지 확인.
   - Secret 미주입/오타 시 `ci_post_clone` 단계에서 즉시 실패(`Missing
     GoogleService-Info.plist secret.`)하는지 확인.
+  - `ci_post_clone` 로그에서 `pod install --repo-update`가 실행되는지 확인
+    (spec 갱신 누락으로 인한 의존성 해석 실패 방지).
+  - `CI_PRIMARY_REPOSITORY_PATH is required` 에러가 나오면
+    워크플로의 스크립트 실행 컨텍스트를 점검(잘못된 스크립트 단계 구성 가능).
 
 - Run QA for Android version-code automation flow (2026-03-09):
   - `./scripts/bump_version.sh build`를 연속 2회 실행했을 때 build number가
-    항상 증가하는지 확인.
+    정확히 `+1`씩 증가하는지 확인.
   - `./scripts/build_android_internal.sh build` 실행 시
     `pubspec.yaml` 버전 갱신 + AAB 생성이 한 번에 되는지 확인.
   - 수동 값 강제(`--build-number`)와 상한 초과 방어(2,100,000,000) 동작 확인.
@@ -599,6 +661,10 @@
   - if preview still misses while post detail shows images, collect
     `/api/v1/projects/{projectCode}/posts` summary payload for affected post
     (`thumbnailUrl`, `imageUrls`, `content`) and raise backend contract issue.
+  - if "first image not selected as thumbnail" persists, verify backend
+    upload approval timing/order for `imageUploadIds`:
+    - `imageUploadIds[0]` should be approved by summary hydration time.
+    - summary must preserve original upload order when deriving `thumbnailUrl`.
 - QA post edit project-lock behavior:
   - on edit page, project selector must be non-interactive with lock affordance.
   - updating title/content/images should succeed without
@@ -628,6 +694,7 @@
     `FIREBASE_IOS_STORAGE_BUCKET` (optional).
   - confirm archive logs include
     `Generated GoogleService-Info.plist ...` line in `ci_post_clone.sh`.
+  - if decode fails, regenerate base64 without newlines and re-save secret.
 - Verify Xcode Cloud post-clone script discovery:
   - ensure workflow executes either root `ci_post_clone.sh` or
     `ci_scripts/ci_post_clone.sh` (both now supported).
@@ -639,3 +706,16 @@
     hard empty (`sourceCounts=0`) vs soft empty (`sourceCounts>0`).
   - verify by-project response ordering/id matching when identifiers mix
     `slug` and `uuid`.
+- Execute CODE_AUDIT.md P1 remediation batch:
+  - move settings privacy/consent presentation API calls behind
+    repository/controller boundaries.
+  - remove Flutter framework imports from domain models
+    (`admin_ops_entities.dart`).
+  - split `board_controller.dart` responsibilities and add lifecycle-safe
+    realtime provider strategy (`autoDispose` or explicit stop contract).
+- QA platform-adaptive dialog/sheet behavior:
+  - iOS should show Cupertino alert/action sheet for confirm/report/logout/
+    delete flows in board/feed/post-detail/settings/register.
+  - Android should keep Material dialog/sheet visuals and button hierarchy.
+  - Verify destructive actions (delete/ban/account delete) are visually
+    destructive on both platforms.

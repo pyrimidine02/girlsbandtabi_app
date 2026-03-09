@@ -5,14 +5,13 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/constants/api_constants.dart';
 import '../../../../core/localization/locale_text.dart';
-import '../../../../core/providers/core_providers.dart';
-import '../../../../core/storage/local_storage.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../application/settings_controller.dart';
+import '../../domain/entities/consent_history.dart';
 
 class ConsentHistoryPage extends ConsumerWidget {
   const ConsentHistoryPage({super.key});
@@ -79,9 +78,7 @@ class ConsentHistoryPage extends ConsumerWidget {
             }
 
             return ListView.separated(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(GBTSpacing.md),
               itemBuilder: (context, index) =>
                   _ConsentHistoryTile(item: items[index]),
@@ -95,95 +92,21 @@ class ConsentHistoryPage extends ConsumerWidget {
   }
 }
 
-final consentHistoryProvider = FutureProvider<List<_ConsentHistoryItem>>((
+final consentHistoryProvider = FutureProvider<List<ConsentHistoryItem>>((
   ref,
 ) async {
-  final apiClient = ref.read(apiClientProvider);
-  final remoteResult = await apiClient.get<List<_ConsentHistoryItem>>(
-    ApiEndpoints.userConsents,
-    queryParameters: const {'page': 0, 'size': 50, 'sort': 'agreedAt,desc'},
-    fromJson: _parseConsentItems,
-  );
-
-  final storage = await ref.read(localStorageProvider.future);
-  final localList =
-      storage.getJsonList(LocalStorageKeys.userConsents) ?? const [];
-  final localItems = localList.map(_ConsentHistoryItem.fromJson).toList();
-
-  if (remoteResult is Success<List<_ConsentHistoryItem>>) {
-    final remoteItems = _sortConsentItems(remoteResult.data);
-    if (remoteItems.isNotEmpty) {
-      return remoteItems;
-    }
+  final repository = await ref.read(settingsRepositoryProvider.future);
+  final result = await repository.getConsentHistory();
+  if (result is Err<List<ConsentHistoryItem>>) {
+    throw result.failure;
   }
-
-  return _sortConsentItems(localItems);
+  return result.dataOrNull ?? const <ConsentHistoryItem>[];
 });
-
-List<_ConsentHistoryItem> _parseConsentItems(dynamic json) {
-  if (json is List) {
-    return json
-        .whereType<Map<String, dynamic>>()
-        .map(_ConsentHistoryItem.fromJson)
-        .toList(growable: false);
-  }
-
-  if (json is Map<String, dynamic>) {
-    final items = json['items'];
-    if (items is List) {
-      return items
-          .whereType<Map<String, dynamic>>()
-          .map(_ConsentHistoryItem.fromJson)
-          .toList(growable: false);
-    }
-  }
-
-  return const [];
-}
-
-List<_ConsentHistoryItem> _sortConsentItems(List<_ConsentHistoryItem> items) {
-  final sorted = List<_ConsentHistoryItem>.from(items);
-  sorted.sort((a, b) {
-    final bTime = DateTime.tryParse(b.agreedAt);
-    final aTime = DateTime.tryParse(a.agreedAt);
-    if (aTime == null && bTime == null) return 0;
-    if (aTime == null) return 1;
-    if (bTime == null) return -1;
-    return bTime.compareTo(aTime);
-  });
-  return sorted;
-}
-
-class _ConsentHistoryItem {
-  const _ConsentHistoryItem({
-    required this.type,
-    required this.version,
-    required this.agreed,
-    required this.agreedAt,
-    this.label,
-  });
-
-  final String type;
-  final String version;
-  final bool agreed;
-  final String agreedAt;
-  final String? label;
-
-  factory _ConsentHistoryItem.fromJson(Map<String, dynamic> json) {
-    return _ConsentHistoryItem(
-      type: (json['type'] as String?) ?? 'UNKNOWN',
-      version: (json['version'] as String?) ?? '-',
-      agreed: (json['agreed'] as bool?) ?? false,
-      agreedAt: (json['agreedAt'] as String?) ?? '-',
-      label: json['label'] as String?,
-    );
-  }
-}
 
 class _ConsentHistoryTile extends StatelessWidget {
   const _ConsentHistoryTile({required this.item});
 
-  final _ConsentHistoryItem item;
+  final ConsentHistoryItem item;
 
   @override
   Widget build(BuildContext context) {
@@ -277,9 +200,9 @@ class _ConsentHistoryTile extends StatelessWidget {
     }
   }
 
-  String _formatConsentDate(String raw) {
-    final parsed = DateTime.tryParse(raw);
-    if (parsed == null) return raw;
+  String _formatConsentDate(DateTime? value) {
+    if (value == null) return '-';
+    final parsed = value;
     final local = parsed.toLocal();
     final month = local.month.toString().padLeft(2, '0');
     final day = local.day.toString().padLeft(2, '0');

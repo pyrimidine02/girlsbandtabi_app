@@ -105,9 +105,7 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
                   .load(forceRefresh: true);
             },
             child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
+              physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 // EN: [0] Ranking banner
                 // KO: [0] 랭킹 배너

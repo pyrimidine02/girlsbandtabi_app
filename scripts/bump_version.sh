@@ -90,15 +90,9 @@ if [[ -n "$manual_build_number" ]]; then
   fi
   next_build="$manual_build_number"
 else
-  # EN: Keep build number monotonically increasing across local and CI builds.
-  # KO: 로컬/CI 빌드 전반에서 빌드 번호가 단조 증가하도록 유지합니다.
-  now_epoch="$(date +%s)"
-  incremented="$((current_build + 1))"
-  if (( now_epoch > incremented )); then
-    next_build="$now_epoch"
-  else
-    next_build="$incremented"
-  fi
+  # EN: Increment build number by exactly one for deterministic local releases.
+  # KO: 로컬 릴리스 번호를 예측 가능하게 유지하기 위해 정확히 +1 증가합니다.
+  next_build="$((current_build + 1))"
 fi
 
 if (( next_build > 2100000000 )); then

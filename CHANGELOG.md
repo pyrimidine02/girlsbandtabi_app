@@ -1,6 +1,194 @@
 # Changelog
 
 ## 2026-03-09
+- **CODE AUDIT REMEDIATION BATCH (P1/P2 CORE)**:
+  - Settings 아키텍처 경계 정리:
+    - `privacy_rights_page`/`consent_history_page`의 직접 `ApiClient` 호출 제거.
+    - `SettingsRepository`에 privacy/consent/account-delete 계약 추가.
+    - `SettingsRemoteDataSource`/`SettingsRepositoryImpl`에
+      개인정보 설정/권리요청/동의이력 API 경로 추가 및 캐시 프로필 연동.
+    - 신규 DTO/도메인 엔티티 추가:
+      - `lib/features/settings/data/dto/privacy_rights_dto.dart`
+      - `lib/features/settings/data/dto/consent_history_dto.dart`
+      - `lib/features/settings/domain/entities/privacy_rights.dart`
+      - `lib/features/settings/domain/entities/consent_history.dart`
+  - AdminOps 도메인 순수성 회복:
+    - `admin_ops_entities.dart`에서 Flutter `Color` 의존 제거.
+    - `AdminReportStatusPalette`를 presentation 레이어로 이동.
+  - Community feed 생명주기/폴링 정책 조정:
+    - `communityFeedControllerProvider`를 `autoDispose`로 전환.
+    - dispose 시 realtime stop cleanup 보강.
+    - board foreground polling interval `12s -> 25s`로 조정.
+  - Post detail UI 일관성 정리:
+    - 주요 수정/스레드/신고/이의제기 sheet를 `showGBTBottomSheet` 기반으로 정리.
+    - 하드코딩 duration 일부를 `GBTAnimations` 토큰으로 교체.
+  - Theme 정리:
+    - 미사용 deprecated gradient 상수 제거
+      (`accentGradient`, `secondaryGradient`, `darkAccentGradient`,
+      `darkSurfaceGradient`).
+  - Validation:
+    - `flutter analyze` ✅
+    - `flutter test test/features/settings/application/settings_controller_test.dart` ✅
+    - `flutter test test/features/feed` ⚠️
+      (`post_compose_autosave_integration_test`에서 기존 테스트 환경
+      `AppConfig.baseUrl` 미초기화 이슈로 실패)
+
+- **CODE AUDIT DOCUMENT REFRESH**:
+  - Rewrote `docs/CODE_AUDIT.md` with current repository baseline:
+    - `lib`: 265 Dart files
+    - `test`: 53 Dart files
+  - Corrected stale findings from older draft:
+    - removed outdated "test files 2개" claim
+    - corrected greeting gradient duplicate claim
+  - Reorganized audit output into P1/P2/P3 execution plan with
+    file-level evidence and sprint-ready remediation steps.
+- **FIREBASE ANALYTICS EVENT WIRING (SCREEN + CORE ACTIONS)**:
+  - Activated runtime analytics wiring on top of the existing Firebase
+    analytics wrapper.
+  - Added app-scope screen tracking:
+    - logs `screen_view` when GoRouter path changes (normalized screen names).
+  - Added success-event tracking:
+    - auth login/signup (`password`, OAuth provider id)
+    - unified-search submit
+    - community post create success
+    - home recommended-place/trending-live card taps
+  - Updated files:
+    - `lib/app.dart`
+    - `lib/features/auth/application/auth_controller.dart`
+    - `lib/features/search/presentation/pages/search_page.dart`
+    - `lib/features/feed/presentation/pages/post_create_page.dart`
+    - `lib/features/home/presentation/pages/home_page.dart`
+  - Validation:
+    - `flutter analyze lib/app.dart lib/features/auth/application/auth_controller.dart lib/features/search/presentation/pages/search_page.dart lib/features/feed/presentation/pages/post_create_page.dart lib/features/home/presentation/pages/home_page.dart`
+- **ANDROID PLATFORM UX BRANCHING (IOS PARITY PRESERVED)**:
+  - Added platform branching so Android uses Android-native interaction
+    patterns while iOS keeps the existing visual/interaction style.
+  - Android-only adjustments:
+    - main bottom navigation uses Material `NavigationBar` with ripple.
+    - board sub bottom navigation uses Material surface/ripple variant.
+    - increased max text scale cap to `1.6` (iOS remains `1.3`).
+    - back icon now uses platform-aware icon mapping.
+  - Cross-platform cleanup:
+    - removed hard-coded `BouncingScrollPhysics` parent usage from multiple
+      pages so platform default scroll physics applies naturally.
+    - explicit `BouncingScrollPhysics` usage now branches to `Clamping` on Android.
+    - share icon token now resolves per-platform (`ios_share` on iOS,
+      `share_outlined` on Android/others).
+  - Updated files:
+    - `lib/core/widgets/navigation/gbt_bottom_nav.dart`
+    - `lib/shared/main_scaffold.dart`
+    - `lib/app.dart`
+    - `lib/features/search/presentation/pages/search_page.dart`
+    - `lib/features/live_events/presentation/pages/live_event_detail_page.dart`
+    - `lib/core/widgets/common/gbt_action_icons.dart`
+    - `lib/features/home/presentation/pages/home_page.dart`
+    - `lib/features/settings/presentation/pages/settings_page.dart`
+    - `lib/features/feed/presentation/pages/user_profile_page.dart`
+    - `lib/features/live_events/presentation/pages/live_attendance_history_page.dart`
+    - `lib/features/settings/presentation/pages/profile_edit_page.dart`
+    - `lib/features/settings/presentation/pages/consent_history_page.dart`
+    - `lib/features/settings/presentation/pages/community_settings_page.dart`
+    - `lib/features/settings/presentation/pages/notification_settings_page.dart`
+    - `lib/features/visits/presentation/pages/visit_history_page.dart`
+    - `lib/features/visits/presentation/pages/visit_stats_page.dart`
+    - `lib/features/visits/presentation/pages/visit_detail_page.dart`
+    - `lib/features/settings/presentation/pages/account_tools_page.dart`
+    - `lib/core/widgets/layout/gbt_carousel_section.dart`
+  - Validation:
+    - `flutter analyze lib/app.dart lib/core/widgets/common/gbt_action_icons.dart lib/core/widgets/layout/gbt_carousel_section.dart lib/core/widgets/navigation/gbt_bottom_nav.dart lib/features/feed/presentation/pages/user_profile_page.dart lib/features/home/presentation/pages/home_page.dart lib/features/live_events/presentation/pages/live_attendance_history_page.dart lib/features/live_events/presentation/pages/live_event_detail_page.dart lib/features/search/presentation/pages/search_page.dart lib/features/settings/presentation/pages/account_tools_page.dart lib/features/settings/presentation/pages/community_settings_page.dart lib/features/settings/presentation/pages/consent_history_page.dart lib/features/settings/presentation/pages/notification_settings_page.dart lib/features/settings/presentation/pages/profile_edit_page.dart lib/features/settings/presentation/pages/settings_page.dart lib/features/visits/presentation/pages/visit_detail_page.dart lib/features/visits/presentation/pages/visit_history_page.dart lib/features/visits/presentation/pages/visit_stats_page.dart lib/shared/main_scaffold.dart`
+- **PLATFORM-ADAPTIVE DIALOG/SHEET UX POLISH**:
+  - Added shared confirm-dialog helper:
+    - `showGBTAdaptiveConfirmDialog` (Cupertino on iOS/macOS, Material on
+      Android/others).
+  - Migrated key confirm flows to adaptive dialogs:
+    - board: delete/report/ban confirms.
+    - feed: report confirm.
+    - post detail: delete post/delete comment/report confirms.
+    - privacy rights: account delete confirm.
+    - register: final-consent confirm now uses Cupertino alert on iOS and
+      Material dialog on Android.
+  - Expanded shared sheet helpers with iOS-native behavior:
+    - `showGBTBottomSheet` now uses `showCupertinoModalPopup` on iOS/macOS.
+    - `showGBTActionSheet` now uses `CupertinoActionSheet` on iOS/macOS.
+  - Updated files:
+    - `lib/core/widgets/dialogs/gbt_adaptive_dialog.dart`
+    - `lib/core/widgets/sheets/gbt_bottom_sheet.dart`
+    - `lib/features/feed/presentation/pages/board_page.dart`
+    - `lib/features/feed/presentation/pages/feed_page.dart`
+    - `lib/features/feed/presentation/pages/post_detail_page.dart`
+    - `lib/features/settings/presentation/pages/privacy_rights_page.dart`
+    - `lib/features/auth/presentation/pages/register_page.dart`
+  - Validation:
+    - `flutter analyze lib/core/widgets/dialogs/gbt_adaptive_dialog.dart lib/core/widgets/sheets/gbt_bottom_sheet.dart lib/features/feed/presentation/pages/board_page.dart lib/features/feed/presentation/pages/feed_page.dart lib/features/feed/presentation/pages/post_detail_page.dart lib/features/settings/presentation/pages/privacy_rights_page.dart lib/features/auth/presentation/pages/register_page.dart`
+- **COMMUNITY/DETAIL/NOTIFICATION STABILITY PATCH (5-ISSUE BUNDLE)**:
+  - Fixed post detail open flow from community profile activity tabs:
+    - routed profile post/comment taps through shared `goToPostDetail(...)`
+      with `projectCode` hint.
+    - post detail routes now accept `projectCode` query and pass it into
+      route-aware post detail/comment providers.
+  - Reduced favorite-place detail open delays:
+    - place detail controller fallback project lookup now runs in parallel and
+      resolves on first successful project response.
+    - favorites DTO now normalizes deep-link style IDs and nested payload keys.
+    - favorites post navigation now forwards optional `projectCode` hint when
+      present in payload, improving mixed-project post-detail open reliability.
+  - Improved notification-settings save reliability:
+    - serialized rapid toggle updates to prevent stale write/revert races.
+    - added transient retry path for network/5xx save failures.
+    - settings update response parser now tolerates empty payloads by falling
+      back to the request body.
+  - Clarified like vs bookmark roles in community actions:
+    - bookmark action now shows explicit `저장/저장됨` label.
+    - post detail action bar semantics now announces separate save state.
+    - error copy split to distinct messages (`좋아요 상태`, `저장 상태`).
+  - Improved community realtime freshness:
+    - SSE throttle reduced (`1200ms -> 700ms`).
+    - background refresh min interval reduced (`35s -> 12s`).
+    - polling kept active even while SSE connected to cover delayed/missed
+      realtime events.
+  - Updated files:
+    - `lib/core/router/app_router.dart`
+    - `lib/features/feed/application/post_controller.dart`
+    - `lib/features/feed/presentation/pages/post_detail_page.dart`
+    - `lib/features/feed/presentation/pages/user_profile_page.dart`
+    - `lib/features/feed/presentation/pages/board_page.dart`
+    - `lib/features/feed/presentation/pages/feed_page.dart`
+    - `lib/features/places/application/places_controller.dart`
+    - `lib/features/favorites/data/dto/favorite_dto.dart`
+    - `lib/features/favorites/presentation/pages/favorites_page.dart`
+    - `lib/features/settings/application/settings_controller.dart`
+    - `lib/features/settings/data/datasources/settings_remote_data_source.dart`
+  - Validation:
+    - `flutter analyze lib/core/router/app_router.dart lib/features/feed/application/post_controller.dart lib/features/feed/presentation/pages/post_detail_page.dart lib/features/feed/presentation/pages/user_profile_page.dart lib/features/feed/presentation/pages/board_page.dart lib/features/feed/presentation/pages/feed_page.dart lib/features/settings/data/datasources/settings_remote_data_source.dart lib/features/settings/application/settings_controller.dart lib/features/places/application/places_controller.dart lib/features/favorites/data/dto/favorite_dto.dart lib/features/favorites/presentation/pages/favorites_page.dart`
+    - `flutter test test/features/favorites/data/favorite_dto_test.dart test/features/settings/application/settings_controller_test.dart test/features/places/application/places_controller_test.dart`
+- **ANDROID BUILD NUMBER POLICY UPDATE (`CURRENT + 1`)**:
+  - Updated `scripts/bump_version.sh` auto-increment rule to fixed
+    `current_build + 1`.
+  - Removed epoch-time comparison from auto build-number calculation.
+  - Keeps manual override (`--build-number`) and Android upper-limit guard
+    (`<= 2,100,000,000`) unchanged.
+  - Updated docs:
+    - `docs/모바일버전배포가이드_v1.0.0.md`
+    - `docs/adr/ADR-20260309-android-versioncode-auto-increment-local-build.md`
+  - Validation:
+    - `bash -n scripts/bump_version.sh`
+    - `./scripts/bump_version.sh build --dry-run`
+- **HOME -> PLACE/LIVE DETAIL INFINITE LOADING FIX**:
+  - Fixed detail-page indefinite loading when entering from Home cards.
+  - `PlaceDetailController` no longer blocks `load()` by places-tab index,
+    so cross-tab navigation (Home -> Place detail) can fetch immediately.
+  - `LiveEventDetailController` now:
+    - listens to project context (`selectedProjectKey/Id`) changes
+    - resolves project key with fallback (`selection -> first project`)
+    - emits explicit error if project context is unavailable
+    instead of staying in loading forever.
+  - Added mounted guards after async boundaries to avoid stale state updates.
+  - Updated files:
+    - `lib/features/places/application/places_controller.dart`
+    - `lib/features/live_events/application/live_events_controller.dart`
+  - Validation:
+    - `flutter analyze lib/features/places/application/places_controller.dart lib/features/live_events/application/live_events_controller.dart`
+    - `flutter test test/features/places/application/places_controller_test.dart`
 - **XCODE CLOUD IOS PLIST INJECTION POLICY HARDENING (SECRET-ONLY)**:
   - Updated iOS Xcode Cloud plist generation to strict secret mode:
     - accepted inputs: `GOOGLE_SERVICE_INFO_PLIST_B64` (recommended) or
@@ -11,6 +199,19 @@
   - Updated files:
     - `ci_post_clone.sh`
     - `ios/ci_scripts/ci_post_clone.sh`
+  - Validation:
+    - `bash -n ci_post_clone.sh`
+    - `sh -n ios/ci_scripts/ci_post_clone.sh`
+- **XCODE CLOUD PLIST INJECTION RESILIENCE UPDATE**:
+  - Expanded `ci_post_clone.sh` and `ios/ci_scripts/ci_post_clone.sh`:
+    - retry base64 decode after whitespace/newline normalization,
+    - accept accidental raw plist content in `GOOGLE_SERVICE_INFO_PLIST_B64`,
+    - re-enable fallback plist composition from `FIREBASE_IOS_*` discrete vars.
+  - Hardened `ios/ci_scripts/ci_post_clone.sh`:
+    - enforce `CI_PRIMARY_REPOSITORY_PATH` presence with explicit failure,
+    - quote repository path before `cd`,
+    - use `pod install --repo-update` to reduce stale-spec failures.
+  - Added clearer decode-failure hint message for secret regeneration.
   - Validation:
     - `bash -n ci_post_clone.sh`
     - `sh -n ios/ci_scripts/ci_post_clone.sh`
@@ -36,6 +237,22 @@
     - locks project selector UI in edit mode (non-interactive + lock indicator).
   - Validation:
     - `flutter analyze lib/features/feed/presentation/pages/post_edit_page.dart`
+- **ANDROID FEED THUMBNAIL FALLBACK HARDENING**:
+  - Feed/board post cards now use multi-source preview fallback sequence:
+    - `thumbnailUrl` → `imageUrls` → content-extracted image URLs
+    - if the current URL fails to load, automatically retries next candidate.
+  - Added optional `onError` callback in shared `GBTImage` for controlled
+    image-source failover.
+  - Post create upload handling now keeps `imageUploadIds` even when an
+    upload response URL is temporarily empty, so backend summary thumbnail
+    derivation is not blocked by missing markdown URL insertion.
+  - Updated files:
+    - `lib/core/widgets/common/gbt_image.dart`
+    - `lib/features/feed/presentation/pages/feed_page.dart`
+    - `lib/features/feed/presentation/pages/board_page.dart`
+    - `lib/features/feed/presentation/pages/post_create_page.dart`
+  - Validation:
+    - `flutter analyze lib/core/widgets/common/gbt_image.dart lib/features/feed/presentation/pages/feed_page.dart lib/features/feed/presentation/pages/board_page.dart lib/features/feed/presentation/pages/post_create_page.dart`
 - **XCODE CLOUD IOS ARCHIVE: MISSING `GoogleService-Info.plist` FIX**:
   - Updated `ci_post_clone.sh` so CI ensures
     `ios/Runner/GoogleService-Info.plist` exists before archive.

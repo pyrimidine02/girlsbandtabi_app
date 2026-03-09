@@ -149,9 +149,7 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage>
           final grouped = _groupByMonth(sorted, context);
 
           return CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
+            physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               // EN: Summary header card
               // KO: 요약 헤더 카드

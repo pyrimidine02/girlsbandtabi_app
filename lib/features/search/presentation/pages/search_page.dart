@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/localization/locale_text.dart';
+import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -78,6 +79,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   Future<void> _onSubmit(String value) async {
     final trimmed = value.trim();
     if (trimmed.isEmpty) return;
+    unawaited(ref.read(analyticsServiceProvider).logSearch(trimmed));
     await ref.read(searchHistoryControllerProvider.notifier).addSearch(trimmed);
   }
 
@@ -127,7 +129,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 children: [
                   IconButton(
                     onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                    icon: const BackButtonIcon(),
                     tooltip: context.l10n(ko: '뒤로가기', en: 'Back', ja: '戻る'),
                   ),
                   const SizedBox(width: GBTSpacing.xs2),

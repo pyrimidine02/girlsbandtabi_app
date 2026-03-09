@@ -96,7 +96,9 @@ class GBTCarouselSection extends StatelessWidget {
           height: itemHeight,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
+            physics: Theme.of(context).platform == TargetPlatform.android
+                ? const ClampingScrollPhysics()
+                : const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(
               horizontal: GBTSpacing.pageHorizontal,
             ),

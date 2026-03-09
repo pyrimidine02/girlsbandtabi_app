@@ -421,18 +421,22 @@ IconData _typeIcon(FavoriteType type) {
 // EN: Route through shared helpers so overlay->shell transitions use safe navigation policy.
 // KO: 오버레이->쉘 전환 시 안전한 이동 정책을 적용하도록 공통 헬퍼로 라우팅합니다.
 void _openItem(BuildContext context, FavoriteItem item) {
+  final entityId = item.entityId.trim();
+  if (entityId.isEmpty) {
+    return;
+  }
   switch (item.type) {
     case FavoriteType.place:
-      context.goToPlaceDetail(item.entityId);
+      context.goToPlaceDetail(entityId);
       break;
     case FavoriteType.liveEvent:
-      context.goToLiveDetail(item.entityId);
+      context.goToLiveDetail(entityId);
       break;
     case FavoriteType.news:
-      context.goToNewsDetail(item.entityId);
+      context.goToNewsDetail(entityId);
       break;
     case FavoriteType.post:
-      context.goToPostDetail(item.entityId);
+      context.goToPostDetail(entityId, projectCode: item.projectCode);
       break;
     case FavoriteType.unknown:
       break;

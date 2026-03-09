@@ -2,7 +2,6 @@
 /// KO: 운영/관리자 기능 도메인 엔티티.
 library;
 
-import 'package:flutter/material.dart';
 import '../../../../core/security/user_access_level.dart';
 
 /// EN: Community report moderation status.
@@ -202,16 +201,4 @@ bool hasAdminOpsAccess({String? effectiveAccessLevel, String? accountRole}) {
     effectiveAccessLevel: effectiveAccessLevel,
     accountRole: accountRole,
   );
-}
-
-/// EN: UI palette for report states.
-/// KO: 신고 상태별 UI 색상 팔레트.
-class AdminReportStatusPalette {
-  const AdminReportStatusPalette({
-    required this.foreground,
-    required this.background,
-  });
-
-  final Color foreground;
-  final Color background;
 }

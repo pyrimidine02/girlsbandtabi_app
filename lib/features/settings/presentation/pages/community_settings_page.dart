@@ -53,9 +53,7 @@ class CommunitySettingsPage extends ConsumerWidget {
               .load(forceRefresh: true);
         },
         child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(
             horizontal: GBTSpacing.md,
             vertical: GBTSpacing.sm,

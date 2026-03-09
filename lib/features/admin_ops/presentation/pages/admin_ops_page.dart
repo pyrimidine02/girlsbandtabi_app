@@ -1006,6 +1006,18 @@ class _ActionSheetItem extends StatelessWidget {
   }
 }
 
+/// EN: UI palette for report states.
+/// KO: 신고 상태별 UI 색상 팔레트.
+class AdminReportStatusPalette {
+  const AdminReportStatusPalette({
+    required this.foreground,
+    required this.background,
+  });
+
+  final Color foreground;
+  final Color background;
+}
+
 AdminReportStatusPalette _paletteFor(AdminReportStatus status) {
   switch (status) {
     case AdminReportStatus.open:

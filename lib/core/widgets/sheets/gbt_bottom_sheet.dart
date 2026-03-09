@@ -2,6 +2,7 @@
 /// KO: GBT 바텀 시트 컴포넌트
 library;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/gbt_colors.dart';
@@ -19,6 +20,38 @@ Future<T?> showGBTBottomSheet<T>({
   bool isScrollControlled = false,
   double? maxHeight,
 }) {
+  final platform = Theme.of(context).platform;
+  final useCupertino =
+      platform == TargetPlatform.iOS || platform == TargetPlatform.macOS;
+  if (useCupertino) {
+    return showCupertinoModalPopup<T>(
+      context: context,
+      barrierDismissible: isDismissible,
+      semanticsDismissible: isDismissible,
+      builder: (popupContext) {
+        final mediaQuery = MediaQuery.of(popupContext);
+        final heightLimit = maxHeight ?? mediaQuery.size.height * 0.9;
+        return SafeArea(
+          top: false,
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: mediaQuery.viewInsets.bottom),
+              child: Material(
+                color: Colors.transparent,
+                child: GBTBottomSheet(
+                  title: title,
+                  maxHeight: heightLimit,
+                  child: child,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: isScrollControlled,
@@ -168,6 +201,37 @@ Future<T?> showGBTActionSheet<T>({
   String? title,
   String? cancelLabel,
 }) {
+  final platform = Theme.of(context).platform;
+  final useCupertino =
+      platform == TargetPlatform.iOS || platform == TargetPlatform.macOS;
+  if (useCupertino) {
+    return showCupertinoModalPopup<T>(
+      context: context,
+      builder: (popupContext) => CupertinoActionSheet(
+        title: title != null ? Text(title) : null,
+        actions: actions
+            .map(
+              (action) => CupertinoActionSheetAction(
+                isDestructiveAction: action.isDestructive,
+                onPressed: () {
+                  action.onTap?.call();
+                  Navigator.of(popupContext).pop(action.value);
+                },
+                child: Text(action.label),
+              ),
+            )
+            .toList(growable: false),
+        cancelButton: cancelLabel == null
+            ? null
+            : CupertinoActionSheetAction(
+                isDefaultAction: true,
+                onPressed: () => Navigator.of(popupContext).pop(),
+                child: Text(cancelLabel),
+              ),
+      ),
+    );
+  }
+
   return showGBTBottomSheet<T>(
     context: context,
     title: title,

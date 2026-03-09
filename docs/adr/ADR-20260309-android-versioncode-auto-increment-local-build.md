@@ -12,12 +12,14 @@ Accepted
   build number를 항상 `+1`로 리셋하는 구조였다.
 - CI는 자동 build-number를 주입하지만, 로컬 수동 빌드 경로는
   충돌 방지가 약했다.
+- 스토어 업로드 이력이 쌓인 상태에서 build number가 이미 큰 값이면
+  날짜/epoch 기반 정책은 운영상 혼선을 만들 수 있다.
 
 ## Decision
 1. `scripts/bump_version.sh`를 개선한다.
    - 모드: `major|minor|patch|build`
    - build number 자동증가:
-     - `max(current_build + 1, current_epoch_second)`
+     - `current_build + 1` (정확히 1씩 증가)
    - 수동 지정 옵션: `--build-number N`
    - 검증 옵션: `--dry-run`
    - 상한 방어: `N <= 2,100,000,000`
@@ -38,6 +40,7 @@ Accepted
 ### Positive
 - 로컬 빌드에서도 `versionCode`가 단조 증가해 충돌 가능성이 크게 줄어든다.
 - 내부테스트 빌드 명령이 단순해져 운영 실수를 줄일 수 있다.
+- 증가 규칙이 고정(`+1`)되어 릴리스 번호 예측과 운영이 단순해진다.
 
 ### Trade-offs
 - 빌드 시 `pubspec.yaml`이 자동 변경되므로 커밋 관리가 필요하다.

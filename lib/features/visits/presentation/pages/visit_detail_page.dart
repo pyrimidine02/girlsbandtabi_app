@@ -63,7 +63,9 @@ class VisitDetailPage extends ConsumerWidget {
 
     return Scaffold(
       body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
+        physics: Theme.of(context).platform == TargetPlatform.android
+            ? const ClampingScrollPhysics()
+            : const BouncingScrollPhysics(),
         slivers: [
           // EN: [0] Hero image + AppBar
           // KO: [0] 히어로 이미지 + AppBar
