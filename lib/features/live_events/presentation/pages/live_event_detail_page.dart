@@ -733,7 +733,7 @@ class _StatusChip extends StatelessWidget {
 
 /// EN: Horizontal info card — icon + label + value in compact card.
 /// KO: 가로 정보 카드 — 아이콘 + 라벨 + 값 콤팩트 카드.
-class _InfoCard extends StatelessWidget {
+class _InfoCard extends StatefulWidget {
   const _InfoCard({
     required this.icon,
     required this.label,
@@ -749,52 +749,76 @@ class _InfoCard extends StatelessWidget {
   final Color? accent;
 
   @override
+  State<_InfoCard> createState() => _InfoCardState();
+}
+
+class _InfoCardState extends State<_InfoCard> {
+  bool _isPressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    final bgColor = isDark
+    final bgColor = widget.isDark
         ? GBTColors.darkSurfaceVariant
         : GBTColors.surfaceVariant;
-    final labelColor = isDark
+    final labelColor = widget.isDark
         ? GBTColors.darkTextTertiary
         : GBTColors.textTertiary;
-    final valueColor =
-        accent ?? (isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary);
-    final iconColor =
-        accent ??
-        (isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary);
+    final valueColor = widget.accent ??
+        (widget.isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary);
+    final iconColor = widget.accent ??
+        (widget.isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary);
 
-    return Container(
-      width: 140,
-      padding: const EdgeInsets.all(GBTSpacing.md),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 14, color: iconColor),
-              const SizedBox(width: GBTSpacing.xs),
-              Text(
-                label,
-                style: GBTTypography.labelSmall.copyWith(color: labelColor),
-              ),
-            ],
-          ),
-          const SizedBox(height: GBTSpacing.xs),
-          Expanded(
-            child: Text(
-              value,
-              style: GBTTypography.bodySmall.copyWith(
-                color: valueColor,
-                fontWeight: FontWeight.w500,
-              ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedContainer(
+        duration: GBTAnimations.fast,
+        curve: GBTAnimations.defaultCurve,
+        width: 140,
+        padding: const EdgeInsets.all(GBTSpacing.md),
+        decoration: BoxDecoration(
+          color: _isPressed ? bgColor.withValues(alpha: 0.7) : bgColor,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          boxShadow: _isPressed
+              ? []
+              : [
+                  BoxShadow(
+                    color: widget.isDark
+                        ? Colors.black26
+                        : Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(widget.icon, size: 14, color: iconColor),
+                const SizedBox(width: GBTSpacing.xs),
+                Text(
+                  widget.label,
+                  style: GBTTypography.labelSmall.copyWith(color: labelColor),
+                ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: GBTSpacing.xs),
+            Expanded(
+              child: Text(
+                widget.value,
+                style: GBTTypography.bodySmall.copyWith(
+                  color: valueColor,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

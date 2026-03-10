@@ -2,6 +2,8 @@
 /// KO: 설정/프로필용 사용자 프로필 DTO.
 library;
 
+import 'user_access_level_dto.dart';
+
 class UserProfileDto {
   const UserProfileDto({
     required this.id,
@@ -11,6 +13,7 @@ class UserProfileDto {
     required this.accountRole,
     required this.baselineAccessLevel,
     required this.effectiveAccessLevel,
+    required this.grants,
     required this.projectRolesByProject,
     required this.createdAt,
     this.avatarUrl,
@@ -27,6 +30,7 @@ class UserProfileDto {
   final String accountRole;
   final String baselineAccessLevel;
   final String effectiveAccessLevel;
+  final List<UserAccessLevelGrantDto> grants;
   final Map<String, List<String>> projectRolesByProject;
 
   /// EN: Legacy role field kept for backward compatibility with old payloads.
@@ -71,6 +75,7 @@ class UserProfileDto {
         ) ??
         roleBasedAccessLevel ??
         baselineAccessLevel;
+    final grants = _parseAccessLevelGrants(json['grants']);
     final projectRolesByProject = _parseProjectRolesByProject(json);
 
     return UserProfileDto(
@@ -83,6 +88,7 @@ class UserProfileDto {
       accountRole: accountRole,
       baselineAccessLevel: baselineAccessLevel,
       effectiveAccessLevel: effectiveAccessLevel,
+      grants: grants,
       projectRolesByProject: projectRolesByProject,
       createdAt: parsedCreatedAt,
       avatarUrl: _string(json, [
@@ -116,12 +122,43 @@ class UserProfileDto {
       'accountRole': accountRole,
       'baselineAccessLevel': baselineAccessLevel,
       'effectiveAccessLevel': effectiveAccessLevel,
+      'activeGrantCount': grants.where((grant) => grant.isActive).length,
+      'grants': grants.map((grant) => grant.toJson()).toList(growable: false),
       'projectRoles': projectRolesByProject.map(
         (key, value) => MapEntry<String, dynamic>(key, value),
       ),
       'role': role,
       'createdAt': createdAt.toIso8601String(),
     };
+  }
+
+  UserProfileDto mergeAccessLevel(UserAccessLevelDto accessLevel) {
+    final mergedAccountRole = _normalizeAccountRole(
+      accessLevel.accountRole,
+      fallbackRole: role,
+    );
+    final mergedBaseline =
+        _normalizeAccessLevel(accessLevel.baselineAccessLevel) ??
+        _baselineFromAccountRole(mergedAccountRole);
+    final mergedEffective =
+        _normalizeAccessLevel(accessLevel.effectiveAccessLevel) ??
+        mergedBaseline;
+
+    return UserProfileDto(
+      id: id,
+      email: email,
+      displayName: displayName,
+      avatarUrl: avatarUrl,
+      bio: bio,
+      coverImageUrl: coverImageUrl,
+      role: role,
+      accountRole: mergedAccountRole,
+      baselineAccessLevel: mergedBaseline,
+      effectiveAccessLevel: mergedEffective,
+      grants: accessLevel.grants,
+      projectRolesByProject: projectRolesByProject,
+      createdAt: createdAt,
+    );
   }
 }
 
@@ -413,4 +450,14 @@ String? _canonicalProjectRole(String normalizedRole) {
     default:
       return null;
   }
+}
+
+List<UserAccessLevelGrantDto> _parseAccessLevelGrants(dynamic raw) {
+  if (raw is! List) {
+    return const <UserAccessLevelGrantDto>[];
+  }
+  return raw
+      .whereType<Map<String, dynamic>>()
+      .map(UserAccessLevelGrantDto.fromJson)
+      .toList(growable: false);
 }

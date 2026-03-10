@@ -2,6 +2,8 @@
 /// KO: 캘린더 및 리스트 뷰를 포함한 라이브 이벤트 목록 페이지
 library;
 
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -151,68 +153,87 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
           GBTProfileAction(avatarUrl: avatarUrl),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // EN: Inline band chip filter — replaces the two-row (ProjectSelector + BandFilterBar) layout.
-          // KO: 인라인 밴드 칩 필터 — 기존 두 줄(ProjectSelector + BandFilterBar) 레이아웃을 대체.
-          _BandChipFilterRow(
-            unitsState: unitsState,
-            selectedBandIds: selectedBandIds,
-            onSelectAll: () {
-              ref.read(selectedLiveBandIdsProvider.notifier).state = [];
-            },
-            onToggleBand: (id) {
-              final current = ref.read(selectedLiveBandIdsProvider);
-              if (current.contains(id)) {
-                ref.read(selectedLiveBandIdsProvider.notifier).state = current
-                    .where((e) => e != id)
-                    .toList();
-              } else {
-                ref.read(selectedLiveBandIdsProvider.notifier).state = [
-                  ...current,
-                  id,
-                ];
-              }
-            },
+          TabBarView(
+            controller: _tabController,
+            children: [
+              _EventList(
+                isUpcoming: true,
+                state: eventsState,
+                selectedYear: null,
+                topPadding: 44.0, // Only band filters
+                onRefresh: () => ref
+                    .read(liveEventsListControllerProvider.notifier)
+                    .load(forceRefresh: true),
+                onRetry: () => ref
+                    .read(liveEventsListControllerProvider.notifier)
+                    .load(forceRefresh: true),
+              ),
+              _EventList(
+                isUpcoming: false,
+                state: eventsState,
+                selectedYear: effectiveSelectedYear,
+                topPadding: showYearFilter ? 88.0 : 44.0, // Band filters + Year filters
+                onRefresh: () => ref
+                    .read(liveEventsListControllerProvider.notifier)
+                    .load(forceRefresh: true),
+                onRetry: () => ref
+                    .read(liveEventsListControllerProvider.notifier)
+                    .load(forceRefresh: true),
+              ),
+            ],
           ),
-          if (showYearFilter)
-            _YearChipFilterRow(
-              years: availableYears,
-              selectedYear: effectiveSelectedYear,
-              onSelectAll: () {
-                ref.read(selectedLiveEventYearProvider.notifier).state = null;
-              },
-              onSelectYear: (year) {
-                ref.read(selectedLiveEventYearProvider.notifier).state = year;
-              },
-            ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _EventList(
-                  isUpcoming: true,
-                  state: eventsState,
-                  selectedYear: null,
-                  onRefresh: () => ref
-                      .read(liveEventsListControllerProvider.notifier)
-                      .load(forceRefresh: true),
-                  onRetry: () => ref
-                      .read(liveEventsListControllerProvider.notifier)
-                      .load(forceRefresh: true),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  color: (isDark ? GBTColors.darkSurface : GBTColors.surface)
+                      .withValues(alpha: 0.8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // EN: Inline band chip filter — replaces the two-row (ProjectSelector + BandFilterBar) layout.
+                      // KO: 인라인 밴드 칩 필터 — 기존 두 줄(ProjectSelector + BandFilterBar) 레이아웃을 대체.
+                      _BandChipFilterRow(
+                        unitsState: unitsState,
+                        selectedBandIds: selectedBandIds,
+                        onSelectAll: () {
+                          ref.read(selectedLiveBandIdsProvider.notifier).state = [];
+                        },
+                        onToggleBand: (id) {
+                          final current = ref.read(selectedLiveBandIdsProvider);
+                          if (current.contains(id)) {
+                            ref.read(selectedLiveBandIdsProvider.notifier).state = current
+                                .where((e) => e != id)
+                                .toList();
+                          } else {
+                            ref.read(selectedLiveBandIdsProvider.notifier).state = [
+                              ...current,
+                              id,
+                            ];
+                          }
+                        },
+                      ),
+                      if (showYearFilter)
+                        _YearChipFilterRow(
+                          years: availableYears,
+                          selectedYear: effectiveSelectedYear,
+                          onSelectAll: () {
+                            ref.read(selectedLiveEventYearProvider.notifier).state = null;
+                          },
+                          onSelectYear: (year) {
+                            ref.read(selectedLiveEventYearProvider.notifier).state = year;
+                          },
+                        ),
+                    ],
+                  ),
                 ),
-                _EventList(
-                  isUpcoming: false,
-                  state: eventsState,
-                  selectedYear: effectiveSelectedYear,
-                  onRefresh: () => ref
-                      .read(liveEventsListControllerProvider.notifier)
-                      .load(forceRefresh: true),
-                  onRetry: () => ref
-                      .read(liveEventsListControllerProvider.notifier)
-                      .load(forceRefresh: true),
-                ),
-              ],
+              ),
             ),
           ),
         ],
@@ -443,6 +464,7 @@ class _EventList extends StatelessWidget {
     required this.isUpcoming,
     required this.state,
     required this.selectedYear,
+    required this.topPadding,
     required this.onRefresh,
     required this.onRetry,
   });
@@ -450,6 +472,7 @@ class _EventList extends StatelessWidget {
   final bool isUpcoming;
   final AsyncValue<List<LiveEventSummary>> state;
   final int? selectedYear;
+  final double topPadding;
   final Future<void> Function() onRefresh;
   final VoidCallback onRetry;
 
@@ -460,7 +483,7 @@ class _EventList extends StatelessWidget {
       child: state.when(
         loading: () => ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(vertical: GBTSpacing.sm),
+          padding: EdgeInsets.fromLTRB(0, topPadding + GBTSpacing.sm, 0, GBTSpacing.sm),
           children: [
             GBTListSkeleton(
               itemCount: 4,
@@ -480,9 +503,13 @@ class _EventList extends StatelessWidget {
                 );
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: GBTSpacing.paddingPage,
+            padding: EdgeInsets.fromLTRB(
+              GBTSpacing.pageHorizontal, 
+              topPadding + GBTSpacing.lg, 
+              GBTSpacing.pageHorizontal, 
+              GBTSpacing.lg,
+            ),
             children: [
-              const SizedBox(height: GBTSpacing.lg),
               GBTErrorState(message: message, onRetry: onRetry),
             ],
           );
@@ -509,9 +536,13 @@ class _EventList extends StatelessWidget {
           if (filtered.isEmpty) {
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: GBTSpacing.paddingPage,
+              padding: EdgeInsets.fromLTRB(
+                GBTSpacing.pageHorizontal, 
+                topPadding + GBTSpacing.lg, 
+                GBTSpacing.pageHorizontal, 
+                GBTSpacing.lg,
+              ),
               children: [
-                const SizedBox(height: GBTSpacing.lg),
                 GBTEmptyState(
                   icon: isUpcoming ? Icons.event_available : Icons.event_busy,
                   message: isUpcoming
@@ -609,9 +640,9 @@ class _EventList extends StatelessWidget {
 
           return ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(
+            padding: EdgeInsets.fromLTRB(
               GBTSpacing.md,
-              GBTSpacing.sm,
+              topPadding + GBTSpacing.sm,
               GBTSpacing.md,
               GBTSpacing.xl,
             ),

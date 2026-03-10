@@ -2,6 +2,8 @@
 /// KO: 운영/관리자 센터 페이지.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -19,15 +21,28 @@ import '../../domain/entities/admin_ops_entities.dart';
 
 /// EN: Admin operations page with overview/report moderation tabs.
 /// KO: 개요/신고 관리 탭을 제공하는 관리자 페이지.
-class AdminOpsPage extends ConsumerWidget {
+class AdminOpsPage extends ConsumerStatefulWidget {
   const AdminOpsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AdminOpsPage> createState() => _AdminOpsPageState();
+}
+
+class _AdminOpsPageState extends ConsumerState<AdminOpsPage> {
+  @override
+  void initState() {
+    super.initState();
+    unawaited(
+      ref.read(userProfileControllerProvider.notifier).load(forceRefresh: true),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final profileState = ref.watch(userProfileControllerProvider);
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('운영 센터'),
@@ -40,6 +55,7 @@ class AdminOpsPage extends ConsumerWidget {
                 Tab(text: '개요'),
                 Tab(text: '신고 관리'),
                 Tab(text: '권한 요청'),
+                Tab(text: '미디어 삭제'),
               ],
             ),
           ),
@@ -63,7 +79,12 @@ class AdminOpsPage extends ConsumerWidget {
             }
 
             return const TabBarView(
-              children: [_OverviewTab(), _ReportsTab(), _RoleRequestsTab()],
+              children: [
+                _OverviewTab(),
+                _ReportsTab(),
+                _RoleRequestsTab(),
+                _MediaDeletionsTab(),
+              ],
             );
           },
         ),
@@ -640,6 +661,63 @@ class _RoleRequestsTab extends ConsumerWidget {
   }
 }
 
+class _MediaDeletionsTab extends ConsumerWidget {
+  const _MediaDeletionsTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(adminMediaDeletionsControllerProvider);
+
+    return RefreshIndicator(
+      onRefresh: () => ref
+          .read(adminMediaDeletionsControllerProvider.notifier)
+          .load(forceRefresh: true),
+      child: state.requests.when(
+        loading: () => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: GBTSpacing.paddingPage,
+          children: const [
+            SizedBox(height: GBTSpacing.xl),
+            GBTLoading(message: '미디어 삭제 요청 목록을 불러오는 중...'),
+          ],
+        ),
+        error: (error, _) => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: GBTSpacing.paddingPage,
+          children: [
+            const SizedBox(height: GBTSpacing.xl),
+            GBTErrorState(
+              message: '미디어 삭제 요청 목록을 불러오지 못했어요',
+              onRetry: () => ref
+                  .read(adminMediaDeletionsControllerProvider.notifier)
+                  .load(forceRefresh: true),
+            ),
+          ],
+        ),
+        data: (requests) => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: GBTSpacing.paddingPage,
+          children: [
+            if (requests.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 96),
+                child: GBTEmptyState(message: '현재 처리할 미디어 삭제 요청이 없습니다'),
+              )
+            else
+              ...requests.map(
+                (item) => _MediaDeletionRequestCard(
+                  request: item,
+                  isMutating: state.isMutating,
+                ),
+              ),
+            const SizedBox(height: GBTSpacing.xl),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _RoleRequestFilterRow extends ConsumerWidget {
   const _RoleRequestFilterRow({required this.selected});
 
@@ -908,6 +986,180 @@ class _RoleRequestCard extends ConsumerWidget {
       default:
         return GBTColors.info;
     }
+  }
+}
+
+class _MediaDeletionRequestCard extends ConsumerWidget {
+  const _MediaDeletionRequestCard({
+    required this.request,
+    required this.isMutating,
+  });
+
+  final AdminMediaDeletionRequest request;
+  final bool isMutating;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? GBTColors.darkSurfaceElevated : Colors.white;
+    final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
+    final textSecondary = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: GBTSpacing.sm),
+      child: Container(
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: borderColor),
+        ),
+        padding: const EdgeInsets.all(GBTSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    request.entityTypeLabel,
+                    style: GBTTypography.titleSmall.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GBTSpacing.xs,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: GBTColors.warning.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    request.status.label,
+                    style: GBTTypography.labelSmall.copyWith(
+                      color: GBTColors.warning,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: GBTSpacing.xs),
+            Text(
+              '요청자: ${request.requestedBy}',
+              style: GBTTypography.bodySmall.copyWith(color: textSecondary),
+            ),
+            const SizedBox(height: GBTSpacing.xxs),
+            Text(
+              '요청 시각: ${DateFormat('yyyy.MM.dd HH:mm').format(request.createdAt)}',
+              style: GBTTypography.bodySmall.copyWith(color: textSecondary),
+            ),
+            const SizedBox(height: GBTSpacing.xxs),
+            Text(
+              'Upload ID: ${request.uploadId}',
+              style: GBTTypography.labelSmall.copyWith(color: textSecondary),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: GBTSpacing.sm),
+            Wrap(
+              spacing: GBTSpacing.xs,
+              runSpacing: GBTSpacing.xs,
+              children: [
+                OutlinedButton(
+                  onPressed: isMutating
+                      ? null
+                      : () =>
+                            _approve(context, ref, deleteLinkedContents: false),
+                  child: const Text('미디어만 삭제'),
+                ),
+                FilledButton.tonal(
+                  onPressed: isMutating
+                      ? null
+                      : () =>
+                            _approve(context, ref, deleteLinkedContents: true),
+                  child: const Text('연관 콘텐츠 포함 삭제'),
+                ),
+                TextButton(
+                  onPressed: isMutating ? null : () => _reject(context, ref),
+                  child: const Text('반려'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _approve(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool deleteLinkedContents,
+  }) async {
+    final shouldProceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('삭제 요청 승인'),
+          content: Text(
+            deleteLinkedContents
+                ? '해당 미디어와 연관 게시글/장소후기를 함께 삭제합니다. 진행할까요?'
+                : '해당 미디어만 삭제합니다. 진행할까요?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('승인'),
+            ),
+          ],
+        );
+      },
+    );
+    if (shouldProceed != true || !context.mounted) {
+      return;
+    }
+
+    final result = await ref
+        .read(adminMediaDeletionsControllerProvider.notifier)
+        .approve(
+          requestId: request.id,
+          deleteLinkedContents: deleteLinkedContents,
+        );
+    if (!context.mounted) {
+      return;
+    }
+    final message = result is Success<void>
+        ? '삭제 요청을 승인했습니다'
+        : (result is Err<void> ? result.failure.userMessage : '처리에 실패했습니다');
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _reject(BuildContext context, WidgetRef ref) async {
+    final result = await ref
+        .read(adminMediaDeletionsControllerProvider.notifier)
+        .reject(requestId: request.id);
+    if (!context.mounted) {
+      return;
+    }
+    final message = result is Success<void>
+        ? '삭제 요청을 반려했습니다'
+        : (result is Err<void> ? result.failure.userMessage : '처리에 실패했습니다');
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

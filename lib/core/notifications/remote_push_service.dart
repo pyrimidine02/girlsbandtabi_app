@@ -598,9 +598,11 @@ class RemotePushService {
     _tapEventsController.add(
       LocalNotificationTapEvent(
         notificationId: notificationId,
-        type: _firstNonEmpty(
-          data['notificationType']?.toString(),
-          data['type']?.toString(),
+        type: normalizeNotificationType(
+          _firstNonEmpty(
+            data['notificationType']?.toString(),
+            data['type']?.toString(),
+          ),
         ),
         deeplink: _firstNonEmpty(
           data['deeplink']?.toString(),
@@ -713,13 +715,13 @@ class RemotePushService {
     FirebaseMessaging messaging,
   ) async {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
-      final fcmToken = (await messaging.getToken())?.trim();
-      if (fcmToken != null && fcmToken.isNotEmpty) {
-        return _PushCredential(provider: 'FCM', token: fcmToken);
-      }
       final apnsToken = (await messaging.getAPNSToken())?.trim();
       if (apnsToken != null && apnsToken.isNotEmpty) {
         return _PushCredential(provider: 'APNS', token: apnsToken);
+      }
+      final fcmToken = (await messaging.getToken())?.trim();
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        return _PushCredential(provider: 'FCM', token: fcmToken);
       }
       return null;
     }

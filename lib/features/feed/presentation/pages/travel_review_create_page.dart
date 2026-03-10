@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:apple_maps_flutter/apple_maps_flutter.dart' as amaps;
@@ -38,8 +40,25 @@ class _TravelReviewCreatePageState
 
   bool get _isAppleMap => !kIsWeb && Platform.isIOS;
 
+  bool get _canSubmit =>
+      _titleController.text.trim().isNotEmpty &&
+      _contentController.text.trim().isNotEmpty &&
+      _selectedPlaces.isNotEmpty &&
+      !_isSubmitting;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController.addListener(_updateState);
+    _contentController.addListener(_updateState);
+  }
+
+  void _updateState() => setState(() {});
+
   @override
   void dispose() {
+    _titleController.removeListener(_updateState);
+    _contentController.removeListener(_updateState);
     _titleController.dispose();
     _contentController.dispose();
     super.dispose();
@@ -60,6 +79,7 @@ class _TravelReviewCreatePageState
   }
 
   void _reorderPlaces(int oldIndex, int newIndex) {
+    HapticFeedback.lightImpact();
     setState(() {
       if (newIndex > oldIndex) {
         newIndex -= 1;
@@ -109,7 +129,7 @@ class _TravelReviewCreatePageState
         title: const Text('여행 후기 작성'),
         actions: [
           TextButton(
-            onPressed: _isSubmitting ? null : _submit,
+            onPressed: _canSubmit ? _submit : null,
             child: const Text('등록'),
           ),
         ],
@@ -117,6 +137,7 @@ class _TravelReviewCreatePageState
       body: Stack(
         children: [
           CustomScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             slivers: [
               SliverToBoxAdapter(child: _buildMapSection(colorScheme, isDark)),
               SliverPadding(
@@ -371,9 +392,11 @@ class _PlacePickerSheet extends ConsumerStatefulWidget {
 class _PlacePickerSheetState extends ConsumerState<_PlacePickerSheet> {
   final _searchController = TextEditingController();
   String _query = '';
+  Timer? _debounce;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -438,7 +461,14 @@ class _PlacePickerSheetState extends ConsumerState<_PlacePickerSheet> {
                     ),
                     child: TextField(
                       controller: _searchController,
-                      onChanged: (v) => setState(() => _query = v.trim()),
+                      onChanged: (v) {
+                        _debounce?.cancel();
+                        _debounce = Timer(const Duration(milliseconds: 300), () {
+                          if (mounted) {
+                            setState(() => _query = v.trim());
+                          }
+                        });
+                      },
                       style: GBTTypography.bodyMedium,
                       decoration: InputDecoration(
                         hintText: '장소명 또는 주소로 검색',
@@ -458,6 +488,7 @@ class _PlacePickerSheetState extends ConsumerState<_PlacePickerSheet> {
                                   color: tertiaryColor,
                                 ),
                                 onPressed: () {
+                                  _debounce?.cancel();
                                   _searchController.clear();
                                   setState(() => _query = '');
                                 },

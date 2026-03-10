@@ -504,7 +504,6 @@ class _FeedSectionState extends ConsumerState<_FeedSection>
                     en: 'Open community settings',
                     ja: 'コミュニティ設定を開く',
                   ),
-                  showDot: true,
                   onPressed: context.goToCommunitySettings,
                 ),
               ],
@@ -591,13 +590,11 @@ class _FeedHeaderIconButton extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onPressed,
-    this.showDot = false,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback onPressed;
-  final bool showDot;
 
   @override
   Widget build(BuildContext context) {
@@ -631,19 +628,6 @@ class _FeedHeaderIconButton extends StatelessWidget {
                   ),
                 ),
                 Center(child: Icon(icon, size: 22, color: iconColor)),
-                if (showDot)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.error,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),

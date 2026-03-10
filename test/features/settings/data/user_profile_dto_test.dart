@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:girlsbandtabi_app/features/settings/data/dto/user_access_level_dto.dart';
 import 'package:girlsbandtabi_app/features/settings/data/dto/user_profile_dto.dart';
 
 void main() {
@@ -25,6 +26,7 @@ void main() {
     expect(dto.accountRole, 'ADMIN');
     expect(dto.baselineAccessLevel, 'PLATFORM_SUPER_ADMIN');
     expect(dto.effectiveAccessLevel, 'PLATFORM_SUPER_ADMIN');
+    expect(dto.grants, isEmpty);
     expect(dto.createdAt, isNotNull);
   });
 
@@ -42,6 +44,7 @@ void main() {
     expect(dto.accountRole, 'USER');
     expect(dto.effectiveAccessLevel, 'USER_BASE');
     expect(dto.baselineAccessLevel, 'USER_BASE');
+    expect(dto.grants, isEmpty);
   });
 
   test('UserProfileDto supports snake_case and role list aliases', () {
@@ -62,6 +65,7 @@ void main() {
     expect(dto.role, 'ADMIN');
     expect(dto.effectiveAccessLevel, 'ADMIN_NON_SENSITIVE');
     expect(dto.baselineAccessLevel, 'PLATFORM_SUPER_ADMIN');
+    expect(dto.grants, isEmpty);
   });
 
   test('UserProfileDto derives admin fallback when accountRole is missing', () {
@@ -77,6 +81,7 @@ void main() {
     expect(dto.accountRole, 'ADMIN');
     expect(dto.effectiveAccessLevel, 'PLATFORM_SUPER_ADMIN');
     expect(dto.baselineAccessLevel, 'PLATFORM_SUPER_ADMIN');
+    expect(dto.grants, isEmpty);
   });
 
   test('UserProfileDto parses project role map payload', () {
@@ -126,5 +131,40 @@ void main() {
       dto.projectRolesByProject['girls-band-cry'],
       contains('COMMUNITY_MODERATOR'),
     );
+  });
+
+  test('UserProfileDto merges access-level payload and grants', () {
+    final base = UserProfileDto.fromJson({
+      'userId': 'user-5',
+      'displayName': 'Operator',
+      'emailAddress': 'operator@example.com',
+      'accountRole': 'USER',
+      'effectiveAccessLevel': 'USER_BASE',
+      'createdAt': '2026-01-28T00:00:00Z',
+    });
+    final merged = base.mergeAccessLevel(
+      UserAccessLevelDto.fromJson({
+        'userId': 'user-5',
+        'accountRole': 'USER',
+        'baselineAccessLevel': 'USER_BASE',
+        'effectiveAccessLevel': 'COMMUNITY_MODERATOR',
+        'activeGrantCount': 1,
+        'grants': [
+          {
+            'grantId': 'grant-1',
+            'userId': 'user-5',
+            'accessLevel': 'COMMUNITY_MODERATOR',
+            'isActive': true,
+          },
+        ],
+      }),
+    );
+
+    expect(merged.effectiveAccessLevel, 'COMMUNITY_MODERATOR');
+    expect(merged.baselineAccessLevel, 'USER_BASE');
+    expect(merged.accountRole, 'USER');
+    expect(merged.grants, hasLength(1));
+    expect(merged.grants.first.grantId, 'grant-1');
+    expect(merged.grants.first.isActive, isTrue);
   });
 }

@@ -39,6 +39,7 @@ class SettingsPage extends ConsumerWidget {
     final canAccessAdminOps =
         profileState?.valueOrNull?.canAccessAdminOps ?? false;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final appVersionState = ref.watch(appVersionProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -402,10 +403,22 @@ class SettingsPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: GBTSpacing.xxs),
                   Text(
-                    context.l10n(
-                      ko: '버전 1.0.0 (1)',
-                      en: 'Version 1.0.0 (1)',
-                      ja: 'バージョン 1.0.0 (1)',
+                    appVersionState.when(
+                      data: (version) => context.l10n(
+                        ko: '버전 $version',
+                        en: 'Version $version',
+                        ja: 'バージョン $version',
+                      ),
+                      loading: () => context.l10n(
+                        ko: '버전 확인 중',
+                        en: 'Loading version',
+                        ja: 'バージョン確認中',
+                      ),
+                      error: (_, _) => context.l10n(
+                        ko: '버전 정보 없음',
+                        en: 'Version unavailable',
+                        ja: 'バージョン情報なし',
+                      ),
                     ),
                     style: GBTTypography.labelSmall.copyWith(
                       color: isDark

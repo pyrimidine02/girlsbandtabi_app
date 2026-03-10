@@ -529,6 +529,30 @@ class PlacesRepositoryImpl implements PlacesRepository {
     }
   }
 
+  @override
+  Future<Result<void>> deletePlaceComment({
+    required String placeId,
+    required String commentId,
+  }) async {
+    try {
+      final result = await _remoteDataSource.deletePlaceComment(
+        placeId: placeId,
+        commentId: commentId,
+      );
+      if (result is Success<void>) {
+        return const Result.success(null);
+      }
+      if (result is Err<void>) {
+        return Result.failure(result.failure);
+      }
+      return const Result.failure(
+        UnknownFailure('Unknown place comment delete result'),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
   Future<List<PlaceSummaryDto>> _fetchPlaces(
     String projectId,
     List<String> unitIds,

@@ -10,6 +10,7 @@ import '../dto/consent_history_dto.dart';
 import '../dto/notification_device_dto.dart';
 import '../dto/notification_settings_dto.dart';
 import '../dto/privacy_rights_dto.dart';
+import '../dto/user_access_level_dto.dart';
 import '../dto/user_profile_dto.dart';
 
 class SettingsRemoteDataSource {
@@ -21,6 +22,14 @@ class SettingsRemoteDataSource {
     return _apiClient.get<UserProfileDto>(
       ApiEndpoints.userMe,
       fromJson: (json) => UserProfileDto.fromJson(json as Map<String, dynamic>),
+    );
+  }
+
+  Future<Result<UserAccessLevelDto>> fetchUserAccessLevel() {
+    return _apiClient.get<UserAccessLevelDto>(
+      ApiEndpoints.userMeAccessLevel,
+      fromJson: (json) =>
+          UserAccessLevelDto.fromJson(json as Map<String, dynamic>),
     );
   }
 
@@ -69,7 +78,7 @@ class SettingsRemoteDataSource {
   }) {
     return _apiClient.put<NotificationSettingsDto>(
       ApiEndpoints.notificationSettings,
-      data: settings.toJson(),
+      data: settings.toRequestJson(),
       fromJson: (json) {
         if (json is Map<String, dynamic>) {
           return NotificationSettingsDto.fromJson(json);

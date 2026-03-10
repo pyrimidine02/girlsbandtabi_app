@@ -4,6 +4,7 @@ library;
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +16,7 @@ import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/logging/app_logger.dart';
 import '../../../../core/providers/core_providers.dart';
+import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
@@ -51,6 +53,8 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
 
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
+  final _titleFocusNode = FocusNode();
+  final _contentFocusNode = FocusNode();
   final ImagePicker _picker = ImagePicker();
   final List<XFile> _images = [];
   final List<String> _existingImageUrls = [];
@@ -71,6 +75,8 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
   Failure? _taxonomyFailure;
   String? _errorMessage;
   String? _selectedTopic;
+  bool _isTitleFocused = false;
+  bool _isContentFocused = false;
 
   String get _draftStorageKey => 'feed_post_edit_draft_v1_${widget.post.id}';
 
@@ -138,6 +144,14 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     _contentController.text = _initialContent;
     _titleController.addListener(_onFormChanged);
     _contentController.addListener(_onFormChanged);
+
+    _titleFocusNode.addListener(() {
+      setState(() => _isTitleFocused = _titleFocusNode.hasFocus);
+    });
+    _contentFocusNode.addListener(() {
+      setState(() => _isContentFocused = _contentFocusNode.hasFocus);
+    });
+
     unawaited(_autosaveController.loadRecoverableDraft());
     unawaited(_loadPostComposeOptions(forceRefresh: true));
   }
@@ -163,6 +177,8 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     _contentController.removeListener(_onFormChanged);
     _titleController.dispose();
     _contentController.dispose();
+    _titleFocusNode.dispose();
+    _contentFocusNode.dispose();
     super.dispose();
   }
 
@@ -439,54 +455,64 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
       },
       child: Scaffold(
         backgroundColor: colorScheme.surface,
-        appBar: AppBar(
-          backgroundColor: colorScheme.surface,
-          foregroundColor: colorScheme.onSurface,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          titleSpacing: 0,
-          leadingWidth: 76,
-          leading: TextButton(
-            onPressed: _isSubmitting ? null : _handleCancelPressed,
-            child: Text(
-              '취소',
-              style: GBTTypography.bodyLarge.copyWith(
-                fontWeight: FontWeight.w600,
+        extendBodyBehindAppBar: true,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight),
+          child: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: AppBar(
+                backgroundColor: colorScheme.surface.withValues(alpha: 0.75),
+                foregroundColor: colorScheme.onSurface,
+                surfaceTintColor: Colors.transparent,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                titleSpacing: 0,
+                leadingWidth: 76,
+                leading: TextButton(
+                  onPressed: _isSubmitting ? null : _handleCancelPressed,
+                  child: Text(
+                    '취소',
+                    style: GBTTypography.bodyLarge.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => _openDraftShelf(autosaveState),
+                    child: Text(
+                      '임시 보관함',
+                      style: GBTTypography.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: GBTSpacing.xs),
+                  Padding(
+                    padding: const EdgeInsets.only(right: GBTSpacing.sm),
+                    child: FilledButton(
+                      onPressed: _canSubmit ? () => _submit(context) : null,
+                      style: FilledButton.styleFrom(
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: GBTSpacing.md + 2,
+                        ),
+                      ),
+                      child: Text(
+                        _isSubmitting ? '수정 중' : '수정하기',
+                        style: GBTTypography.bodyMedium.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: _isSubmitting
-                  ? null
-                  : () => _openDraftShelf(autosaveState),
-              child: Text(
-                '임시 보관함',
-                style: GBTTypography.bodyMedium.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(width: GBTSpacing.xs),
-            Padding(
-              padding: const EdgeInsets.only(right: GBTSpacing.sm),
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  shape: const StadiumBorder(),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: GBTSpacing.md + 2,
-                  ),
-                ),
-                onPressed: _canSubmit ? () => _submit(context) : null,
-                child: Text(
-                  _isSubmitting ? '수정 중' : '수정하기',
-                  style: GBTTypography.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-          ],
         ),
         body: isAuthenticated
             ? _buildForm(context, autosaveState: autosaveState)
@@ -504,6 +530,8 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
     final dividerColor = colorScheme.outlineVariant.withValues(alpha: 0.72);
+    final topInset =
+        MediaQuery.paddingOf(context).top + kToolbarHeight + GBTSpacing.sm;
     final profile = ref.watch(userProfileControllerProvider).valueOrNull;
 
     return Stack(
@@ -516,9 +544,9 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
                 child: ListView(
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: const EdgeInsets.fromLTRB(
+                  padding: EdgeInsets.fromLTRB(
                     GBTSpacing.md,
-                    GBTSpacing.sm,
+                    topInset,
                     GBTSpacing.md,
                     GBTSpacing.md,
                   ),
@@ -649,29 +677,51 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
                                 ),
                               ],
                               const SizedBox(height: GBTSpacing.xs),
-                              TextField(
-                                controller: _titleController,
-                                autofocus: true,
-                                maxLength: _maxTitleLength,
-                                maxLines: 1,
-                                textInputAction: TextInputAction.next,
-                                style: GBTTypography.titleLarge.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: colorScheme.onSurface,
+                              const SizedBox(height: GBTSpacing.xs),
+                              AnimatedContainer(
+                                duration: GBTAnimations.fast,
+                                decoration: BoxDecoration(
+                                  color: _isTitleFocused
+                                      ? (isDark
+                                            ? const Color(0xFF2A2D35)
+                                            : const Color(0xFFE8EEF5))
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(
+                                    GBTSpacing.radiusSm,
+                                  ),
                                 ),
-                                decoration: InputDecoration(
-                                  hintText: '제목을 입력해주세요',
-                                  counterText: '',
-                                  filled: true,
-                                  fillColor: Colors.transparent,
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                  hintStyle: GBTTypography.titleLarge.copyWith(
-                                    fontWeight: FontWeight.w500,
-                                    color: colorScheme.onSurfaceVariant,
+                                padding: _isTitleFocused
+                                    ? const EdgeInsets.symmetric(
+                                        horizontal: GBTSpacing.sm,
+                                        vertical: GBTSpacing.xs,
+                                      )
+                                    : EdgeInsets.zero,
+                                child: TextField(
+                                  controller: _titleController,
+                                  focusNode: _titleFocusNode,
+                                  autofocus: true,
+                                  maxLength: _maxTitleLength,
+                                  maxLines: 1,
+                                  textInputAction: TextInputAction.next,
+                                  style: GBTTypography.titleLarge.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: '제목을 입력해주세요',
+                                    counterText: '',
+                                    filled: true,
+                                    fillColor: Colors.transparent,
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    hintStyle: GBTTypography.titleLarge
+                                        .copyWith(
+                                          fontWeight: FontWeight.w500,
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
                                   ),
                                 ),
                               ),
@@ -680,33 +730,54 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
                                 thickness: 0.8,
                                 color: dividerColor,
                               ),
-                              TextField(
-                                controller: _contentController,
-                                maxLength: _maxContentLength,
-                                maxLines: null,
-                                minLines: 8,
-                                textInputAction: TextInputAction.newline,
-                                style: GBTTypography.headlineLarge.copyWith(
-                                  fontWeight: FontWeight.w400,
-                                  height: 1.3,
-                                  color: colorScheme.onSurface,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText:
-                                      '커뮤니티 이용규칙을 지켜주세요.\n'
-                                      '광고, 비방, 도배성 글은 제재될 수 있어요.',
-                                  hintStyle: GBTTypography.bodyMedium.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                    height: 1.45,
+                              AnimatedContainer(
+                                duration: GBTAnimations.fast,
+                                decoration: BoxDecoration(
+                                  color: _isContentFocused
+                                      ? (isDark
+                                            ? const Color(0xFF2A2D35)
+                                            : const Color(0xFFE8EEF5))
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(
+                                    GBTSpacing.radiusSm,
                                   ),
-                                  counterText: '',
-                                  filled: true,
-                                  fillColor: Colors.transparent,
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.zero,
+                                ),
+                                padding: _isContentFocused
+                                    ? const EdgeInsets.symmetric(
+                                        horizontal: GBTSpacing.sm,
+                                        vertical: GBTSpacing.xs,
+                                      )
+                                    : EdgeInsets.zero,
+                                child: TextField(
+                                  controller: _contentController,
+                                  focusNode: _contentFocusNode,
+                                  maxLength: _maxContentLength,
+                                  maxLines: null,
+                                  minLines: 8,
+                                  textInputAction: TextInputAction.newline,
+                                  style: GBTTypography.headlineLarge.copyWith(
+                                    fontWeight: FontWeight.w400,
+                                    height: 1.3,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText:
+                                        '커뮤니티 이용규칙을 지켜주세요.\n'
+                                        '광고, 비방, 도배성 글은 제재될 수 있어요.',
+                                    hintStyle: GBTTypography.bodyMedium
+                                        .copyWith(
+                                          color: colorScheme.onSurfaceVariant,
+                                          height: 1.45,
+                                        ),
+                                    counterText: '',
+                                    filled: true,
+                                    fillColor: Colors.transparent,
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
                                 ),
                               ),
                             ],

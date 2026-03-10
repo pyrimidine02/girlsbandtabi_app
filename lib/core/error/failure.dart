@@ -79,9 +79,11 @@ final class ValidationFailure extends Failure {
     super.code,
     super.stackTrace,
     this.fieldErrors,
+    this.details,
   });
 
   final Map<String, List<String>>? fieldErrors;
+  final Map<String, dynamic>? details;
 
   @override
   String get userMessage => '입력값이 올바르지 않습니다';

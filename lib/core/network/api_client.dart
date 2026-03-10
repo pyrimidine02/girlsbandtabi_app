@@ -19,9 +19,11 @@ class ApiClient {
   ApiClient({
     required SecureStorage secureStorage,
     VoidCallback? onUnauthorized,
+    VoidCallback? onTokenRefreshed,
     Dio? dio,
   }) : _secureStorage = secureStorage,
        _onUnauthorized = onUnauthorized,
+       _onTokenRefreshed = onTokenRefreshed,
        _dio = dio ?? Dio() {
     _setupDio();
   }
@@ -29,6 +31,7 @@ class ApiClient {
   final Dio _dio;
   final SecureStorage _secureStorage;
   final VoidCallback? _onUnauthorized;
+  final VoidCallback? _onTokenRefreshed;
 
   /// EN: Setup Dio with base configuration and interceptors
   /// KO: 기본 구성 및 인터셉터로 Dio 설정
@@ -39,13 +42,19 @@ class ApiClient {
       receiveTimeout: const Duration(milliseconds: ApiTimeouts.receiveTimeout),
       sendTimeout: const Duration(milliseconds: ApiTimeouts.sendTimeout),
       headers: {
+        ApiHeaders.accept: ApiHeaders.applicationJson,
         ApiHeaders.contentType: ApiHeaders.applicationJson,
         ApiHeaders.clientType: ApiHeaders.clientTypeMobile,
       },
     );
 
     _dio.interceptors.addAll([
-      _AuthInterceptor(_secureStorage, _dio, onUnauthorized: _onUnauthorized),
+      _AuthInterceptor(
+        _secureStorage,
+        _dio,
+        onUnauthorized: _onUnauthorized,
+        onTokenRefreshed: _onTokenRefreshed,
+      ),
       _LoggingInterceptor(),
     ]);
   }
@@ -237,11 +246,17 @@ class ApiClient {
 /// EN: Auth interceptor for JWT token management
 /// KO: JWT 토큰 관리를 위한 인증 인터셉터
 class _AuthInterceptor extends Interceptor {
-  _AuthInterceptor(this._secureStorage, this._dio, {this.onUnauthorized});
+  _AuthInterceptor(
+    this._secureStorage,
+    this._dio, {
+    this.onUnauthorized,
+    this.onTokenRefreshed,
+  });
 
   final SecureStorage _secureStorage;
   final Dio _dio;
   final VoidCallback? onUnauthorized;
+  final VoidCallback? onTokenRefreshed;
   Future<_RefreshOutcome>? _refreshFuture;
 
   static const Set<String> _invalidRefreshErrorCodes = {
@@ -430,6 +445,7 @@ class _AuthInterceptor extends Interceptor {
           if (newExpiry != null) {
             await _secureStorage.saveTokenExpiry(newExpiry);
           }
+          onTokenRefreshed?.call();
           return _RefreshOutcome.refreshed;
         }
       }

@@ -17,6 +17,7 @@ import '../../../core/utils/result.dart';
 import '../data/datasources/notifications_remote_data_source.dart';
 import '../data/repositories/notifications_repository_impl.dart';
 import '../domain/entities/notification_entities.dart';
+import '../domain/entities/notification_navigation.dart';
 import '../domain/repositories/notifications_repository.dart';
 
 class _NotificationNavigationHint {
@@ -474,9 +475,9 @@ class NotificationsController
     }
 
     _navigationHintsById[notificationId] = _NotificationNavigationHint(
-      type:
-          payload['notificationType']?.toString() ??
-          payload['type']?.toString(),
+      type: normalizeNotificationType(
+        payload['notificationType']?.toString() ?? payload['type']?.toString(),
+      ),
       actionUrl: payload['actionUrl']?.toString(),
       deeplink:
           payload['deeplink']?.toString() ?? payload['deepLink']?.toString(),

@@ -331,17 +331,26 @@ class _RecentSearches extends StatelessWidget {
       ),
       children: [
         if (chipItems.isNotEmpty)
-          Wrap(
-            spacing: GBTSpacing.xs,
-            runSpacing: GBTSpacing.xs,
-            children: chipItems.map((item) {
-              return _SearchFilterChip(
-                label: item,
-                isDark: isDark,
-                onTap: () => onSelect(item),
-                onRemove: () => onRemove(item),
-              );
-            }).toList(),
+          SizedBox(
+            height: 40,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              itemCount: chipItems.length,
+              separatorBuilder: (_, __) => const SizedBox(width: GBTSpacing.xs),
+              itemBuilder: (context, index) {
+                final item = chipItems[index];
+                return Align(
+                  alignment: Alignment.centerLeft,
+                  child: _SearchFilterChip(
+                    label: item,
+                    isDark: isDark,
+                    onTap: () => onSelect(item),
+                    onRemove: () => onRemove(item),
+                  ),
+                );
+              },
+            ),
           )
         else
           Padding(

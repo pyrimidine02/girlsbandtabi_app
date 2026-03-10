@@ -240,6 +240,69 @@ class AdminProjectRoleRequest {
   }
 }
 
+enum AdminMediaDeletionStatus { pending, approved, rejected, unknown }
+
+extension AdminMediaDeletionStatusX on AdminMediaDeletionStatus {
+  String get label {
+    switch (this) {
+      case AdminMediaDeletionStatus.pending:
+        return '대기';
+      case AdminMediaDeletionStatus.approved:
+        return '승인';
+      case AdminMediaDeletionStatus.rejected:
+        return '반려';
+      case AdminMediaDeletionStatus.unknown:
+        return '알 수 없음';
+    }
+  }
+
+  static AdminMediaDeletionStatus fromApiValue(String? value) {
+    switch (value?.toUpperCase()) {
+      case 'PENDING':
+        return AdminMediaDeletionStatus.pending;
+      case 'APPROVED':
+        return AdminMediaDeletionStatus.approved;
+      case 'REJECTED':
+        return AdminMediaDeletionStatus.rejected;
+      default:
+        return AdminMediaDeletionStatus.unknown;
+    }
+  }
+}
+
+class AdminMediaDeletionRequest {
+  const AdminMediaDeletionRequest({
+    required this.id,
+    required this.entityType,
+    required this.linkId,
+    required this.uploadId,
+    required this.requestedBy,
+    required this.status,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String entityType;
+  final String linkId;
+  final String uploadId;
+  final String requestedBy;
+  final AdminMediaDeletionStatus status;
+  final DateTime createdAt;
+
+  String get entityTypeLabel {
+    switch (entityType.toUpperCase()) {
+      case 'PLACE':
+        return '장소';
+      case 'NEWS':
+        return '뉴스';
+      case 'LIVE':
+        return '라이브';
+      default:
+        return entityType;
+    }
+  }
+}
+
 /// EN: Dashboard metrics for admin operations.
 /// KO: 운영 대시보드 지표.
 class AdminDashboardSummary {

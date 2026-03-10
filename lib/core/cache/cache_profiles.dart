@@ -165,6 +165,26 @@ abstract final class CacheProfiles {
     ttl: Duration(minutes: 15),
   );
 
+  static const voiceActorsList = CacheProfile(
+    readPolicy: CachePolicy.staleWhileRevalidate,
+    ttl: Duration(minutes: 10),
+  );
+
+  static const voiceActorDetail = CacheProfile(
+    readPolicy: CachePolicy.staleWhileRevalidate,
+    ttl: Duration(minutes: 20),
+  );
+
+  static const voiceActorMembers = CacheProfile(
+    readPolicy: CachePolicy.staleWhileRevalidate,
+    ttl: Duration(minutes: 10),
+  );
+
+  static const voiceActorCredits = CacheProfile(
+    readPolicy: CachePolicy.staleWhileRevalidate,
+    ttl: Duration(minutes: 10),
+  );
+
   // EN: Visits
   // KO: 방문 기록
   static const visitsList = CacheProfile(

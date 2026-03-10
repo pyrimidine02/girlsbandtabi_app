@@ -6,6 +6,7 @@ import '../../../../core/cache/cache_manager.dart';
 import '../../../../core/cache/cache_profiles.dart';
 import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/logging/app_logger.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/account_tools.dart';
 import '../../domain/entities/consent_history.dart';
@@ -19,6 +20,7 @@ import '../dto/consent_history_dto.dart';
 import '../dto/notification_device_dto.dart';
 import '../dto/notification_settings_dto.dart';
 import '../dto/privacy_rights_dto.dart';
+import '../dto/user_access_level_dto.dart';
 import '../dto/user_profile_dto.dart';
 
 class SettingsRepositoryImpl implements SettingsRepository {
@@ -152,6 +154,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
         pushEnabled: settings.pushEnabled,
         emailEnabled: settings.emailEnabled,
         categories: settings.categories,
+        version: settings.version,
       );
       final result = await _remoteDataSource.updateNotificationSettings(
         settings: dto,
@@ -502,11 +505,22 @@ class SettingsRepositoryImpl implements SettingsRepository {
     required String requestedRole,
     required String justification,
   }) async {
+    final normalizedRole = requestedRole.trim().toUpperCase();
+    if (normalizedRole != 'PLACE_EDITOR' &&
+        normalizedRole != 'COMMUNITY_MODERATOR') {
+      return const Result.failure(
+        ValidationFailure(
+          'Requested role must be PLACE_EDITOR or COMMUNITY_MODERATOR',
+          code: 'invalid_requested_role',
+        ),
+      );
+    }
+
     try {
       final result = await _remoteDataSource.createProjectRoleRequest(
         request: ProjectRoleRequestCreateRequestDto(
           projectId: projectId,
-          requestedRole: requestedRole,
+          requestedRole: normalizedRole,
           justification: justification,
         ),
       );
@@ -624,19 +638,38 @@ class SettingsRepositoryImpl implements SettingsRepository {
   }
 
   Future<UserProfileDto> _fetchUserProfile() async {
-    final result = await _remoteDataSource.fetchUserProfile();
+    final profileFuture = _remoteDataSource.fetchUserProfile();
+    final accessLevelFuture = _remoteDataSource.fetchUserAccessLevel();
 
-    if (result is Success<UserProfileDto>) {
-      return result.data;
-    }
-    if (result is Err<UserProfileDto>) {
-      throw result.failure;
+    final profileResult = await profileFuture;
+    if (profileResult is! Success<UserProfileDto>) {
+      if (profileResult is Err<UserProfileDto>) {
+        throw profileResult.failure;
+      }
+      throw const UnknownFailure(
+        'Unknown user profile result',
+        code: 'unknown_profile',
+      );
     }
 
-    throw const UnknownFailure(
-      'Unknown user profile result',
-      code: 'unknown_profile',
-    );
+    final profileDto = profileResult.data;
+    final accessLevelResult = await accessLevelFuture;
+    if (accessLevelResult is Success<UserAccessLevelDto>) {
+      return profileDto.mergeAccessLevel(accessLevelResult.data);
+    }
+    if (accessLevelResult is Err<UserAccessLevelDto>) {
+      if (accessLevelResult.failure is AuthFailure) {
+        throw accessLevelResult.failure;
+      }
+      AppLogger.warning(
+        'Failed to fetch /users/me/access-level; fallback to /users/me payload',
+        data: accessLevelResult.failure,
+        tag: 'SettingsRepository',
+      );
+      return profileDto;
+    }
+
+    return profileDto;
   }
 
   Future<UserProfileDto> _fetchUserProfileById(String userId) async {

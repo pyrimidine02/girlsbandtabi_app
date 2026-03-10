@@ -171,6 +171,18 @@ class PlacesRemoteDataSource {
     );
   }
 
+  /// EN: Delete a place comment.
+  /// KO: 장소 댓글을 삭제합니다.
+  Future<Result<void>> deletePlaceComment({
+    required String placeId,
+    required String commentId,
+  }) {
+    return _apiClient.delete<void>(
+      ApiEndpoints.placeComment(placeId, commentId),
+      fromJson: (_) {},
+    );
+  }
+
   /// EN: Fetch places within geographic bounds (for map view).
   /// KO: 지리적 경계 내 장소를 조회합니다 (지도 뷰용).
   Future<Result<List<PlaceSummaryDto>>> fetchPlacesWithinBounds({

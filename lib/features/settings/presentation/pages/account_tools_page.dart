@@ -2,6 +2,8 @@
 /// KO: 차단/권한요청/이의제기를 관리하는 계정 도구 페이지.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -52,6 +54,7 @@ class _AccountToolsPageState extends ConsumerState<AccountToolsPage>
               setState(() => _tab = next);
             }
           });
+    unawaited(_refreshAuthorizationSnapshotOnEntry());
   }
 
   @override
@@ -81,6 +84,15 @@ class _AccountToolsPageState extends ConsumerState<AccountToolsPage>
             .read(verificationAppealsControllerProvider.notifier)
             .load(forceRefresh: true);
     }
+  }
+
+  Future<void> _refreshAuthorizationSnapshotOnEntry() async {
+    await Future.wait([
+      ref.read(userProfileControllerProvider.notifier).load(forceRefresh: true),
+      ref
+          .read(projectRoleRequestsControllerProvider.notifier)
+          .load(forceRefresh: true),
+    ]);
   }
 
   @override

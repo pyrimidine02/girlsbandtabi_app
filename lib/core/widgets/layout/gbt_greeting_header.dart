@@ -19,6 +19,7 @@ import '../common/gbt_image.dart';
 class GBTGreetingHeader extends StatelessWidget {
   const GBTGreetingHeader({
     super.key,
+    this.userName,
     this.backgroundImageUrl,
     this.featuredTitle,
     this.featuredDate,
@@ -26,6 +27,7 @@ class GBTGreetingHeader extends StatelessWidget {
     this.onFeaturedTap,
   });
 
+  final String? userName;
   final String? backgroundImageUrl;
   final String? featuredTitle;
   final String? featuredDate;
@@ -35,7 +37,7 @@ class GBTGreetingHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final greeting = _getGreeting(context);
+    final greeting = _getGreeting(context, userName);
     final topPadding = MediaQuery.of(context).padding.top;
     final textScale = MediaQuery.textScalerOf(context).scale(1.0);
     final hasBackgroundImage =
@@ -218,48 +220,80 @@ class _FeaturedLiveChip extends StatelessWidget {
   }
 }
 
-/// EN: Returns greeting based on current hour
-/// KO: 현재 시간에 따른 인사말 반환
-_Greeting _getGreeting(BuildContext context) {
-  final hour = DateTime.now().hour;
+/// EN: Returns personalized greeting based on current hour and user name
+/// KO: 현재 시간 및 사용자명에 따른 맞춤형 인사말 반환
+_Greeting _getGreeting(BuildContext context, String? userName) {
+  final namePrefixKo = userName != null && userName.isNotEmpty
+      ? '$userName님, '
+      : '';
+  final nameSuffixEn = userName != null && userName.isNotEmpty
+      ? ', $userName'
+      : '';
+  final nameSuffixJa = userName != null && userName.isNotEmpty
+      ? '、$userNameさん'
+      : '';
+
+  final now = DateTime.now();
+  final hour = now.hour;
+  final isWeekend =
+      now.weekday == DateTime.saturday || now.weekday == DateTime.sunday;
+
   if (hour >= 6 && hour < 12) {
     return _Greeting(
-      title: context.l10n(ko: '좋은 아침이에요', en: 'Good morning', ja: 'おはようございます'),
+      title: context.l10n(
+        ko: '$namePrefixKo상쾌한 아침이에요',
+        en: 'Good morning$nameSuffixEn',
+        ja: 'おはようございます$nameSuffixJa',
+      ),
       subtitle: context.l10n(
-        ko: '오늘은 어떤 성지를 방문할까요?',
-        en: 'Which sacred place will you visit today?',
-        ja: '今日はどの聖地を訪れますか？',
+        ko: isWeekend ? '주말을 맞아 새로운 성지로 떠나볼까요?' : '오늘 하루도 힘차게 시작해봐요!',
+        en: isWeekend
+            ? 'How about a weekend pilgrimage?'
+            : 'Let\'s start the day right!',
+        ja: isWeekend ? '週末の聖地巡礼はいかがですか？' : '今日も一日頑張りましょう！',
       ),
     );
   } else if (hour >= 12 && hour < 18) {
     return _Greeting(
-      title: context.l10n(ko: '좋은 오후예요', en: 'Good afternoon', ja: 'こんにちは'),
+      title: context.l10n(
+        ko: '$namePrefixKo좋은 오후예요',
+        en: 'Good afternoon$nameSuffixEn',
+        ja: 'こんにちは$nameSuffixJa',
+      ),
       subtitle: context.l10n(
-        ko: '새로운 장소를 발견해 보세요',
-        en: 'Discover new places',
-        ja: '新しい場所を見つけてみましょう',
+        ko: isWeekend
+            ? '여유로운 주말, 새로운 장소를 발견해 보세요'
+            : '잠시 휴식을 취하며 새로운 음악을 들어볼까요?',
+        en: isWeekend
+            ? 'Relax and discover new places'
+            : 'Take a break with some new music',
+        ja: isWeekend ? '休日は新しい場所を見つけてみましょう' : '休憩しながら新しい音楽を聴いてみませんか？',
       ),
     );
   } else if (hour >= 18) {
     return _Greeting(
-      title: context.l10n(ko: '좋은 저녁이에요', en: 'Good evening', ja: 'こんばんは'),
+      title: context.l10n(
+        ko: '$namePrefixKo멋진 저녁이에요',
+        en: 'Good evening$nameSuffixEn',
+        ja: 'こんばんは$nameSuffixJa',
+      ),
       subtitle: context.l10n(
-        ko: '오늘의 라이브를 확인해 보세요',
-        en: 'Check out today\'s live events',
-        ja: '今日のライブをチェックしましょう',
+        ko: '오늘의 라이브와 함께 하루를 마무리해 보세요',
+        en: 'Wrap up your day with today\'s live events',
+        ja: '今日のライブと共に一日を締めくくりましょう',
       ),
     );
   } else {
     return _Greeting(
       title: context.l10n(
-        ko: '아직 깨어 계시네요',
-        en: 'You\'re still awake',
-        ja: 'まだ起きているんですね',
+        ko: '$namePrefixKo아직 깨어 계시네요',
+        en: 'Still awake$nameSuffixEn',
+        ja: 'まだ起きているんですね$nameSuffixJa',
       ),
       subtitle: context.l10n(
-        ko: '밤에도 음악은 계속됩니다',
-        en: 'Music continues through the night',
-        ja: '夜も音楽は続きます',
+        ko: '밤에도 걸즈밴드의 음악은 계속됩니다',
+        en: 'The band\'s music continues through the night',
+        ja: '夜もガールズバンドの音楽は続きます',
       ),
     );
   }

@@ -215,4 +215,51 @@ class AdminOpsRemoteDataSource {
       fromJson: (_) {},
     );
   }
+
+  Future<Result<List<AdminMediaDeletionRequestDto>>>
+  fetchMediaDeletionRequests({
+    String status = 'PENDING',
+    int page = 0,
+    int size = 20,
+    String sort = 'createdAt,desc',
+  }) {
+    final query = <String, dynamic>{
+      'status': status,
+      'page': page,
+      'size': size,
+      'sort': sort,
+      'pageable': '$page,$size',
+    };
+    return _apiClient.get<List<AdminMediaDeletionRequestDto>>(
+      ApiEndpoints.adminMediaDeletions,
+      queryParameters: query,
+      fromJson: (json) => AdminMediaDeletionRequestDto.listFromAny(json),
+    );
+  }
+
+  Future<Result<AdminMediaDeletionActionResponseDto>> approveMediaDeletion({
+    required String requestId,
+    required bool deleteLinkedContents,
+  }) {
+    return _apiClient.post<AdminMediaDeletionActionResponseDto>(
+      ApiEndpoints.adminMediaDeletionApprove(requestId),
+      data: AdminMediaDeletionApproveRequestDto(
+        deleteLinkedContents: deleteLinkedContents,
+      ).toJson(),
+      fromJson: (json) => AdminMediaDeletionActionResponseDto.fromJson(
+        json as Map<String, dynamic>,
+      ),
+    );
+  }
+
+  Future<Result<AdminMediaDeletionActionResponseDto>> rejectMediaDeletion({
+    required String requestId,
+  }) {
+    return _apiClient.post<AdminMediaDeletionActionResponseDto>(
+      ApiEndpoints.adminMediaDeletionReject(requestId),
+      fromJson: (json) => AdminMediaDeletionActionResponseDto.fromJson(
+        json as Map<String, dynamic>,
+      ),
+    );
+  }
 }

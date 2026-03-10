@@ -82,4 +82,18 @@ abstract class AdminOpsRepository {
     required String grantId,
     String? reason,
   });
+
+  Future<Result<List<AdminMediaDeletionRequest>>> getMediaDeletionRequests({
+    String status = 'PENDING',
+    int page = 0,
+    int size = 20,
+    bool forceRefresh = false,
+  });
+
+  Future<Result<void>> approveMediaDeletion({
+    required String requestId,
+    required bool deleteLinkedContents,
+  });
+
+  Future<Result<void>> rejectMediaDeletion({required String requestId});
 }

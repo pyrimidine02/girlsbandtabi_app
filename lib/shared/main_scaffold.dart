@@ -53,7 +53,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     final currentUri = GoRouterState.of(context).uri;
     final currentPath = currentUri.path;
     final currentLocation = currentUri.toString();
-    final isBoardBranch = currentIndex == 3;
+    final isBoardBranch = currentIndex == 4;
     final isBoardRoot = isBoardBranch && _isBoardRootRoute(currentPath);
     final shouldShowBottomNav = _shouldShowBottomNav(
       currentIndex: currentIndex,
@@ -118,7 +118,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                   );
                 },
                 onSectionChanged: (section) {
-                  ref.read(currentNavIndexProvider.notifier).state = 3;
+                  ref.read(currentNavIndexProvider.notifier).state = 4;
                   switch (section) {
                     case _BoardSubSection.feed:
                       context.go('/board');
@@ -147,14 +147,14 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                     label: context.l10n(ko: '라이브', en: 'Live', ja: 'ライブ'),
                   ),
                   GBTBottomNavItem(
-                    icon: Icons.forum_outlined,
-                    activeIcon: Icons.forum,
-                    label: context.l10n(ko: '게시판', en: 'Board', ja: '掲示板'),
-                  ),
-                  GBTBottomNavItem(
                     icon: Icons.auto_stories_outlined,
                     activeIcon: Icons.auto_stories,
                     label: context.l10n(ko: '정보', en: 'Info', ja: '情報'),
+                  ),
+                  GBTBottomNavItem(
+                    icon: Icons.forum_outlined,
+                    activeIcon: Icons.forum,
+                    label: context.l10n(ko: '게시판', en: 'Board', ja: '掲示板'),
                   ),
                 ],
                 currentIndex: currentIndex,
@@ -168,7 +168,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     required int currentIndex,
     required String currentPath,
   }) {
-    if (currentIndex == 3) {
+    if (currentIndex == 4) {
       return _isBoardRootRoute(currentPath);
     }
     if (currentIndex == 0) {
@@ -180,7 +180,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     if (currentIndex == 2) {
       return currentPath == '/live';
     }
-    if (currentIndex == 4) {
+    if (currentIndex == 3) {
       return currentPath == '/info';
     }
     return false;
@@ -205,7 +205,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   /// EN: Handle bottom navigation tap
   /// KO: 하단 네비게이션 탭 처리
   void _onTap(BuildContext context, int index) {
-    if (index == 3 && widget.navigationShell.currentIndex != 3) {
+    if (index == 4 && widget.navigationShell.currentIndex != 4) {
       _lastNonBoardLocation = GoRouterState.of(context).uri.toString();
     }
     widget.navigationShell.goBranch(

@@ -330,6 +330,95 @@ class AdminOpsRepositoryImpl implements AdminOpsRepository {
     }
   }
 
+  @override
+  Future<Result<List<AdminMediaDeletionRequest>>> getMediaDeletionRequests({
+    String status = 'PENDING',
+    int page = 0,
+    int size = 20,
+    bool forceRefresh = false,
+  }) async {
+    try {
+      final dtos = await _fetchMediaDeletionRequests(
+        status: status,
+        page: page,
+        size: size,
+      );
+      return Result.success(
+        dtos.map(_toMediaDeletionEntity).toList(growable: false),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<void>> approveMediaDeletion({
+    required String requestId,
+    required bool deleteLinkedContents,
+  }) async {
+    try {
+      final result = await _remoteDataSource.approveMediaDeletion(
+        requestId: requestId,
+        deleteLinkedContents: deleteLinkedContents,
+      );
+      if (result is Success<AdminMediaDeletionActionResponseDto>) {
+        if (!result.data.success) {
+          return const Result.failure(
+            UnknownFailure(
+              'Failed to approve media deletion request',
+              code: 'admin_media_deletion_approve_failed',
+            ),
+          );
+        }
+        await _cacheManager.remove('admin_dashboard_summary');
+        return const Result.success(null);
+      }
+      if (result is Err<AdminMediaDeletionActionResponseDto>) {
+        return Result.failure(result.failure);
+      }
+      return const Result.failure(
+        UnknownFailure(
+          'Unknown media deletion approve result',
+          code: 'unknown_admin_media_deletion_approve_result',
+        ),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<void>> rejectMediaDeletion({required String requestId}) async {
+    try {
+      final result = await _remoteDataSource.rejectMediaDeletion(
+        requestId: requestId,
+      );
+      if (result is Success<AdminMediaDeletionActionResponseDto>) {
+        if (!result.data.success) {
+          return const Result.failure(
+            UnknownFailure(
+              'Failed to reject media deletion request',
+              code: 'admin_media_deletion_reject_failed',
+            ),
+          );
+        }
+        await _cacheManager.remove('admin_dashboard_summary');
+        return const Result.success(null);
+      }
+      if (result is Err<AdminMediaDeletionActionResponseDto>) {
+        return Result.failure(result.failure);
+      }
+      return const Result.failure(
+        UnknownFailure(
+          'Unknown media deletion reject result',
+          code: 'unknown_admin_media_deletion_reject_result',
+        ),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
   Future<AdminDashboardDto> _fetchDashboardWithFallback() async {
     final dashboardResult = await _remoteDataSource.fetchDashboard();
     if (dashboardResult is Success<AdminDashboardDto>) {
@@ -423,6 +512,30 @@ class AdminOpsRepositoryImpl implements AdminOpsRepository {
     );
   }
 
+  Future<List<AdminMediaDeletionRequestDto>> _fetchMediaDeletionRequests({
+    String status = 'PENDING',
+    int page = 0,
+    int size = 20,
+  }) async {
+    final result = await _remoteDataSource.fetchMediaDeletionRequests(
+      status: status,
+      page: page,
+      size: size,
+    );
+
+    if (result is Success<List<AdminMediaDeletionRequestDto>>) {
+      return result.data;
+    }
+    if (result is Err<List<AdminMediaDeletionRequestDto>>) {
+      throw result.failure;
+    }
+
+    throw const UnknownFailure(
+      'Unknown media deletion request list result',
+      code: 'unknown_admin_media_deletion_requests_result',
+    );
+  }
+
   AdminDashboardSummary _toDashboardEntity(AdminDashboardDto dto) {
     return AdminDashboardSummary(
       openReports: dto.openReports,
@@ -467,6 +580,20 @@ class AdminOpsRepositoryImpl implements AdminOpsRepository {
       createdAt: dto.createdAt,
       adminMemo: dto.adminMemo,
       reviewedAt: dto.reviewedAt,
+    );
+  }
+
+  AdminMediaDeletionRequest _toMediaDeletionEntity(
+    AdminMediaDeletionRequestDto dto,
+  ) {
+    return AdminMediaDeletionRequest(
+      id: dto.id,
+      entityType: dto.entityType,
+      linkId: dto.linkId,
+      uploadId: dto.uploadId,
+      requestedBy: dto.requestedBy,
+      status: AdminMediaDeletionStatusX.fromApiValue(dto.status),
+      createdAt: dto.createdAt,
     );
   }
 }

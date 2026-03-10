@@ -8,112 +8,129 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/api_constants.dart';
-import '../../../core/constants/legal_policy_constants.dart';
+import '../../../core/error/failure.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
-import '../../../core/storage/local_storage.dart';
 import '../../../core/utils/result.dart';
 
-enum RequiredConsentType { termsOfService, privacyPolicy }
+@immutable
+class RequiredConsentStatusItem {
+  const RequiredConsentStatusItem({
+    required this.type,
+    required this.requiredVersion,
+    required this.policyUrl,
+    required this.agreed,
+    required this.agreedVersion,
+    required this.agreedAt,
+    required this.needsReconsent,
+  });
 
-extension RequiredConsentTypeX on RequiredConsentType {
-  String get apiType {
-    return switch (this) {
-      RequiredConsentType.termsOfService => 'TERMS_OF_SERVICE',
-      RequiredConsentType.privacyPolicy => 'PRIVACY_POLICY',
-    };
+  final String type;
+  final String requiredVersion;
+  final String policyUrl;
+  final bool agreed;
+  final String? agreedVersion;
+  final String? agreedAt;
+  final bool needsReconsent;
+
+  factory RequiredConsentStatusItem.fromJson(Map<String, dynamic> json) {
+    final requiredRaw =
+        json.containsKey('needsReconsent')
+            ? json['needsReconsent']
+            : (json['required'] ?? json['isRequired']);
+    return RequiredConsentStatusItem(
+      type: (json['type'] as String?)?.trim() ?? 'UNKNOWN',
+      requiredVersion: (json['requiredVersion'] as String?)?.trim() ?? '-',
+      policyUrl: (json['policyUrl'] as String?)?.trim() ?? '',
+      agreed: _parseBool(json['agreed']),
+      agreedVersion: (json['agreedVersion'] as String?)?.trim(),
+      agreedAt: (json['agreedAt'] as String?)?.trim(),
+      needsReconsent: _parseBool(requiredRaw),
+    );
   }
+}
 
-  String get currentVersion {
-    return switch (this) {
-      RequiredConsentType.termsOfService => LegalPolicyConstants.byType(
-        LegalPolicyType.termsOfService,
-      ).version,
-      RequiredConsentType.privacyPolicy => LegalPolicyConstants.byType(
-        LegalPolicyType.privacyPolicy,
-      ).version,
-    };
+@immutable
+class MandatoryConsentStatusPayload {
+  const MandatoryConsentStatusPayload({
+    required this.canUseService,
+    required this.requiredConsents,
+  });
+
+  final bool canUseService;
+  final List<RequiredConsentStatusItem> requiredConsents;
+
+  factory MandatoryConsentStatusPayload.fromJson(Map<String, dynamic> json) {
+    final rawConsents = json['requiredConsents'];
+    final requiredConsents = rawConsents is List
+        ? rawConsents
+              .whereType<Map<String, dynamic>>()
+              .map(RequiredConsentStatusItem.fromJson)
+              .toList(growable: false)
+        : const <RequiredConsentStatusItem>[];
+    return MandatoryConsentStatusPayload(
+      canUseService: _parseBool(json['canUseService']),
+      requiredConsents: requiredConsents,
+    );
   }
 }
 
 class MandatoryConsentState {
   const MandatoryConsentState({
     required this.isLoading,
+    required this.hasResolved,
     required this.isRequired,
     required this.isSubmitting,
-    required this.missingTypes,
+    required this.requiredConsents,
     this.errorMessage,
+    this.errorCode,
+    this.requestId,
   });
 
   const MandatoryConsentState.idle()
     : isLoading = false,
+      hasResolved = false,
       isRequired = false,
       isSubmitting = false,
-      missingTypes = const <RequiredConsentType>{},
-      errorMessage = null;
+      requiredConsents = const <RequiredConsentStatusItem>[],
+      errorMessage = null,
+      errorCode = null,
+      requestId = null;
 
   final bool isLoading;
+  final bool hasResolved;
   final bool isRequired;
   final bool isSubmitting;
-  final Set<RequiredConsentType> missingTypes;
+  final List<RequiredConsentStatusItem> requiredConsents;
   final String? errorMessage;
+  final String? errorCode;
+  final String? requestId;
 
   MandatoryConsentState copyWith({
     bool? isLoading,
+    bool? hasResolved,
     bool? isRequired,
     bool? isSubmitting,
-    Set<RequiredConsentType>? missingTypes,
+    List<RequiredConsentStatusItem>? requiredConsents,
     String? errorMessage,
+    String? errorCode,
+    String? requestId,
     bool clearErrorMessage = false,
+    bool clearErrorCode = false,
+    bool clearRequestId = false,
   }) {
     return MandatoryConsentState(
       isLoading: isLoading ?? this.isLoading,
+      hasResolved: hasResolved ?? this.hasResolved,
       isRequired: isRequired ?? this.isRequired,
       isSubmitting: isSubmitting ?? this.isSubmitting,
-      missingTypes: missingTypes ?? this.missingTypes,
+      requiredConsents: requiredConsents ?? this.requiredConsents,
       errorMessage: clearErrorMessage
           ? null
           : (errorMessage ?? this.errorMessage),
+      errorCode: clearErrorCode ? null : (errorCode ?? this.errorCode),
+      requestId: clearRequestId ? null : (requestId ?? this.requestId),
     );
-  }
-}
-
-@immutable
-class ConsentHistoryRecord {
-  const ConsentHistoryRecord({
-    required this.type,
-    required this.version,
-    required this.agreed,
-    required this.agreedAt,
-  });
-
-  final String type;
-  final String version;
-  final bool agreed;
-  final String agreedAt;
-
-  factory ConsentHistoryRecord.fromJson(Map<String, dynamic> json) {
-    final agreedRaw = json['agreed'];
-    final agreed = switch (agreedRaw) {
-      bool value => value,
-      String value => value.toLowerCase() == 'true',
-      _ => false,
-    };
-    return ConsentHistoryRecord(
-      type: (json['type'] as String?)?.trim() ?? 'UNKNOWN',
-      version: (json['version'] as String?)?.trim() ?? '-',
-      agreed: agreed,
-      agreedAt: (json['agreedAt'] as String?)?.trim() ?? '-',
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'type': type,
-      'version': version,
-      'agreed': agreed,
-      'agreedAt': agreedAt,
-    };
   }
 }
 
@@ -133,43 +150,39 @@ class MandatoryConsentController extends StateNotifier<MandatoryConsentState> {
         return;
       }
 
-      state = state.copyWith(isLoading: true, clearErrorMessage: true);
+      state = state.copyWith(
+        isLoading: true,
+        clearErrorMessage: true,
+        clearErrorCode: true,
+        clearRequestId: true,
+      );
 
       final apiClient = _ref.read(apiClientProvider);
-      final remoteResult = await apiClient.get<List<ConsentHistoryRecord>>(
-        ApiEndpoints.userConsents,
-        queryParameters: const {'page': 0, 'size': 50, 'sort': 'agreedAt,desc'},
-        fromJson: parseConsentHistoryRecords,
+      final result = await apiClient.get<MandatoryConsentStatusPayload>(
+        ApiEndpoints.userConsentStatus,
+        fromJson: parseMandatoryConsentStatusPayload,
       );
 
-      final storage = await _ref.read(localStorageProvider.future);
-      final localRecords = parseConsentHistoryRecords(
-        storage.getJsonList(LocalStorageKeys.userConsents) ?? const [],
-      );
-
-      var remoteRecords = const <ConsentHistoryRecord>[];
-      String? remoteErrorMessage;
-      if (remoteResult is Success<List<ConsentHistoryRecord>>) {
-        remoteRecords = remoteResult.data;
-      } else if (remoteResult is Err<List<ConsentHistoryRecord>>) {
-        remoteErrorMessage = remoteResult.failure.userMessage;
+      if (result is Success<MandatoryConsentStatusPayload>) {
+        final payload = result.data;
+        final blockingConsents = resolveBlockingRequiredConsents(
+          consents: payload.requiredConsents,
+        );
+        final shouldBlock =
+            !payload.canUseService || blockingConsents.isNotEmpty;
+        state = MandatoryConsentState(
+          isLoading: false,
+          hasResolved: true,
+          isRequired: shouldBlock,
+          isSubmitting: false,
+          requiredConsents: payload.requiredConsents,
+        );
+        return;
       }
 
-      final mergedRecords = <ConsentHistoryRecord>[
-        ...remoteRecords,
-        ...localRecords,
-      ];
-      final missingTypes = resolveMissingRequiredConsents(
-        records: mergedRecords,
-      );
-
-      state = MandatoryConsentState(
-        isLoading: false,
-        isRequired: missingTypes.isNotEmpty,
-        isSubmitting: false,
-        missingTypes: missingTypes,
-        errorMessage: missingTypes.isNotEmpty ? remoteErrorMessage : null,
-      );
+      if (result is Err<MandatoryConsentStatusPayload>) {
+        _applyRefreshFailure(result.failure);
+      }
     } catch (e, stackTrace) {
       AppLogger.error(
         'Mandatory consent refresh failed',
@@ -179,10 +192,13 @@ class MandatoryConsentController extends StateNotifier<MandatoryConsentState> {
       );
       state = state.copyWith(
         isLoading: false,
+        hasResolved: true,
         isRequired: true,
         isSubmitting: false,
-        missingTypes: RequiredConsentType.values.toSet(),
+        requiredConsents: const <RequiredConsentStatusItem>[],
         errorMessage: '동의 상태를 확인하지 못했어요. 잠시 후 다시 시도해주세요.',
+        clearErrorCode: true,
+        clearRequestId: true,
       );
     } finally {
       _refreshing = false;
@@ -190,8 +206,7 @@ class MandatoryConsentController extends StateNotifier<MandatoryConsentState> {
   }
 
   Future<bool> submitRequiredConsents({
-    required bool agreeTermsOfService,
-    required bool agreePrivacyPolicy,
+    required Map<String, bool> agreedByType,
   }) async {
     if (!_ref.read(isAuthenticatedProvider)) {
       state = state.copyWith(
@@ -200,40 +215,64 @@ class MandatoryConsentController extends StateNotifier<MandatoryConsentState> {
       );
       return false;
     }
-    if (!agreeTermsOfService || !agreePrivacyPolicy) {
+
+    final requiredConsents = state.requiredConsents;
+    if (requiredConsents.isEmpty) {
       state = state.copyWith(
         isRequired: true,
-        errorMessage: '이용약관과 개인정보 처리방침에 모두 동의해야 합니다.',
+        errorMessage: '동의 상태를 다시 확인해주세요.',
       );
       return false;
     }
 
-    state = state.copyWith(isSubmitting: true, clearErrorMessage: true);
+    final blockingConsents = resolveBlockingRequiredConsents(
+      consents: requiredConsents,
+    );
+    final hasUnchecked = blockingConsents.any(
+      (item) => agreedByType[item.type] != true,
+    );
+    if (hasUnchecked) {
+      state = state.copyWith(
+        isRequired: true,
+        errorMessage: '필수 동의 항목을 모두 체크해주세요.',
+      );
+      return false;
+    }
+
+    state = state.copyWith(
+      isSubmitting: true,
+      clearErrorMessage: true,
+      clearErrorCode: true,
+      clearRequestId: true,
+    );
 
     try {
-      final storage = await _ref.read(localStorageProvider.future);
       final now = DateTime.now().toUtc().toIso8601String();
-      final existing =
-          storage.getJsonList(LocalStorageKeys.userConsents) ??
-          const <Map<String, dynamic>>[];
+      final payload = {
+        'consents': requiredConsents
+            .map(
+              (item) => {
+                'type': item.type,
+                'version': item.requiredVersion,
+                'agreed': true,
+                'agreedAt': now,
+              },
+            )
+            .toList(growable: false),
+      };
 
-      final next = <Map<String, dynamic>>[
-        ...existing,
-        ConsentHistoryRecord(
-          type: RequiredConsentType.termsOfService.apiType,
-          version: RequiredConsentType.termsOfService.currentVersion,
-          agreed: true,
-          agreedAt: now,
-        ).toJson(),
-        ConsentHistoryRecord(
-          type: RequiredConsentType.privacyPolicy.apiType,
-          version: RequiredConsentType.privacyPolicy.currentVersion,
-          agreed: true,
-          agreedAt: now,
-        ).toJson(),
-      ];
+      final apiClient = _ref.read(apiClientProvider);
+      final result = await apiClient.post<Map<String, dynamic>>(
+        ApiEndpoints.userConsents,
+        data: payload,
+        fromJson: _asMap,
+      );
 
-      await storage.setJsonList(LocalStorageKeys.userConsents, next);
+      if (result is Err<Map<String, dynamic>>) {
+        _applySubmitFailure(result.failure);
+        return false;
+      }
+
       await refresh();
       return !state.isRequired;
     } catch (e, stackTrace) {
@@ -245,8 +284,9 @@ class MandatoryConsentController extends StateNotifier<MandatoryConsentState> {
       );
       state = state.copyWith(
         isSubmitting: false,
+        hasResolved: true,
         isRequired: true,
-        errorMessage: '동의 저장에 실패했습니다. 다시 시도해주세요.',
+        errorMessage: '동의 제출에 실패했습니다. 다시 시도해주세요.',
       );
       return false;
     }
@@ -255,79 +295,99 @@ class MandatoryConsentController extends StateNotifier<MandatoryConsentState> {
   void clear() {
     state = const MandatoryConsentState.idle();
   }
-}
 
-List<ConsentHistoryRecord> parseConsentHistoryRecords(dynamic json) {
-  if (json is List) {
-    return json
-        .whereType<Map<String, dynamic>>()
-        .map(ConsentHistoryRecord.fromJson)
-        .toList(growable: false);
+  void _applyRefreshFailure(Failure failure) {
+    state = state.copyWith(
+      isLoading: false,
+      hasResolved: true,
+      isRequired: true,
+      isSubmitting: false,
+      requiredConsents: const <RequiredConsentStatusItem>[],
+      errorMessage: _mapConsentFailureMessage(
+        failure,
+        fallback: '동의 상태를 확인하지 못했어요. 잠시 후 다시 시도해주세요.',
+      ),
+      errorCode: failure.code,
+      requestId: _extractRequestId(failure.message),
+    );
   }
 
+  void _applySubmitFailure(Failure failure) {
+    state = state.copyWith(
+      isLoading: false,
+      hasResolved: true,
+      isRequired: true,
+      isSubmitting: false,
+      errorMessage: _mapConsentFailureMessage(
+        failure,
+        fallback: '동의 제출에 실패했습니다. 다시 시도해주세요.',
+      ),
+      errorCode: failure.code,
+      requestId: _extractRequestId(failure.message),
+    );
+  }
+}
+
+MandatoryConsentStatusPayload parseMandatoryConsentStatusPayload(dynamic json) {
   if (json is Map<String, dynamic>) {
-    final items =
-        json['items'] ?? json['content'] ?? json['results'] ?? json['data'];
-    if (items is List) {
-      return items
-          .whereType<Map<String, dynamic>>()
-          .map(ConsentHistoryRecord.fromJson)
-          .toList(growable: false);
-    }
+    return MandatoryConsentStatusPayload.fromJson(json);
   }
-
-  return const <ConsentHistoryRecord>[];
+  return const MandatoryConsentStatusPayload(
+    canUseService: false,
+    requiredConsents: <RequiredConsentStatusItem>[],
+  );
 }
 
-Set<RequiredConsentType> resolveMissingRequiredConsents({
-  required List<ConsentHistoryRecord> records,
+List<RequiredConsentStatusItem> resolveBlockingRequiredConsents({
+  required List<RequiredConsentStatusItem> consents,
 }) {
-  final missing = <RequiredConsentType>{};
-
-  for (final type in RequiredConsentType.values) {
-    final latest = _findLatestByType(records, type.apiType);
-    if (latest == null ||
-        !latest.agreed ||
-        latest.version != type.currentVersion) {
-      missing.add(type);
-    }
-  }
-
-  return missing;
+  return consents
+      .where(isBlockingRequiredConsent)
+      .toList(growable: false);
 }
 
-ConsentHistoryRecord? _findLatestByType(
-  List<ConsentHistoryRecord> records,
-  String expectedType,
-) {
-  ConsentHistoryRecord? latest;
-  DateTime? latestTime;
-  for (final item in records) {
-    if (item.type.trim().toUpperCase() != expectedType) {
-      continue;
-    }
-    final candidateTime = DateTime.tryParse(item.agreedAt);
-    if (latest == null) {
-      latest = item;
-      latestTime = candidateTime;
-      continue;
-    }
-    if (latestTime == null && candidateTime == null) {
-      continue;
-    }
-    if (latestTime == null && candidateTime != null) {
-      latest = item;
-      latestTime = candidateTime;
-      continue;
-    }
-    if (latestTime != null &&
-        candidateTime != null &&
-        candidateTime.isAfter(latestTime)) {
-      latest = item;
-      latestTime = candidateTime;
-    }
+bool isBlockingRequiredConsent(RequiredConsentStatusItem item) {
+  return item.needsReconsent || !item.agreed;
+}
+
+Map<String, dynamic> _asMap(dynamic json) {
+  if (json is Map<String, dynamic>) {
+    return json;
   }
-  return latest;
+  return const <String, dynamic>{};
+}
+
+bool _parseBool(dynamic value) {
+  return switch (value) {
+    bool v => v,
+    String v => v.toLowerCase() == 'true',
+    num v => v != 0,
+    _ => false,
+  };
+}
+
+String _mapConsentFailureMessage(Failure failure, {required String fallback}) {
+  switch (failure.code?.toUpperCase()) {
+    case 'CONSENT_INVALID_TYPE':
+      return '동의 항목 타입이 올바르지 않습니다.';
+    case 'CONSENT_VERSION_INVALID':
+      return '동의 버전 정보가 올바르지 않습니다.';
+    case 'CONSENT_REQUIRED_FIELDS_MISSING':
+      return '필수 동의 정보가 누락되었습니다.';
+    case 'CONSENT_SUBMISSION_CONFLICT':
+      return '동의 제출이 충돌했습니다. 다시 시도해주세요.';
+    case 'CONSENT_STATUS_UNAVAILABLE':
+      return '동의 상태를 불러올 수 없습니다. 다시 시도해주세요.';
+    case 'CONSENT_POLICY_UNAVAILABLE':
+      return '정책 문서 정보를 불러올 수 없습니다. 다시 시도해주세요.';
+    default:
+      return failure.message.trim().isEmpty ? fallback : failure.message;
+  }
+}
+
+String? _extractRequestId(String message) {
+  final match = RegExp(r'(req_[A-Za-z0-9_]+)').firstMatch(message);
+  return match?.group(1);
 }
 
 final mandatoryConsentControllerProvider =

@@ -25,6 +25,7 @@ import '../../features/feed/presentation/pages/news_detail_page.dart';
 import '../../features/feed/presentation/pages/post_create_page.dart';
 import '../../features/feed/presentation/pages/post_detail_page.dart';
 import '../../features/feed/presentation/pages/unit_detail_page.dart';
+import '../../features/feed/presentation/pages/voice_actor_detail_page.dart';
 import '../../features/projects/domain/entities/project_entities.dart'
     show Unit, UnitMember;
 import '../../features/feed/presentation/pages/post_edit_page.dart';
@@ -112,6 +113,7 @@ class AppRoutes {
   static const String overlayNewsDetail = 'overlay-news-detail';
   static const String unitDetail = 'unit-detail';
   static const String memberDetail = 'member-detail';
+  static const String voiceActorDetail = 'voice-actor-detail';
   static const String postDetail = 'post-detail';
   static const String overlayPostDetail = 'overlay-post-detail';
   static const String postCreate = 'post-create';
@@ -151,8 +153,8 @@ class NavIndex {
   static const int home = 0;
   static const int places = 1;
   static const int live = 2;
-  static const int board = 3;
-  static const int info = 4;
+  static const int info = 3;
+  static const int board = 4;
 }
 
 /// EN: GoRouter provider with authentication redirect
@@ -288,8 +290,132 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // EN: Board Branch (Index 3)
-          // KO: 게시판 분기 (인덱스 3)
+          // EN: Info Branch (Index 3)
+          // KO: 정보 분기 (인덱스 3)
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/info',
+                name: AppRoutes.info,
+                builder: (context, state) => const InfoPage(),
+                routes: [
+                  GoRoute(
+                    path: 'news/:newsId',
+                    name: AppRoutes.newsDetail,
+                    pageBuilder: (context, state) {
+                      final newsId = state.pathParameters['newsId']!;
+                      return _buildAdaptiveDetailPage(
+                        key: state.pageKey,
+                        child: NewsDetailPage(newsId: newsId),
+                      );
+                    },
+                  ),
+                  GoRoute(
+                    path: 'units/:unitId',
+                    name: AppRoutes.unitDetail,
+                    pageBuilder: (context, state) {
+                      final unitIdentifier = state.pathParameters['unitId']!;
+                      final projectId =
+                          state.uri.queryParameters['projectId'] ?? '';
+                      if (projectId.trim().isEmpty) {
+                        return _buildAdaptiveDetailPage(
+                          key: state.pageKey,
+                          child: const _InvalidNavigationPage(
+                            message: '유닛 상세 경로 인자가 올바르지 않습니다. (projectId)',
+                          ),
+                        );
+                      }
+                      final unit = state.extra is Unit
+                          ? state.extra! as Unit
+                          : null;
+                      return _buildAdaptiveDetailPage(
+                        key: state.pageKey,
+                        child: UnitDetailPage(
+                          projectId: projectId,
+                          unitIdentifier: unitIdentifier,
+                          initialUnit: unit,
+                        ),
+                      );
+                    },
+                    routes: [
+                      GoRoute(
+                        path: 'members/:memberId',
+                        name: AppRoutes.memberDetail,
+                        pageBuilder: (context, state) {
+                          final projectId =
+                              state.uri.queryParameters['projectId'] ?? '';
+                          if (projectId.trim().isEmpty) {
+                            return _buildAdaptiveDetailPage(
+                              key: state.pageKey,
+                              child: const _InvalidNavigationPage(
+                                message: '멤버 상세 경로 인자가 올바르지 않습니다. (projectId)',
+                              ),
+                            );
+                          }
+                          final unitIdentifier =
+                              state.pathParameters['unitId']!;
+                          final memberId = state.pathParameters['memberId']!;
+                          UnitMember? member;
+                          Unit? unit;
+                          final extra = state.extra;
+                          if (extra is Map<String, dynamic>) {
+                            final maybeMember = extra['member'];
+                            final maybeUnit = extra['unit'];
+                            if (maybeMember is UnitMember) {
+                              member = maybeMember;
+                            }
+                            if (maybeUnit is Unit) {
+                              unit = maybeUnit;
+                            }
+                          }
+                          return _buildAdaptiveDetailPage(
+                            key: state.pageKey,
+                            child: MemberDetailPage(
+                              projectId: projectId,
+                              unitIdentifier: unitIdentifier,
+                              memberId: memberId,
+                              initialMember: member,
+                              unit: unit,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'voice-actors/:voiceActorId',
+                    name: AppRoutes.voiceActorDetail,
+                    pageBuilder: (context, state) {
+                      final projectId =
+                          state.uri.queryParameters['projectId'] ?? '';
+                      if (projectId.trim().isEmpty) {
+                        return _buildAdaptiveDetailPage(
+                          key: state.pageKey,
+                          child: const _InvalidNavigationPage(
+                            message: '성우 상세 경로 인자가 올바르지 않습니다. (projectId)',
+                          ),
+                        );
+                      }
+                      final voiceActorId =
+                          state.pathParameters['voiceActorId']!;
+                      final fallbackName = state.uri.queryParameters['name'];
+                      return _buildAdaptiveDetailPage(
+                        key: state.pageKey,
+                        child: VoiceActorDetailPage(
+                          projectId: projectId,
+                          voiceActorId: voiceActorId,
+                          fallbackName: fallbackName,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // EN: Board Branch (Index 4)
+          // KO: 게시판 분기 (인덱스 4)
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -359,83 +485,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       }
                       return PostEditPage(post: post);
                     },
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-          // EN: Info Branch (Index 4)
-          // KO: 정보 분기 (인덱스 4)
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/info',
-                name: AppRoutes.info,
-                builder: (context, state) => const InfoPage(),
-                routes: [
-                  GoRoute(
-                    path: 'news/:newsId',
-                    name: AppRoutes.newsDetail,
-                    pageBuilder: (context, state) {
-                      final newsId = state.pathParameters['newsId']!;
-                      return _buildAdaptiveDetailPage(
-                        key: state.pageKey,
-                        child: NewsDetailPage(newsId: newsId),
-                      );
-                    },
-                  ),
-                  GoRoute(
-                    path: 'units/:unitId',
-                    name: AppRoutes.unitDetail,
-                    pageBuilder: (context, state) {
-                      final unit = state.extra;
-                      if (unit is! Unit) {
-                        return _buildAdaptiveDetailPage(
-                          key: state.pageKey,
-                          child: const _InvalidNavigationPage(
-                            message: '유닛 상세 경로 인자가 올바르지 않습니다.',
-                          ),
-                        );
-                      }
-                      final projectId =
-                          state.uri.queryParameters['projectId'] ?? '';
-                      return _buildAdaptiveDetailPage(
-                        key: state.pageKey,
-                        child: UnitDetailPage(unit: unit, projectId: projectId),
-                      );
-                    },
-                    routes: [
-                      GoRoute(
-                        path: 'members/:memberId',
-                        name: AppRoutes.memberDetail,
-                        pageBuilder: (context, state) {
-                          final extra = state.extra;
-                          if (extra is! Map<String, dynamic>) {
-                            return _buildAdaptiveDetailPage(
-                              key: state.pageKey,
-                              child: const _InvalidNavigationPage(
-                                message: '멤버 상세 경로 인자가 올바르지 않습니다.',
-                              ),
-                            );
-                          }
-                          final member = extra['member'];
-                          final unit = extra['unit'];
-                          if (member is! UnitMember || unit is! Unit) {
-                            return _buildAdaptiveDetailPage(
-                              key: state.pageKey,
-                              child: const _InvalidNavigationPage(
-                                message: '멤버 상세 경로 인자가 올바르지 않습니다.',
-                              ),
-                            );
-                          }
-                          return _buildAdaptiveDetailPage(
-                            key: state.pageKey,
-                            child: MemberDetailPage(member: member, unit: unit),
-                          );
-                        },
-                      ),
-                    ],
                   ),
                 ],
               ),
@@ -873,9 +922,10 @@ extension AppRouterExtension on BuildContext {
   /// EN: Navigate to unit detail page.
   /// KO: 유닛 상세 페이지로 이동.
   void goToUnitDetail({required Unit unit, required String projectId}) {
+    final unitIdentifier = unit.code.isNotEmpty ? unit.code : unit.id;
     pushNamed(
       AppRoutes.unitDetail,
-      pathParameters: {'unitId': unit.id},
+      pathParameters: {'unitId': unitIdentifier},
       queryParameters: {'projectId': projectId},
       extra: unit,
     );
@@ -888,11 +938,35 @@ extension AppRouterExtension on BuildContext {
     required UnitMember member,
     required String projectId,
   }) {
+    final unitIdentifier = unit.code.isNotEmpty ? unit.code : unit.id;
     pushNamed(
       AppRoutes.memberDetail,
-      pathParameters: {'unitId': unit.id, 'memberId': member.id},
+      pathParameters: {'unitId': unitIdentifier, 'memberId': member.id},
       queryParameters: {'projectId': projectId},
       extra: {'member': member, 'unit': unit},
+    );
+  }
+
+  /// EN: Navigate to voice actor detail.
+  /// KO: 성우 상세로 이동
+  void goToVoiceActorDetail(
+    String voiceActorId, {
+    required String projectId,
+    String? fallbackName,
+  }) {
+    final trimmedProjectId = projectId.trim();
+    if (trimmedProjectId.isEmpty) {
+      return;
+    }
+    final trimmedName = fallbackName?.trim();
+    final queryParameters = <String, String>{
+      'projectId': trimmedProjectId,
+      if (trimmedName != null && trimmedName.isNotEmpty) 'name': trimmedName,
+    };
+    pushNamed(
+      AppRoutes.voiceActorDetail,
+      pathParameters: {'voiceActorId': voiceActorId},
+      queryParameters: queryParameters,
     );
   }
 

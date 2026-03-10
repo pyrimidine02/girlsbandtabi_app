@@ -23,6 +23,7 @@ import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../../settings/application/settings_controller.dart';
 import '../../application/feed_controller.dart';
 import '../../domain/entities/feed_entities.dart';
+import '../widgets/voice_actor_directory_tab.dart';
 
 // ===========================================================================
 // EN: Info page root
@@ -42,10 +43,11 @@ class _InfoPageState extends ConsumerState<InfoPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
-  static const _tabCount = 3;
+  static const _tabCount = 4;
   static const _tabIcons = [
     Icons.newspaper_outlined,
     Icons.groups_outlined,
+    Icons.mic_external_on_outlined,
     Icons.music_note_outlined,
   ];
 
@@ -77,6 +79,14 @@ class _InfoPageState extends ConsumerState<InfoPage>
             .read(projectUnitsControllerProvider(projectKey).notifier)
             .load(forceRefresh: true);
         return;
+      case 2:
+        final selection = ref.read(projectSelectionControllerProvider);
+        final projectKey = selection.projectKey;
+        if (projectKey == null || projectKey.isEmpty) return;
+        await ref
+            .read(voiceActorsCatalogControllerProvider(projectKey).notifier)
+            .refresh();
+        return;
       default:
         return;
     }
@@ -87,6 +97,8 @@ class _InfoPageState extends ConsumerState<InfoPage>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentNavIndex = ref.watch(currentNavIndexProvider);
     final isInfoTabActive = currentNavIndex == NavIndex.info;
+    final projectSelection = ref.watch(projectSelectionControllerProvider);
+    final selectedProjectId = projectSelection.projectKey ?? '';
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
     final bgColor = isDark ? GBTColors.darkSurface : GBTColors.surface;
     final avatarUrl = ref
@@ -96,6 +108,7 @@ class _InfoPageState extends ConsumerState<InfoPage>
     final tabs = [
       context.l10n(ko: '소식', en: 'News', ja: 'お知らせ'),
       context.l10n(ko: '유닛', en: 'Units', ja: 'ユニット'),
+      context.l10n(ko: '성우', en: 'Voice actors', ja: '声優'),
       context.l10n(ko: '악곡', en: 'Songs', ja: '楽曲'),
     ];
 
@@ -212,6 +225,10 @@ class _InfoPageState extends ConsumerState<InfoPage>
           children: [
             _NewsTab(isActive: isInfoTabActive && _tabController.index == 0),
             _UnitsTab(isActive: isInfoTabActive && _tabController.index == 1),
+            VoiceActorDirectoryTab(
+              isActive: isInfoTabActive && _tabController.index == 2,
+              projectId: selectedProjectId,
+            ),
             const _SongsTab(),
           ],
         ),

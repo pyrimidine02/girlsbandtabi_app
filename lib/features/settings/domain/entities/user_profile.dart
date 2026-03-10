@@ -3,6 +3,7 @@
 library;
 
 import '../../data/dto/user_profile_dto.dart';
+import '../../data/dto/user_access_level_dto.dart';
 import '../../../../core/security/user_access_level.dart' as access;
 
 class UserProfile {
@@ -14,6 +15,7 @@ class UserProfile {
     required this.accountRole,
     required this.baselineAccessLevel,
     required this.effectiveAccessLevel,
+    required this.grants,
     required this.projectRolesByProject,
     required this.createdAt,
     this.avatarUrl,
@@ -28,6 +30,7 @@ class UserProfile {
   final String accountRole;
   final String baselineAccessLevel;
   final String effectiveAccessLevel;
+  final List<UserAccessGrantSnapshot> grants;
   final Map<String, List<String>> projectRolesByProject;
   final DateTime createdAt;
   final String? avatarUrl;
@@ -103,10 +106,57 @@ class UserProfile {
       accountRole: dto.accountRole,
       baselineAccessLevel: dto.baselineAccessLevel,
       effectiveAccessLevel: dto.effectiveAccessLevel,
+      grants: dto.grants
+          .map(UserAccessGrantSnapshot.fromDto)
+          .toList(growable: false),
       projectRolesByProject: dto.projectRolesByProject,
       createdAt: dto.createdAt,
       bio: dto.bio,
       coverImageUrl: dto.coverImageUrl,
+    );
+  }
+}
+
+class UserAccessGrantSnapshot {
+  const UserAccessGrantSnapshot({
+    required this.grantId,
+    required this.userId,
+    required this.accessLevel,
+    required this.isActive,
+    this.grantedByUserId,
+    this.grantReason,
+    this.grantedAt,
+    this.expiresAt,
+    this.revokedAt,
+    this.revokedByUserId,
+    this.revokedReason,
+  });
+
+  final String grantId;
+  final String userId;
+  final String accessLevel;
+  final bool isActive;
+  final String? grantedByUserId;
+  final String? grantReason;
+  final DateTime? grantedAt;
+  final DateTime? expiresAt;
+  final DateTime? revokedAt;
+  final String? revokedByUserId;
+  final String? revokedReason;
+
+  factory UserAccessGrantSnapshot.fromDto(UserAccessLevelGrantDto dto) {
+    return UserAccessGrantSnapshot(
+      grantId: dto.grantId,
+      userId: dto.userId,
+      accessLevel: dto.accessLevel,
+      isActive: dto.isActive,
+      grantedByUserId: dto.grantedByUserId,
+      grantReason: dto.grantReason,
+      grantedAt: dto.grantedAt,
+      expiresAt: dto.expiresAt,
+      revokedAt: dto.revokedAt,
+      revokedByUserId: dto.revokedByUserId,
+      revokedReason: dto.revokedReason,
     );
   }
 }

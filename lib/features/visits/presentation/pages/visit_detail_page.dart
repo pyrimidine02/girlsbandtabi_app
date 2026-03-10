@@ -2,9 +2,12 @@
 /// KO: 방문 상세 페이지 — 히어로 이미지, 통계, 지도가 있는 프리미엄 디자인.
 library;
 
+import 'dart:ui';
+
 import 'package:apple_maps_flutter/apple_maps_flutter.dart' as amaps;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:intl/intl.dart';
@@ -190,9 +193,12 @@ class _HeroAppBar extends StatelessWidget {
       expandedHeight: hasImage ? 280 : 160,
       pinned: true,
       stretch: true,
-      backgroundColor: isDark ? GBTColors.darkSurface : Colors.white,
+      backgroundColor: (isDark ? GBTColors.darkSurface : Colors.white).withValues(alpha: 0.8),
       foregroundColor: hasImage ? Colors.white : null,
-      flexibleSpace: FlexibleSpaceBar(
+      flexibleSpace: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: FlexibleSpaceBar(
         title: Text(
           place?.name ??
               context.l10n(ko: '방문 상세', en: 'Visit detail', ja: '訪問詳細'),
@@ -258,6 +264,8 @@ class _HeroAppBar extends StatelessWidget {
                   ),
                 ),
               ),
+          ),
+        ),
       ),
     );
   }
@@ -465,6 +473,21 @@ class _PlaceInfoSection extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onViewPlace,
+        onLongPress: () {
+          Clipboard.setData(ClipboardData(text: '${place!.name}\n${place!.address}'));
+          HapticFeedback.lightImpact();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                context.l10n(
+                  ko: '장소 정보가 복사되었습니다',
+                  en: 'Place info copied',
+                  ja: '場所情報がコピーされました',
+                ),
+              ),
+            ),
+          );
+        },
         child: Padding(
           padding: const EdgeInsets.all(GBTSpacing.md),
           child: Row(
@@ -513,7 +536,7 @@ class _PlaceInfoSection extends StatelessWidget {
                       style: GBTTypography.titleSmall.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     if (place!.address.isNotEmpty) ...[
@@ -529,16 +552,16 @@ class _PlaceInfoSection extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Expanded(
-                            child: Text(
-                              place!.address,
-                              style: GBTTypography.bodySmall.copyWith(
-                                color: isDark
-                                    ? GBTColors.darkTextSecondary
-                                    : GBTColors.textSecondary,
+                              child: Text(
+                                place!.address,
+                                style: GBTTypography.bodySmall.copyWith(
+                                  color: isDark
+                                      ? GBTColors.darkTextSecondary
+                                      : GBTColors.textSecondary,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
                           ),
                         ],
                       ),

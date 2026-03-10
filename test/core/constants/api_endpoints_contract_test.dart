@@ -16,6 +16,71 @@ void main() {
         (path: ApiEndpoints.oauthCallback('{provider}'), method: 'GET'),
         (path: ApiEndpoints.projects, method: 'GET'),
         (path: ApiEndpoints.projectUnits('{projectId}'), method: 'GET'),
+        (path: ApiEndpoints.projectUnits('{projectId}'), method: 'POST'),
+        (path: ApiEndpoints.projectUnitsSearch('{projectId}'), method: 'GET'),
+        (
+          path: ApiEndpoints.projectUnit('{projectId}', '{unitSlug}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.projectUnit('{projectId}', '{unitSlug}'),
+          method: 'PUT',
+        ),
+        (
+          path: ApiEndpoints.projectUnit('{projectId}', '{unitSlug}'),
+          method: 'DELETE',
+        ),
+        (
+          path: ApiEndpoints.unitMembers('{projectId}', '{unitId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.unitMembers('{projectId}', '{unitId}'),
+          method: 'POST',
+        ),
+        (
+          path: ApiEndpoints.unitMember(
+            '{projectId}',
+            '{unitId}',
+            '{memberId}',
+          ),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.unitMember(
+            '{projectId}',
+            '{unitId}',
+            '{memberId}',
+          ),
+          method: 'PUT',
+        ),
+        (
+          path: ApiEndpoints.unitMember(
+            '{projectId}',
+            '{unitId}',
+            '{memberId}',
+          ),
+          method: 'DELETE',
+        ),
+        (path: ApiEndpoints.projectVoiceActors('{projectId}'), method: 'GET'),
+        (
+          path: ApiEndpoints.projectVoiceActor('{projectId}', '{voiceActorId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.projectVoiceActorMembers(
+            '{projectId}',
+            '{voiceActorId}',
+          ),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.projectVoiceActorCredits(
+            '{projectId}',
+            '{voiceActorId}',
+          ),
+          method: 'GET',
+        ),
         (path: ApiEndpoints.homeSummary, method: 'GET'),
         (path: ApiEndpoints.homeSummaryByProject, method: 'GET'),
         (path: ApiEndpoints.search, method: 'GET'),
@@ -37,6 +102,10 @@ void main() {
         (path: ApiEndpoints.placeGuides('{placeId}'), method: 'GET'),
         (path: ApiEndpoints.placeComments('{placeId}'), method: 'GET'),
         (path: ApiEndpoints.placeComments('{placeId}'), method: 'POST'),
+        (
+          path: ApiEndpoints.placeComment('{placeId}', '{commentId}'),
+          method: 'DELETE',
+        ),
         (path: ApiEndpoints.rankingsMostVisited('{projectId}'), method: 'GET'),
         (path: ApiEndpoints.rankingsMostLiked('{projectId}'), method: 'GET'),
         (path: ApiEndpoints.rankingsUsers('{projectId}'), method: 'GET'),
@@ -179,6 +248,7 @@ void main() {
         (path: ApiEndpoints.communityReport('{reportId}'), method: 'DELETE'),
         (path: ApiEndpoints.userMe, method: 'GET'),
         (path: ApiEndpoints.userMe, method: 'PATCH'),
+        (path: ApiEndpoints.userMeAccessLevel, method: 'GET'),
         (path: ApiEndpoints.userProfile('{userId}'), method: 'GET'),
         (path: ApiEndpoints.userFollow('{userId}'), method: 'GET'),
         (path: ApiEndpoints.userFollow('{userId}'), method: 'POST'),
@@ -209,7 +279,6 @@ void main() {
         (path: ApiEndpoints.uploadsDirect, method: 'POST'),
         (path: ApiEndpoints.uploadsPresignedUrl, method: 'POST'),
         (path: ApiEndpoints.uploadsConfirm('{uploadId}'), method: 'POST'),
-        (path: ApiEndpoints.uploadsApprove('{uploadId}'), method: 'PUT'),
         (path: ApiEndpoints.uploadsMy, method: 'GET'),
         (path: ApiEndpoints.uploadsDelete('{uploadId}'), method: 'DELETE'),
         (path: ApiEndpoints.verificationAppeals('{projectId}'), method: 'GET'),
@@ -252,6 +321,15 @@ void main() {
         (
           path: ApiEndpoints.adminProjectRoleRequestReview('{requestId}'),
           method: 'PATCH',
+        ),
+        (path: ApiEndpoints.adminMediaDeletions, method: 'GET'),
+        (
+          path: ApiEndpoints.adminMediaDeletionApprove('{requestId}'),
+          method: 'POST',
+        ),
+        (
+          path: ApiEndpoints.adminMediaDeletionReject('{requestId}'),
+          method: 'POST',
         ),
       ];
 

@@ -3,6 +3,7 @@
 library;
 
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,6 +46,27 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
+  final ScrollController _scrollController = ScrollController();
+  bool _isScrolled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(() {
+      if (!mounted) return;
+      final isScrolled = _scrollController.hasClients && _scrollController.offset > 50;
+      if (isScrolled != _isScrolled) {
+        setState(() => _isScrolled = isScrolled);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     // EN: Eagerly initialize project selection — prevents deadlock where
@@ -54,23 +76,37 @@ class _HomePageState extends ConsumerState<HomePage> {
     // 기다리지만 ProjectSelector가 콘텐츠 로드 후에만 렌더링되는 데드락 방지.
     ref.watch(projectSelectionControllerProvider);
     final selectedProjectKey = ref.watch(selectedProjectKeyProvider);
+    final isProjectSelected = selectedProjectKey?.isNotEmpty == true;
     final projectsState = ref.watch(projectsControllerProvider);
     final state = ref.watch(homeControllerProvider);
-    final avatarUrl = ref
-        .watch(userProfileControllerProvider)
-        .valueOrNull
-        ?.avatarUrl;
-    final isProjectSelected =
-        selectedProjectKey != null && selectedProjectKey.isNotEmpty;
+    final userProfile = ref.watch(userProfileControllerProvider).valueOrNull;
+    final avatarUrl = userProfile?.avatarUrl;
+    final nickname = userProfile?.displayName;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final appBarBgColor = _isScrolled
+        ? (isDark ? GBTColors.darkSurface : Colors.white).withValues(alpha: 0.8)
+        : Colors.transparent;
+    final appBarFgColor = _isScrolled
+        ? (isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary)
+        : Colors.white;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text('Girls Band Tabi'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: appBarBgColor,
         elevation: 0,
         scrolledUnderElevation: 0,
-        foregroundColor: Colors.white,
+        foregroundColor: appBarFgColor,
+        flexibleSpace: _isScrolled
+            ? ClipRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: const SizedBox.expand(),
+                ),
+              )
+            : null,
         actions: [
           GBTAppBarIconButton(
             icon: Icons.search,
@@ -82,7 +118,13 @@ class _HomePageState extends ConsumerState<HomePage> {
             onPressed: () => context.push('/notifications'),
             tooltip: context.l10n(ko: '알림', en: 'Notifications', ja: '通知'),
           ),
-          GBTProfileAction(avatarUrl: avatarUrl),
+          if (!_isScrolled)
+            GBTProfileAction(avatarUrl: avatarUrl)
+          else
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: GBTProfileAction(avatarUrl: avatarUrl),
+            ),
         ],
       ),
       body: RefreshIndicator(
@@ -94,7 +136,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             : state.when(
                 loading: () => _buildLoading(),
                 error: (error, _) => _buildError(error),
-                data: (summary) => _buildContent(summary),
+                data: (summary) => _buildContent(summary, nickname),
               ),
       ),
     );
@@ -146,6 +188,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return CustomScrollView(
+      controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         // EN: Spacer for SliverAppBar overlap
@@ -241,6 +284,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             ja: 'ホーム情報を読み込めませんでした',
           );
     return CustomScrollView(
+      controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverToBoxAdapter(
@@ -263,16 +307,18 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildContent(HomeSummary summary) {
+  Widget _buildContent(HomeSummary summary, String? nickname) {
     final featuredLive = _pickFeaturedLive(summary.trendingLiveEvents);
     final headerImageUrl = _pickHeaderImage(summary, featuredLive);
 
     return CustomScrollView(
+      controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         // 1. GBTGreetingHeader (includes SafeArea + AppBar space)
         SliverToBoxAdapter(
           child: GBTGreetingHeader(
+            userName: nickname,
             backgroundImageUrl: headerImageUrl,
             featuredTitle: featuredLive?.title,
             featuredDate: featuredLive?.dateLabel,

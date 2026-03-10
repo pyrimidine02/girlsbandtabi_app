@@ -120,21 +120,6 @@ class UploadsRepositoryImpl implements UploadsRepository {
     return result;
   }
 
-  @override
-  Future<Result<ApproveUploadResponse>> approveUpload({
-    required String uploadId,
-    required bool isApproved,
-  }) async {
-    final result = await _remoteDataSource.approveUpload(
-      uploadId: uploadId,
-      isApproved: isApproved,
-    );
-    if (result is Success<ApproveUploadResponse>) {
-      await _cacheManager.remove(_myUploadsCacheKey);
-    }
-    return result;
-  }
-
   Future<List<UploadInfoResponse>> _fetchMyUploads() async {
     final result = await _remoteDataSource.fetchMyUploads();
 

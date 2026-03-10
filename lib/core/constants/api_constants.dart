@@ -31,6 +31,7 @@ class ApiEndpoints {
   // KO: 사용자 엔드포인트 (8.2)
   // ============================================================
   static const String userMe = '$apiVersion/users/me';
+  static const String userMeAccessLevel = '$userMe/access-level';
   static const String userVisits = '$apiVersion/users/me/visits';
   static const String userVisitsSummary = '$apiVersion/users/me/visits/summary';
   static String userVisitDetail(String visitId) => '$userVisits/$visitId';
@@ -38,6 +39,7 @@ class ApiEndpoints {
   static String userProfile(String userId) => '$apiVersion/users/$userId';
   static const String userPrivacySettings = '$userMe/privacy-settings';
   static const String userConsents = '$userMe/consents';
+  static const String userConsentStatus = '$userMe/consent-status';
   static const String userPrivacyRequests = '$userMe/privacy-requests';
   static String userFollow(String userId) => '${userProfile(userId)}/follow';
   static String userFollowers(String userId) =>
@@ -109,6 +111,18 @@ class ApiEndpoints {
       '${projectUnits(projectId)}/$unitId/members';
   static String unitMember(String projectId, String unitId, String memberId) =>
       '${unitMembers(projectId, unitId)}/$memberId';
+  static String projectVoiceActors(String projectId) =>
+      '${projectUnits(projectId)}/voice-actors';
+  static String projectVoiceActor(String projectId, String voiceActorId) =>
+      '${projectVoiceActors(projectId)}/$voiceActorId';
+  static String projectVoiceActorMembers(
+    String projectId,
+    String voiceActorId,
+  ) => '${projectVoiceActor(projectId, voiceActorId)}/members';
+  static String projectVoiceActorCredits(
+    String projectId,
+    String voiceActorId,
+  ) => '${projectVoiceActor(projectId, voiceActorId)}/credits';
 
   // ============================================================
   // EN: Place endpoints (8.6)
@@ -374,11 +388,8 @@ class ApiEndpoints {
   static String uploadsConfirm(String uploadId) =>
       '$apiVersion/uploads/$uploadId/confirm';
   static const String uploadsMy = '$apiVersion/uploads/my';
-  static const String uploadsPending = '$apiVersion/uploads/pending';
   static String uploadsDelete(String uploadId) =>
       '$apiVersion/uploads/$uploadId';
-  static String uploadsApprove(String uploadId) =>
-      '$apiVersion/uploads/$uploadId/approve';
 
   // ============================================================
   // EN: Media Link endpoints (8.19)
@@ -487,6 +498,11 @@ class ApiEndpoints {
       '$adminCommunityReports/$reportId';
   static String adminCommunityReportAssign(String reportId) =>
       '${adminCommunityReport(reportId)}/assign';
+  static const String adminMediaDeletions = '$apiVersion/admin/media-deletions';
+  static String adminMediaDeletionApprove(String requestId) =>
+      '$adminMediaDeletions/$requestId/approve';
+  static String adminMediaDeletionReject(String requestId) =>
+      '$adminMediaDeletions/$requestId/reject';
   static const String adminAuditLogs = '$apiVersion/admin/audit-logs';
   static const String adminExports = '$apiVersion/admin/exports';
   static String adminExport(String id) => '$adminExports/$id';
@@ -560,6 +576,7 @@ class ApiHeaders {
 
   static const String authorization = 'Authorization';
   static const String bearer = 'Bearer';
+  static const String accept = 'Accept';
   static const String contentType = 'Content-Type';
   static const String applicationJson = 'application/json';
   static const String clientType = 'X-Client-Type';

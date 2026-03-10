@@ -7,7 +7,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
+import '../logging/app_logger.dart';
 import '../connectivity/connectivity_service.dart';
 import '../cache/cache_manager.dart';
 import '../network/api_client.dart';
@@ -55,6 +57,10 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient(
     secureStorage: secureStorage,
     onUnauthorized: ref.read(authStateProvider.notifier).setUnauthenticated,
+    onTokenRefreshed: () {
+      final notifier = ref.read(authTokenRefreshTickProvider.notifier);
+      notifier.state = notifier.state + 1;
+    },
   );
 });
 
@@ -163,6 +169,31 @@ final connectivityStatusProvider = StreamProvider<ConnectivityStatus>((ref) {
 final isOnlineProvider = FutureProvider<bool>((ref) async {
   final service = ref.watch(connectivityServiceProvider);
   return service.isOnline;
+});
+
+/// EN: App semantic version provider (build number excluded).
+/// KO: 앱 시맨틱 버전 프로바이더 (빌드 번호 제외).
+const String _fallbackAppVersion = String.fromEnvironment(
+  'APP_VERSION_FALLBACK',
+  defaultValue: '0.0.4',
+);
+
+final appVersionProvider = FutureProvider<String>((ref) async {
+  try {
+    final packageInfo = await PackageInfo.fromPlatform();
+    final version = packageInfo.version.trim();
+    if (version.isNotEmpty) {
+      return version;
+    }
+  } catch (error, stackTrace) {
+    AppLogger.error(
+      'Failed to load app version from platform; fallback will be used.',
+      error: error,
+      stackTrace: stackTrace,
+      tag: 'AppVersionProvider',
+    );
+  }
+  return _fallbackAppVersion;
 });
 
 // ========================================
@@ -332,4 +363,10 @@ final authStateProvider = StateNotifierProvider<AuthStateNotifier, AuthState>((
 /// KO: 사용자 인증 여부 확인
 final isAuthenticatedProvider = Provider<bool>((ref) {
   return ref.watch(authStateProvider) == AuthState.authenticated;
+});
+
+/// EN: Monotonic tick incremented when access token is refreshed.
+/// KO: 액세스 토큰 갱신 성공 시 증가하는 단조 증가 tick 값입니다.
+final authTokenRefreshTickProvider = StateProvider<int>((ref) {
+  return 0;
 });

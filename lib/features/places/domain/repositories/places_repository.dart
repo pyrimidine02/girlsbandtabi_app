@@ -116,4 +116,11 @@ abstract class PlacesRepository {
     bool isPublic = true,
     List<String> tags = const [],
   });
+
+  /// EN: Delete a place comment.
+  /// KO: 장소 댓글을 삭제합니다.
+  Future<Result<void>> deletePlaceComment({
+    required String placeId,
+    required String commentId,
+  });
 }

@@ -13,6 +13,14 @@ void main() {
       notificationTypePostCreated,
     );
     expect(
+      normalizeNotificationType('MY_POST_COMMENT_CREATED'),
+      'COMMENT_CREATED',
+    );
+    expect(
+      normalizeNotificationType('MY_COMMENT_REPLY_CREATED'),
+      'COMMENT_REPLY_CREATED',
+    );
+    expect(
       normalizeNotificationType('SYSTEM_BROADCAST'),
       notificationTypeSystemNotice,
     );

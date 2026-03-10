@@ -11,6 +11,8 @@ String normalizeNotificationType(String? rawType) {
   final upper = rawType?.trim().toUpperCase() ?? '';
   return switch (upper) {
     'FOLLOWING_POST' || 'FOLLOWING_POST_CREATED' => notificationTypePostCreated,
+    'MY_POST_COMMENT_CREATED' || 'COMMUNITY_COMMENT' => 'COMMENT_CREATED',
+    'MY_COMMENT_REPLY_CREATED' || 'COMMUNITY_REPLY' => 'COMMENT_REPLY_CREATED',
     'SYSTEM_BROADCAST' || 'SYSTEM' => notificationTypeSystemNotice,
     _ => upper,
   };

@@ -150,23 +150,6 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
     return result;
   }
 
-  /// EN: Approve or reject an upload.
-  /// KO: 업로드를 승인하거나 반려합니다.
-  Future<Result<ApproveUploadResponse>> approveUpload({
-    required String uploadId,
-    required bool isApproved,
-  }) async {
-    final repository = await _ref.read(uploadsRepositoryProvider.future);
-    final result = await repository.approveUpload(
-      uploadId: uploadId,
-      isApproved: isApproved,
-    );
-    if (result is Success<ApproveUploadResponse>) {
-      await load(forceRefresh: true);
-    }
-    return result;
-  }
-
   bool _shouldFallbackToDirect(Failure failure) {
     // EN: Network failures (timeout, connection error) should always fallback.
     // KO: 네트워크 실패(타임아웃, 연결 오류)는 항상 direct로 폴백합니다.

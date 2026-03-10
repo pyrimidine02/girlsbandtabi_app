@@ -258,6 +258,99 @@ class AdminRoleRequestsController
   }
 }
 
+class AdminMediaDeletionsState {
+  const AdminMediaDeletionsState({
+    required this.requests,
+    this.isMutating = false,
+  });
+
+  factory AdminMediaDeletionsState.initial() {
+    return const AdminMediaDeletionsState(requests: AsyncLoading());
+  }
+
+  final AsyncValue<List<AdminMediaDeletionRequest>> requests;
+  final bool isMutating;
+
+  AdminMediaDeletionsState copyWith({
+    AsyncValue<List<AdminMediaDeletionRequest>>? requests,
+    bool? isMutating,
+  }) {
+    return AdminMediaDeletionsState(
+      requests: requests ?? this.requests,
+      isMutating: isMutating ?? this.isMutating,
+    );
+  }
+}
+
+class AdminMediaDeletionsController
+    extends StateNotifier<AdminMediaDeletionsState> {
+  AdminMediaDeletionsController(this._ref)
+    : super(AdminMediaDeletionsState.initial()) {
+    load();
+  }
+
+  final Ref _ref;
+
+  Future<void> load({bool forceRefresh = false}) async {
+    state = state.copyWith(requests: const AsyncLoading());
+    final repository = await _ref.read(adminOpsRepositoryProvider.future);
+    final result = await repository.getMediaDeletionRequests(
+      status: 'PENDING',
+      page: 0,
+      size: 50,
+      forceRefresh: forceRefresh,
+    );
+
+    if (result is Success<List<AdminMediaDeletionRequest>>) {
+      state = state.copyWith(requests: AsyncData(result.data));
+      return;
+    }
+    if (result is Err<List<AdminMediaDeletionRequest>>) {
+      state = state.copyWith(
+        requests: AsyncError(result.failure, StackTrace.current),
+      );
+    }
+  }
+
+  Future<Result<void>> approve({
+    required String requestId,
+    required bool deleteLinkedContents,
+  }) async {
+    state = state.copyWith(isMutating: true);
+    final repository = await _ref.read(adminOpsRepositoryProvider.future);
+    final result = await repository.approveMediaDeletion(
+      requestId: requestId,
+      deleteLinkedContents: deleteLinkedContents,
+    );
+    state = state.copyWith(isMutating: false);
+
+    if (result is Success<void>) {
+      await load(forceRefresh: true);
+      return const Result.success(null);
+    }
+    if (result is Err<void>) {
+      return Result.failure(result.failure);
+    }
+    return const Result.success(null);
+  }
+
+  Future<Result<void>> reject({required String requestId}) async {
+    state = state.copyWith(isMutating: true);
+    final repository = await _ref.read(adminOpsRepositoryProvider.future);
+    final result = await repository.rejectMediaDeletion(requestId: requestId);
+    state = state.copyWith(isMutating: false);
+
+    if (result is Success<void>) {
+      await load(forceRefresh: true);
+      return const Result.success(null);
+    }
+    if (result is Err<void>) {
+      return Result.failure(result.failure);
+    }
+    return const Result.success(null);
+  }
+}
+
 /// EN: Dashboard controller provider.
 /// KO: 운영 대시보드 컨트롤러 프로바이더.
 final adminDashboardControllerProvider =
@@ -280,6 +373,14 @@ final adminRoleRequestsControllerProvider =
       ref,
     ) {
       return AdminRoleRequestsController(ref);
+    });
+
+final adminMediaDeletionsControllerProvider =
+    StateNotifierProvider<
+      AdminMediaDeletionsController,
+      AdminMediaDeletionsState
+    >((ref) {
+      return AdminMediaDeletionsController(ref);
     });
 
 /// EN: Report detail provider.

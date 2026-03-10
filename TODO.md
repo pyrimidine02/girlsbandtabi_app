@@ -1,5 +1,43 @@
 # TODO
 
+- Run QA for notification settings conflict auto-recovery (2026-03-10):
+  - 알림 설정 저장 시 `409 CONFLICT`가 발생해도 최신값 재조회 후 재시도로
+    최종 저장 성공까지 이어지는지 확인.
+  - `NOTIFICATION_SETTINGS_VERSION_CONFLICT` + `error.details.current` 응답에서
+    서버 최신 스냅샷(version/categories/updatedAt) 기준으로 복구되는지 확인.
+  - 복구 재시도 중 토글이 이전값으로 튀지 않고 사용자 의도값을 유지하는지 확인.
+  - 복구 재시도까지 실패하면 저장 실패 스낵바가 노출되는지 확인.
+  - `FOLLOWING_POST` 토글 ON/OFF가 저장 후 재진입 시 유지되는지 확인.
+  - 알림 타입 `FOLLOWING_POST_CREATED`, `MY_POST_COMMENT_CREATED`,
+    `MY_COMMENT_REPLY_CREATED` 수신 시 알림함/탭 라우팅이 정상 동작하는지 확인.
+
+- Run QA for unit/member/voice-actor integration (2026-03-10):
+  - 정보(Info) 화면 `성우` 탭에서 목록/검색/페이지네이션이 정상 동작하는지 확인.
+  - 유닛 상세/멤버 상세가 `unitIdentifier` slug/UUID 혼용에서 모두 진입 가능한지 확인.
+  - 멤버 상세에서 `voiceActors[]` 역할 타입이 누락 없이 렌더링되는지 확인.
+  - 성우 상세 `담당 캐릭터/크레딧` 탭이 빈 상태/에러/정상 상태에서 일관되게 노출되는지 확인.
+  - 장소 상세 후기 카드에서 작성자/모더레이터만 삭제 메뉴가 보이고,
+    삭제 성공 시 목록이 즉시 갱신되는지 확인.
+
+- Run QA for image processing policy update + admin media deletion flow (2026-03-10):
+  - place detail 방문 후기 카드에서 `사진 승인/사진 반려` 버튼이 완전히 제거됐는지 확인.
+  - 일반 사용자 후기 이미지가 업로드 직후 별도 승인 대기 없이 노출되는지 확인.
+  - 운영 센터 `미디어 삭제` 탭에서 `PENDING` 요청 목록이 로드되는지 확인.
+  - `미디어만 삭제` 승인 시 요청이 처리되고 목록/대시보드 카운트가 갱신되는지 확인.
+  - `연관 콘텐츠 포함 삭제` 승인 시 `deleteLinkedContents=true`로 요청되는지 확인.
+  - `반려` 처리 시 요청이 목록에서 제거되고 재조회 시 상태가 반영되는지 확인.
+
+- Run QA for mandatory consent status dynamic contract v1.0.0 (2026-03-10):
+  - 로그인 직후 `GET /api/v1/users/me/consent-status`가 호출되고,
+    `canUseService=false`면 앱 전역 차단 오버레이가 노출되는지 확인.
+  - `requiredConsents` 중 `needsReconsent=true` 항목만 체크 가능하며,
+    모든 필수 항목 동의 전까지 `동의하고 계속` 버튼이 비활성인지 확인.
+  - 동의 항목의 `보기` 버튼이 `policyUrl` 링크를 정확히 여는지 확인.
+  - `POST /api/v1/users/me/consents` 성공 후 즉시 상태 재조회되고
+    차단이 해제되는지 확인.
+  - 상태 조회 실패 시 오버레이의 `동의 상태 다시 확인` 버튼으로 복구되는지 확인.
+  - 제출 실패 시 스낵바(토스트)가 노출되고 재시도 가능한지 확인.
+
 - Run QA for admin role-request flow integration (2026-03-09):
   - 계정도구 `권한 요청` 탭에서 `수정권한/관리권한` 요청 생성이 실제 API(`POST /projects/role-requests`)로 반영되는지 확인.
   - 내 요청 목록(`GET /projects/role-requests`) 상태 배지와 취소(`DELETE /projects/role-requests/{requestId}`) 동작 확인.
@@ -630,6 +668,11 @@
 - Confirm user profile `bio` and `coverImageUrl` are returned on public profile endpoints (read + update).
 - Confirm whether `username` should be an email for registration and align login labels accordingly.
 - Confirm unit name/description semantics (`code` vs `displayName`) with backend and update mapping if the contract changes.
+- Consolidate widget-test `AppConfig` bootstrap into a shared test helper:
+  - current post-compose integration tests initialize `AppConfig` inline to
+    avoid `ApiClient` late-init failures when `feedRepositoryProvider` is read.
+  - remove per-test duplication once a common helper is introduced and adopted
+    by all widget tests that touch repository providers.
 - Keep the Flutter code standards guide in sync with AGENTS.md and lint rules.
 - Confirm place guide/comment DTO mappings with backend (fields + pagination).
 - Confirm place comment creation request (`CreatePlaceCommentRequest`) and photo upload flow (presigned + confirm) with backend.
@@ -750,3 +793,10 @@
   - Android should keep Material dialog/sheet visuals and button hierarchy.
   - Verify destructive actions (delete/ban/account delete) are visually
     destructive on both platforms.
+- QA voice-actor project-scope routing/cache (v1.4.0):
+  - in 정보 > 성우 탭, switch project A/B and verify list/detail/members/credits
+    always call `/api/v1/projects/{projectId}/units/voice-actors/**`.
+  - verify deep link/open path with missing `projectId` is blocked with
+    invalid-navigation guard instead of making legacy `/voice-actors/**` call.
+  - verify cache separation by `projectId` (same `voiceActorId` from different
+    projects never reuses stale detail/members/credits data).

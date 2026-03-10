@@ -20,15 +20,25 @@ import '../../../projects/domain/entities/project_entities.dart';
 class UnitDetailPage extends ConsumerWidget {
   const UnitDetailPage({
     super.key,
-    required this.unit,
     required this.projectId,
+    required this.unitIdentifier,
+    this.initialUnit,
   });
 
-  final Unit unit;
   final String projectId;
+  final String unitIdentifier;
+  final Unit? initialUnit;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final unitState = ref.watch(
+      unitDetailProvider((projectId, unitIdentifier)),
+    );
+    final unit =
+        unitState.valueOrNull ??
+        initialUnit ??
+        Unit(id: unitIdentifier, code: unitIdentifier, displayName: '유닛');
+    final resolvedUnitIdentifier = unit.code.isNotEmpty ? unit.code : unit.id;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final paletteColor = paletteColorFromSeed(unit.displayName);
     final textPrimary = isDark
@@ -45,7 +55,7 @@ class UnitDetailPage extends ConsumerWidget {
         : GBTColors.surfaceVariant;
 
     final membersState = ref.watch(
-      unitMembersControllerProvider((projectId, unit.id)),
+      unitMembersControllerProvider((projectId, resolvedUnitIdentifier)),
     );
 
     return Scaffold(
@@ -145,17 +155,61 @@ class UnitDetailPage extends ConsumerWidget {
                       ),
                     ),
                     child: Text(
-                      unit.code,
+                      unit.code.isNotEmpty ? unit.code : unit.id,
                       style: GBTTypography.labelSmall.copyWith(
                         color: paletteColor,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
+                  if (unit.status != null && unit.status!.isNotEmpty) ...[
+                    const SizedBox(width: GBTSpacing.xs),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: GBTSpacing.sm,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            (unit.status == 'ACTIVE'
+                                    ? GBTColors.success
+                                    : GBTColors.textTertiary)
+                                .withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(
+                          GBTSpacing.radiusFull,
+                        ),
+                      ),
+                      child: Text(
+                        unit.status!,
+                        style: GBTTypography.labelSmall.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: unit.status == 'ACTIVE'
+                              ? GBTColors.success
+                              : GBTColors.textTertiary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
           ),
+
+          if (unit.description != null && unit.description!.trim().isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  GBTSpacing.pageHorizontal,
+                  GBTSpacing.sm,
+                  GBTSpacing.pageHorizontal,
+                  0,
+                ),
+                child: Text(
+                  unit.description!.trim(),
+                  style: GBTTypography.bodySmall.copyWith(color: textSecondary),
+                ),
+              ),
+            ),
 
           // EN: Section header — Members.
           // KO: 섹션 헤더 — 멤버.

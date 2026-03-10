@@ -471,10 +471,19 @@ class FeedRepositoryImpl implements FeedRepository {
     final normalizedText = text.trim();
     final normalizedTarget = targetLanguage.trim().toLowerCase();
     final normalizedSource = sourceLanguage?.trim().toLowerCase();
+    const allowedLanguages = <String>{'ko', 'en', 'ja'};
 
     if (normalizedText.isEmpty) {
       return const Result.failure(
         ValidationFailure('Translation text is empty', code: 'text_required'),
+      );
+    }
+    if (normalizedText.length > 5000) {
+      return const Result.failure(
+        ValidationFailure(
+          'Translation text must be 5000 characters or fewer',
+          code: 'text_too_long',
+        ),
       );
     }
     if (normalizedTarget.isEmpty) {
@@ -482,6 +491,24 @@ class FeedRepositoryImpl implements FeedRepository {
         ValidationFailure(
           'Translation target language is empty',
           code: 'target_language_required',
+        ),
+      );
+    }
+    if (!allowedLanguages.contains(normalizedTarget)) {
+      return const Result.failure(
+        ValidationFailure(
+          'Unsupported target language',
+          code: 'target_language_unsupported',
+        ),
+      );
+    }
+    if (normalizedSource != null &&
+        normalizedSource.isNotEmpty &&
+        !allowedLanguages.contains(normalizedSource)) {
+      return const Result.failure(
+        ValidationFailure(
+          'Unsupported source language',
+          code: 'source_language_unsupported',
         ),
       );
     }

@@ -102,15 +102,31 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage>
           .read(userVisitsControllerProvider.notifier)
           .load(forceRefresh: true),
       child: visitsState.when(
-        loading: () => Center(
-          child: GBTLoading(
-            message: context.l10n(
-              ko: '방문 기록을 불러오는 중...',
-              en: 'Loading visit history...',
-              ja: '訪問履歴を読み込み中...',
+        loading: () {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
+          return ListView.separated(
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(
+              horizontal: GBTSpacing.pageHorizontal,
+              vertical: GBTSpacing.lg,
             ),
-          ),
-        ),
+            itemCount: 6,
+            separatorBuilder: (_, __) => const SizedBox(height: GBTSpacing.sm),
+            itemBuilder: (context, index) {
+              return GBTShimmer(
+                child: Container(
+                  height: 88,
+                  decoration: BoxDecoration(
+                    color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
+                    border: Border.all(color: borderColor, width: 0.5),
+                    borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                  ),
+                ),
+              );
+            },
+          );
+        },
         error: (error, _) {
           final message = error is Failure
               ? error.userMessage

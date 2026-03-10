@@ -149,12 +149,25 @@ class GBTTextField extends StatefulWidget {
 class _GBTTextFieldState extends State<GBTTextField> {
   bool _isObscured = true;
   String? _previousErrorText;
+  
+  FocusNode? _internalFocusNode;
+  bool _isFocused = false;
+
+  FocusNode get _effectiveFocusNode => widget.focusNode ?? _internalFocusNode!;
 
   @override
   void initState() {
     super.initState();
     _isObscured = widget.obscureText;
     _previousErrorText = widget.errorText;
+    _internalFocusNode = widget.focusNode == null ? FocusNode() : null;
+    _effectiveFocusNode.addListener(_handleFocusChange);
+  }
+
+  void _handleFocusChange() {
+    setState(() {
+      _isFocused = _effectiveFocusNode.hasFocus;
+    });
   }
 
   @override
@@ -173,6 +186,13 @@ class _GBTTextFieldState extends State<GBTTextField> {
       });
     }
     _previousErrorText = widget.errorText;
+  }
+
+  @override
+  void dispose() {
+    _effectiveFocusNode.removeListener(_handleFocusChange);
+    _internalFocusNode?.dispose();
+    super.dispose();
   }
 
   @override
@@ -210,40 +230,57 @@ class _GBTTextFieldState extends State<GBTTextField> {
             const SizedBox(height: GBTSpacing.xs),
           ],
 
-          // EN: Text field with dark mode text style
-          // KO: 다크 모드 텍스트 스타일이 적용된 텍스트 필드
-          TextFormField(
-            controller: widget.controller,
-            focusNode: widget.focusNode,
-            obscureText: widget.obscureText && _isObscured,
-            enabled: widget.enabled,
-            readOnly: widget.readOnly,
-            autofocus: widget.autofocus,
-            maxLines: widget.obscureText ? 1 : widget.maxLines,
-            minLines: widget.minLines,
-            maxLength: widget.maxLength,
-            keyboardType: widget.keyboardType,
-            textInputAction: widget.textInputAction,
-            inputFormatters: widget.inputFormatters,
-            validator: widget.validator,
-            onChanged: widget.onChanged,
-            onFieldSubmitted: widget.onSubmitted,
-            onTap: widget.onTap,
-            style: GBTTypography.bodyMedium.copyWith(
-              color: isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
+          // EN: Text field with dark mode text style and glow animation
+          // KO: 다크 모드 텍스트 스타일과 발광 애니메이션이 적용된 텍스트 필드
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCirc,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+              boxShadow: _isFocused
+                  ? [
+                      BoxShadow(
+                        color: (isDark ? GBTColors.darkPrimary : GBTColors.primary)
+                            .withValues(alpha: 0.25),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : [],
             ),
-            decoration: InputDecoration(
-              hintText: widget.hint,
-              hintStyle: GBTTypography.bodyMedium.copyWith(
-                color: isDark
-                    ? GBTColors.darkTextTertiary
-                    : GBTColors.textTertiary,
+            child: TextFormField(
+              controller: widget.controller,
+              focusNode: _effectiveFocusNode,
+              obscureText: widget.obscureText && _isObscured,
+              enabled: widget.enabled,
+              readOnly: widget.readOnly,
+              autofocus: widget.autofocus,
+              maxLines: widget.obscureText ? 1 : widget.maxLines,
+              minLines: widget.minLines,
+              maxLength: widget.maxLength,
+              keyboardType: widget.keyboardType,
+              textInputAction: widget.textInputAction,
+              inputFormatters: widget.inputFormatters,
+              validator: widget.validator,
+              onChanged: widget.onChanged,
+              onFieldSubmitted: widget.onSubmitted,
+              onTap: widget.onTap,
+              style: GBTTypography.bodyMedium.copyWith(
+                color: isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
               ),
-              errorText: widget.errorText,
-              prefixIcon: widget.prefixIcon != null
-                  ? Icon(widget.prefixIcon, size: GBTSpacing.iconSm)
-                  : null,
-              suffixIcon: _buildSuffixIcon(),
+              decoration: InputDecoration(
+                hintText: widget.hint,
+                hintStyle: GBTTypography.bodyMedium.copyWith(
+                  color: isDark
+                      ? GBTColors.darkTextTertiary
+                      : GBTColors.textTertiary,
+                ),
+                errorText: widget.errorText,
+                prefixIcon: widget.prefixIcon != null
+                    ? Icon(widget.prefixIcon, size: GBTSpacing.iconSm)
+                    : null,
+                suffixIcon: _buildSuffixIcon(),
+              ),
             ),
           ),
 

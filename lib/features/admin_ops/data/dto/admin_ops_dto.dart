@@ -318,6 +318,74 @@ class AdminProjectRoleRequestDto {
   }
 }
 
+class AdminMediaDeletionRequestDto {
+  const AdminMediaDeletionRequestDto({
+    required this.id,
+    required this.entityType,
+    required this.linkId,
+    required this.uploadId,
+    required this.requestedBy,
+    required this.status,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String entityType;
+  final String linkId;
+  final String uploadId;
+  final String requestedBy;
+  final String status;
+  final DateTime createdAt;
+
+  factory AdminMediaDeletionRequestDto.fromJson(Map<String, dynamic> json) {
+    return AdminMediaDeletionRequestDto(
+      id: _stringOrEmpty(json['id'] ?? json['requestId']).trim(),
+      entityType: _stringOrEmpty(json['entityType'] ?? json['type']).trim(),
+      linkId: _stringOrEmpty(json['linkId']).trim(),
+      uploadId: _stringOrEmpty(json['uploadId']).trim(),
+      requestedBy: _stringOrEmpty(json['requestedBy']).trim(),
+      status: _stringOrEmpty(json['status']).trim(),
+      createdAt:
+          _dateTimeOrNull(json['createdAt']) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+    );
+  }
+
+  static List<AdminMediaDeletionRequestDto> listFromAny(dynamic raw) {
+    final list = _extractList(raw);
+    return list
+        .whereType<Map<String, dynamic>>()
+        .map(AdminMediaDeletionRequestDto.fromJson)
+        .toList(growable: false);
+  }
+}
+
+class AdminMediaDeletionApproveRequestDto {
+  const AdminMediaDeletionApproveRequestDto({
+    required this.deleteLinkedContents,
+  });
+
+  final bool deleteLinkedContents;
+
+  Map<String, dynamic> toJson() {
+    return {'deleteLinkedContents': deleteLinkedContents};
+  }
+}
+
+class AdminMediaDeletionActionResponseDto {
+  const AdminMediaDeletionActionResponseDto({required this.success});
+
+  final bool success;
+
+  factory AdminMediaDeletionActionResponseDto.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return AdminMediaDeletionActionResponseDto(
+      success: json['success'] as bool? ?? false,
+    );
+  }
+}
+
 List<dynamic> _extractList(dynamic raw) {
   if (raw is List<dynamic>) {
     return raw;

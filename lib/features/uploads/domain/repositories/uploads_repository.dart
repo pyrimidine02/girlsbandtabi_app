@@ -36,11 +36,4 @@ abstract class UploadsRepository {
   /// EN: Delete an upload.
   /// KO: 업로드를 삭제합니다.
   Future<Result<void>> deleteUpload(String uploadId);
-
-  /// EN: Approve or reject an upload.
-  /// KO: 업로드를 승인하거나 반려합니다.
-  Future<Result<ApproveUploadResponse>> approveUpload({
-    required String uploadId,
-    required bool isApproved,
-  });
 }

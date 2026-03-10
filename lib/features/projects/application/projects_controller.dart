@@ -7,6 +7,7 @@ import 'dart:async' show unawaited;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/error/failure.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
 import '../data/datasources/projects_remote_data_source.dart';
@@ -248,25 +249,46 @@ final projectUnitsControllerProvider = StateNotifierProvider.autoDispose
       return ProjectUnitsController(ref, projectKey);
     });
 
+/// EN: Unit detail provider — keyed by (projectId, unitIdentifier).
+/// KO: 유닛 상세 프로바이더 — (projectId, unitIdentifier) 키.
+final unitDetailProvider = FutureProvider.autoDispose
+    .family<Unit, (String, String)>((ref, args) async {
+      final repository = await ref.read(projectsRepositoryProvider.future);
+      final result = await repository.getUnitDetail(
+        projectId: args.$1,
+        unitIdentifier: args.$2,
+      );
+      if (result is Success<Unit>) {
+        return result.data;
+      }
+      if (result is Err<Unit>) {
+        throw result.failure;
+      }
+      throw const UnknownFailure(
+        'Unknown unit detail result',
+        code: 'unknown_unit_detail_provider',
+      );
+    });
+
 /// EN: Controller for loading members of a specific unit.
 /// KO: 특정 유닛의 멤버 목록을 불러오는 컨트롤러.
 class UnitMembersController
     extends StateNotifier<AsyncValue<List<UnitMember>>> {
-  UnitMembersController(this._ref, this._projectId, this._unitId)
+  UnitMembersController(this._ref, this._projectId, this._unitIdentifier)
     : super(const AsyncLoading()) {
     load();
   }
 
   final Ref _ref;
   final String _projectId;
-  final String _unitId;
+  final String _unitIdentifier;
 
   Future<void> load({bool forceRefresh = false}) async {
     state = const AsyncLoading();
     final repository = await _ref.read(projectsRepositoryProvider.future);
     final result = await repository.getUnitMembers(
       projectId: _projectId,
-      unitId: _unitId,
+      unitIdentifier: _unitIdentifier,
       forceRefresh: forceRefresh,
     );
 
@@ -287,6 +309,240 @@ final unitMembersControllerProvider = StateNotifierProvider.autoDispose
       (String, String)
     >((ref, args) {
       return UnitMembersController(ref, args.$1, args.$2);
+    });
+
+/// EN: Unit member detail controller — keyed by (projectId, unitIdentifier, memberId).
+/// KO: 유닛 멤버 상세 컨트롤러 — (projectId, unitIdentifier, memberId) 키.
+class UnitMemberDetailController extends StateNotifier<AsyncValue<UnitMember>> {
+  UnitMemberDetailController(
+    this._ref,
+    this._projectId,
+    this._unitIdentifier,
+    this._memberId,
+  ) : super(const AsyncLoading()) {
+    load();
+  }
+
+  final Ref _ref;
+  final String _projectId;
+  final String _unitIdentifier;
+  final String _memberId;
+
+  Future<void> load({bool forceRefresh = false}) async {
+    state = const AsyncLoading();
+    final repository = await _ref.read(projectsRepositoryProvider.future);
+    final result = await repository.getUnitMemberDetail(
+      projectId: _projectId,
+      unitIdentifier: _unitIdentifier,
+      memberId: _memberId,
+      forceRefresh: forceRefresh,
+    );
+
+    if (result is Success<UnitMember>) {
+      state = AsyncData(result.data);
+    } else if (result is Err<UnitMember>) {
+      state = AsyncError(result.failure, StackTrace.current);
+    }
+  }
+}
+
+final unitMemberDetailControllerProvider = StateNotifierProvider.autoDispose
+    .family<
+      UnitMemberDetailController,
+      AsyncValue<UnitMember>,
+      (String, String, String)
+    >((ref, args) {
+      return UnitMemberDetailController(ref, args.$1, args.$2, args.$3);
+    });
+
+class VoiceActorsCatalogState {
+  const VoiceActorsCatalogState({
+    this.items = const [],
+    this.query = '',
+    this.page = 0,
+    this.hasMore = true,
+    this.isLoading = false,
+    this.isLoadingMore = false,
+    this.error,
+  });
+
+  final List<VoiceActorListItem> items;
+  final String query;
+  final int page;
+  final bool hasMore;
+  final bool isLoading;
+  final bool isLoadingMore;
+  final Failure? error;
+
+  VoiceActorsCatalogState copyWith({
+    List<VoiceActorListItem>? items,
+    String? query,
+    int? page,
+    bool? hasMore,
+    bool? isLoading,
+    bool? isLoadingMore,
+    Failure? error,
+    bool clearError = false,
+  }) {
+    return VoiceActorsCatalogState(
+      items: items ?? this.items,
+      query: query ?? this.query,
+      page: page ?? this.page,
+      hasMore: hasMore ?? this.hasMore,
+      isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      error: clearError ? null : (error ?? this.error),
+    );
+  }
+}
+
+class VoiceActorsCatalogController
+    extends StateNotifier<VoiceActorsCatalogState> {
+  VoiceActorsCatalogController(this._ref, this._projectId)
+    : super(const VoiceActorsCatalogState()) {
+    unawaited(refresh());
+  }
+
+  static const int _pageSize = 20;
+  final Ref _ref;
+  final String _projectId;
+
+  Future<void> refresh({String? query}) async {
+    final normalizedQuery = (query ?? state.query).trim();
+    state = state.copyWith(
+      query: normalizedQuery,
+      items: const [],
+      page: 0,
+      hasMore: true,
+      isLoading: true,
+      isLoadingMore: false,
+      clearError: true,
+    );
+    await _loadPage(page: 0, append: false, forceRefresh: true);
+  }
+
+  Future<void> search(String query) async {
+    await refresh(query: query);
+  }
+
+  Future<void> loadMore() async {
+    if (state.isLoading || state.isLoadingMore || !state.hasMore) {
+      return;
+    }
+    final nextPage = state.page + 1;
+    state = state.copyWith(isLoadingMore: true, clearError: true);
+    await _loadPage(page: nextPage, append: true);
+  }
+
+  Future<void> _loadPage({
+    required int page,
+    required bool append,
+    bool forceRefresh = false,
+  }) async {
+    final repository = await _ref.read(projectsRepositoryProvider.future);
+    final result = await repository.searchVoiceActors(
+      projectId: _projectId,
+      query: state.query,
+      page: page,
+      size: _pageSize,
+      sort: 'stageName,asc',
+      forceRefresh: forceRefresh,
+    );
+
+    if (result is Success<List<VoiceActorListItem>>) {
+      final fetched = result.data;
+      state = state.copyWith(
+        items: append ? [...state.items, ...fetched] : fetched,
+        page: page,
+        hasMore: fetched.length >= _pageSize,
+        isLoading: false,
+        isLoadingMore: false,
+        clearError: true,
+      );
+      return;
+    }
+
+    if (result is Err<List<VoiceActorListItem>>) {
+      state = state.copyWith(
+        isLoading: false,
+        isLoadingMore: false,
+        error: result.failure,
+      );
+    }
+  }
+}
+
+final voiceActorsCatalogControllerProvider = StateNotifierProvider.autoDispose
+    .family<VoiceActorsCatalogController, VoiceActorsCatalogState, String>((
+      ref,
+      projectId,
+    ) {
+      return VoiceActorsCatalogController(ref, projectId);
+    });
+
+typedef VoiceActorLookupArgs = ({String projectId, String voiceActorId});
+
+final voiceActorDetailProvider = FutureProvider.autoDispose
+    .family<VoiceActorDetail, VoiceActorLookupArgs>((ref, args) async {
+      final repository = await ref.read(projectsRepositoryProvider.future);
+      final result = await repository.getVoiceActorDetail(
+        projectId: args.projectId,
+        voiceActorId: args.voiceActorId,
+      );
+      if (result is Success<VoiceActorDetail>) {
+        return result.data;
+      }
+      if (result is Err<VoiceActorDetail>) {
+        throw result.failure;
+      }
+      throw const UnknownFailure(
+        'Unknown voice actor detail result',
+        code: 'unknown_voice_actor_detail_provider',
+      );
+    });
+
+final voiceActorMembersProvider = FutureProvider.autoDispose
+    .family<List<VoiceActorMemberSummary>, VoiceActorLookupArgs>((
+      ref,
+      args,
+    ) async {
+      final repository = await ref.read(projectsRepositoryProvider.future);
+      final result = await repository.getVoiceActorMembers(
+        projectId: args.projectId,
+        voiceActorId: args.voiceActorId,
+      );
+      if (result is Success<List<VoiceActorMemberSummary>>) {
+        return result.data;
+      }
+      if (result is Err<List<VoiceActorMemberSummary>>) {
+        throw result.failure;
+      }
+      throw const UnknownFailure(
+        'Unknown voice actor members result',
+        code: 'unknown_voice_actor_members_provider',
+      );
+    });
+
+final voiceActorCreditsProvider = FutureProvider.autoDispose
+    .family<List<VoiceActorCreditSummary>, VoiceActorLookupArgs>((
+      ref,
+      args,
+    ) async {
+      final repository = await ref.read(projectsRepositoryProvider.future);
+      final result = await repository.getVoiceActorCredits(
+        projectId: args.projectId,
+        voiceActorId: args.voiceActorId,
+      );
+      if (result is Success<List<VoiceActorCreditSummary>>) {
+        return result.data;
+      }
+      if (result is Err<List<VoiceActorCreditSummary>>) {
+        throw result.failure;
+      }
+      throw const UnknownFailure(
+        'Unknown voice actor credits result',
+        code: 'unknown_voice_actor_credits_provider',
+      );
     });
 
 /// EN: Project selection controller provider.

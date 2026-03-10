@@ -4,7 +4,7 @@ library;
 
 import 'package:intl/intl.dart';
 
-enum CommunityReportTargetType { post, comment, user }
+enum CommunityReportTargetType { post, comment, user, place, guide, photo }
 
 extension CommunityReportTargetTypeX on CommunityReportTargetType {
   String get apiValue {
@@ -15,6 +15,12 @@ extension CommunityReportTargetTypeX on CommunityReportTargetType {
         return 'COMMENT';
       case CommunityReportTargetType.user:
         return 'USER';
+      case CommunityReportTargetType.place:
+        return 'PLACE';
+      case CommunityReportTargetType.guide:
+        return 'GUIDE';
+      case CommunityReportTargetType.photo:
+        return 'PHOTO';
     }
   }
 
@@ -33,6 +39,18 @@ extension CommunityReportTargetTypeX on CommunityReportTargetType {
         if (languageCode == 'en') return 'User';
         if (languageCode == 'ja') return 'ユーザー';
         return '사용자';
+      case CommunityReportTargetType.place:
+        if (languageCode == 'en') return 'Place';
+        if (languageCode == 'ja') return '場所';
+        return '장소';
+      case CommunityReportTargetType.guide:
+        if (languageCode == 'en') return 'Guide';
+        if (languageCode == 'ja') return 'ガイド';
+        return '가이드';
+      case CommunityReportTargetType.photo:
+        if (languageCode == 'en') return 'Photo';
+        if (languageCode == 'ja') return '写真';
+        return '사진';
     }
   }
 
@@ -42,6 +60,12 @@ extension CommunityReportTargetTypeX on CommunityReportTargetType {
         return CommunityReportTargetType.comment;
       case 'USER':
         return CommunityReportTargetType.user;
+      case 'PLACE':
+        return CommunityReportTargetType.place;
+      case 'GUIDE':
+        return CommunityReportTargetType.guide;
+      case 'PHOTO':
+        return CommunityReportTargetType.photo;
       default:
         return CommunityReportTargetType.post;
     }

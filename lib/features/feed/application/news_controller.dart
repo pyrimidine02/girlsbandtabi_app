@@ -9,7 +9,7 @@ import '../../../core/utils/result.dart';
 import '../domain/entities/feed_entities.dart';
 import 'feed_repository_provider.dart';
 
-const int _kInfoNavIndex = 4;
+const int _kInfoNavIndex = 3;
 
 bool _isInfoTabActive(Ref ref) {
   return ref.read(currentNavIndexProvider) == _kInfoNavIndex;

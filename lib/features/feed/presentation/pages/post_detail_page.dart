@@ -2506,7 +2506,7 @@ class _CommentSortTextButton extends StatelessWidget {
 // EN: Comment composer bar with reply context banner.
 // KO: 답글 컨텍스트 배너가 포함된 댓글 작성 바.
 // ================================================
-class _CommentComposerBar extends StatelessWidget {
+class _CommentComposerBar extends StatefulWidget {
   const _CommentComposerBar({
     required this.commentController,
     required this.commentFocusNode,
@@ -2528,23 +2528,56 @@ class _CommentComposerBar extends StatelessWidget {
   final Color borderColor;
 
   @override
+  State<_CommentComposerBar> createState() => _CommentComposerBarState();
+}
+
+class _CommentComposerBarState extends State<_CommentComposerBar> {
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.commentFocusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void dispose() {
+    widget.commentFocusNode.removeListener(_onFocusChange);
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    setState(() {
+      _isFocused = widget.commentFocusNode.hasFocus;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final surfaceColor = isDark ? GBTColors.darkSurface : GBTColors.surface;
-    final variantColor = isDark
+    final surfaceColor = widget.isDark
+        ? GBTColors.darkSurface
+        : GBTColors.surface;
+    final variantColor = widget.isDark
         ? GBTColors.darkSurfaceVariant.withValues(alpha: 0.6)
         : GBTColors.surfaceVariant;
-    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
-    final tertiaryColor = isDark
+    final primaryColor = widget.isDark
+        ? GBTColors.darkPrimary
+        : GBTColors.primary;
+    final tertiaryColor = widget.isDark
         ? GBTColors.darkTextTertiary
         : GBTColors.textTertiary;
-    final secondaryColor = isDark
+    final secondaryColor = widget.isDark
         ? GBTColors.darkTextSecondary
         : GBTColors.textSecondary;
+    final focusColor = widget.isDark
+        ? const Color(0xFF2A2D35)
+        : const Color(0xFFE8EEF5);
+    final bgColor = _isFocused ? focusColor : variantColor;
 
     return Container(
       decoration: BoxDecoration(
         color: surfaceColor,
-        border: Border(top: BorderSide(color: borderColor)),
+        border: Border(top: BorderSide(color: widget.borderColor)),
       ),
       child: SafeArea(
         top: false,
@@ -2556,7 +2589,7 @@ class _CommentComposerBar extends StatelessWidget {
             AnimatedSize(
               duration: GBTAnimations.normal,
               curve: Curves.easeOutCubic,
-              child: replyTarget != null
+              child: widget.replyTarget != null
                   ? Container(
                       color: variantColor,
                       padding: const EdgeInsets.fromLTRB(
@@ -2584,7 +2617,7 @@ class _CommentComposerBar extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  '${replyTarget!.authorName ?? '익명'}에게 답글',
+                                  '${widget.replyTarget!.authorName ?? '익명'}에게 답글',
                                   style: GBTTypography.labelSmall.copyWith(
                                     color: primaryColor,
                                     fontWeight: FontWeight.w700,
@@ -2592,7 +2625,7 @@ class _CommentComposerBar extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  replyTarget!.content,
+                                  widget.replyTarget!.content,
                                   style: GBTTypography.labelSmall.copyWith(
                                     color: secondaryColor,
                                   ),
@@ -2603,7 +2636,7 @@ class _CommentComposerBar extends StatelessWidget {
                             ),
                           ),
                           IconButton(
-                            onPressed: onCancelReply,
+                            onPressed: widget.onCancelReply,
                             icon: Icon(
                               Icons.close_rounded,
                               size: 18,
@@ -2624,9 +2657,10 @@ class _CommentComposerBar extends StatelessWidget {
             // EN: Text input row.
             // KO: 텍스트 입력 행.
             ValueListenableBuilder<TextEditingValue>(
-              valueListenable: commentController,
+              valueListenable: widget.commentController,
               builder: (context, value, _) {
-                final canSubmit = value.text.trim().isNotEmpty && !isSubmitting;
+                final canSubmit =
+                    value.text.trim().isNotEmpty && !widget.isSubmitting;
                 return Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: GBTSpacing.sm,
@@ -2636,22 +2670,33 @@ class _CommentComposerBar extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Expanded(
-                        child: Container(
+                        child: AnimatedContainer(
+                          duration: GBTAnimations.fast,
+                          curve: GBTAnimations.defaultCurve,
                           decoration: BoxDecoration(
-                            color: variantColor,
+                            color: bgColor,
                             borderRadius: BorderRadius.circular(
                               GBTSpacing.radiusLg,
                             ),
+                            border: _isFocused
+                                ? Border.all(
+                                    color: primaryColor.withValues(alpha: 0.5),
+                                    width: 1,
+                                  )
+                                : Border.all(
+                                    color: Colors.transparent,
+                                    width: 1,
+                                  ),
                           ),
                           child: TextField(
-                            controller: commentController,
-                            focusNode: commentFocusNode,
+                            controller: widget.commentController,
+                            focusNode: widget.commentFocusNode,
                             minLines: 1,
                             maxLines: 4,
                             textInputAction: TextInputAction.newline,
                             style: GBTTypography.bodyMedium,
                             decoration: InputDecoration(
-                              hintText: replyTarget != null
+                              hintText: widget.replyTarget != null
                                   ? '답글 작성...'
                                   : '댓글 작성...',
                               hintStyle: GBTTypography.bodyMedium.copyWith(
@@ -2679,15 +2724,15 @@ class _CommentComposerBar extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: canSubmit
                               ? primaryColor
-                              : (isDark
+                              : (widget.isDark
                                     ? GBTColors.darkSurfaceVariant
                                     : GBTColors.surfaceVariant),
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
-                          onPressed: canSubmit ? onSubmit : null,
+                          onPressed: canSubmit ? widget.onSubmit : null,
                           padding: EdgeInsets.zero,
-                          icon: isSubmitting
+                          icon: widget.isSubmitting
                               ? SizedBox(
                                   width: 16,
                                   height: 16,
@@ -2705,7 +2750,9 @@ class _CommentComposerBar extends StatelessWidget {
                                       ? Colors.white
                                       : tertiaryColor,
                                 ),
-                          tooltip: replyTarget != null ? '답글 등록' : '댓글 등록',
+                          tooltip: widget.replyTarget != null
+                              ? '답글 등록'
+                              : '댓글 등록',
                         ),
                       ),
                     ],

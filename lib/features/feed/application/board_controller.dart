@@ -16,7 +16,7 @@ import '../../../core/utils/result.dart';
 import '../domain/entities/feed_entities.dart';
 import 'feed_repository_provider.dart';
 
-const int _kBoardNavIndex = 3;
+const int _kBoardNavIndex = 4;
 
 bool _isBoardTabActive(Ref ref) {
   return ref.read(currentNavIndexProvider) == _kBoardNavIndex;

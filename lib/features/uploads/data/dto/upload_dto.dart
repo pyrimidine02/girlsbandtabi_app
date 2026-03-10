@@ -137,40 +137,6 @@ class UploadInfoResponse {
   }
 }
 
-class ApproveUploadRequest {
-  const ApproveUploadRequest({required this.isApproved});
-
-  final bool isApproved;
-
-  Map<String, dynamic> toJson() {
-    return {'isApproved': isApproved};
-  }
-}
-
-class ApproveUploadResponse {
-  const ApproveUploadResponse({
-    required this.uploadId,
-    required this.isApproved,
-  });
-
-  final String uploadId;
-  final bool isApproved;
-
-  factory ApproveUploadResponse.fromJson(Map<String, dynamic> json) {
-    return ApproveUploadResponse(
-      uploadId: _firstNonEmptyString([
-        json['uploadId'],
-        json['upload_id'],
-        json['id'],
-      ]),
-      isApproved:
-          _boolValue(json['isApproved']) ??
-          _boolValue(json['approved']) ??
-          false,
-    );
-  }
-}
-
 Map<String, String> _stringMap(dynamic value) {
   if (value is Map) {
     return value.map(

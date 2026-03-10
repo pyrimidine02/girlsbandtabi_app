@@ -74,20 +74,6 @@ class UploadsRemoteDataSource {
     );
   }
 
-  /// EN: Approve or reject an upload (admin).
-  /// KO: 업로드 승인/반려(관리자).
-  Future<Result<ApproveUploadResponse>> approveUpload({
-    required String uploadId,
-    required bool isApproved,
-  }) {
-    return _apiClient.put<ApproveUploadResponse>(
-      ApiEndpoints.uploadsApprove(uploadId),
-      data: ApproveUploadRequest(isApproved: isApproved).toJson(),
-      fromJson: (json) =>
-          ApproveUploadResponse.fromJson(json as Map<String, dynamic>),
-    );
-  }
-
   /// EN: Fetch the current user's uploads.
   /// KO: 현재 사용자의 업로드 목록을 조회합니다.
   Future<Result<List<UploadInfoResponse>>> fetchMyUploads({

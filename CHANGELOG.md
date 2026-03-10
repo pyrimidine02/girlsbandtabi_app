@@ -1,5 +1,168 @@
 # Changelog
 
+## 2026-03-10
+- **NOTIFICATION SETTINGS 409(CONFLICT) AUTO-RECOVERY**:
+  - `/api/v1/notifications/settings` 저장 시 `409 CONFLICT`가 반환되면
+    최신 설정을 강제 재조회한 뒤 사용자 의도값을 병합하여 1회 재시도하도록
+    복구 로직을 추가했습니다.
+  - `ValidationFailure(code=CONFLICT|409|NOTIFICATION_SETTINGS_VERSION_CONFLICT)`를
+    충돌 실패로 분류하고, `error.details.current` 스냅샷이 있으면
+    해당 스냅샷(`version`, `updatedAt`, `categories`)을 우선 사용해
+    복구 재시도 payload를 구성하도록 보강했습니다.
+  - 알림 설정 DTO 계약을 서버 변경분에 맞춰 확장했습니다:
+    - GET 응답 파싱: `version`, `updatedAt`
+    - PUT 요청 전송: `version` 포함, `updatedAt` 미전송
+    - 카테고리 역호환: `FOLLOWING_POSTS` -> `FOLLOWING_POST`
+  - 설정 UI에 `팔로잉 글(FOLLOWING_POST)` 토글을 추가하고
+    활성 배지 카운트에 반영했습니다.
+  - 소셜 알림 타입 정규화 경로를 푸시/SSE/알림함 공통으로 확장했습니다:
+    - `MY_POST_COMMENT_CREATED` -> `COMMENT_CREATED`
+    - `MY_COMMENT_REPLY_CREATED` -> `COMMENT_REPLY_CREATED`
+    - `FOLLOWING_POST_CREATED` -> `POST_CREATED`
+  - Updated:
+    - `lib/core/error/failure.dart`
+    - `lib/core/error/error_handler.dart`
+    - `lib/core/notifications/remote_push_service.dart`
+    - `lib/features/notifications/application/notifications_controller.dart`
+    - `lib/features/notifications/domain/entities/notification_entities.dart`
+    - `lib/features/notifications/domain/entities/notification_navigation.dart`
+    - `lib/features/settings/application/settings_controller.dart`
+    - `lib/features/settings/data/datasources/settings_remote_data_source.dart`
+    - `lib/features/settings/data/dto/notification_settings_dto.dart`
+    - `lib/features/settings/domain/entities/notification_settings.dart`
+    - `lib/features/settings/presentation/pages/notification_settings_page.dart`
+    - `test/features/notifications/domain/notification_navigation_test.dart`
+    - `test/features/settings/application/settings_controller_test.dart`
+    - `test/features/settings/data/notification_settings_dto_test.dart`
+  - Validation:
+    - `flutter analyze lib/core/error/failure.dart lib/core/error/error_handler.dart lib/features/settings/data/dto/notification_settings_dto.dart lib/features/settings/data/datasources/settings_remote_data_source.dart lib/features/settings/application/settings_controller.dart lib/features/settings/domain/entities/notification_settings.dart lib/features/settings/presentation/pages/notification_settings_page.dart lib/features/notifications/domain/entities/notification_navigation.dart lib/features/notifications/domain/entities/notification_entities.dart lib/features/notifications/application/notifications_controller.dart lib/core/notifications/remote_push_service.dart` ✅
+    - `flutter test test/features/settings/data/notification_settings_dto_test.dart test/features/settings/application/settings_controller_test.dart test/features/notifications/domain/notification_navigation_test.dart` ✅
+
+- **MANDATORY CONSENT GATE ENFORCEMENT HARDENING**:
+  - Added fail-closed loading gate: authenticated users are blocked until
+    consent-status has been resolved at least once.
+  - Added guard refresh trigger in app gate when auth is active but consent
+    status is unresolved.
+  - Expanded blocking rule to include `agreed=false` entries in addition to
+    `needsReconsent=true`.
+  - Added backward-compatible parsing for required flag aliases
+    (`required`, `isRequired`) in consent-status payload.
+  - Updated tests for blocking-consent resolution behavior.
+
+- **SETTINGS APP VERSION FOOTER ALIGNMENT**:
+  - Replaced hardcoded settings footer text (`1.0.0 (1)`) with runtime app
+    semantic version from `PackageInfo.version` and removed build-number display.
+  - Added fallback path when platform plugin lookup fails
+    (`APP_VERSION_FALLBACK`, default `0.0.4`) to avoid empty-version UI.
+
+- **MOBILE AUTHZ CAPABILITY REQUEST (FE-REQ-MOBILE-AUTHZ-CAPABILITY-20260310)**:
+  - Added `/api/v1/users/me/access-level` client contract wiring:
+    - endpoint constant + v3 endpoint catalog + contract test coverage.
+    - DTO/domain mapping for `accountRole`, `baselineAccessLevel`,
+      `effectiveAccessLevel`, and active `grants[]`.
+    - merged access-level payload into user profile model.
+  - Added app-scope authorization bootstrap behavior:
+    - profile/access-level refresh on app start,
+      auth state transitions, and token refresh success.
+    - moved initial profile load responsibility from provider-constructor
+      side effect to explicit app bootstrap.
+  - Enforced role-request request-body policy in client:
+    - `requestedRole` only `PLACE_EDITOR` or `COMMUNITY_MODERATOR`.
+    - `projectId` must be UUID for `POST /projects/role-requests`.
+  - Enforced translation request input policy in client:
+    - allowed languages: `ko`, `en`, `ja`.
+    - max `text` length: `5000`.
+  - Expanded community report target enum support:
+    - added `PLACE`, `GUIDE`, `PHOTO`.
+  - Hardened async controller lifecycle safety:
+    - added `mounted` guards in settings controllers to avoid
+      post-dispose state writes.
+  - Fixed Riverpod bootstrap init assertion on app start:
+    - deferred profile refresh from provider-build phase to queued task
+      to avoid mutating `userProfileControllerProvider` during
+      `userAuthorizationBootstrapProvider` initialization.
+  - Updated post-compose autosave integration tests:
+    - initialized `AppConfig` in test harness to avoid
+      `LateInitializationError(_baseUrl)` from `ApiClient` bootstrap.
+    - flushed debounce timers to avoid pending-timer test failures.
+  - Validation:
+    - `flutter analyze` ✅
+    - `flutter test --reporter compact` ✅
+
+- **UNIT/MEMBER/VOICE-ACTOR ENDPOINT INTEGRATION (FE-REQ-UNIT-MEMBER-VOICE-ACTOR-20260310)**:
+  - Added unit/member/voice-actor read contract integration based on
+    `docs/frontend/unit-member-voice-actor-endpoints-request-20260310.md`.
+  - Migrated voice-actor endpoints to v1.4.0 project-scoped paths:
+    - `GET /api/v1/projects/{projectId}/units/voice-actors`
+    - `GET /api/v1/projects/{projectId}/units/voice-actors/{voiceActorId}`
+    - `GET /api/v1/projects/{projectId}/units/voice-actors/{voiceActorId}/members`
+    - `GET /api/v1/projects/{projectId}/units/voice-actors/{voiceActorId}/credits`
+  - Enforced `projectId` in voice-actor routing/provider/cache keys to
+    prevent cross-project data bleed on project switch.
+  - Updated unit/member navigation and fetch to `unitIdentifier`(slug/UUID)
+    semantics for detail/member detail flows.
+  - Added place review delete flow for owner/moderator only:
+    - `DELETE /api/v1/places/{placeId}/comments/{commentId}`
+    - UI shows delete action only for 작성자/모더레이터,
+      then refreshes list immediately after success.
+  - Added/updated tests:
+    - `test/core/constants/api_endpoints_contract_test.dart`
+  - Validation:
+    - `flutter analyze` ✅
+    - `flutter test test/core/constants/api_endpoints_contract_test.dart` ✅
+
+- **IMAGE PROCESSING POLICY UPDATE (FE-POLICY-IMAGE-PROCESSING-20260310)**:
+  - Removed deprecated upload approval/pending contracts from app code:
+    - removed `/uploads/pending` and `/uploads/{uploadId}/approve` constants
+      and v3 contract checks.
+    - removed upload approve DTO/data-source/repository/controller methods.
+  - Removed place review-photo admin approval workflow from place detail page:
+    - deleted approve/reject action UI and related local state/handlers.
+    - place review images now render without frontend approval branching.
+  - Added admin media-deletion operations in Admin Ops:
+    - endpoint constants:
+      - `GET /api/v1/admin/media-deletions`
+      - `POST /api/v1/admin/media-deletions/{requestId}/approve`
+      - `POST /api/v1/admin/media-deletions/{requestId}/reject`
+    - new DTO/domain/repository/controller wiring for media deletion requests.
+    - added `미디어 삭제` tab in Admin Ops UI with actions:
+      - approve (media only, `deleteLinkedContents=false`)
+      - approve (linked contents included, `deleteLinkedContents=true`)
+      - reject
+  - Added/updated tests:
+    - `test/core/constants/api_endpoints_contract_test.dart`
+    - `test/features/admin_ops/data/admin_ops_dto_test.dart`
+    - `test/features/admin_ops/domain/admin_ops_entities_test.dart`
+  - Validation:
+    - `dart analyze lib/core/constants/api_constants.dart lib/core/constants/api_v3_endpoints_catalog.dart lib/features/uploads/data/dto/upload_dto.dart lib/features/uploads/data/datasources/uploads_remote_data_source.dart lib/features/uploads/domain/repositories/uploads_repository.dart lib/features/uploads/data/repositories/uploads_repository_impl.dart lib/features/uploads/application/uploads_controller.dart lib/features/places/presentation/pages/place_detail_page.dart lib/features/admin_ops/domain/entities/admin_ops_entities.dart lib/features/admin_ops/data/dto/admin_ops_dto.dart lib/features/admin_ops/data/datasources/admin_ops_remote_data_source.dart lib/features/admin_ops/domain/repositories/admin_ops_repository.dart lib/features/admin_ops/data/repositories/admin_ops_repository_impl.dart lib/features/admin_ops/application/admin_ops_controller.dart lib/features/admin_ops/presentation/pages/admin_ops_page.dart test/core/constants/api_endpoints_contract_test.dart test/features/admin_ops/data/admin_ops_dto_test.dart test/features/admin_ops/domain/admin_ops_entities_test.dart` ✅
+    - `flutter test test/core/constants/api_endpoints_contract_test.dart test/features/admin_ops/data/admin_ops_dto_test.dart test/features/admin_ops/domain/admin_ops_entities_test.dart` ✅
+
+- **MANDATORY CONSENT FLOW: SERVER-DYNAMIC CONSENT STATUS INTEGRATION (v1.0.0)**:
+  - 필수 동의 게이트를 기존 하드코딩 버전/URL + 로컬 이력 판정 방식에서
+    서버 상태 기반(`GET /api/v1/users/me/consent-status`)으로 전환.
+  - `canUseService=false` 또는 `requiredConsents[].needsReconsent=true` 항목 존재 시
+    서비스 진입 차단 유지.
+  - 동의 제출을 실제 API(`POST /api/v1/users/me/consents`) 호출로 전환하고
+    제출 성공 후 상태 재조회로 차단 해제 여부를 확정.
+  - 동의 오버레이 UI를 동적 항목 렌더링으로 변경:
+    - 문서 링크: `requiredConsents[].policyUrl`
+    - 버전 표기: `requiredConsents[].requiredVersion`
+    - 타입 라벨 매핑: `TERMS_OF_SERVICE`, `PRIVACY_POLICY`
+    - 상태 조회 실패 시 차단 화면 내 `재시도` 버튼 제공
+    - 제출 실패 시 스낵바(토스트) 노출 + 재시도 가능
+    - `error.code`/가능한 경우 `requestId` 노출
+  - 엔드포인트 상수 추가:
+    - `ApiEndpoints.userConsentStatus`
+  - 업데이트 파일:
+    - `lib/features/settings/application/mandatory_consent_controller.dart`
+    - `lib/app.dart`
+    - `lib/core/constants/api_constants.dart`
+    - `test/features/settings/application/mandatory_consent_controller_test.dart`
+  - Validation:
+    - `dart analyze lib/app.dart lib/features/settings/application/mandatory_consent_controller.dart lib/core/constants/api_constants.dart test/features/settings/application/mandatory_consent_controller_test.dart` ✅
+    - `flutter test test/features/settings/application/mandatory_consent_controller_test.dart` ✅
+    - `flutter analyze` ⚠️ (프로젝트 기존 이슈: projects repository 인터페이스 시그니처 불일치)
+
 ## 2026-03-09
 - **ADMIN AUTHZ DOC (10/11) ROLE-REQUEST FLOW INTEGRATION**:
   - Added endpoint constants + v3 contract coverage for role-request APIs:

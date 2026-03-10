@@ -3,25 +3,52 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/date_utils.dart';
 import '../../../../core/utils/palette_utils.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
+import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
 
 /// EN: Member detail page — shows character card + voice actor section.
 /// KO: 멤버 상세 페이지 — 캐릭터 카드 + 성우 섹션 표시.
-class MemberDetailPage extends StatelessWidget {
-  const MemberDetailPage({super.key, required this.member, required this.unit});
+class MemberDetailPage extends ConsumerWidget {
+  const MemberDetailPage({
+    super.key,
+    required this.projectId,
+    required this.unitIdentifier,
+    required this.memberId,
+    this.initialMember,
+    this.unit,
+  });
 
-  final UnitMember member;
-  final Unit unit;
+  final String projectId;
+  final String unitIdentifier;
+  final String memberId;
+  final UnitMember? initialMember;
+  final Unit? unit;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final memberState = ref.watch(
+      unitMemberDetailControllerProvider((projectId, unitIdentifier, memberId)),
+    );
+    final member =
+        memberState.valueOrNull ??
+        initialMember ??
+        const UnitMember(id: '', name: '?');
+    final resolvedUnit =
+        unit ??
+        Unit(
+          id: unitIdentifier,
+          code: unitIdentifier,
+          displayName: unitIdentifier,
+        );
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final paletteColor = paletteColorFromSeed(member.name);
     final textPrimary = isDark
@@ -41,8 +68,17 @@ class MemberDetailPage extends StatelessWidget {
 
     final hasImage = member.imageUrl != null && member.imageUrl!.isNotEmpty;
     final initial = member.name.isNotEmpty ? member.name[0] : '?';
-    final hasVA =
-        member.voiceActorName != null && member.voiceActorName!.isNotEmpty;
+    final voiceActorEntries = member.voiceActors.isNotEmpty
+        ? member.voiceActors
+        : (member.voiceActorName != null && member.voiceActorName!.isNotEmpty
+              ? <VoiceActorRole>[
+                  VoiceActorRole(id: '', displayName: member.voiceActorName!),
+                ]
+              : const <VoiceActorRole>[]);
+    final hasVA = voiceActorEntries.isNotEmpty;
+    final primaryVoiceActorName = hasVA
+        ? voiceActorEntries.first.displayName
+        : null;
 
     final birthdayDays = daysUntilBirthday(member.birthdate);
 
@@ -78,7 +114,7 @@ class MemberDetailPage extends StatelessWidget {
                   ),
                   if (hasVA)
                     Text(
-                      'CV: ${member.voiceActorName}',
+                      'CV: $primaryVoiceActorName',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -194,7 +230,7 @@ class MemberDetailPage extends StatelessWidget {
                           ),
                         ),
                         child: Text(
-                          unit.displayName,
+                          resolvedUnit.displayName,
                           style: GBTTypography.labelSmall.copyWith(
                             color: paletteColor,
                             fontWeight: FontWeight.w700,
@@ -340,66 +376,105 @@ class MemberDetailPage extends StatelessWidget {
               ),
             ),
 
-            // EN: VA card — avatar initial + name + CV label.
-            // KO: 성우 카드 — 아바타 이니셜 + 이름 + CV 레이블.
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: GBTSpacing.pageHorizontal,
-                ),
-                child: Container(
-                  padding: const EdgeInsets.all(GBTSpacing.md),
-                  decoration: BoxDecoration(
-                    color: surfaceColor,
-                    borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-                    border: Border.all(color: borderColor),
-                  ),
-                  child: Row(
-                    children: [
-                      // EN: VA avatar using voice actor name initial.
-                      // KO: 성우 이름 이니셜 아바타.
-                      Container(
-                        width: 56,
-                        height: 56,
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: GBTSpacing.pageHorizontal,
+              ),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final actor = voiceActorEntries[index];
+                  final canOpen = actor.id.trim().isNotEmpty;
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: index == voiceActorEntries.length - 1
+                          ? 0
+                          : GBTSpacing.sm,
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                      onTap: canOpen
+                          ? () => context.goToVoiceActorDetail(
+                              actor.id,
+                              projectId: projectId,
+                              fallbackName: actor.displayName,
+                            )
+                          : null,
+                      child: Container(
+                        padding: const EdgeInsets.all(GBTSpacing.md),
                         decoration: BoxDecoration(
-                          color: GBTColors.primary.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Icon(
-                            Icons.mic_rounded,
-                            size: 26,
-                            color: GBTColors.primary.withValues(alpha: 0.8),
+                          color: surfaceColor,
+                          borderRadius: BorderRadius.circular(
+                            GBTSpacing.radiusMd,
                           ),
+                          border: Border.all(color: borderColor),
                         ),
-                      ),
-                      const SizedBox(width: GBTSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            // EN: CV label + character name context.
-                            // KO: CV 레이블 + 캐릭터 이름 맥락.
-                            Text(
-                              'CV: ${member.voiceActorName}',
-                              style: GBTTypography.bodyLarge.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: textPrimary,
+                            Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: GBTColors.primary.withValues(
+                                  alpha: 0.12,
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child:
+                                    actor.profileImageUrl != null &&
+                                        actor.profileImageUrl!.isNotEmpty
+                                    ? ClipOval(
+                                        child: GBTImage(
+                                          imageUrl: actor.profileImageUrl!,
+                                          width: 56,
+                                          height: 56,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.mic_rounded,
+                                        size: 26,
+                                        color: GBTColors.primary.withValues(
+                                          alpha: 0.8,
+                                        ),
+                                      ),
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${member.name} 담당 성우',
-                              style: GBTTypography.labelSmall.copyWith(
+                            const SizedBox(width: GBTSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    actor.displayName,
+                                    style: GBTTypography.bodyLarge.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    actor.roleType?.trim().isNotEmpty == true
+                                        ? '${member.name} · ${actor.roleType}'
+                                        : '${member.name} 담당 성우',
+                                    style: GBTTypography.labelSmall.copyWith(
+                                      color: textTertiary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (canOpen)
+                              Icon(
+                                Icons.chevron_right_rounded,
                                 color: textTertiary,
                               ),
-                            ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                }, childCount: voiceActorEntries.length),
               ),
             ),
           ],
