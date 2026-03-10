@@ -32,6 +32,7 @@ class ApiClient {
   final SecureStorage _secureStorage;
   final VoidCallback? _onUnauthorized;
   final VoidCallback? _onTokenRefreshed;
+  late final _AuthInterceptor _authInterceptor;
 
   /// EN: Setup Dio with base configuration and interceptors
   /// KO: 기본 구성 및 인터셉터로 Dio 설정
@@ -48,15 +49,23 @@ class ApiClient {
       },
     );
 
-    _dio.interceptors.addAll([
-      _AuthInterceptor(
-        _secureStorage,
-        _dio,
-        onUnauthorized: _onUnauthorized,
-        onTokenRefreshed: _onTokenRefreshed,
-      ),
-      _LoggingInterceptor(),
-    ]);
+    _authInterceptor = _AuthInterceptor(
+      _secureStorage,
+      _dio,
+      onUnauthorized: _onUnauthorized,
+      onTokenRefreshed: _onTokenRefreshed,
+    );
+    _dio.interceptors.addAll([_authInterceptor, _LoggingInterceptor()]);
+  }
+
+  /// EN: Proactively refresh the access token if it is known to have expired.
+  /// EN: Returns true when the token is valid (or was successfully refreshed).
+  /// EN: Used by non-Dio transports (e.g. SSE) that bypass the Dio interceptor.
+  /// KO: 액세스 토큰이 만료된 경우 선제적으로 갱신합니다.
+  /// KO: 토큰이 유효하거나 갱신에 성공하면 true를 반환합니다.
+  /// KO: Dio 인터셉터를 거치지 않는 전송(예: SSE)에서 사용됩니다.
+  Future<bool> proactiveRefreshIfExpired() {
+    return _authInterceptor.proactiveRefreshIfExpired();
   }
 
   // ========================================
@@ -278,12 +287,53 @@ class _AuthInterceptor extends Interceptor {
       return handler.next(options);
     }
 
+    // EN: Proactively refresh the access token when it is known to be expired.
+    // EN: This prevents a 401 round-trip on the very first request after the
+    // EN: token silently expires while the app is backgrounded or idle.
+    // EN: Deduplication is provided by _refreshOrWait(), so concurrent requests
+    // EN: only trigger a single refresh call.
+    // KO: 액세스 토큰이 만료된 것으로 확인되면 요청 전에 선제 갱신합니다.
+    // KO: 앱 백그라운드/유휴 상태에서 토큰이 조용히 만료된 직후
+    // KO: 첫 번째 요청에서 불필요한 401 왕복을 방지합니다.
+    // KO: _refreshOrWait()이 중복 제거를 처리하므로 동시 요청은
+    // KO: 하나의 갱신 호출만 트리거합니다.
+    if (await _secureStorage.isTokenExpired()) {
+      final outcome = await _refreshOrWait();
+      if (outcome == _RefreshOutcome.invalidSession) {
+        await _secureStorage.clearTokens();
+        onUnauthorized?.call();
+        return handler.reject(
+          DioException(
+            requestOptions: options,
+            error: 'Session invalidated; re-login required.',
+            type: DioExceptionType.cancel,
+          ),
+          true,
+        );
+      }
+      // EN: On transient refresh failure continue with the current (stale) token;
+      // EN: onError will attempt another refresh on the resulting 401.
+      // KO: 일시적 갱신 실패 시 현재 (만료) 토큰으로 계속 진행합니다;
+      // KO: 발생하는 401에서 onError가 재갱신을 시도합니다.
+    }
+
     final token = await _secureStorage.getAccessToken();
     if (token != null) {
       options.headers[ApiHeaders.authorization] = '${ApiHeaders.bearer} $token';
     }
 
     handler.next(options);
+  }
+
+  /// EN: Proactively refresh the access token if it is known to have expired.
+  /// EN: Returns true when the token is valid or was successfully refreshed.
+  /// KO: 만료된 경우 액세스 토큰을 선제 갱신합니다.
+  /// KO: 토큰이 유효하거나 갱신에 성공하면 true를 반환합니다.
+  Future<bool> proactiveRefreshIfExpired() async {
+    final isExpired = await _secureStorage.isTokenExpired();
+    if (!isExpired) return true;
+    final outcome = await _refreshOrWait();
+    return outcome == _RefreshOutcome.refreshed;
   }
 
   @override

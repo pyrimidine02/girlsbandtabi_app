@@ -245,6 +245,9 @@ class RemotePushService {
   bool _initialized = false;
   bool _firebaseReady = false;
   bool _isAuthenticated = false;
+  // EN: Prevents concurrent device registration/token sync calls.
+  // KO: 디바이스 등록/토큰 동기화 동시 호출을 방지합니다.
+  bool _isSyncing = false;
 
   /// EN: Stream of push-open tap events mapped to existing notification routing model.
   /// KO: 기존 알림 라우팅 모델로 매핑된 푸시 오픈 탭 이벤트 스트림입니다.
@@ -340,41 +343,55 @@ class RemotePushService {
   }
 
   /// EN: Sync device registration/token with backend.
+  /// EN: Concurrent calls are serialized: a second call while one is in
+  /// EN: progress is silently dropped to prevent duplicate POST/PATCH requests.
   /// KO: 디바이스 등록/토큰을 백엔드와 동기화합니다.
+  /// KO: 동시 호출은 직렬화됩니다: 진행 중에 두 번째 호출이 오면
+  /// KO: 중복 POST/PATCH 요청을 방지하기 위해 조용히 무시됩니다.
   Future<void> syncRegistration() async {
     if (!_isAuthenticated) {
       return;
     }
-    final ready = await _ensureFirebaseReady();
-    if (!ready) {
+    // EN: Drop concurrent sync to avoid duplicate device POST/PATCH races.
+    // KO: 디바이스 POST/PATCH 경쟁을 방지하기 위해 동시 동기화를 건너뜁니다.
+    if (_isSyncing) {
       return;
     }
-    final messaging = _messaging;
-    if (messaging == null) {
-      return;
-    }
+    _isSyncing = true;
+    try {
+      final ready = await _ensureFirebaseReady();
+      if (!ready) {
+        return;
+      }
+      final messaging = _messaging;
+      if (messaging == null) {
+        return;
+      }
 
-    final storage = await _localStorageFuture;
-    final pushEnabled =
-        storage.getBool(LocalStorageKeys.notificationsEnabled) ?? true;
-    if (!pushEnabled) {
-      return;
-    }
+      final storage = await _localStorageFuture;
+      final pushEnabled =
+          storage.getBool(LocalStorageKeys.notificationsEnabled) ?? true;
+      if (!pushEnabled) {
+        return;
+      }
 
-    final credential = await _resolvePushCredential(messaging);
-    if (credential == null) {
-      AppLogger.warning(
-        'Push token is unavailable; skip registration sync',
-        tag: 'RemotePushService',
+      final credential = await _resolvePushCredential(messaging);
+      if (credential == null) {
+        AppLogger.warning(
+          'Push token is unavailable; skip registration sync',
+          tag: 'RemotePushService',
+        );
+        return;
+      }
+
+      await _upsertDeviceRegistration(
+        credential.token,
+        provider: credential.provider,
+        forceRegister: false,
       );
-      return;
+    } finally {
+      _isSyncing = false;
     }
-
-    await _upsertDeviceRegistration(
-      credential.token,
-      provider: credential.provider,
-      forceRegister: false,
-    );
   }
 
   /// EN: Deactivate current backend device registration and clear local keys.

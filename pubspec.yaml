@@ -80,6 +80,7 @@ dependencies:
   device_info_plus: ^12.3.0
   package_info_plus: ^8.3.0
   uuid: ^4.5.1
+  focus_detector: ^2.0.1
 
 dev_dependencies:
   flutter_test:

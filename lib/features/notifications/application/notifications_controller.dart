@@ -113,6 +113,24 @@ class NotificationsController
       _reconnectBlockedUntil = null;
     }
 
+    // EN: SSE bypasses the Dio interceptor, so proactively refresh the access
+    // EN: token here to avoid a wasted connection attempt and the 5-minute
+    // EN: auth-failure cooldown that follows a 401 on the stream endpoint.
+    // KO: SSE는 Dio 인터셉터를 거치지 않으므로 여기서 액세스 토큰을 선제 갱신합니다.
+    // KO: 스트림 엔드포인트 401 후 발생하는 5분 재연결 대기와
+    // KO: 불필요한 연결 시도를 방지합니다.
+    final apiClient = _ref.read(apiClientProvider);
+    final tokenReady = await apiClient.proactiveRefreshIfExpired();
+    if (!tokenReady) {
+      // EN: Refresh token is invalid; wait for auth state to change.
+      // KO: 리프레시 토큰이 무효합니다; 인증 상태 변경을 기다립니다.
+      AppLogger.warning(
+        '[Notifications] SSE skipped: token refresh failed',
+        tag: 'NotificationsController',
+      );
+      return;
+    }
+
     final sseClient = _ref.read(sseClientProvider);
     try {
       final connection = await sseClient.connect(

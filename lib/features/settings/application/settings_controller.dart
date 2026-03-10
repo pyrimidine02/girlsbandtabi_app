@@ -694,10 +694,18 @@ void _scheduleUserProfileRefresh(Ref ref, {bool forceRefresh = true}) {
 /// EN: App-scope bootstrap for profile/access-level refresh triggers.
 /// KO: 프로필/접근레벨 재조회 트리거를 앱 전역에서 연결하는 부트스트랩입니다.
 final userAuthorizationBootstrapProvider = Provider<void>((ref) {
-  // EN: Ensure profile controller is instantiated and initial force refresh runs.
-  // KO: 프로필 컨트롤러를 초기화해 시작 시 강제 재조회가 수행되도록 합니다.
+  // EN: Ensure profile controller is instantiated.
+  // EN: Only schedule an initial refresh when already authenticated (e.g. app
+  // EN: re-open with valid tokens). When auth state is still `initial`, the
+  // EN: listener below handles the refresh once checkAuthStatus() completes.
+  // KO: 프로필 컨트롤러를 초기화합니다.
+  // KO: 이미 인증된 경우에만 초기 재조회를 예약합니다 (유효 토큰으로 앱 재실행 시).
+  // KO: 인증 상태가 `initial`이면 아래 리스너가 checkAuthStatus() 완료 후
+  // KO: 재조회를 처리합니다.
   ref.read(userProfileControllerProvider.notifier);
-  _scheduleUserProfileRefresh(ref, forceRefresh: true);
+  if (ref.read(isAuthenticatedProvider)) {
+    _scheduleUserProfileRefresh(ref, forceRefresh: true);
+  }
 
   ref.listen<AuthState>(authStateProvider, (_, next) {
     if (next == AuthState.authenticated) {

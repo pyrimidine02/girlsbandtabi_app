@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/localization/locale_text.dart';
+import 'package:focus_detector/focus_detector.dart';
 import '../../../../core/security/user_access_level.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -25,6 +26,7 @@ import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/dialogs/gbt_adaptive_dialog.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
+import '../../../../core/widgets/sheets/gbt_bottom_sheet.dart';
 import '../../../ads/domain/entities/ad_slot_entities.dart';
 import '../../../ads/presentation/widgets/hybrid_sponsored_slot.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
@@ -133,10 +135,15 @@ class _BoardPageState extends ConsumerState<BoardPage> {
 
     final useFeedHeroHeader = sectionIndex == 0;
 
-    return Scaffold(
-      appBar: useFeedHeroHeader
-          ? null
-          : AppBar(
+    return FocusDetector(
+      onFocusGained: () {
+        ref.read(communityFeedControllerProvider.notifier).reload(forceRefresh: true);
+        ref.read(postListControllerProvider.notifier).load(forceRefresh: true);
+      },
+      child: Scaffold(
+        appBar: useFeedHeroHeader
+            ? null
+            : AppBar(
               titleSpacing: 0,
               title: Row(
                 children: [
@@ -225,6 +232,7 @@ class _BoardPageState extends ConsumerState<BoardPage> {
             ),
         ],
       ),
+     ),
     );
   }
 }
@@ -2363,7 +2371,7 @@ class _CommunityPostCard extends ConsumerWidget {
                         ),
                       ),
                     if (showMoreButton)
-                      PopupMenuButton<_PostCardAction>(
+                      IconButton(
                         icon: Icon(
                           Icons.more_horiz,
                           size: 20,
@@ -2375,7 +2383,72 @@ class _CommunityPostCard extends ConsumerWidget {
                           ja: 'その他',
                         ),
                         padding: EdgeInsets.zero,
-                        onSelected: (action) {
+                        onPressed: () async {
+                          final actions = <GBTActionSheetItem<_PostCardAction>>[
+                            if (isAuthor)
+                              GBTActionSheetItem(
+                                label: context.l10n(
+                                  ko: '수정',
+                                  en: 'Edit',
+                                  ja: '編集',
+                                ),
+                                value: _PostCardAction.edit,
+                                icon: Icons.edit_outlined,
+                              ),
+                            if (isAuthor || isAdmin)
+                              GBTActionSheetItem(
+                                label: isAuthor
+                                    ? context.l10n(
+                                        ko: '삭제',
+                                        en: 'Delete',
+                                        ja: '削除',
+                                      )
+                                    : context.l10n(
+                                        ko: '관리 삭제',
+                                        en: 'Admin delete',
+                                        ja: '管理者削除',
+                                      ),
+                                value: _PostCardAction.delete,
+                                icon: Icons.delete_outline,
+                                isDestructive: true,
+                              ),
+                            if (!isAuthor && isAuthenticated)
+                              GBTActionSheetItem(
+                                label: context.l10n(
+                                  ko: '신고',
+                                  en: 'Report',
+                                  ja: '通報',
+                                ),
+                                value: _PostCardAction.report,
+                                icon: Icons.flag_outlined,
+                              ),
+                            if (!isAuthor && isAuthenticated)
+                              GBTActionSheetItem(
+                                label: blockLabel,
+                                value: _PostCardAction.blockToggle,
+                                icon: Icons.person_off_outlined,
+                              ),
+                            if (isAdmin && !isAuthor)
+                              GBTActionSheetItem(
+                                label: context.l10n(
+                                  ko: '커뮤니티 제재',
+                                  en: 'Moderation ban',
+                                  ja: 'コミュニティ制裁',
+                                ),
+                                value: _PostCardAction.ban,
+                                icon: Icons.block,
+                                isDestructive: true,
+                              ),
+                          ];
+
+                          final action = await showGBTActionSheet<_PostCardAction>(
+                            context: context,
+                            actions: actions,
+                            cancelLabel: '취소',
+                          );
+
+                          if (action == null || !context.mounted) return;
+
                           if (action == _PostCardAction.edit) {
                             context.goToPostDetail(
                               post.id,
@@ -2403,110 +2476,6 @@ class _CommunityPostCard extends ConsumerWidget {
                           if (action == _PostCardAction.ban) {
                             _confirmBanUser(context, ref);
                           }
-                        },
-                        itemBuilder: (menuContext) {
-                          final cs = Theme.of(menuContext).colorScheme;
-                          return [
-                            if (isAuthor)
-                              PopupMenuItem(
-                                value: _PostCardAction.edit,
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.edit_outlined, size: 18),
-                                    SizedBox(width: GBTSpacing.sm),
-                                    Text(
-                                      context.l10n(
-                                        ko: '수정',
-                                        en: 'Edit',
-                                        ja: '編集',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            if (isAuthor) const PopupMenuDivider(),
-                            if (isAuthor || isAdmin)
-                              PopupMenuItem(
-                                value: _PostCardAction.delete,
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.delete_outline,
-                                      size: 18,
-                                      color: cs.error,
-                                    ),
-                                    SizedBox(width: GBTSpacing.sm),
-                                    Text(
-                                      isAuthor
-                                          ? context.l10n(
-                                              ko: '삭제',
-                                              en: 'Delete',
-                                              ja: '削除',
-                                            )
-                                          : context.l10n(
-                                              ko: '관리 삭제',
-                                              en: 'Admin delete',
-                                              ja: '管理者削除',
-                                            ),
-                                      style: TextStyle(color: cs.error),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            if (!isAuthor && isAuthenticated)
-                              PopupMenuItem(
-                                value: _PostCardAction.report,
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.flag_outlined, size: 18),
-                                    SizedBox(width: GBTSpacing.sm),
-                                    Text(
-                                      context.l10n(
-                                        ko: '신고',
-                                        en: 'Report',
-                                        ja: '通報',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            if (!isAuthor && isAuthenticated)
-                              PopupMenuItem(
-                                value: _PostCardAction.blockToggle,
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.person_off_outlined,
-                                      size: 18,
-                                    ),
-                                    const SizedBox(width: GBTSpacing.sm),
-                                    Text(blockLabel),
-                                  ],
-                                ),
-                              ),
-                            if (isAdmin && !isAuthor)
-                              PopupMenuItem(
-                                value: _PostCardAction.ban,
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.block,
-                                      size: 18,
-                                      color: cs.error,
-                                    ),
-                                    SizedBox(width: GBTSpacing.sm),
-                                    Text(
-                                      context.l10n(
-                                        ko: '커뮤니티 제재',
-                                        en: 'Moderation ban',
-                                        ja: 'コミュニティ制裁',
-                                      ),
-                                      style: TextStyle(color: cs.error),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ];
                         },
                       ),
                   ],

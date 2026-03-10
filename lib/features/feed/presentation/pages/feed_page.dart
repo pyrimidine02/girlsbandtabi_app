@@ -12,12 +12,14 @@ import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/image_url_extractor.dart';
+import 'package:focus_detector/focus_detector.dart';
 import '../../../../core/utils/media_url.dart';
 import '../../../../core/utils/result.dart';
-import '../../../../core/widgets/common/gbt_action_icons.dart';
+
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/dialogs/gbt_adaptive_dialog.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/sheets/gbt_bottom_sheet.dart';
 import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../../settings/application/settings_controller.dart';
@@ -100,8 +102,13 @@ class _FeedPageState extends ConsumerState<FeedPage>
           ),
         ),
       ),
-      body: Column(
-        children: [
+      body: FocusDetector(
+        onFocusGained: () {
+          ref.read(newsListControllerProvider.notifier).load(forceRefresh: true);
+          ref.read(postListControllerProvider.notifier).load(forceRefresh: true);
+        },
+        child: Column(
+          children: [
           // EN: Project selector — compact style
           // KO: 프로젝트 선택기 — 컴팩트 스타일
           const Padding(
@@ -133,6 +140,7 @@ class _FeedPageState extends ConsumerState<FeedPage>
             ),
           ),
         ],
+       ),
       ),
       // EN: Compact FAB reduces visual weight in timeline screens.
       // KO: 타임라인 화면에서 시각적 부담을 줄이기 위한 컴팩트 FAB.
@@ -431,27 +439,35 @@ class _CommunityPostCard extends ConsumerWidget {
         vertical: 5,
       ),
       decoration: BoxDecoration(
-        color: isDark ? GBTColors.darkSurface : GBTColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        color: isDark ? GBTColors.darkSurfaceElevated : GBTColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+        ],
         border: Border.all(
           color: isDark
-              ? GBTColors.darkBorder.withValues(alpha: 0.55)
-              : GBTColors.border.withValues(alpha: 0.55),
-          width: 0.5,
+              ? GBTColors.darkBorder.withValues(alpha: 0.8)
+              : GBTColors.border.withValues(alpha: 0.4),
+          width: 1,
         ),
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           onTap: () =>
               context.goToPostDetail(post.id, projectCode: post.projectId),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 6, 10),
+                padding: const EdgeInsets.fromLTRB(16, 16, 8, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -491,7 +507,7 @@ class _CommunityPostCard extends ConsumerWidget {
                           ),
                         ),
                         if (showMoreButton)
-                          PopupMenuButton<_FeedPostCardAction>(
+                          IconButton(
                             icon: Icon(
                               Icons.more_horiz,
                               size: 20,
@@ -499,19 +515,19 @@ class _CommunityPostCard extends ConsumerWidget {
                             ),
                             padding: EdgeInsets.zero,
                             tooltip: '더보기',
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(
-                                value: _FeedPostCardAction.report,
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.flag_outlined, size: 18),
-                                    SizedBox(width: GBTSpacing.sm),
-                                    Text('신고'),
-                                  ],
-                                ),
-                              ),
-                            ],
-                            onSelected: (action) {
+                            onPressed: () async {
+                              final action = await showGBTActionSheet<_FeedPostCardAction>(
+                                context: context,
+                                actions: const [
+                                  GBTActionSheetItem(
+                                    label: '신고',
+                                    value: _FeedPostCardAction.report,
+                                    icon: Icons.flag_outlined,
+                                  ),
+                                ],
+                                cancelLabel: '취소',
+                              );
+                              if (!context.mounted) return;
                               if (action == _FeedPostCardAction.report) {
                                 _showReportFlow(context, ref);
                               }
@@ -519,32 +535,58 @@ class _CommunityPostCard extends ConsumerWidget {
                           ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    // EN: Content area — right thumbnail when image, full-width when text-only.
-                    // KO: 콘텐츠 영역 — 이미지가 있으면 오른쪽 썸네일, 없으면 전체 너비.
-                    if (hasImage)
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              post.title,
-                              style: GBTTypography.labelLarge.copyWith(
-                                fontWeight: FontWeight.w700,
-                                height: 1.35,
-                              ),
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                    const SizedBox(height: 12),
+                    // EN: Content area — Text first, then large full-width image.
+                    // KO: 콘텐츠 영역 — 텍스트 먼저, 그 다음 가로로 꽉 차는 큰 이미지.
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          post.title,
+                          style: GBTTypography.titleMedium.copyWith(
+                            fontWeight: FontWeight.w700,
+                            height: 1.35,
                           ),
-                          const SizedBox(width: 10),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (post.content != null &&
+                            post.content!.isNotEmpty) ...[
+                          const SizedBox(height: GBTSpacing.xs),
+                          Text(
+                            post.content!,
+                            style: GBTTypography.bodyMedium.copyWith(
+                              color: isDark
+                                  ? GBTColors.darkTextSecondary
+                                  : GBTColors.textSecondary,
+                              height: 1.45,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          CommunityTranslationPanel(
+                            contentId: 'post-preview:${post.id}',
+                            text: stripImageMarkdown(post.content!).trim().isEmpty
+                                ? post.content!
+                                : stripImageMarkdown(post.content!),
+                            textStyle: GBTTypography.bodyMedium.copyWith(
+                              color: isDark
+                                  ? GBTColors.darkTextSecondary
+                                  : GBTColors.textSecondary,
+                              height: 1.45,
+                            ),
+                            compact: true,
+                          ),
+                        ],
+                        if (hasImage) ...[
+                          const SizedBox(height: GBTSpacing.sm),
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
                             child: Stack(
                               children: [
                                 SizedBox(
-                                  width: 78,
-                                  height: 78,
+                                  width: double.infinity,
+                                  height: 200,
                                   child: _FallbackPreviewImage(
                                     imageUrls: previewImageUrls,
                                     fit: BoxFit.cover,
@@ -553,16 +595,16 @@ class _CommunityPostCard extends ConsumerWidget {
                                 ),
                                 if (post.imageUrls.length > 1)
                                   Positioned(
-                                    right: 4,
-                                    bottom: 4,
+                                    right: 8,
+                                    top: 8,
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 5,
-                                        vertical: 2,
+                                        horizontal: 8,
+                                        vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
                                         color: Colors.black.withValues(
-                                          alpha: 0.65,
+                                          alpha: 0.7,
                                         ),
                                         borderRadius: BorderRadius.circular(
                                           GBTSpacing.radiusFull,
@@ -573,18 +615,17 @@ class _CommunityPostCard extends ConsumerWidget {
                                         children: [
                                           const Icon(
                                             Icons.photo_library_outlined,
-                                            size: 10,
+                                            size: 14,
                                             color: Colors.white,
                                           ),
-                                          const SizedBox(width: 3),
+                                          const SizedBox(width: 4),
                                           Text(
-                                            '${post.imageUrls.length}',
-                                            style: GBTTypography.labelSmall
+                                            '+${post.imageUrls.length - 1}',
+                                            style: GBTTypography.labelMedium
                                                 .copyWith(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w700,
-                                                  fontSize: 10,
-                                                ),
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -594,53 +635,8 @@ class _CommunityPostCard extends ConsumerWidget {
                             ),
                           ),
                         ],
-                      )
-                    else
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            post.title,
-                            style: GBTTypography.labelLarge.copyWith(
-                              fontWeight: FontWeight.w700,
-                              height: 1.35,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (post.content != null &&
-                              post.content!.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              post.content!,
-                              style: GBTTypography.bodySmall.copyWith(
-                                color: isDark
-                                    ? GBTColors.darkTextTertiary
-                                    : GBTColors.textTertiary,
-                                height: 1.45,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            CommunityTranslationPanel(
-                              contentId: 'post-preview:${post.id}',
-                              text:
-                                  stripImageMarkdown(
-                                    post.content!,
-                                  ).trim().isEmpty
-                                  ? post.content!
-                                  : stripImageMarkdown(post.content!),
-                              textStyle: GBTTypography.bodySmall.copyWith(
-                                color: isDark
-                                    ? GBTColors.darkTextTertiary
-                                    : GBTColors.textTertiary,
-                                height: 1.45,
-                              ),
-                              compact: true,
-                            ),
-                          ],
-                        ],
-                      ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -649,27 +645,18 @@ class _CommunityPostCard extends ConsumerWidget {
               Semantics(
                 label: '좋아요 $likeCount개, 댓글 $commentCount개',
                 child: Container(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      top: BorderSide(
-                        color: isDark
-                            ? GBTColors.darkBorder.withValues(alpha: 0.45)
-                            : GBTColors.border.withValues(alpha: 0.45),
-                        width: 0.5,
-                      ),
-                    ),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
+                  decoration: const BoxDecoration(),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                   child: Row(
                     children: [
-                      _StatChip(
-                        icon: GBTActionIcons.like,
+                      _ModernStatChip(
+                        icon: Icons.thumb_up_outlined,
                         count: likeCount,
                         color: tertiaryColor,
                       ),
                       const SizedBox(width: GBTSpacing.md),
-                      _StatChip(
-                        icon: GBTActionIcons.comment,
+                      _ModernStatChip(
+                        icon: Icons.chat_bubble_outline_rounded,
                         count: commentCount,
                         color: tertiaryColor,
                       ),
@@ -834,10 +821,10 @@ class _FallbackPreviewImageState extends State<_FallbackPreviewImage> {
   }
 }
 
-// EN: Compact stat chip — icon + count, used in feed card stats bar.
-// KO: 아이콘 + 숫자 컴팩트 통계 칩, 피드 카드 통계 바에서 사용.
-class _StatChip extends StatelessWidget {
-  const _StatChip({
+// EN: Modern stat chip — icon + count, used in feed card stats bar.
+// KO: 아이콘 + 숫자 모던 통계 칩, 피드 카드 통계 바에서 사용.
+class _ModernStatChip extends StatelessWidget {
+  const _ModernStatChip({
     required this.icon,
     required this.count,
     required this.color,
@@ -850,15 +837,18 @@ class _StatChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 40,
+      height: 36,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: color),
-          const SizedBox(width: GBTSpacing.xxs),
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: GBTSpacing.xs),
           Text(
             count.toString(),
-            style: GBTTypography.labelSmall.copyWith(color: color),
+            style: GBTTypography.labelMedium.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

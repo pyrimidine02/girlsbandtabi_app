@@ -17,7 +17,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/logging/app_logger.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
-import '../../../../core/theme/gbt_animations.dart';
+
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
@@ -69,8 +69,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
   String? _errorMessage;
   String? _selectedTopic;
 
-  bool _isTitleFocused = false;
-  bool _isContentFocused = false;
+
 
   bool get _hasDraft {
     return _titleController.text.trim().isNotEmpty ||
@@ -104,12 +103,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     _titleController.addListener(_onFormChanged);
     _contentController.addListener(_onFormChanged);
 
-    _titleFocusNode.addListener(() {
-      setState(() => _isTitleFocused = _titleFocusNode.hasFocus);
-    });
-    _contentFocusNode.addListener(() {
-      setState(() => _isContentFocused = _contentFocusNode.hasFocus);
-    });
+
 
     unawaited(_autosaveController.loadRecoverableDraft());
     unawaited(_loadPostComposeOptions(forceRefresh: true));
@@ -491,7 +485,7 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
-    final dividerColor = colorScheme.outlineVariant.withValues(alpha: 0.72);
+
     final topInset =
         MediaQuery.paddingOf(context).top + kToolbarHeight + GBTSpacing.sm;
     final profile = ref.watch(userProfileControllerProvider).valueOrNull;
@@ -595,106 +589,64 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                                 ),
                               ],
                               const SizedBox(height: GBTSpacing.xs),
-                              AnimatedContainer(
-                                duration: GBTAnimations.fast,
-                                decoration: BoxDecoration(
-                                  color: _isTitleFocused
-                                      ? (isDark
-                                            ? const Color(0xFF2A2D35)
-                                            : const Color(0xFFE8EEF5))
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(
-                                    GBTSpacing.radiusSm,
-                                  ),
+                              TextField(
+                                controller: _titleController,
+                                focusNode: _titleFocusNode,
+                                autofocus: true,
+                                maxLength: _maxTitleLength,
+                                maxLines: 1,
+                                textInputAction: TextInputAction.next,
+                                style: GBTTypography.headlineMedium.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: colorScheme.onSurface,
                                 ),
-                                padding: _isTitleFocused
-                                    ? const EdgeInsets.symmetric(
-                                        horizontal: GBTSpacing.sm,
-                                        vertical: GBTSpacing.xs,
-                                      )
-                                    : EdgeInsets.zero,
-                                child: TextField(
-                                  controller: _titleController,
-                                  focusNode: _titleFocusNode,
-                                  autofocus: true,
-                                  maxLength: _maxTitleLength,
-                                  maxLines: 1,
-                                  textInputAction: TextInputAction.next,
-                                  style: GBTTypography.titleLarge.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: colorScheme.onSurface,
-                                  ),
-                                  decoration: InputDecoration(
-                                    hintText: '제목을 입력해주세요',
-                                    counterText: '',
-                                    filled: true,
-                                    fillColor: Colors.transparent,
-                                    border: InputBorder.none,
-                                    enabledBorder: InputBorder.none,
-                                    focusedBorder: InputBorder.none,
-                                    isDense: true,
-                                    contentPadding: EdgeInsets.zero,
-                                    hintStyle: GBTTypography.titleLarge
-                                        .copyWith(
-                                          fontWeight: FontWeight.w500,
-                                          color: colorScheme.onSurfaceVariant,
-                                        ),
-                                  ),
+                                decoration: InputDecoration(
+                                  hintText: '제목을 입력해주세요',
+                                  counterText: '',
+                                  filled: true,
+                                  fillColor: Colors.transparent,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  hintStyle: GBTTypography.headlineMedium
+                                      .copyWith(
+                                        fontWeight: FontWeight.w500,
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
                                 ),
                               ),
-                              Divider(
-                                height: GBTSpacing.sm + 6,
-                                thickness: 0.8,
-                                color: dividerColor,
-                              ),
-                              AnimatedContainer(
-                                duration: GBTAnimations.fast,
-                                decoration: BoxDecoration(
-                                  color: _isContentFocused
-                                      ? (isDark
-                                            ? const Color(0xFF2A2D35)
-                                            : const Color(0xFFE8EEF5))
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(
-                                    GBTSpacing.radiusSm,
-                                  ),
+                              const SizedBox(height: GBTSpacing.md),
+                              TextField(
+                                controller: _contentController,
+                                focusNode: _contentFocusNode,
+                                maxLength: _maxContentLength,
+                                maxLines: null,
+                                minLines: 8,
+                                textInputAction: TextInputAction.newline,
+                                style: GBTTypography.bodyLarge.copyWith(
+                                  fontWeight: FontWeight.w400,
+                                  height: 1.6,
+                                  color: colorScheme.onSurface,
                                 ),
-                                padding: _isContentFocused
-                                    ? const EdgeInsets.symmetric(
-                                        horizontal: GBTSpacing.sm,
-                                        vertical: GBTSpacing.xs,
-                                      )
-                                    : EdgeInsets.zero,
-                                child: TextField(
-                                  controller: _contentController,
-                                  focusNode: _contentFocusNode,
-                                  maxLength: _maxContentLength,
-                                  maxLines: null,
-                                  minLines: 8,
-                                  textInputAction: TextInputAction.newline,
-                                  style: GBTTypography.headlineLarge.copyWith(
-                                    fontWeight: FontWeight.w400,
-                                    height: 1.3,
-                                    color: colorScheme.onSurface,
-                                  ),
-                                  decoration: InputDecoration(
-                                    hintText:
-                                        '커뮤니티 이용규칙을 지켜주세요.\n'
-                                        '광고, 비방, 도배성 글은 제재될 수 있어요.',
-                                    hintStyle: GBTTypography.bodyMedium
-                                        .copyWith(
-                                          color: colorScheme.onSurfaceVariant,
-                                          height: 1.45,
-                                        ),
-                                    counterText: '',
-                                    filled: true,
-                                    fillColor: Colors.transparent,
-                                    border: InputBorder.none,
-                                    enabledBorder: InputBorder.none,
-                                    focusedBorder: InputBorder.none,
-                                    isDense: true,
-                                    contentPadding: EdgeInsets.zero,
-                                  ),
+                                decoration: InputDecoration(
+                                  hintText:
+                                      '커뮤니티 이용규칙을 지켜주세요.\n'
+                                      '광고, 비방, 도배성 글은 제재될 수 있어요.',
+                                  hintStyle: GBTTypography.bodyLarge
+                                      .copyWith(
+                                        color: colorScheme.onSurfaceVariant,
+                                        height: 1.6,
+                                      ),
+                                  counterText: '',
+                                  filled: true,
+                                  fillColor: Colors.transparent,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
                                 ),
                               ),
                             ],
