@@ -293,6 +293,44 @@ class ApiEndpoints {
       '${liveEvent(projectId, liveEventId)}/attendance';
   static String liveEventVerification(String projectId, String liveEventId) =>
       '${liveEvent(projectId, liveEventId)}/verification';
+  static String liveEventSetlist(String projectId, String liveEventId) =>
+      '${liveEvent(projectId, liveEventId)}/setlist';
+
+  // ============================================================
+  // EN: Music information endpoints (8.26)
+  // KO: 악곡 정보 엔드포인트 (8.26)
+  // ============================================================
+  static String musicAlbums(String projectId) =>
+      '${project(projectId)}/music/albums';
+  static String musicAlbum(String projectId, String albumId) =>
+      '${musicAlbums(projectId)}/$albumId';
+  static String musicSongs(String projectId) =>
+      '${project(projectId)}/music/songs';
+  static String musicSong(String projectId, String songId) =>
+      '${musicSongs(projectId)}/$songId';
+  static String musicSongLyrics(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/lyrics';
+  static String musicSongParts(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/parts';
+  static String musicSongCallGuide(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/call-guide';
+  static String musicSongVersions(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/versions';
+  static String musicSongVersion(
+    String projectId,
+    String songId,
+    String versionCode,
+  ) => '${musicSongVersions(projectId, songId)}/$versionCode';
+  static String musicSongCredits(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/credits';
+  static String musicSongDifficulty(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/difficulty';
+  static String musicSongMediaLinks(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/media-links';
+  static String musicSongAvailability(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/availability';
+  static String musicSongLiveContext(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/live-context';
 
   // ============================================================
   // EN: Community endpoints (8.16) - Uses projectCode!

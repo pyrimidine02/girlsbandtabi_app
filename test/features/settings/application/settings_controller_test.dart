@@ -562,6 +562,18 @@ class _FakeSettingsRepository implements SettingsRepository {
   }
 
   @override
+  Future<Result<Map<String, dynamic>>> getMandatoryConsentStatus() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Result<void>> submitMandatoryConsents({
+    required List<Map<String, dynamic>> consents,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<Result<void>> deleteAccount() {
     throw UnimplementedError();
   }

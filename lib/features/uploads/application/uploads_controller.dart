@@ -85,7 +85,7 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
         contentType: contentType,
       );
       if (directResult is Success<UploadInfo>) {
-        await load(forceRefresh: true);
+        _upsertUpload(directResult.data);
       }
       return directResult;
     }
@@ -117,7 +117,7 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
           contentType: contentType,
         );
         if (directResult is Success<UploadInfo>) {
-          await load(forceRefresh: true);
+          _upsertUpload(directResult.data);
         }
         return directResult;
       }
@@ -216,21 +216,34 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
       return Result.failure(confirmResult.failure);
     }
 
-    final listResult = await repository.getMyUploads(forceRefresh: true);
-    if (listResult is Success<List<UploadInfo>>) {
-      final match = listResult.data
-          .where((item) => item.uploadId == presigned.uploadId)
-          .toList();
-      if (match.isNotEmpty) {
-        return Result.success(match.first);
-      }
-    } else if (listResult is Err<List<UploadInfo>>) {
-      return Result.failure(listResult.failure);
-    }
-
-    return const Result.failure(
-      UnknownFailure('Uploaded file not found after confirm'),
+    final uploaded = UploadInfo(
+      uploadId: presigned.uploadId,
+      url: _stripQueryAndFragment(presigned.url),
+      filename: filename,
+      isApproved: true,
     );
+    _upsertUpload(uploaded);
+    return Result.success(uploaded);
+  }
+
+  void _upsertUpload(UploadInfo upload) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return;
+    }
+    final next = <UploadInfo>[
+      upload,
+      ...current.where((item) => item.uploadId != upload.uploadId),
+    ];
+    state = AsyncData(next);
+  }
+
+  String _stripQueryAndFragment(String rawUrl) {
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null) {
+      return rawUrl;
+    }
+    return uri.replace(query: null, fragment: null).toString();
   }
 }
 

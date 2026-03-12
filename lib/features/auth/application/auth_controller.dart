@@ -395,7 +395,8 @@ enum _AuthAnalyticsType { login, signup }
 /// EN: Provider for AuthOAuthService.
 /// KO: AuthOAuthService 프로바이더.
 final authOAuthServiceProvider = Provider<AuthOAuthService>((ref) {
-  return AuthOAuthService();
+  final secureStorage = ref.watch(secureStorageProvider);
+  return AuthOAuthService(secureStorage: secureStorage);
 });
 
 /// EN: Provider for AuthRepository.

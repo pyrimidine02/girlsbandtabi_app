@@ -58,6 +58,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
   bool _didInitialCenter = false;
   double _currentZoom = 12;
   double _pendingZoom = 12;
+  bool _centeringCallbackScheduled = false;
 
   // EN: User's current location fetched on init.
   // KO: 초기화 시 가져온 사용자 현재 위치.
@@ -75,6 +76,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
 
   @override
   void dispose() {
+    _googleMapController?.dispose();
     _googleMapController = null;
     _appleMapController = null;
     _sheetController.dispose();
@@ -147,11 +149,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
     //     a disposed GoogleMapController during build.
     // KO: 빌드 중 dispose된 GoogleMapController 사용을 방지하기 위해
     //     프레임 이후에 카메라 센터링을 예약합니다.
-    if (isTabActive) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _maybeCenterOnMap(places);
-      });
-    }
+    _scheduleMaybeCenterOnMap(places, isTabActive: isTabActive);
 
     return Scaffold(
       body: Stack(
@@ -505,6 +503,23 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
     // KO: 우선순위 3 — 기본값으로 도쿄역 중앙.
     _moveCameraTo(35.681236, 139.767125, zoom: 12);
     _didInitialCenter = true;
+  }
+
+  /// EN: Schedule map-centering once per frame to avoid callback pile-up.
+  /// KO: 콜백 누적을 방지하기 위해 프레임당 1회만 지도 센터링을 예약합니다.
+  void _scheduleMaybeCenterOnMap(
+    List<PlaceSummary> places, {
+    required bool isTabActive,
+  }) {
+    if (!isTabActive || _centeringCallbackScheduled) {
+      return;
+    }
+    _centeringCallbackScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _centeringCallbackScheduled = false;
+      if (!mounted) return;
+      _maybeCenterOnMap(places);
+    });
   }
 
   void _handleCameraMove(double zoom) {
@@ -896,7 +911,10 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
       data: (units) {
         final names = units
             .where((unit) => selectedBandIds.contains(unit.id))
-            .map((unit) => unit.code.isNotEmpty ? unit.code : unit.displayName)
+            .map(
+              (unit) =>
+                  unit.displayName.isNotEmpty ? unit.displayName : unit.code,
+            )
             .toList();
         if (names.isEmpty) {
           return context.l10n(

@@ -4,6 +4,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/error/failure.dart';
@@ -679,15 +680,17 @@ final userProfileControllerProvider =
     });
 
 void _scheduleUserProfileRefresh(Ref ref, {bool forceRefresh = true}) {
-  Future<void>(() async {
-    try {
-      await ref
-          .read(userProfileControllerProvider.notifier)
-          .load(forceRefresh: forceRefresh);
-    } on StateError {
-      // EN: Ignore race when provider is disposed before queued refresh runs.
-      // KO: 큐잉된 재조회 실행 전에 프로바이더가 dispose된 경합은 무시합니다.
-    }
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    Future<void>(() async {
+      try {
+        await ref
+            .read(userProfileControllerProvider.notifier)
+            .load(forceRefresh: forceRefresh);
+      } on StateError {
+        // EN: Ignore race when provider is disposed before queued refresh runs.
+        // KO: 큐잉된 재조회 실행 전에 프로바이더가 dispose된 경합은 무시합니다.
+      }
+    });
   });
 }
 

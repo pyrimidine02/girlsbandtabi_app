@@ -59,6 +59,12 @@ abstract class SettingsRepository {
     int size = 50,
   });
 
+  Future<Result<Map<String, dynamic>>> getMandatoryConsentStatus();
+
+  Future<Result<void>> submitMandatoryConsents({
+    required List<Map<String, dynamic>> consents,
+  });
+
   Future<Result<void>> deleteAccount();
 
   Future<Result<List<UserBlock>>> getUserBlocks({bool forceRefresh = false});

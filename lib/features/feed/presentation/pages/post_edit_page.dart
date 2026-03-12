@@ -75,7 +75,8 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
   Failure? _taxonomyFailure;
   String? _errorMessage;
   String? _selectedTopic;
-
+  bool _lastCanSubmit = false;
+  bool _lastHasDraft = false;
 
   String get _draftStorageKey => 'feed_post_edit_draft_v1_${widget.post.id}';
 
@@ -143,8 +144,8 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     _contentController.text = _initialContent;
     _titleController.addListener(_onFormChanged);
     _contentController.addListener(_onFormChanged);
-
-
+    _lastCanSubmit = _canSubmit;
+    _lastHasDraft = _hasDraft;
 
     unawaited(_autosaveController.loadRecoverableDraft());
     unawaited(_loadPostComposeOptions(forceRefresh: true));
@@ -181,7 +182,15 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
       return;
     }
     _scheduleDraftSave();
-    setState(() {});
+    final nextCanSubmit = _canSubmit;
+    final nextHasDraft = _hasDraft;
+    if (nextCanSubmit == _lastCanSubmit && nextHasDraft == _lastHasDraft) {
+      return;
+    }
+    setState(() {
+      _lastCanSubmit = nextCanSubmit;
+      _lastHasDraft = nextHasDraft;
+    });
   }
 
   void _scheduleDraftSave() {
@@ -1078,12 +1087,12 @@ class _PostEditPageState extends ConsumerState<PostEditPage> {
     }
 
     if (result case Success<PostDetail>()) {
-      await ref
-          .read(postDetailControllerProvider(widget.post.id).notifier)
-          .load(forceRefresh: true);
-      await ref
-          .read(postListControllerProvider.notifier)
-          .load(forceRefresh: true);
+      await Future.wait([
+        ref
+            .read(postDetailControllerProvider(widget.post.id).notifier)
+            .load(forceRefresh: true),
+        ref.read(postListControllerProvider.notifier).load(forceRefresh: true),
+      ]);
       await _autosaveController.clearSavedDraft(silent: true);
       if (!mounted) {
         return;

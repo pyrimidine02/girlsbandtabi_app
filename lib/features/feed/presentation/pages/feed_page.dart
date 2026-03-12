@@ -2,6 +2,8 @@
 /// KO: 뉴스 및 커뮤니티 탭을 포함한 피드 페이지 — 통일된 SNS 스타일 디자인.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -46,8 +48,10 @@ class FeedPage extends ConsumerStatefulWidget {
 
 class _FeedPageState extends ConsumerState<FeedPage>
     with SingleTickerProviderStateMixin {
+  static const Duration _focusRefreshMinInterval = Duration(minutes: 2);
   late TabController _tabController;
   late final ValueNotifier<bool> _showCommunityFabNotifier;
+  DateTime? _lastFocusRefreshAt;
 
   @override
   void initState() {
@@ -70,6 +74,21 @@ class _FeedPageState extends ConsumerState<FeedPage>
     final shouldShow = _tabController.index == 1;
     if (shouldShow == _showCommunityFabNotifier.value) return;
     _showCommunityFabNotifier.value = shouldShow;
+  }
+
+  void _handleFocusGained() {
+    final now = DateTime.now();
+    final last = _lastFocusRefreshAt;
+    if (last != null && now.difference(last) < _focusRefreshMinInterval) {
+      return;
+    }
+    _lastFocusRefreshAt = now;
+    unawaited(
+      Future.wait([
+        ref.read(newsListControllerProvider.notifier).load(forceRefresh: true),
+        ref.read(postListControllerProvider.notifier).load(forceRefresh: true),
+      ]),
+    );
   }
 
   @override
@@ -103,10 +122,7 @@ class _FeedPageState extends ConsumerState<FeedPage>
         ),
       ),
       body: FocusDetector(
-        onFocusGained: () {
-          ref.read(newsListControllerProvider.notifier).load(forceRefresh: true);
-          ref.read(postListControllerProvider.notifier).load(forceRefresh: true);
-        },
+        onFocusGained: _handleFocusGained,
         child: Column(
           children: [
           // EN: Project selector — compact style

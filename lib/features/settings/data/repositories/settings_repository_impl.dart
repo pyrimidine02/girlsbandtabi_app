@@ -391,6 +391,53 @@ class SettingsRepositoryImpl implements SettingsRepository {
   }
 
   @override
+  Future<Result<Map<String, dynamic>>> getMandatoryConsentStatus() async {
+    try {
+      final result = await _remoteDataSource.fetchMandatoryConsentStatus();
+      if (result is Success<Map<String, dynamic>>) {
+        return Result.success(result.data);
+      }
+      if (result is Err<Map<String, dynamic>>) {
+        return Result.failure(result.failure);
+      }
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown mandatory consent status result',
+          code: 'unknown_mandatory_consent_status',
+        ),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<void>> submitMandatoryConsents({
+    required List<Map<String, dynamic>> consents,
+  }) async {
+    try {
+      final result = await _remoteDataSource.submitMandatoryConsents(
+        consents: consents,
+      );
+      if (result is Success<void>) {
+        await _cacheManager.removeByPrefix('consent_history:');
+        return const Result.success(null);
+      }
+      if (result is Err<void>) {
+        return Result.failure(result.failure);
+      }
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown mandatory consent submit result',
+          code: 'unknown_mandatory_consent_submit',
+        ),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
   Future<Result<void>> deleteAccount() async {
     try {
       final result = await _remoteDataSource.deleteAccount();

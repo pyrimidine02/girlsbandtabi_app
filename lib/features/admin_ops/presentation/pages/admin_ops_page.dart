@@ -122,7 +122,7 @@ class _AccessDeniedView extends StatelessWidget {
             ),
             const SizedBox(height: GBTSpacing.sm),
             Text(
-              'ADMIN_NON_SENSITIVE 이상 접근 레벨이 필요합니다.',
+              '운영 권한이 확인된 계정만 접근할 수 있습니다.',
               style: GBTTypography.bodyMedium.copyWith(
                 color: isDark
                     ? GBTColors.darkTextSecondary

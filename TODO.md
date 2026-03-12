@@ -1,5 +1,44 @@
 # TODO
 
+- Run QA for music information + live setlist frontend integration (2026-03-12):
+  - Info > 악곡 탭에서 앨범/곡 목록이 프로젝트 전환 시 정상 갱신되는지 확인.
+  - 곡 목록 하단 스크롤 시 cursor 기반 load-more가 중복 호출 없이 동작하는지 확인.
+  - 곡 상세에서 `Romanized/Translated` 토글 시 가사 요청 파라미터와 화면 반영이 일치하는지 확인.
+  - 라이브 상세 세트리스트에서 `eventStatus=COMPLETED` 케이스가 정상 렌더되는지 확인.
+  - 세트리스트 `songId=null` 항목은 비활성, `songId!=null` 항목은 곡 상세로 이동되는지 확인.
+  - 오버레이 컨텍스트(검색/알림/설정 등)에서 곡 상세 라우팅이 스택 깨짐 없이 동작하는지 확인.
+
+- Backend follow-up for music info API request doc (2026-03-12):
+  - `docs/api-spec/악곡정보_백엔드요청서_v1.0.0.md` 기준으로
+    앨범/곡/가사/파트/콜표 엔드포인트 확정안을 백엔드와 합의.
+  - 버전/세트리스트/크레딧/난이도/미디어/가용성 6개 확장 항목의
+    엔드포인트 제공 방식(개별 API vs 곡 상세 확장) 확정.
+  - 더미데이터(JSON)를 서버 스테이징에 적재해 모바일 화면에서
+    타임라인 정합성(lyrics/parts/callGuide 동일 버전) 점검.
+  - `MUSIC_*` 에러코드 및 `version/lang` 파라미터 표준 계약 확정.
+  - 추가 제한사항(`size/q/cursor`, 타임라인 무결성, 필드 길이/개수,
+    `ETag/revision`, `429 Retry-After`) 서버 구현 가능 범위 확정.
+
+- Run QA for home greeting header small-device wrapping fix (2026-03-11):
+  - iPhone SE급/좁은 폭 기기에서 홈 인사말 title/subtitle이 말줄임만 되고 의미가 잘리지 않는지 확인.
+  - 사용자명이 긴 계정에서도 인사말이 2줄 내에서 자연스럽게 노출되는지 확인.
+  - featured live 칩이 함께 있을 때도 헤더 하단 요소가 겹치거나 잘리지 않는지 확인.
+
+- Run QA for OAuth state nonce hardening (2026-03-11):
+  - 소셜 로그인 진입 시 authorize URL에 `state`가 포함되는지 네트워크 탭에서 확인.
+  - 콜백 `state`가 누락/변조된 경우 로그인 완료가 차단되고 에러 안내가 노출되는지 확인.
+  - 정상 콜백 후 pending state가 secure storage에서 제거되는지 확인.
+
+- Run QA for admin access + mandatory consent repository migration (2026-03-11):
+  - 일반 사용자 계정으로 운영센터 진입 시 Admin API 호출이 발생하지 않는지 확인.
+  - 필수 동의 차단 상태에서 `GET /users/me/consent-status` 로딩/실패/재시도 동작 확인.
+  - `동의하고 계속` 제출 시 `POST /users/me/consents` 성공 후 차단 해제가 되는지 확인.
+
+- Run QA for places map frame-callback/dispose hardening (2026-03-11):
+  - 장소 탭 진입/이탈 반복 시 지도 관련 dispose 에러/경고가 재발하지 않는지 확인.
+  - 탭 활성 상태에서 프레임마다 카메라 센터링 콜백이 누적되지 않는지 로그로 확인.
+  - 장시간 사용 후 지도 메모리 사용량이 이전 대비 안정적인지 확인.
+
 - Run QA for notification settings conflict auto-recovery (2026-03-10):
   - 알림 설정 저장 시 `409 CONFLICT`가 발생해도 최신값 재조회 후 재시도로
     최종 저장 성공까지 이어지는지 확인.
@@ -800,3 +839,16 @@
     invalid-navigation guard instead of making legacy `/voice-actors/**` call.
   - verify cache separation by `projectId` (same `voiceActorId` from different
     projects never reuses stale detail/members/credits data).
+- QA mandatory consent 3-type gate (v2026.03.12):
+  - login 직후 `GET /api/v1/users/me/consent-status` 호출 여부 확인.
+  - `LOCATION_TERMS` 미동의 상태에서 `canUseService=false` + 오버레이 차단 확인.
+  - 동의 제출 요청이 항상 3종(`TERMS_OF_SERVICE`, `PRIVACY_POLICY`,
+    `LOCATION_TERMS`) 1회로 전송되는지 네트워크 로그 확인.
+  - 2종만 체크/제출 시 클라이언트 차단 또는 서버 400
+    (`CONSENT_REQUIRED_FIELDS_MISSING`) 처리 UX 확인.
+  - 토큰 갱신 직후 consent-status 자동 재확인 동작 확인.
+- Finalize legal policy publish checklist (v2026.03.12):
+  - replace placeholders in `docs/legal/이용약관_v2026.03.12.md`,
+    `docs/legal/개인정보처리방침_v2026.03.12.md`,
+    `docs/legal/위치정보이용약관_v2026.03.12.md` with real operator/contact data.
+  - run legal review and then align app policy constants/version (`lib/core/constants/legal_policy_constants.dart`).

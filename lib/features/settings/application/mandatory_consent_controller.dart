@@ -4,14 +4,14 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/api_constants.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
+import 'settings_controller.dart';
 
 @immutable
 class RequiredConsentStatusItem {
@@ -34,10 +34,9 @@ class RequiredConsentStatusItem {
   final bool needsReconsent;
 
   factory RequiredConsentStatusItem.fromJson(Map<String, dynamic> json) {
-    final requiredRaw =
-        json.containsKey('needsReconsent')
-            ? json['needsReconsent']
-            : (json['required'] ?? json['isRequired']);
+    final requiredRaw = json.containsKey('needsReconsent')
+        ? json['needsReconsent']
+        : (json['required'] ?? json['isRequired']);
     return RequiredConsentStatusItem(
       type: (json['type'] as String?)?.trim() ?? 'UNKNOWN',
       requiredVersion: (json['requiredVersion'] as String?)?.trim() ?? '-',
@@ -157,30 +156,38 @@ class MandatoryConsentController extends StateNotifier<MandatoryConsentState> {
         clearRequestId: true,
       );
 
-      final apiClient = _ref.read(apiClientProvider);
-      final result = await apiClient.get<MandatoryConsentStatusPayload>(
-        ApiEndpoints.userConsentStatus,
-        fromJson: parseMandatoryConsentStatusPayload,
-      );
+      final repository = await _ref.read(settingsRepositoryProvider.future);
+      final result = await repository.getMandatoryConsentStatus();
 
-      if (result is Success<MandatoryConsentStatusPayload>) {
-        final payload = result.data;
-        final blockingConsents = resolveBlockingRequiredConsents(
+      if (result is Success<Map<String, dynamic>>) {
+        final payload = parseMandatoryConsentStatusPayload(result.data);
+        final mandatoryConsents = extractMandatoryConsentItems(
           consents: payload.requiredConsents,
         );
+        final hasRequiredConsentSet = containsAllMandatoryConsentTypes(
+          consents: mandatoryConsents,
+        );
+        final blockingConsents = resolveBlockingRequiredConsents(
+          consents: mandatoryConsents,
+        );
         final shouldBlock =
-            !payload.canUseService || blockingConsents.isNotEmpty;
+            !payload.canUseService ||
+            blockingConsents.isNotEmpty ||
+            !hasRequiredConsentSet;
         state = MandatoryConsentState(
           isLoading: false,
           hasResolved: true,
           isRequired: shouldBlock,
           isSubmitting: false,
-          requiredConsents: payload.requiredConsents,
+          requiredConsents: mandatoryConsents,
+          errorMessage: hasRequiredConsentSet
+              ? null
+              : '필수 약관 정책 정보를 다시 불러와주세요.',
         );
         return;
       }
 
-      if (result is Err<MandatoryConsentStatusPayload>) {
+      if (result is Err<Map<String, dynamic>>) {
         _applyRefreshFailure(result.failure);
       }
     } catch (e, stackTrace) {
@@ -225,8 +232,19 @@ class MandatoryConsentController extends StateNotifier<MandatoryConsentState> {
       return false;
     }
 
-    final blockingConsents = resolveBlockingRequiredConsents(
+    final mandatoryConsents = extractMandatoryConsentItems(
       consents: requiredConsents,
+    );
+    if (!containsAllMandatoryConsentTypes(consents: mandatoryConsents)) {
+      state = state.copyWith(
+        isRequired: true,
+        errorMessage: '필수 동의 정책 정보를 다시 확인해주세요.',
+      );
+      return false;
+    }
+
+    final blockingConsents = resolveBlockingRequiredConsents(
+      consents: mandatoryConsents,
     );
     final hasUnchecked = blockingConsents.any(
       (item) => agreedByType[item.type] != true,
@@ -248,27 +266,23 @@ class MandatoryConsentController extends StateNotifier<MandatoryConsentState> {
 
     try {
       final now = DateTime.now().toUtc().toIso8601String();
-      final payload = {
-        'consents': requiredConsents
-            .map(
-              (item) => {
-                'type': item.type,
-                'version': item.requiredVersion,
-                'agreed': true,
-                'agreedAt': now,
-              },
-            )
-            .toList(growable: false),
-      };
+      final payload = mandatoryConsents
+          .map(
+            (item) => {
+              'type': item.type,
+              'version': item.requiredVersion,
+              'agreed': true,
+              'agreedAt': now,
+            },
+          )
+          .toList(growable: false);
 
-      final apiClient = _ref.read(apiClientProvider);
-      final result = await apiClient.post<Map<String, dynamic>>(
-        ApiEndpoints.userConsents,
-        data: payload,
-        fromJson: _asMap,
+      final repository = await _ref.read(settingsRepositoryProvider.future);
+      final result = await repository.submitMandatoryConsents(
+        consents: payload,
       );
 
-      if (result is Err<Map<String, dynamic>>) {
+      if (result is Err<void>) {
         _applySubmitFailure(result.failure);
         return false;
       }
@@ -338,23 +352,46 @@ MandatoryConsentStatusPayload parseMandatoryConsentStatusPayload(dynamic json) {
   );
 }
 
+const Set<String> _mandatoryConsentTypes = <String>{
+  'TERMS_OF_SERVICE',
+  'PRIVACY_POLICY',
+  'LOCATION_TERMS',
+};
+
+List<RequiredConsentStatusItem> extractMandatoryConsentItems({
+  required List<RequiredConsentStatusItem> consents,
+}) {
+  final byType = <String, RequiredConsentStatusItem>{};
+  for (final consent in consents) {
+    final normalizedType = consent.type.toUpperCase();
+    if (_mandatoryConsentTypes.contains(normalizedType)) {
+      byType[normalizedType] = consent;
+    }
+  }
+  return _mandatoryConsentTypes
+      .where(byType.containsKey)
+      .map((type) => byType[type]!)
+      .toList(growable: false);
+}
+
+bool containsAllMandatoryConsentTypes({
+  required List<RequiredConsentStatusItem> consents,
+}) {
+  final types = consents
+      .map((item) => item.type.toUpperCase())
+      .where(_mandatoryConsentTypes.contains)
+      .toSet();
+  return types.length == _mandatoryConsentTypes.length;
+}
+
 List<RequiredConsentStatusItem> resolveBlockingRequiredConsents({
   required List<RequiredConsentStatusItem> consents,
 }) {
-  return consents
-      .where(isBlockingRequiredConsent)
-      .toList(growable: false);
+  return consents.where(isBlockingRequiredConsent).toList(growable: false);
 }
 
 bool isBlockingRequiredConsent(RequiredConsentStatusItem item) {
   return item.needsReconsent || !item.agreed;
-}
-
-Map<String, dynamic> _asMap(dynamic json) {
-  if (json is Map<String, dynamic>) {
-    return json;
-  }
-  return const <String, dynamic>{};
 }
 
 bool _parseBool(dynamic value) {
@@ -399,18 +436,40 @@ final mandatoryConsentControllerProvider =
       ref.listen<AuthState>(authStateProvider, (_, next) {
         switch (next) {
           case AuthState.authenticated:
-            unawaited(controller.refresh());
+            _scheduleMandatoryConsentRefresh(controller);
             break;
           case AuthState.unauthenticated:
           case AuthState.initial:
-            controller.clear();
+            _scheduleMandatoryConsentClear(controller);
             break;
         }
       });
 
+      ref.listen<int>(authTokenRefreshTickProvider, (previous, next) {
+        if (previous == null || previous == next) {
+          return;
+        }
+        if (!ref.read(isAuthenticatedProvider)) {
+          return;
+        }
+        _scheduleMandatoryConsentRefresh(controller);
+      });
+
       if (ref.read(isAuthenticatedProvider)) {
-        unawaited(controller.refresh());
+        _scheduleMandatoryConsentRefresh(controller);
       }
 
       return controller;
     });
+
+void _scheduleMandatoryConsentRefresh(MandatoryConsentController controller) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(controller.refresh());
+  });
+}
+
+void _scheduleMandatoryConsentClear(MandatoryConsentController controller) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    controller.clear();
+  });
+}

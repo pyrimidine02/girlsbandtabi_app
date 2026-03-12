@@ -130,11 +130,69 @@ void main() {
           method: 'PUT',
         ),
         (
+          path: ApiEndpoints.liveEventSetlist('{projectId}', '{liveEventId}'),
+          method: 'GET',
+        ),
+        (
           path: ApiEndpoints.liveEventVerification(
             '{projectId}',
             '{liveEventId}',
           ),
           method: 'POST',
+        ),
+        (path: ApiEndpoints.musicAlbums('{projectId}'), method: 'GET'),
+        (
+          path: ApiEndpoints.musicAlbum('{projectId}', '{albumId}'),
+          method: 'GET',
+        ),
+        (path: ApiEndpoints.musicSongs('{projectId}'), method: 'GET'),
+        (
+          path: ApiEndpoints.musicSong('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongLyrics('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongParts('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongCallGuide('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongVersions('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongVersion(
+            '{projectId}',
+            '{songId}',
+            '{versionCode}',
+          ),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongCredits('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongDifficulty('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongMediaLinks('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongAvailability('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongLiveContext('{projectId}', '{songId}'),
+          method: 'GET',
         ),
         (path: ApiEndpoints.news('{projectId}'), method: 'GET'),
         (

@@ -68,7 +68,8 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
   Failure? _taxonomyFailure;
   String? _errorMessage;
   String? _selectedTopic;
-
+  bool _lastCanSubmit = false;
+  bool _lastHasDraft = false;
 
 
   bool get _hasDraft {
@@ -102,8 +103,8 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     );
     _titleController.addListener(_onFormChanged);
     _contentController.addListener(_onFormChanged);
-
-
+    _lastCanSubmit = _canSubmit;
+    _lastHasDraft = _hasDraft;
 
     unawaited(_autosaveController.loadRecoverableDraft());
     unawaited(_loadPostComposeOptions(forceRefresh: true));
@@ -145,7 +146,15 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
       return;
     }
     _scheduleDraftSave();
-    setState(() {});
+    final nextCanSubmit = _canSubmit;
+    final nextHasDraft = _hasDraft;
+    if (nextCanSubmit == _lastCanSubmit && nextHasDraft == _lastHasDraft) {
+      return;
+    }
+    setState(() {
+      _lastCanSubmit = nextCanSubmit;
+      _lastHasDraft = nextHasDraft;
+    });
   }
 
   void _scheduleDraftSave() {
@@ -944,12 +953,12 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
           ? _selectedTopic!.trim()
           : 'general';
       unawaited(ref.read(analyticsServiceProvider).logPostCreate(category));
-      await ref
-          .read(communityFeedControllerProvider.notifier)
-          .reload(forceRefresh: true);
-      await ref
-          .read(postListControllerProvider.notifier)
-          .load(forceRefresh: true);
+      await Future.wait([
+        ref
+            .read(communityFeedControllerProvider.notifier)
+            .reload(forceRefresh: true),
+        ref.read(postListControllerProvider.notifier).load(forceRefresh: true),
+      ]);
       await _autosaveController.clearSavedDraft(silent: true);
       _skipDraftSaveOnDispose = true;
       if (!mounted) {

@@ -8,6 +8,19 @@ import 'package:flutter/foundation.dart';
 /// KO: 앱 환경 타입
 enum Environment { development, staging, production }
 
+const String _developmentBaseUrlOverride = String.fromEnvironment(
+  'DEVELOPMENT_BASE_URL',
+  defaultValue: '',
+);
+const String _stagingBaseUrl = String.fromEnvironment(
+  'STAGING_BASE_URL',
+  defaultValue: 'https://staging-api.pyrimidines.org',
+);
+const String _productionBaseUrl = String.fromEnvironment(
+  'PRODUCTION_BASE_URL',
+  defaultValue: 'https://api.pyrimidines.org',
+);
+
 /// EN: Application configuration singleton
 /// KO: 앱 구성 싱글톤
 class AppConfig {
@@ -54,13 +67,26 @@ class AppConfig {
 
   String _getDefaultBaseUrl(Environment env) {
     return switch (env) {
-      Environment.development =>
-        (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
-            ? 'http://10.0.2.2:8080'
-            : 'http://localhost:8080',
-      Environment.staging => 'https://api.pyrimidines.org',
-      Environment.production => 'https://api.pyrimidines.org',
+      Environment.development => _resolveDevelopmentBaseUrl(),
+      Environment.staging => _stagingBaseUrl,
+      Environment.production => _productionBaseUrl,
     };
+  }
+
+  String _resolveDevelopmentBaseUrl() {
+    if (_developmentBaseUrlOverride.trim().isNotEmpty) {
+      return _developmentBaseUrlOverride.trim();
+    }
+    // EN: Allow local HTTP only for debug/runtime development.
+    // KO: 로컬 HTTP는 디버그/개발 실행에서만 허용합니다.
+    if (kDebugMode) {
+      return (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
+          ? 'http://10.0.2.2:8080'
+          : 'http://localhost:8080';
+    }
+    // EN: In non-debug builds, avoid plaintext fallback.
+    // KO: 비디버그 빌드에서는 평문 HTTP 폴백을 피합니다.
+    return _stagingBaseUrl;
   }
 
   String _getDefaultProjectId(Environment env) {

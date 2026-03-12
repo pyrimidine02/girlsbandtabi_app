@@ -18,6 +18,8 @@ class SecureStorageKeys {
   static const String verificationPrivateJwk = 'verification_private_jwk';
   static const String verificationKeyRegisteredAt =
       'verification_key_registered_at';
+  static const String oauthPendingState = 'oauth_pending_state';
+  static const String oauthPendingProvider = 'oauth_pending_provider';
 }
 
 /// EN: Wrapper for FlutterSecureStorage with typed methods
@@ -241,6 +243,47 @@ class SecureStorage {
       _storage.delete(key: SecureStorageKeys.verificationDeviceId),
       _storage.delete(key: SecureStorageKeys.verificationPrivateJwk),
       _storage.delete(key: SecureStorageKeys.verificationKeyRegisteredAt),
+    ]);
+  }
+
+  // ========================================
+  // EN: OAuth state nonce management
+  // KO: OAuth state nonce 관리
+  // ========================================
+
+  /// EN: Save pending OAuth state nonce and provider.
+  /// KO: 대기 중인 OAuth state nonce와 provider를 저장합니다.
+  Future<void> saveOAuthPendingState({
+    required String state,
+    required String providerId,
+  }) async {
+    await Future.wait([
+      _storage.write(key: SecureStorageKeys.oauthPendingState, value: state),
+      _storage.write(
+        key: SecureStorageKeys.oauthPendingProvider,
+        value: providerId,
+      ),
+    ]);
+  }
+
+  /// EN: Get pending OAuth state nonce.
+  /// KO: 대기 중인 OAuth state nonce를 조회합니다.
+  Future<String?> getOAuthPendingState() async {
+    return _storage.read(key: SecureStorageKeys.oauthPendingState);
+  }
+
+  /// EN: Get pending OAuth provider id.
+  /// KO: 대기 중인 OAuth provider id를 조회합니다.
+  Future<String?> getOAuthPendingProvider() async {
+    return _storage.read(key: SecureStorageKeys.oauthPendingProvider);
+  }
+
+  /// EN: Clear pending OAuth state nonce/provider.
+  /// KO: 대기 중인 OAuth state/provider를 삭제합니다.
+  Future<void> clearOAuthPendingState() async {
+    await Future.wait([
+      _storage.delete(key: SecureStorageKeys.oauthPendingState),
+      _storage.delete(key: SecureStorageKeys.oauthPendingProvider),
     ]);
   }
 

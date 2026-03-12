@@ -30,20 +30,20 @@ class LegalPolicyConstants {
   static const List<LegalPolicyInfo> policies = [
     LegalPolicyInfo(
       type: LegalPolicyType.termsOfService,
-      version: 'v2026.03.06',
-      effectiveDate: '2026-03-06',
+      version: 'v2026.03.12',
+      effectiveDate: '2026-03-12',
       url: 'https://girlsbandtabi.app/policies/terms',
     ),
     LegalPolicyInfo(
       type: LegalPolicyType.privacyPolicy,
-      version: 'v2026.03.06',
-      effectiveDate: '2026-03-06',
+      version: 'v2026.03.12',
+      effectiveDate: '2026-03-12',
       url: 'https://girlsbandtabi.app/policies/privacy',
     ),
     LegalPolicyInfo(
       type: LegalPolicyType.locationTerms,
-      version: 'v2026.03.06',
-      effectiveDate: '2026-03-06',
+      version: 'v2026.03.12',
+      effectiveDate: '2026-03-12',
       url: 'https://girlsbandtabi.app/policies/location',
     ),
   ];

@@ -56,7 +56,9 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   final secureStorage = ref.watch(secureStorageProvider);
   return ApiClient(
     secureStorage: secureStorage,
-    onUnauthorized: ref.read(authStateProvider.notifier).setUnauthenticated,
+    onUnauthorized: () {
+      ref.read(authStateProvider.notifier).setUnauthenticated();
+    },
     onTokenRefreshed: () {
       final notifier = ref.read(authTokenRefreshTickProvider.notifier);
       notifier.state = notifier.state + 1;
@@ -68,7 +70,13 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 /// KO: 실시간 스트림 연결을 위한 SSE 클라이언트 프로바이더입니다.
 final sseClientProvider = Provider<SseClient>((ref) {
   final secureStorage = ref.watch(secureStorageProvider);
-  return SseClient(secureStorage: secureStorage);
+  return SseClient(
+    secureStorage: secureStorage,
+    ensureFreshToken: () {
+      final apiClient = ref.read(apiClientProvider);
+      return apiClient.proactiveRefreshIfExpired();
+    },
+  );
 });
 
 /// EN: Local notifications service provider.
@@ -79,6 +87,13 @@ final localNotificationsServiceProvider = Provider<LocalNotificationsService>((
   final service = LocalNotificationsService();
   ref.onDispose(service.dispose);
   return service;
+});
+
+/// EN: One-time app-scope bootstrap for local notifications initialization.
+/// KO: 로컬 알림 초기화를 위한 앱 전역 1회 부트스트랩 프로바이더입니다.
+final localNotificationsBootstrapProvider = Provider<void>((ref) {
+  final service = ref.watch(localNotificationsServiceProvider);
+  unawaited(service.initialize());
 });
 
 /// EN: Stream provider for local-notification tap events.

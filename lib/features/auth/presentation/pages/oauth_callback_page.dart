@@ -64,6 +64,19 @@ class _OAuthCallbackPageState extends ConsumerState<OAuthCallbackPage> {
       return;
     }
 
+    final oauthService = ref.read(authOAuthServiceProvider);
+    final stateValidation = await oauthService.validateAndConsumeState(
+      provider: provider,
+      callbackState: widget.stateParam,
+    );
+    if (!mounted) return;
+    if (stateValidation is Err<void>) {
+      setState(() {
+        _failure = stateValidation.failure;
+      });
+      return;
+    }
+
     final controller = ref.read(authControllerProvider.notifier);
     final result = await controller.completeOAuthLogin(
       provider: provider,

@@ -40,6 +40,54 @@ class GBTGreetingHeader extends StatelessWidget {
     final greeting = _getGreeting(context, userName);
     final topPadding = MediaQuery.of(context).padding.top;
     final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final directionality = Directionality.of(context);
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final textMaxWidth = (screenWidth - (GBTSpacing.pageHorizontal * 2)).clamp(
+      120.0,
+      720.0,
+    );
+    final titleStyle = GBTTypography.displayMedium.copyWith(
+      color: Colors.white,
+      fontWeight: FontWeight.w700,
+    );
+    final subtitleStyle = GBTTypography.bodyLarge.copyWith(
+      color: Colors.white.withValues(alpha: 0.8),
+    );
+    final titleSingleLineHeight = _measureTextHeight(
+      text: greeting.title,
+      style: titleStyle,
+      maxWidth: textMaxWidth,
+      textScaler: MediaQuery.textScalerOf(context),
+      textDirection: directionality,
+      maxLines: 1,
+    );
+    final titleMultiLineHeight = _measureTextHeight(
+      text: greeting.title,
+      style: titleStyle,
+      maxWidth: textMaxWidth,
+      textScaler: MediaQuery.textScalerOf(context),
+      textDirection: directionality,
+      maxLines: 2,
+    );
+    final subtitleSingleLineHeight = _measureTextHeight(
+      text: greeting.subtitle,
+      style: subtitleStyle,
+      maxWidth: textMaxWidth,
+      textScaler: MediaQuery.textScalerOf(context),
+      textDirection: directionality,
+      maxLines: 1,
+    );
+    final subtitleMultiLineHeight = _measureTextHeight(
+      text: greeting.subtitle,
+      style: subtitleStyle,
+      maxWidth: textMaxWidth,
+      textScaler: MediaQuery.textScalerOf(context),
+      textDirection: directionality,
+      maxLines: 2,
+    );
+    final multilineExtraHeight =
+        (titleMultiLineHeight - titleSingleLineHeight) +
+        (subtitleMultiLineHeight - subtitleSingleLineHeight);
     final hasBackgroundImage =
         backgroundImageUrl != null && backgroundImageUrl!.trim().isNotEmpty;
     final hasFeaturedLive =
@@ -51,7 +99,8 @@ class GBTGreetingHeader extends StatelessWidget {
         kToolbarHeight +
         130 +
         featuredExtraHeight +
-        textScaleExtraHeight;
+        textScaleExtraHeight +
+        multilineExtraHeight.clamp(0.0, 64.0);
 
     return Container(
       width: double.infinity,
@@ -92,20 +141,15 @@ class GBTGreetingHeader extends StatelessWidget {
               children: [
                 Text(
                   greeting.title,
-                  style: GBTTypography.displayMedium.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  maxLines: 1,
+                  style: titleStyle,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: GBTSpacing.xs),
                 Text(
                   greeting.subtitle,
-                  style: GBTTypography.bodyLarge.copyWith(
-                    color: Colors.white.withValues(alpha: 0.8),
-                  ),
-                  maxLines: 1,
+                  style: subtitleStyle,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (hasFeaturedLive) ...[
@@ -303,4 +347,22 @@ class _Greeting {
   const _Greeting({required this.title, required this.subtitle});
   final String title;
   final String subtitle;
+}
+
+double _measureTextHeight({
+  required String text,
+  required TextStyle style,
+  required double maxWidth,
+  required TextScaler textScaler,
+  required TextDirection textDirection,
+  required int maxLines,
+}) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: textDirection,
+    textScaler: textScaler,
+    maxLines: maxLines,
+    ellipsis: '…',
+  )..layout(maxWidth: maxWidth);
+  return painter.height;
 }

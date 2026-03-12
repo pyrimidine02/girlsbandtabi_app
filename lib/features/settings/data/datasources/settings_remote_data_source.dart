@@ -176,6 +176,23 @@ class SettingsRemoteDataSource {
     );
   }
 
+  Future<Result<Map<String, dynamic>>> fetchMandatoryConsentStatus() {
+    return _apiClient.get<Map<String, dynamic>>(
+      ApiEndpoints.userConsentStatus,
+      fromJson: (json) => _extractMap(json),
+    );
+  }
+
+  Future<Result<void>> submitMandatoryConsents({
+    required List<Map<String, dynamic>> consents,
+  }) {
+    return _apiClient.post<void>(
+      ApiEndpoints.userConsents,
+      data: {'consents': consents},
+      fromJson: (_) {},
+    );
+  }
+
   Future<Result<void>> deleteAccount() {
     return _apiClient.delete<void>(ApiEndpoints.userMe, fromJson: (_) {});
   }
@@ -296,4 +313,11 @@ List<Map<String, dynamic>> _extractList(dynamic json) {
     }
   }
   return const <Map<String, dynamic>>[];
+}
+
+Map<String, dynamic> _extractMap(dynamic json) {
+  if (json is Map<String, dynamic>) {
+    return json;
+  }
+  return const <String, dynamic>{};
 }

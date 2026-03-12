@@ -4,8 +4,10 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/error/failure.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
+import '../../settings/application/settings_controller.dart';
 import '../data/datasources/admin_ops_remote_data_source.dart';
 import '../data/repositories/admin_ops_repository_impl.dart';
 import '../domain/entities/admin_ops_entities.dart';
@@ -35,6 +37,13 @@ class AdminDashboardController
   final Ref _ref;
 
   Future<void> load({bool forceRefresh = false}) async {
+    if (!_canAccessAdminOps(_ref)) {
+      state = AsyncError(
+        const AuthFailure('Admin access required', code: '403'),
+        StackTrace.current,
+      );
+      return;
+    }
     state = const AsyncLoading();
     final repository = await _ref.read(adminOpsRepositoryProvider.future);
     final result = await repository.getDashboard(forceRefresh: forceRefresh);
@@ -94,6 +103,16 @@ class AdminReportsController extends StateNotifier<AdminReportsState> {
     bool forceRefresh = false,
     AdminReportFilter? filter,
   }) async {
+    if (!_canAccessAdminOps(_ref)) {
+      state = state.copyWith(
+        filter: filter ?? state.filter,
+        reports: AsyncError(
+          const AuthFailure('Admin access required', code: '403'),
+          StackTrace.current,
+        ),
+      );
+      return;
+    }
     final nextFilter = filter ?? state.filter;
     state = state.copyWith(filter: nextFilter, reports: const AsyncLoading());
 
@@ -211,6 +230,16 @@ class AdminRoleRequestsController
     bool forceRefresh = false,
     AdminProjectRoleRequestFilter? filter,
   }) async {
+    if (!_canAccessAdminOps(_ref)) {
+      state = state.copyWith(
+        filter: filter ?? state.filter,
+        requests: AsyncError(
+          const AuthFailure('Admin access required', code: '403'),
+          StackTrace.current,
+        ),
+      );
+      return;
+    }
     final nextFilter = filter ?? state.filter;
     state = state.copyWith(filter: nextFilter, requests: const AsyncLoading());
 
@@ -292,6 +321,15 @@ class AdminMediaDeletionsController
   final Ref _ref;
 
   Future<void> load({bool forceRefresh = false}) async {
+    if (!_canAccessAdminOps(_ref)) {
+      state = state.copyWith(
+        requests: AsyncError(
+          const AuthFailure('Admin access required', code: '403'),
+          StackTrace.current,
+        ),
+      );
+      return;
+    }
     state = state.copyWith(requests: const AsyncLoading());
     final repository = await _ref.read(adminOpsRepositoryProvider.future);
     final result = await repository.getMediaDeletionRequests(
@@ -400,3 +438,11 @@ final adminReportDetailProvider = FutureProvider.autoDispose
       }
       return null;
     });
+
+bool _canAccessAdminOps(Ref ref) {
+  final profile = ref.read(userProfileControllerProvider).valueOrNull;
+  return hasAdminOpsAccess(
+    effectiveAccessLevel: profile?.effectiveAccessLevel,
+    accountRole: profile?.accountRole,
+  );
+}

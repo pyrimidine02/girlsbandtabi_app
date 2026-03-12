@@ -52,6 +52,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   bool _confirmTouched = false;
   bool _agreeTerms = false;
   bool _agreePrivacy = false;
+  bool _agreeLocationTerms = false;
   bool _confirmOver14 = false;
 
   @override
@@ -103,7 +104,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       _hasSpecialChar;
 
   bool get _hasRequiredConsents =>
-      _agreeTerms && _agreePrivacy && _confirmOver14;
+      _agreeTerms && _agreePrivacy && _agreeLocationTerms && _confirmOver14;
 
   @override
   Widget build(BuildContext context) {
@@ -304,12 +305,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 _ConsentSection(
                   agreeTerms: _agreeTerms,
                   agreePrivacy: _agreePrivacy,
+                  agreeLocationTerms: _agreeLocationTerms,
                   confirmOver14: _confirmOver14,
                   onAgreeTermsChanged: (value) {
                     setState(() => _agreeTerms = value);
                   },
                   onAgreePrivacyChanged: (value) {
                     setState(() => _agreePrivacy = value);
+                  },
+                  onAgreeLocationTermsChanged: (value) {
+                    setState(() => _agreeLocationTerms = value);
                   },
                   onConfirmOver14Changed: (value) {
                     setState(() => _confirmOver14 = value);
@@ -418,6 +423,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     final now = DateTime.now();
     final terms = LegalPolicyConstants.byType(LegalPolicyType.termsOfService);
     final privacy = LegalPolicyConstants.byType(LegalPolicyType.privacyPolicy);
+    final location = LegalPolicyConstants.byType(LegalPolicyType.locationTerms);
     return [
       RegisterConsent(
         type: 'TERMS_OF_SERVICE',
@@ -429,6 +435,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         type: 'PRIVACY_POLICY',
         version: privacy.version,
         agreed: _agreePrivacy,
+        agreedAt: now,
+      ),
+      RegisterConsent(
+        type: 'LOCATION_TERMS',
+        version: location.version,
+        agreed: _agreeLocationTerms,
         agreedAt: now,
       ),
       RegisterConsent(
@@ -482,6 +494,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     final now = DateTime.now().toLocal();
     final terms = LegalPolicyConstants.byType(LegalPolicyType.termsOfService);
     final privacy = LegalPolicyConstants.byType(LegalPolicyType.privacyPolicy);
+    final location = LegalPolicyConstants.byType(LegalPolicyType.locationTerms);
     Widget buildConfirmBody(BuildContext buildContext) {
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -499,6 +512,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           _ConfirmLine(text: '${terms.type.label(context)} ${terms.version}'),
           _ConfirmLine(
             text: '${privacy.type.label(context)} ${privacy.version}',
+          ),
+          _ConfirmLine(
+            text: '${location.type.label(context)} ${location.version}',
           ),
           _ConfirmLine(
             text: context.l10n(
@@ -645,17 +661,21 @@ class _ConsentSection extends StatelessWidget {
   const _ConsentSection({
     required this.agreeTerms,
     required this.agreePrivacy,
+    required this.agreeLocationTerms,
     required this.confirmOver14,
     required this.onAgreeTermsChanged,
     required this.onAgreePrivacyChanged,
+    required this.onAgreeLocationTermsChanged,
     required this.onConfirmOver14Changed,
   });
 
   final bool agreeTerms;
   final bool agreePrivacy;
+  final bool agreeLocationTerms;
   final bool confirmOver14;
   final ValueChanged<bool> onAgreeTermsChanged;
   final ValueChanged<bool> onAgreePrivacyChanged;
+  final ValueChanged<bool> onAgreeLocationTermsChanged;
   final ValueChanged<bool> onConfirmOver14Changed;
 
   @override
@@ -685,6 +705,15 @@ class _ConsentSection extends StatelessWidget {
             ja: 'プライバシーポリシーに同意 (必須)',
           ),
           onChanged: onAgreePrivacyChanged,
+        ),
+        _ConsentCheckTile(
+          value: agreeLocationTerms,
+          label: context.l10n(
+            ko: '위치정보 이용약관 동의 (필수)',
+            en: 'Agree to Location Terms (Required)',
+            ja: '位置情報利用規約に同意 (必須)',
+          ),
+          onChanged: onAgreeLocationTermsChanged,
         ),
         _ConsentCheckTile(
           value: confirmOver14,

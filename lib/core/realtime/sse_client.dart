@@ -68,13 +68,16 @@ class SseClient {
     required SecureStorage secureStorage,
     String? baseUrl,
     http.Client Function()? clientFactory,
+    Future<bool> Function()? ensureFreshToken,
   }) : _secureStorage = secureStorage,
        _baseUrl = baseUrl ?? AppConfig.instance.baseUrl,
-       _clientFactory = clientFactory ?? http.Client.new;
+       _clientFactory = clientFactory ?? http.Client.new,
+       _ensureFreshToken = ensureFreshToken;
 
   final SecureStorage _secureStorage;
   final String _baseUrl;
   final http.Client Function() _clientFactory;
+  final Future<bool> Function()? _ensureFreshToken;
 
   /// EN: Connect to SSE endpoint with bearer token when available.
   /// KO: 가능하면 bearer 토큰을 포함해 SSE 엔드포인트에 연결합니다.
@@ -93,6 +96,11 @@ class SseClient {
       request.headers[ApiHeaders.clientType] = ApiHeaders.clientTypeMobile;
       if (lastEventId != null && lastEventId.isNotEmpty) {
         request.headers['Last-Event-ID'] = lastEventId;
+      }
+
+      final ensureFreshToken = _ensureFreshToken;
+      if (ensureFreshToken != null) {
+        await ensureFreshToken();
       }
 
       final accessToken = await _secureStorage.getAccessToken();

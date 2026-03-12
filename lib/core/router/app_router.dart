@@ -26,6 +26,7 @@ import '../../features/feed/presentation/pages/post_create_page.dart';
 import '../../features/feed/presentation/pages/post_detail_page.dart';
 import '../../features/feed/presentation/pages/unit_detail_page.dart';
 import '../../features/feed/presentation/pages/voice_actor_detail_page.dart';
+import '../../features/music/presentation/pages/music_song_detail_page.dart';
 import '../../features/projects/domain/entities/project_entities.dart'
     show Unit, UnitMember;
 import '../../features/feed/presentation/pages/post_edit_page.dart';
@@ -114,8 +115,10 @@ class AppRoutes {
   static const String unitDetail = 'unit-detail';
   static const String memberDetail = 'member-detail';
   static const String voiceActorDetail = 'voice-actor-detail';
+  static const String songDetail = 'song-detail';
   static const String postDetail = 'post-detail';
   static const String overlayPostDetail = 'overlay-post-detail';
+  static const String overlaySongDetail = 'overlay-song-detail';
   static const String postCreate = 'post-create';
   static const String travelReviewCreate = 'travelReviewCreate';
   static const String travelReviewDetail = 'travelReviewDetail';
@@ -409,6 +412,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       );
                     },
                   ),
+                  GoRoute(
+                    path: 'songs/:songId',
+                    name: AppRoutes.songDetail,
+                    pageBuilder: (context, state) {
+                      final projectId =
+                          state.uri.queryParameters['projectId'] ?? '';
+                      if (projectId.trim().isEmpty) {
+                        return _buildAdaptiveDetailPage(
+                          key: state.pageKey,
+                          child: const _InvalidNavigationPage(
+                            message: '악곡 상세 경로 인자가 올바르지 않습니다. (projectId)',
+                          ),
+                        );
+                      }
+                      final songId = state.pathParameters['songId']!;
+                      final eventId = state.uri.queryParameters['eventId'];
+                      return _buildAdaptiveDetailPage(
+                        key: state.pageKey,
+                        child: MusicSongDetailPage(
+                          projectId: projectId,
+                          songId: songId,
+                          eventId: eventId,
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ],
@@ -661,6 +690,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
+      GoRoute(
+        path: '/overlay/music/songs/:songId',
+        name: AppRoutes.overlaySongDetail,
+        pageBuilder: (context, state) {
+          final projectId = state.uri.queryParameters['projectId'] ?? '';
+          if (projectId.trim().isEmpty) {
+            return _buildAdaptiveDetailPage(
+              key: state.pageKey,
+              child: const _InvalidNavigationPage(
+                message: '악곡 상세 경로 인자가 올바르지 않습니다. (projectId)',
+              ),
+            );
+          }
+          final songId = state.pathParameters['songId']!;
+          final eventId = state.uri.queryParameters['eventId'];
+          return _buildAdaptiveDetailPage(
+            key: state.pageKey,
+            child: MusicSongDetailPage(
+              projectId: projectId,
+              songId: songId,
+              eventId: eventId,
+            ),
+          );
+        },
+      ),
 
       // EN: Visit routes (top-level overlays to avoid duplicate key with /settings)
       // KO: 방문 라우트 (중복 key 방지를 위해 /settings 외부의 최상위 오버레이)
@@ -792,6 +846,7 @@ extension AppRouterExtension on BuildContext {
         path.startsWith('/visit-stats') ||
         path.startsWith('/notifications') ||
         path.startsWith('/search') ||
+        path.startsWith('/overlay/music') ||
         path.startsWith('/overlay');
   }
 
@@ -915,6 +970,51 @@ extension AppRouterExtension on BuildContext {
         return;
       case _ShellNavigationAction.push:
         pushNamed(AppRoutes.newsDetail, pathParameters: {'newsId': newsId});
+        return;
+    }
+  }
+
+  /// EN: Navigate to song detail.
+  /// KO: 악곡 상세로 이동합니다.
+  void goToSongDetail(
+    String songId, {
+    required String projectId,
+    String? eventId,
+  }) {
+    final trimmedProjectId = projectId.trim();
+    if (trimmedProjectId.isEmpty) {
+      return;
+    }
+    final queryParameters = <String, String>{
+      'projectId': trimmedProjectId,
+      if (eventId != null && eventId.trim().isNotEmpty) 'eventId': eventId,
+    };
+    if (_isInOverlayContext()) {
+      pushNamed(
+        AppRoutes.overlaySongDetail,
+        pathParameters: {'songId': songId},
+        queryParameters: queryParameters,
+      );
+      return;
+    }
+    final router = GoRouter.of(this);
+    final targetPath = router.namedLocation(
+      AppRoutes.songDetail,
+      pathParameters: {'songId': songId},
+      queryParameters: queryParameters,
+    );
+    switch (_resolveShellNavigationAction(targetPath)) {
+      case _ShellNavigationAction.go:
+        go(targetPath);
+        return;
+      case _ShellNavigationAction.none:
+        return;
+      case _ShellNavigationAction.push:
+        pushNamed(
+          AppRoutes.songDetail,
+          pathParameters: {'songId': songId},
+          queryParameters: queryParameters,
+        );
         return;
     }
   }

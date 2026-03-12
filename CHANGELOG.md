@@ -1,5 +1,107 @@
 # Changelog
 
+## 2026-03-12
+- **MANDATORY CONSENT 3-TYPE ENFORCEMENT (TERMS/PRIVACY/LOCATION)**:
+  - 필수 동의 게이트를 3종 정책 기준으로 강화했습니다.
+    - `TERMS_OF_SERVICE`
+    - `PRIVACY_POLICY`
+    - `LOCATION_TERMS`
+  - 필수 동의 제출 시 3종 세트를 구성하지 못하면 클라이언트에서 제출을 차단하고 안내 메시지를 노출합니다.
+  - 로그인 상태에서 액세스 토큰 리프레시가 발생할 때마다
+    `GET /api/v1/users/me/consent-status` 재확인이 수행되도록 트리거를 추가했습니다.
+  - 필수 동의 오버레이 문구/라벨에 위치정보 이용약관 타입을 반영했습니다.
+  - 회원가입 동의 섹션에도 위치정보 이용약관 체크를 추가하고
+    가입 payload에 `LOCATION_TERMS`를 포함하도록 반영했습니다.
+  - 법률 정책 상수 버전을 `v2026.03.12`로 업데이트했습니다.
+  - Validation:
+    - `dart analyze lib/features/settings/application/mandatory_consent_controller.dart lib/app.dart lib/features/auth/presentation/pages/register_page.dart lib/core/constants/legal_policy_constants.dart test/features/settings/application/mandatory_consent_controller_test.dart` ✅
+    - `flutter test test/features/settings/application/mandatory_consent_controller_test.dart` ✅
+
+- **MUSIC INFORMATION + LIVE SETLIST FRONTEND INTEGRATION (FE-REQ-MUSIC-20260312)**:
+  - 신규 `music` feature 모듈을 추가하고 아래 엔드포인트를 앱에 연동했습니다.
+    - 앨범: cursor 목록/상세
+    - 곡: cursor 목록/상세
+    - 가사/파트/콜표
+    - 버전/크레딧/난이도/미디어/가용성
+    - 라이브 컨텍스트(eventId 필수)
+    - 라이브 세트리스트(`COMPLETED` 포함)
+  - Info 탭 `악곡` 페이지를 플레이스홀더에서 실데이터 UI로 교체했습니다.
+    - 앨범 수평 리스트 + 곡 리스트(무한 스크롤 커서 load-more)
+  - 곡 상세 페이지를 신규 추가했습니다.
+    - 가사 토글(`Romanized`, `Translated`) + 파트 + 콜표 + 크레딧 + 지표/가용성 + 미디어 링크 렌더
+  - 라우팅 추가:
+    - `/info/songs/:songId?projectId=...&eventId=...`
+    - `/overlay/music/songs/:songId?...`
+    - `context.goToSongDetail(...)`
+  - 라이브 상세 페이지에 세트리스트 섹션을 추가했습니다.
+    - `songId` 존재 항목만 곡 상세 딥링크 허용
+    - `songId=null`(legacy fallback) 항목은 비활성 처리
+  - Validation:
+    - `dart analyze` (변경 파일 범위) ✅
+    - `flutter analyze lib/features/music lib/features/feed/presentation/pages/info_page.dart lib/core/router/app_router.dart lib/features/live_events/presentation/pages/live_event_detail_page.dart` ✅
+    - `flutter test test/core/constants/api_endpoints_contract_test.dart` ✅
+
+- **LEGAL POLICY BASELINE DOCS (KOREA COMPLIANCE DRAFT v2026.03.12)**:
+  - 앱 공개용 법률 문서 초안을 신규 작성했습니다.
+  - 생성 문서:
+    - `docs/legal/이용약관_v2026.03.12.md`
+    - `docs/legal/개인정보처리방침_v2026.03.12.md`
+    - `docs/legal/위치정보이용약관_v2026.03.12.md`
+  - 포함 범위:
+    - 이용약관, 개인정보 처리방침, 위치정보 이용약관의 기본 조항 정리
+    - 대한민국 법령 준수 기준(개인정보보호법/위치정보법/약관규제법) 반영
+    - 게시 전 필수 입력값(사업자·책임자·연락처 등) 플레이스홀더 명시
+
+- **MUSIC INFO BACKEND REQUEST DOC (v1.0.0)**:
+  - 악곡 정보 기능 확장을 위한 백엔드 요청서를 신규 작성했습니다.
+  - 포함 범위:
+    - 앨범/곡/가사/멤버 파트/콜표 API 제안
+    - 버전/언어/타임라인(ms) 계약
+    - 에러코드 제안
+    - QA 체크리스트
+    - 실제 연동 검토용 더미데이터(JSON) 샘플
+    - 추가 제한사항(파라미터 범위, 타임라인 무결성, 필드 길이/개수,
+      캐시 리비전, 레이트 리밋, 상태코드 매핑)
+    - 확장 6항목 상세 계약화:
+      - 버전별 악곡 정보
+      - 라이브 세트리스트 연동
+      - 악곡 크레딧
+      - 난이도/콜 강도
+      - 오디오 프리뷰/외부 스트리밍 링크
+      - 콘텐츠 가용성 메타(국가/기간 제한)
+  - Added:
+    - `docs/api-spec/악곡정보_백엔드요청서_v1.0.0.md`
+
+## 2026-03-11
+- **HOME GREETING HEADER SMALL-DEVICE TEXT CLIPPING FIX**:
+  - 홈 인사말 헤더의 title/subtitle `maxLines`를 1줄 고정에서 2줄 허용으로 변경했습니다.
+  - 작은 기기 폭에서 멘트가 잘리는 문제를 줄이기 위해 텍스트 실제 렌더 높이를
+    측정(`TextPainter`)해 헤더 높이에 동적으로 반영하도록 보강했습니다.
+  - Updated:
+    - `lib/core/widgets/layout/gbt_greeting_header.dart`
+  - Validation:
+    - `flutter analyze lib/core/widgets/layout/gbt_greeting_header.dart` ✅
+
+- **SECURITY + BOOTSTRAP HARDENING (PHASE CONTINUATION)**:
+  - OAuth CSRF 방어를 위해 `state` nonce 생성/저장/검증/소모 흐름을 추가했습니다.
+    - authorize URL에 `state` 파라미터를 포함하고, 콜백에서 provider/state 불일치 시 로그인 완료를 차단합니다.
+  - SSE 연결 전에 `proactiveRefreshIfExpired()`를 실행하도록 연결 경로를 보강했습니다.
+  - Riverpod 초기화 assert 완화를 위해 사용자 권한 프로필 refresh를
+    provider build 즉시 실행에서 post-frame 큐잉으로 변경했습니다.
+  - 필수 동의 컨트롤러의 `ApiClient` 직접 호출을 제거하고
+    `SettingsRepository` 경유 계약으로 마이그레이션했습니다.
+    - `GET /users/me/consent-status`, `POST /users/me/consents` 래핑 메서드 추가
+  - 관리자 화면 서버 호출 하드닝:
+    - 권한 미충족 상태에서는 Admin API 호출을 컨트롤러 레벨에서 차단합니다.
+  - 장소 지도 페이지 성능/안정성 보강:
+    - `GoogleMapController.dispose()` 추가
+    - `addPostFrameCallback` 누적 방지를 위한 프레임당 1회 센터링 스케줄 가드 추가
+  - 방문기록 리포지토리의 강제 캐스트를 제거해 런타임 TypeError 위험을 제거했습니다.
+  - 검증:
+    - `flutter analyze` ✅
+    - `flutter test test/features/settings/application/settings_controller_test.dart` ✅
+    - `flutter test test/features/settings/application/mandatory_consent_controller_test.dart` ✅
+
 ## 2026-03-10
 - **NOTIFICATION SETTINGS 409(CONFLICT) AUTO-RECOVERY**:
   - `/api/v1/notifications/settings` 저장 시 `409 CONFLICT`가 반환되면

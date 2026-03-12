@@ -487,9 +487,9 @@ class PlaceDetailPage extends ConsumerWidget {
                               .map(
                                 (unit) => Chip(
                                   label: Text(
-                                    unit.code.isNotEmpty
-                                        ? unit.code
-                                        : unit.displayName,
+                                    unit.displayName.isNotEmpty
+                                        ? unit.displayName
+                                        : unit.code,
                                   ),
                                   visualDensity: VisualDensity.compact,
                                 ),

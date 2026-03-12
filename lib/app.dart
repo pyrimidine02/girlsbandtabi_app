@@ -36,6 +36,9 @@ class GBTApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // EN: Keep local notifications initialized once at app scope.
+    // KO: 앱 전역에서 로컬 알림 초기화를 1회 유지합니다.
+    ref.watch(localNotificationsBootstrapProvider);
     // EN: Keep notification realtime sync alive at app scope.
     // KO: 앱 전역에서 알림 실시간 동기화를 유지합니다.
     ref.watch(notificationsRealtimeBootstrapProvider);
@@ -72,7 +75,6 @@ class GBTApp extends ConsumerWidget {
         );
       },
     );
-    unawaited(ref.read(localNotificationsServiceProvider).initialize());
 
     final themeMode = ref.watch(themeModeProvider);
     final appLocale = ref.watch(localeProvider);
@@ -252,13 +254,6 @@ class _MandatoryConsentGate extends ConsumerWidget {
     final isAuthenticated = ref.watch(isAuthenticatedProvider);
     final state = ref.watch(mandatoryConsentControllerProvider);
 
-    if (isAuthenticated && !state.hasResolved && !state.isLoading) {
-      Future<void>(() async {
-        if (!ref.read(isAuthenticatedProvider)) return;
-        await ref.read(mandatoryConsentControllerProvider.notifier).refresh();
-      });
-    }
-
     final shouldBlockForLoading =
         isAuthenticated &&
         (!state.hasResolved || (state.isLoading && !state.isRequired));
@@ -362,9 +357,9 @@ class _MandatoryConsentOverlayState
               const SizedBox(height: GBTSpacing.sm),
               Text(
                 context.l10n(
-                  ko: '이용약관과 개인정보 처리방침 동의 전에는 앱을 사용할 수 없습니다.',
-                  en: 'You cannot use the app until required consents are accepted.',
-                  ja: '必須同意前はアプリを利用できません。',
+                  ko: '이용약관·개인정보 처리방침·위치정보 이용약관 동의 전에는 앱을 사용할 수 없습니다.',
+                  en: 'You cannot use the app until all required terms, privacy, and location consents are accepted.',
+                  ja: '利用規約・プライバシーポリシー・位置情報利用規約への同意前はアプリを利用できません。',
                 ),
                 style: GBTTypography.bodySmall,
               ),
@@ -486,6 +481,11 @@ class _MandatoryConsentOverlayState
         en: 'Privacy policy',
         ja: 'プライバシーポリシー',
       ),
+      'LOCATION_TERMS' => context.l10n(
+        ko: '위치정보 이용약관',
+        en: 'Location terms',
+        ja: '位置情報利用規約',
+      ),
       _ => type,
     };
   }
@@ -493,7 +493,7 @@ class _MandatoryConsentOverlayState
   void _syncAgreementState({bool initial = false}) {
     final next = <String, bool>{};
     for (final consent in widget.requiredConsents) {
-      if (!consent.needsReconsent) {
+      if (!isBlockingRequiredConsent(consent)) {
         next[consent.type] = true;
         continue;
       }

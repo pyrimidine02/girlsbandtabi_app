@@ -56,7 +56,7 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
   }
 
   void _handleTabChange() {
-    if (!mounted) return;
+    if (!mounted || _tabController.indexIsChanging) return;
     setState(() {});
   }
 
@@ -174,7 +174,9 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                 isUpcoming: false,
                 state: eventsState,
                 selectedYear: effectiveSelectedYear,
-                topPadding: showYearFilter ? 88.0 : 44.0, // Band filters + Year filters
+                topPadding: showYearFilter
+                    ? 88.0
+                    : 44.0, // Band filters + Year filters
                 onRefresh: () => ref
                     .read(liveEventsListControllerProvider.notifier)
                     .load(forceRefresh: true),
@@ -203,16 +205,21 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                         unitsState: unitsState,
                         selectedBandIds: selectedBandIds,
                         onSelectAll: () {
-                          ref.read(selectedLiveBandIdsProvider.notifier).state = [];
+                          ref.read(selectedLiveBandIdsProvider.notifier).state =
+                              [];
                         },
                         onToggleBand: (id) {
                           final current = ref.read(selectedLiveBandIdsProvider);
                           if (current.contains(id)) {
-                            ref.read(selectedLiveBandIdsProvider.notifier).state = current
+                            ref
+                                .read(selectedLiveBandIdsProvider.notifier)
+                                .state = current
                                 .where((e) => e != id)
                                 .toList();
                           } else {
-                            ref.read(selectedLiveBandIdsProvider.notifier).state = [
+                            ref
+                                .read(selectedLiveBandIdsProvider.notifier)
+                                .state = [
                               ...current,
                               id,
                             ];
@@ -224,10 +231,20 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                           years: availableYears,
                           selectedYear: effectiveSelectedYear,
                           onSelectAll: () {
-                            ref.read(selectedLiveEventYearProvider.notifier).state = null;
+                            ref
+                                    .read(
+                                      selectedLiveEventYearProvider.notifier,
+                                    )
+                                    .state =
+                                null;
                           },
                           onSelectYear: (year) {
-                            ref.read(selectedLiveEventYearProvider.notifier).state = year;
+                            ref
+                                    .read(
+                                      selectedLiveEventYearProvider.notifier,
+                                    )
+                                    .state =
+                                year;
                           },
                         ),
                     ],
@@ -483,7 +500,12 @@ class _EventList extends StatelessWidget {
       child: state.when(
         loading: () => ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(0, topPadding + GBTSpacing.sm, 0, GBTSpacing.sm),
+          padding: EdgeInsets.fromLTRB(
+            0,
+            topPadding + GBTSpacing.sm,
+            0,
+            GBTSpacing.sm,
+          ),
           children: [
             GBTListSkeleton(
               itemCount: 4,
@@ -504,14 +526,12 @@ class _EventList extends StatelessWidget {
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.fromLTRB(
-              GBTSpacing.pageHorizontal, 
-              topPadding + GBTSpacing.lg, 
-              GBTSpacing.pageHorizontal, 
+              GBTSpacing.pageHorizontal,
+              topPadding + GBTSpacing.lg,
+              GBTSpacing.pageHorizontal,
               GBTSpacing.lg,
             ),
-            children: [
-              GBTErrorState(message: message, onRetry: onRetry),
-            ],
+            children: [GBTErrorState(message: message, onRetry: onRetry)],
           );
         },
         data: (events) {
@@ -537,9 +557,9 @@ class _EventList extends StatelessWidget {
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: EdgeInsets.fromLTRB(
-                GBTSpacing.pageHorizontal, 
-                topPadding + GBTSpacing.lg, 
-                GBTSpacing.pageHorizontal, 
+                GBTSpacing.pageHorizontal,
+                topPadding + GBTSpacing.lg,
+                GBTSpacing.pageHorizontal,
                 GBTSpacing.lg,
               ),
               children: [
@@ -740,9 +760,9 @@ class _BandChipFilterRow extends StatelessWidget {
                 onTap: onSelectAll,
               ),
               ...units.map((unit) {
-                final label = unit.code.isNotEmpty
-                    ? unit.code
-                    : unit.displayName;
+                final label = unit.displayName.isNotEmpty
+                    ? unit.displayName
+                    : unit.code;
                 return Padding(
                   padding: const EdgeInsets.only(left: GBTSpacing.xs2),
                   child: _BandChip(
