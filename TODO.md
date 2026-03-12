@@ -1,5 +1,44 @@
 # TODO
 
+- Backend follow-up for banner feature (2026-03-13):
+  - `GET /api/v1/users/me/banner`, `PUT /api/v1/users/me/banner`, `DELETE /api/v1/users/me/banner`,
+    `GET /api/v1/banners` 엔드포인트 서버 구현 확인.
+  - `BannerItem.isActive` 필드를 서버가 사용자 컨텍스트 기반으로 올바르게 반환하는지 확인.
+  - 배너 카탈로그 cache TTL(1h)이 서버 업데이트 주기와 적절한지 운영 협의.
+  - 배너 해금 조건(tier, title) 서버-클라 동기화 방식 확정 (현재: `unlockDescription` 문자열 기반).
+  - Widget test 추가: `BannerPickerPage` 로딩/오류/데이터 상태 최소 커버리지 확보.
+
+
+
+- Run QA for offline mode phase 1 (2026-03-13):
+  - 오프라인 진입 시 홈/장소/피드 등 캐시 기반 화면이 네트워크 재시도 루프 없이 기존 캐시를 즉시 보여주는지 확인.
+  - 오프라인 + 캐시 미스 화면에서 `offline_cache_miss` 메시지 정책이 일관되게 노출되는지 확인.
+  - 즐겨찾기 토글을 오프라인에서 반복 변경했을 때 마지막 상태만 대기 작업으로 유지되는지 확인.
+  - 온라인 복귀 직후 즐겨찾기 대기 작업이 자동 동기화되고 목록 상태가 서버와 일치하는지 확인.
+  - 게시글 좋아요/북마크 토글을 오프라인에서 반복 변경했을 때 마지막 상태만 대기 작업으로 유지되는지 확인.
+  - 게시글 상세/피드 카드에서 오프라인 토글 후 즉시 UI 반영되고, 온라인 복귀 후 서버 상태와 재동기화되는지 확인.
+  - 라이브 상세에서 출석 토글을 오프라인으로 반복 변경했을 때 마지막 상태만 대기 작업으로 유지되는지 확인.
+  - 오프라인 상태로 라이브 상세 재진입 시 대기 작업 기준 출석 상태가 즉시 반영되는지 확인.
+  - 온라인 복귀 직후 라이브 출석 대기 작업이 자동 동기화되고 방문 기록(라이브 탭)에 반영되는지 확인.
+  - 로그아웃 상태에서 즐겨찾기/라이브 출석 대기 작업이 오작동/무한재시도하지 않는지 확인.
+
+- Run brand QA for logo concept v1 (2026-03-12):
+  - `docs/design/logo/girlsbandtabi_logo_v1.svg`를 iOS/Android 앱아이콘 마스킹 기준으로 시각 검수.
+  - 작은 크기(24/32/48px)에서 음표/픽 식별성 확인.
+  - 다크/라이트 배경 각각에서 대비(contrast) 기준 확인.
+
+- Backend follow-up for community report reason enum expansion (2026-03-12):
+  - 서버 `community report reason` enum에
+    `TRADE_INDUCEMENT`, `FALSE_REPORT_ABUSE`, `MANIPULATION_ABUSE`
+    정식 추가 가능 여부 확인.
+  - 서버 정식 지원 완료 시 프런트 fallback(`reason=OTHER + description marker`)
+    제거하고 직접 코드 전송으로 전환.
+
+- Run policy-ops QA for community rules hardening (2026-03-12):
+  - `docs/legal/커뮤니티이용규칙_v2026.03.12.md` 공지본 반영 전 운영/법무 최종 검토.
+  - 신고 사유 UI에 `거래 유도`, `허위/보복 신고`, `조작/어뷰징` 추가 필요 여부 확정.
+  - 운영툴 임시조치(게시글/댓글 잠금, 쿨다운) 액션 지원 범위 확정.
+
 - Run QA for music information + live setlist frontend integration (2026-03-12):
   - Info > 악곡 탭에서 앨범/곡 목록이 프로젝트 전환 시 정상 갱신되는지 확인.
   - 곡 목록 하단 스크롤 시 cursor 기반 load-more가 중복 호출 없이 동작하는지 확인.
@@ -852,3 +891,11 @@
     `docs/legal/개인정보처리방침_v2026.03.12.md`,
     `docs/legal/위치정보이용약관_v2026.03.12.md` with real operator/contact data.
   - run legal review and then align app policy constants/version (`lib/core/constants/legal_policy_constants.dart`).
+- Add widget tests for music tab unit classification:
+  - selecting unit chip filters both album cards and track cards.
+  - stale selected unit should fallback to `All` when option disappears.
+  - verify empty-state copy for selected-unit no-results scenario.
+- Add widget tests for member-part lyric colorization in song detail:
+  - tap part badge selects member and toggles line emphasis.
+  - `lyricLineId` missing segments map to lyric line via time-overlap fallback.
+  - `DUET/UNISON/HARMONY` lines render mixed-color gradient state.

@@ -101,7 +101,12 @@ final class CacheFailure extends Failure {
   const CacheFailure(super.message, {super.code, super.stackTrace});
 
   @override
-  String get userMessage => '데이터를 불러올 수 없습니다';
+  String get userMessage {
+    return switch (code) {
+      'offline_cache_miss' => '오프라인 상태라 저장된 데이터를 찾을 수 없습니다',
+      _ => '데이터를 불러올 수 없습니다',
+    };
+  }
 }
 
 /// EN: Location/Permission-related failures

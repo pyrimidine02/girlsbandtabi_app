@@ -14,6 +14,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
+import '../../../../core/widgets/common/gbt_linkified_text.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../favorites/application/favorites_controller.dart';
 import '../../../favorites/domain/entities/favorite_entities.dart';
@@ -1346,7 +1347,7 @@ class _ReviewCard extends StatelessWidget {
           // KO: 본문 텍스트.
           if (comment.body.isNotEmpty) ...[
             const SizedBox(height: GBTSpacing.sm),
-            Text(
+            GBTLinkifiedText(
               comment.body,
               style: GBTTypography.bodyMedium.copyWith(
                 color: isDark

@@ -85,6 +85,13 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
     final unitsState = isTabActive && resolvedProjectKey.isNotEmpty
         ? ref.watch(projectUnitsControllerProvider(resolvedProjectKey))
         : const AsyncValue<List<Unit>>.data([]);
+    final attendanceHistoryState = ref.watch(
+      liveAttendanceHistoryControllerProvider,
+    );
+    final attendedEventIds = attendanceHistoryState.items
+        .where((record) => record.attended && !record.isNone)
+        .map((record) => record.eventId)
+        .toSet();
     final avatarUrl = ref
         .watch(userProfileControllerProvider)
         .valueOrNull
@@ -161,6 +168,7 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
               _EventList(
                 isUpcoming: true,
                 state: eventsState,
+                attendedEventIds: attendedEventIds,
                 selectedYear: null,
                 topPadding: 44.0, // Only band filters
                 onRefresh: () => ref
@@ -173,6 +181,7 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
               _EventList(
                 isUpcoming: false,
                 state: eventsState,
+                attendedEventIds: attendedEventIds,
                 selectedYear: effectiveSelectedYear,
                 topPadding: showYearFilter
                     ? 88.0
@@ -480,6 +489,7 @@ class _EventList extends StatelessWidget {
   const _EventList({
     required this.isUpcoming,
     required this.state,
+    required this.attendedEventIds,
     required this.selectedYear,
     required this.topPadding,
     required this.onRefresh,
@@ -488,6 +498,7 @@ class _EventList extends StatelessWidget {
 
   final bool isUpcoming;
   final AsyncValue<List<LiveEventSummary>> state;
+  final Set<String> attendedEventIds;
   final int? selectedYear;
   final double topPadding;
   final Future<void> Function() onRefresh;
@@ -671,6 +682,7 @@ class _EventList extends StatelessWidget {
               final event = filtered[index];
               final isLive = event.statusLabel.toLowerCase() == 'live';
               final isFeatured = isUpcoming && featuredEventId == event.id;
+              final isAttended = attendedEventIds.contains(event.id);
               final timeStr = DateFormat(
                 'HH:mm',
               ).format(event.showStartTime.toLocal());
@@ -705,6 +717,11 @@ class _EventList extends StatelessWidget {
                   posterUrl: event.bannerUrl,
                   isLive: isLive,
                   isUpcoming: event.isUpcoming,
+                  highlightBorderColor: isAttended
+                      ? (Theme.of(context).brightness == Brightness.dark
+                            ? GBTColors.darkSecondary
+                            : GBTColors.secondary)
+                      : null,
                   onTap: () => context.goToLiveDetail(event.id),
                 ),
               );

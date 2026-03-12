@@ -34,11 +34,25 @@ class PostListController extends StateNotifier<AsyncValue<List<PostSummary>>> {
       if (next != _kBoardNavIndex || next == previous) {
         return;
       }
-      load(forceRefresh: true);
+      // EN: Only load on tab return if there is no data yet — background
+      // EN: polling handles freshness while the tab is active.
+      // KO: 데이터가 없을 때만 탭 복귀 시 로드 — 탭 활성 중 백그라운드 폴링이 최신성을 유지합니다.
+      if (state.valueOrNull == null) load();
     });
   }
 
   final Ref _ref;
+
+  /// EN: Prepend new posts to the top of the current list without a full reload.
+  /// KO: 전체 재로딩 없이 새 게시글을 현재 목록 상단에 추가합니다.
+  void prependPosts(List<PostSummary> posts) {
+    final current = state.valueOrNull;
+    if (current == null || posts.isEmpty) return;
+    final existingIds = current.map((p) => p.id).toSet();
+    final unique = posts.where((p) => !existingIds.contains(p.id)).toList();
+    if (unique.isEmpty) return;
+    state = AsyncData([...unique, ...current]);
+  }
 
   Future<void> load({bool forceRefresh = false}) async {
     if (!_isBoardTabActive(_ref)) {

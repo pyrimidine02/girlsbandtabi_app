@@ -17,13 +17,18 @@ import 'core/connectivity/connectivity_service.dart';
 import 'core/localization/locale_text.dart';
 import 'core/notifications/local_notifications_service.dart';
 import 'core/providers/core_providers.dart';
+import 'core/notifications/in_app_notification_queue.dart';
+import 'core/widgets/overlays/in_app_notification_banner.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/gbt_colors.dart';
 import 'core/theme/gbt_spacing.dart';
 import 'core/theme/gbt_typography.dart';
 import 'core/theme/gbt_theme.dart';
 import 'features/notifications/application/notifications_controller.dart';
+import 'features/notifications/domain/entities/notification_entities.dart';
 import 'features/notifications/domain/entities/notification_navigation.dart';
+import 'features/feed/application/reaction_controller.dart';
+import 'features/live_events/application/live_events_controller.dart';
 import 'features/settings/application/mandatory_consent_controller.dart';
 import 'features/settings/application/settings_controller.dart';
 
@@ -48,6 +53,12 @@ class GBTApp extends ConsumerWidget {
     // EN: Keep user authorization profile in sync with login/refresh lifecycle.
     // KO: 로그인/토큰 갱신 주기에 맞춰 사용자 권한 프로필을 동기화합니다.
     ref.watch(userAuthorizationBootstrapProvider);
+    // EN: Keep post reaction offline outbox sync alive at app scope.
+    // KO: 앱 전역에서 게시글 반응 오프라인 대기열 동기화를 유지합니다.
+    ref.watch(postReactionOutboxBootstrapProvider);
+    // EN: Keep live attendance offline outbox sync alive at app scope.
+    // KO: 앱 전역에서 라이브 출석 오프라인 대기열 동기화를 유지합니다.
+    ref.watch(liveAttendanceOutboxBootstrapProvider);
 
     final router = ref.watch(appRouterProvider);
     _trackScreenViewIfNeeded(ref: ref, router: router);
@@ -73,6 +84,36 @@ class GBTApp extends ConsumerWidget {
             tapEvent: tapEvent,
           ),
         );
+      },
+    );
+
+    // EN: Forward foreground FCM messages to the in-app banner queue.
+    // KO: 포그라운드 FCM 메시지를 인앱 배너 큐로 전달합니다.
+    ref.listen<AsyncValue<NotificationItem>>(
+      remotePushForegroundMessagesProvider,
+      (_, next) {
+        next.whenData((item) {
+          const inAppTypes = {
+            notificationTypePostCreated,  // POST_CREATED
+            'COMMENT_CREATED',
+            'COMMENT_REPLY_CREATED',
+          };
+          final type = normalizeNotificationType(item.type);
+          if (inAppTypes.contains(type)) {
+            ref.read(inAppNotificationQueueProvider.notifier).push(
+              InAppNotificationEntry(
+                id: item.id,
+                title: item.title,
+                body: item.body,
+                type: type,
+                entityId: item.entityId,
+                deeplink: item.deeplink,
+                actionUrl: item.actionUrl,
+                projectCode: item.projectCode,
+              ),
+            );
+          }
+        });
       },
     );
 
@@ -147,10 +188,12 @@ class GBTApp extends ConsumerWidget {
               onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
               child: DecoratedBox(
                 decoration: BoxDecoration(gradient: backgroundGradient),
-                child: _MandatoryConsentGate(
-                  child: _NotificationsLifecycleBridge(
-                    child: _ConnectivityWrapper(
-                      child: child ?? const SizedBox.shrink(),
+                child: InAppNotificationBannerOverlay(
+                  child: _MandatoryConsentGate(
+                    child: _NotificationsLifecycleBridge(
+                      child: _ConnectivityWrapper(
+                        child: child ?? const SizedBox.shrink(),
+                      ),
                     ),
                   ),
                 ),

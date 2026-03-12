@@ -17,6 +17,7 @@ import '../analytics/analytics_service.dart';
 import '../location/location_service.dart';
 import '../notifications/local_notifications_service.dart';
 import '../notifications/remote_push_service.dart';
+import '../../features/notifications/domain/entities/notification_entities.dart';
 import '../realtime/sse_client.dart';
 import '../security/secure_storage.dart';
 import '../storage/local_storage.dart';
@@ -42,7 +43,11 @@ final localStorageProvider = FutureProvider<LocalStorage>((ref) async {
 /// KO: 캐시 매니저 프로바이더 (비동기 초기화 필요).
 final cacheManagerProvider = FutureProvider<CacheManager>((ref) async {
   final localStorage = await ref.read(localStorageProvider.future);
-  return CacheManager(localStorage);
+  final connectivityService = ref.watch(connectivityServiceProvider);
+  return CacheManager(
+    localStorage,
+    isOnline: () => connectivityService.isOnline,
+  );
 });
 
 // ========================================
@@ -120,6 +125,13 @@ final remotePushServiceProvider = Provider<RemotePushService>((ref) {
   ref.onDispose(service.dispose);
   return service;
 });
+
+/// EN: Stream provider for foreground FCM messages — feeds the in-app banner queue.
+/// KO: 인앱 배너 큐에 공급하기 위한 포그라운드 FCM 메시지 스트림 프로바이더입니다.
+final remotePushForegroundMessagesProvider =
+    StreamProvider<NotificationItem>((ref) {
+      return ref.watch(remotePushServiceProvider).foregroundMessages;
+    });
 
 /// EN: Stream provider for remote-push open tap events.
 /// KO: 원격 푸시 오픈 탭 이벤트 스트림 프로바이더입니다.

@@ -49,6 +49,7 @@ import '../../features/visits/presentation/pages/visit_stats_page.dart';
 import '../../features/favorites/presentation/pages/favorites_page.dart';
 import '../../features/search/presentation/pages/search_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
+import '../../features/profile_banner/presentation/pages/banner_picker_page.dart';
 
 DateTime? _lastPostDetailNavigationAt;
 String? _lastPostDetailNavigationPath;
@@ -146,6 +147,10 @@ class AppRoutes {
   static const String search = 'search';
   static const String notifications = 'notifications';
   static const String favorites = 'favorites';
+
+  // EN: Profile banner picker overlay route.
+  // KO: 프로필 배너 피커 오버레이 라우트.
+  static const String bannerPicker = 'banner-picker';
 }
 
 /// EN: Navigation shell branch index
@@ -636,6 +641,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/live-attendance',
         redirect: (context, state) => '/visits?tab=live',
+      ),
+
+      // EN: Profile banner picker — overlay route outside the shell.
+      // KO: 프로필 배너 피커 — 쉘 외부 오버레이 라우트.
+      GoRoute(
+        path: '/banner-picker',
+        name: AppRoutes.bannerPicker,
+        pageBuilder: (context, state) {
+          return _buildAdaptiveOverlayPage(
+            key: state.pageKey,
+            child: const BannerPickerPage(),
+          );
+        },
       ),
 
       // EN: Overlay detail routes used when opening details from overlay stacks

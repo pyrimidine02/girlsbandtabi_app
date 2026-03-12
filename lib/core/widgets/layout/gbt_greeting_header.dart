@@ -12,27 +12,46 @@ import '../common/gbt_image.dart';
 
 /// EN: Greeting header that replaces the hero section.
 ///     Displays a time-based greeting with indigo gradient background.
+///     When [userBannerUrl] is provided it takes priority over [backgroundImageUrl].
+///     When [onCustomizeTap] is provided, a small palette icon button appears in
+///     the bottom-right corner of the header to open the banner picker.
 ///     Height: SafeArea.top + kToolbarHeight + 130px (~230-270px)
 /// KO: 히어로 섹션을 대체하는 인사말 헤더.
 ///     시간대별 인사말을 인디고 그라디언트 배경에 표시합니다.
+///     [userBannerUrl]이 제공되면 [backgroundImageUrl]보다 우선 적용됩니다.
+///     [onCustomizeTap]이 제공되면 헤더 오른쪽 하단에 팔레트 아이콘 버튼이 표시되어
+///     배너 피커를 열 수 있습니다.
 ///     높이: SafeArea.top + kToolbarHeight + 130px (~230-270px)
 class GBTGreetingHeader extends StatelessWidget {
   const GBTGreetingHeader({
     super.key,
     this.userName,
     this.backgroundImageUrl,
+    this.userBannerUrl,
     this.featuredTitle,
     this.featuredDate,
     this.featuredPosterUrl,
     this.onFeaturedTap,
+    this.onCustomizeTap,
   });
 
   final String? userName;
   final String? backgroundImageUrl;
+
+  /// EN: User's custom banner URL — takes priority over [backgroundImageUrl].
+  /// KO: 사용자의 커스텀 배너 URL — [backgroundImageUrl]보다 우선 적용됩니다.
+  final String? userBannerUrl;
+
   final String? featuredTitle;
   final String? featuredDate;
   final String? featuredPosterUrl;
   final VoidCallback? onFeaturedTap;
+
+  /// EN: Callback invoked when the user taps the palette customize button.
+  ///     When null the button is not shown.
+  /// KO: 사용자가 팔레트 커스터마이징 버튼을 탭했을 때 호출되는 콜백.
+  ///     null이면 버튼이 표시되지 않습니다.
+  final VoidCallback? onCustomizeTap;
 
   @override
   Widget build(BuildContext context) {
@@ -88,8 +107,19 @@ class GBTGreetingHeader extends StatelessWidget {
     final multilineExtraHeight =
         (titleMultiLineHeight - titleSingleLineHeight) +
         (subtitleMultiLineHeight - subtitleSingleLineHeight);
-    final hasBackgroundImage =
-        backgroundImageUrl != null && backgroundImageUrl!.trim().isNotEmpty;
+    // EN: User banner takes priority over the content-derived background image.
+    // KO: 사용자 배너가 콘텐츠에서 파생된 배경 이미지보다 우선 적용됩니다.
+    final String? effectiveBackgroundUrl;
+    final uBannerUrl = userBannerUrl;
+    if (uBannerUrl != null && uBannerUrl.trim().isNotEmpty) {
+      effectiveBackgroundUrl = uBannerUrl;
+    } else {
+      effectiveBackgroundUrl = backgroundImageUrl;
+    }
+
+    final resolvedBackgroundUrl = (effectiveBackgroundUrl?.trim().isNotEmpty == true)
+        ? effectiveBackgroundUrl
+        : null;
     final hasFeaturedLive =
         featuredTitle != null && featuredTitle!.trim().isNotEmpty;
     final featuredExtraHeight = hasFeaturedLive ? 56.0 : 0.0;
@@ -113,9 +143,9 @@ class GBTGreetingHeader extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (hasBackgroundImage)
+          if (resolvedBackgroundUrl != null)
             GBTImage(
-              imageUrl: backgroundImageUrl!,
+              imageUrl: resolvedBackgroundUrl,
               fit: BoxFit.cover,
               useShimmer: false,
             ),
@@ -164,6 +194,35 @@ class GBTGreetingHeader extends StatelessWidget {
               ],
             ),
           ),
+          // EN: Palette customize button — bottom-right corner floating badge.
+          //     Only shown when [onCustomizeTap] is provided.
+          // KO: 팔레트 커스터마이징 버튼 — 오른쪽 하단 모서리 플로팅 뱃지.
+          //     [onCustomizeTap]이 제공된 경우에만 표시됩니다.
+          if (onCustomizeTap != null)
+            Positioned(
+              right: GBTSpacing.sm,
+              bottom: GBTSpacing.sm,
+              child: Semantics(
+                label: '배너 꾸미기',
+                button: true,
+                child: Material(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    onTap: onCustomizeTap,
+                    customBorder: const CircleBorder(),
+                    child: const Padding(
+                      padding: EdgeInsets.all(GBTSpacing.xs),
+                      child: Icon(
+                        Icons.palette_outlined,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

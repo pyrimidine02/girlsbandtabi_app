@@ -92,6 +92,44 @@ class NotificationsRepositoryImpl implements NotificationsRepository {
     }
   }
 
+  @override
+  Future<Result<void>> deleteNotification(String notificationId) async {
+    try {
+      final result = await _remoteDataSource.deleteNotification(notificationId);
+      if (result is Success<void>) {
+        await _cacheManager.remove(_pagedCacheKey(0, 20));
+        return const Result.success(null);
+      }
+      if (result is Err<void>) {
+        return Result.failure(result.failure);
+      }
+      return Result.failure(
+        const UnknownFailure('Unknown delete result', code: 'unknown_delete'),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<void>> deleteAllNotifications() async {
+    try {
+      final result = await _remoteDataSource.deleteAllNotifications();
+      if (result is Success<void>) {
+        await _cacheManager.remove(_pagedCacheKey(0, 20));
+        return const Result.success(null);
+      }
+      if (result is Err<void>) {
+        return Result.failure(result.failure);
+      }
+      return Result.failure(
+        const UnknownFailure('Unknown delete-all result', code: 'unknown_delete_all'),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
   Future<List<NotificationItemDto>> _fetchNotifications(
     int page,
     int size,

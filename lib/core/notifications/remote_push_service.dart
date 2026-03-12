@@ -239,6 +239,11 @@ class RemotePushService {
   final StreamController<LocalNotificationTapEvent> _tapEventsController =
       StreamController<LocalNotificationTapEvent>.broadcast();
 
+  // EN: Stream of foreground push messages for in-app banner display.
+  // KO: 인앱 배너 표시를 위한 포그라운드 푸시 메시지 스트림입니다.
+  final StreamController<NotificationItem> _foregroundMessageController =
+      StreamController<NotificationItem>.broadcast();
+
   StreamSubscription<String>? _tokenRefreshSubscription;
   StreamSubscription<RemoteMessage>? _foregroundSubscription;
   StreamSubscription<RemoteMessage>? _openedSubscription;
@@ -253,6 +258,11 @@ class RemotePushService {
   /// KO: 기존 알림 라우팅 모델로 매핑된 푸시 오픈 탭 이벤트 스트림입니다.
   Stream<LocalNotificationTapEvent> get tapEvents =>
       _tapEventsController.stream;
+
+  /// EN: Stream of foreground push notification items for in-app banner display.
+  /// KO: 인앱 배너 표시를 위한 포그라운드 푸시 알림 아이템 스트림입니다.
+  Stream<NotificationItem> get foregroundMessages =>
+      _foregroundMessageController.stream;
 
   /// EN: Initialize Firebase messaging hooks.
   /// KO: Firebase 메시징 훅을 초기화합니다.
@@ -433,6 +443,7 @@ class RemotePushService {
     unawaited(_foregroundSubscription?.cancel());
     unawaited(_openedSubscription?.cancel());
     _tapEventsController.close();
+    _foregroundMessageController.close();
   }
 
   Future<bool> _ensureFirebaseReady() async {
@@ -581,20 +592,28 @@ class RemotePushService {
       return;
     }
 
-    if (defaultTargetPlatform == TargetPlatform.iOS &&
-        message.notification != null) {
-      // EN: iOS already presents remote notification in foreground via
-      // EN: setForegroundNotificationPresentationOptions(alert/sound/badge).
-      // KO: iOS는 setForegroundNotificationPresentationOptions 설정으로
-      // KO: 포그라운드 원격 알림을 이미 시스템이 표시하므로 중복 표시를 피합니다.
-      return;
-    }
-
     final item = _toNotificationItem(message);
     if (item == null) {
       return;
     }
-    await _localNotificationsService.showNotificationItem(item);
+
+    // EN: Emit item to the foreground stream so the in-app banner overlay
+    //     can consume it — this works for both Android and iOS.
+    // KO: 인앱 배너 오버레이가 소비할 수 있도록 포그라운드 스트림에 아이템을 발행합니다.
+    //     Android와 iOS 모두 동일하게 처리합니다.
+    _foregroundMessageController.add(item);
+
+    // EN: On Android, also show a system notification as a reliable fallback
+    //     because the in-app banner is only visible while the app is rendered.
+    //     On iOS, setForegroundNotificationPresentationOptions already shows
+    //     the system banner — skip local duplication.
+    // KO: Android에서는 앱이 렌더링 중일 때만 인앱 배너가 보이므로
+    //     시스템 알림을 fallback으로 함께 표시합니다.
+    //     iOS에서는 setForegroundNotificationPresentationOptions가 이미
+    //     시스템 배너를 표시하므로 중복 표시를 건너뜁니다.
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      await _localNotificationsService.showNotificationItem(item);
+    }
   }
 
   void _handleOpenedMessage(RemoteMessage message) {

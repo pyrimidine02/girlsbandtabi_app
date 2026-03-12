@@ -21,6 +21,7 @@ import '../../../../core/utils/image_url_extractor.dart';
 import '../../../../core/utils/media_url.dart';
 import '../../../../core/widgets/common/gbt_action_icons.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
+import '../../../../core/widgets/common/gbt_linkified_text.dart';
 import '../../../../core/widgets/dialogs/gbt_adaptive_dialog.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/sheets/gbt_bottom_sheet.dart';
@@ -1015,333 +1016,332 @@ class _PostDetailContent extends StatelessWidget {
             child: ListView(
               controller: scrollController,
               padding: const EdgeInsets.only(
-              top: GBTSpacing.pageTop,
-              bottom: GBTSpacing.pageBottom,
-            ),
-            children: [
-              // EN: Post content with horizontal page padding.
-              // KO: 게시글 본문 영역 — 수평 페이지 패딩 적용.
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: GBTSpacing.pageHorizontal,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _Avatar(
-                          url: authorAvatarUrl,
-                          radius: 26,
-                          semanticLabel: '$authorLabel 프로필 사진',
-                          onTap: () => onTapAuthor(post.authorId),
-                        ),
-                        const SizedBox(width: GBTSpacing.md),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 4, bottom: 4),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Row(
-                                    children: [
-                                      Flexible(
+                top: GBTSpacing.pageTop,
+                bottom: GBTSpacing.pageBottom,
+              ),
+              children: [
+                // EN: Post content with horizontal page padding.
+                // KO: 게시글 본문 영역 — 수평 페이지 패딩 적용.
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GBTSpacing.pageHorizontal,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _Avatar(
+                            url: authorAvatarUrl,
+                            radius: 26,
+                            semanticLabel: '$authorLabel 프로필 사진',
+                            onTap: () => onTapAuthor(post.authorId),
+                          ),
+                          const SizedBox(width: GBTSpacing.md),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 4, bottom: 4),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            authorLabel,
+                                            style: GBTTypography.titleSmall
+                                                .copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: GBTSpacing.xs),
+                                        Flexible(
+                                          child: Text(
+                                            '· ${post.timeAgoLabel}'
+                                            '${post.updatedAt != null && post.updatedAt!.isAfter(post.createdAt) ? ' · 수정됨' : ''}',
+                                            style: GBTTypography.labelSmall
+                                                .copyWith(color: tertiaryColor),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (!isOwnPost && isAuthenticated) ...[
+                                    const SizedBox(width: GBTSpacing.xs),
+                                    SizedBox(
+                                      height: 27,
+                                      child: FilledButton.tonal(
+                                        onPressed:
+                                            (isFollowLoading || isAuthorBlocked)
+                                            ? null
+                                            : onToggleFollowAuthor,
+                                        style: FilledButton.styleFrom(
+                                          visualDensity: VisualDensity.compact,
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                          shape: const StadiumBorder(),
+                                          minimumSize: const Size(0, 27),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                          ),
+                                        ),
                                         child: Text(
-                                          authorLabel,
-                                          style: GBTTypography.titleSmall
+                                          isAuthorBlocked
+                                              ? '차단됨'
+                                              : (followStatus?.following ??
+                                                    false)
+                                              ? '팔로잉'
+                                              : '팔로우',
+                                          style: GBTTypography.labelSmall
                                               .copyWith(
                                                 fontWeight: FontWeight.w700,
                                               ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      ),
-                                      const SizedBox(width: GBTSpacing.xs),
-                                      Flexible(
-                                        child: Text(
-                                          '· ${post.timeAgoLabel}'
-                                          '${post.updatedAt != null && post.updatedAt!.isAfter(post.createdAt) ? ' · 수정됨' : ''}',
-                                          style: GBTTypography.labelSmall
-                                              .copyWith(
-                                                color: tertiaryColor,
-                                              ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (!isOwnPost && isAuthenticated) ...[
-                                  const SizedBox(width: GBTSpacing.xs),
-                                  SizedBox(
-                                    height: 27,
-                                    child: FilledButton.tonal(
-                                      onPressed:
-                                          (isFollowLoading ||
-                                              isAuthorBlocked)
-                                          ? null
-                                          : onToggleFollowAuthor,
-                                      style: FilledButton.styleFrom(
-                                        visualDensity:
-                                            VisualDensity.compact,
-                                        tapTargetSize: MaterialTapTargetSize
-                                            .shrinkWrap,
-                                        shape: const StadiumBorder(),
-                                        minimumSize: const Size(0, 27),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        isAuthorBlocked
-                                            ? '차단됨'
-                                            : (followStatus?.following ??
-                                                  false)
-                                            ? '팔로잉'
-                                            : '팔로우',
-                                        style: GBTTypography.labelSmall
-                                            .copyWith(
-                                              fontWeight: FontWeight.w700,
-                                            ),
                                       ),
                                     ),
-                                  ),
+                                  ],
                                 ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: GBTSpacing.sm),
-                    Text(
-                      post.title,
-                      style: GBTTypography.titleLarge.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: GBTSpacing.sm + 2),
-                    if (post.moderationStatus ==
-                        ContentModerationStatus.quarantined)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(GBTSpacing.md),
-                        decoration: BoxDecoration(
-                          color: GBTColors.warningLight,
-                          borderRadius: BorderRadius.circular(
-                            GBTSpacing.radiusMd,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.info_outline,
-                              color: GBTColors.warningDark,
-                              size: GBTSpacing.iconSm,
-                            ),
-                            const SizedBox(width: GBTSpacing.sm),
-                            Expanded(
-                              child: Text(
-                                '이 콘텐츠는 현재 검토 중입니다.',
-                                style: GBTTypography.bodySmall.copyWith(
-                                  color: GBTColors.warningDark,
-                                ),
                               ),
-                            ),
-                            if (isOwnPost)
-                              TextButton(
-                                onPressed: onAppealPost,
-                                child: const Text('이의제기'),
-                              ),
-                          ],
-                        ),
-                      ),
-                    if (post.moderationStatus ==
-                        ContentModerationStatus.quarantined)
-                      const SizedBox(height: GBTSpacing.md),
-                    if (contentText.isNotEmpty)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SelectableText(
-                            contentText,
-                            style: GBTTypography.bodyLarge.copyWith(
-                              height: 1.65,
-                              color: secondaryColor,
-                            ),
-                          ),
-                          CommunityTranslationPanel(
-                            contentId: 'post:${post.id}',
-                            text: contentText,
-                            textStyle: GBTTypography.bodyLarge.copyWith(
-                              height: 1.65,
-                              color: secondaryColor,
                             ),
                           ),
                         ],
                       ),
-                    if (mergedImageUrls.isNotEmpty) ...[
+                      const SizedBox(height: GBTSpacing.sm),
+                      Text(
+                        post.title,
+                        style: GBTTypography.titleLarge.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: GBTSpacing.sm + 2),
+                      if (post.moderationStatus ==
+                          ContentModerationStatus.quarantined)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(GBTSpacing.md),
+                          decoration: BoxDecoration(
+                            color: GBTColors.warningLight,
+                            borderRadius: BorderRadius.circular(
+                              GBTSpacing.radiusMd,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.info_outline,
+                                color: GBTColors.warningDark,
+                                size: GBTSpacing.iconSm,
+                              ),
+                              const SizedBox(width: GBTSpacing.sm),
+                              Expanded(
+                                child: Text(
+                                  '이 콘텐츠는 현재 검토 중입니다.',
+                                  style: GBTTypography.bodySmall.copyWith(
+                                    color: GBTColors.warningDark,
+                                  ),
+                                ),
+                              ),
+                              if (isOwnPost)
+                                TextButton(
+                                  onPressed: onAppealPost,
+                                  child: const Text('이의제기'),
+                                ),
+                            ],
+                          ),
+                        ),
+                      if (post.moderationStatus ==
+                          ContentModerationStatus.quarantined)
+                        const SizedBox(height: GBTSpacing.md),
+                      if (contentText.isNotEmpty)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            GBTLinkifiedText(
+                              contentText,
+                              style: GBTTypography.bodyLarge.copyWith(
+                                height: 1.65,
+                                color: secondaryColor,
+                              ),
+                              selectable: true,
+                            ),
+                            CommunityTranslationPanel(
+                              contentId: 'post:${post.id}',
+                              text: contentText,
+                              textStyle: GBTTypography.bodyLarge.copyWith(
+                                height: 1.65,
+                                color: secondaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      if (mergedImageUrls.isNotEmpty) ...[
+                        const SizedBox(height: GBTSpacing.md),
+                        // EN: Horizontal swipeable image carousel (Twitter-style).
+                        // KO: 가로로 넘기는 이미지 캐러셀 (트위터 스타일).
+                        _ImageCarousel(
+                          imageUrls: mergedImageUrls,
+                          onTapImage: (index) => _showFullScreenImage(
+                            context,
+                            mergedImageUrls,
+                            index,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: GBTSpacing.md),
-                      // EN: Horizontal swipeable image carousel (Twitter-style).
-                      // KO: 가로로 넘기는 이미지 캐러셀 (트위터 스타일).
-                      _ImageCarousel(
-                        imageUrls: mergedImageUrls,
-                        onTapImage: (index) => _showFullScreenImage(
-                          context,
-                          mergedImageUrls,
-                          index,
+                      // EN: Stats bar — social proof context (like count) before actions
+                      // KO: 액션 버튼 전에 소셜 증거(좋아요 수)를 보여주는 통계 바
+                      if (likeCount > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.favorite_rounded,
+                                size: 13,
+                                color: GBTColors.favorite.withValues(
+                                  alpha: 0.85,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '좋아요 $likeCount명이 공감했어요',
+                                style: GBTTypography.labelSmall.copyWith(
+                                  color: secondaryColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      // EN: Card-style action bar with vertical dividers between buttons
+                      // KO: 버튼 사이 세로 구분선이 있는 카드 스타일 액션 바
+                      Container(
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? GBTColors.darkSurfaceVariant.withValues(
+                                  alpha: 0.3,
+                                )
+                              : GBTColors.surfaceVariant,
+                          borderRadius: BorderRadius.circular(
+                            GBTSpacing.radiusMd,
+                          ),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Semantics(
+                          label:
+                              '좋아요 $likeCount개, '
+                              '${isLiked ? "좋아요 누른 상태" : "좋아요 안 누른 상태"}, '
+                              '댓글 $commentCountLabel개, '
+                              '${isBookmarked ? "내 저장됨" : "내 저장 안 됨"}',
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _TimelineActionButton(
+                                  icon: GBTActionIcons.comment,
+                                  label: commentCountLabel,
+                                  color: commentActionColor,
+                                  onTap: onFocusComment,
+                                ),
+                              ),
+                              Container(
+                                width: 1,
+                                height: 20,
+                                color: isDark
+                                    ? GBTColors.darkBorder
+                                    : GBTColors.border,
+                              ),
+                              Expanded(
+                                child: _TimelineActionButton(
+                                  icon: isLiked
+                                      ? GBTActionIcons.likeActive
+                                      : GBTActionIcons.like,
+                                  label: _compactCountLabel(likeCount),
+                                  color: isLiked
+                                      ? GBTColors.favorite
+                                      : tertiaryColor,
+                                  onTap: onToggleLike,
+                                ),
+                              ),
+                              Container(
+                                width: 1,
+                                height: 20,
+                                color: isDark
+                                    ? GBTColors.darkBorder
+                                    : GBTColors.border,
+                              ),
+                              Expanded(
+                                child: _TimelineActionButton(
+                                  icon: isBookmarked
+                                      ? GBTActionIcons.bookmarkActive
+                                      : GBTActionIcons.bookmark,
+                                  label: isBookmarked ? '저장됨' : '저장',
+                                  color: isBookmarked
+                                      ? (isDark
+                                            ? GBTColors.darkPrimary
+                                            : GBTColors.primary)
+                                      : tertiaryColor,
+                                  onTap: onToggleBookmark,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: GBTSpacing.md),
+                      const Divider(),
+                      const SizedBox(height: GBTSpacing.md),
+                    ], // Column children
+                  ), // Column
+                ), // Padding (post content)
+                // EN: Comment section header — aligned to page horizontal margin.
+                // KO: 댓글 헤더 — 페이지 수평 마진에 맞춤.
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GBTSpacing.pageHorizontal,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 18,
+                        color: isDark
+                            ? GBTColors.darkTextSecondary
+                            : GBTColors.textSecondary,
+                      ),
+                      const SizedBox(width: GBTSpacing.xs),
+                      Text(
+                        '댓글 $commentCountLabel개',
+                        style: GBTTypography.titleSmall.copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
-                    const SizedBox(height: GBTSpacing.md),
-                    // EN: Stats bar — social proof context (like count) before actions
-                    // KO: 액션 버튼 전에 소셜 증거(좋아요 수)를 보여주는 통계 바
-                    if (likeCount > 0)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.favorite_rounded,
-                              size: 13,
-                              color: GBTColors.favorite.withValues(alpha: 0.85),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '좋아요 $likeCount명이 공감했어요',
-                              style: GBTTypography.labelSmall.copyWith(
-                                color: secondaryColor,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    // EN: Card-style action bar with vertical dividers between buttons
-                    // KO: 버튼 사이 세로 구분선이 있는 카드 스타일 액션 바
-                    Container(
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? GBTColors.darkSurfaceVariant.withValues(
-                                alpha: 0.3,
-                              )
-                            : GBTColors.surfaceVariant,
-                        borderRadius: BorderRadius.circular(
-                          GBTSpacing.radiusMd,
-                        ),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Semantics(
-                        label:
-                            '좋아요 $likeCount개, '
-                            '${isLiked ? "좋아요 누른 상태" : "좋아요 안 누른 상태"}, '
-                            '댓글 $commentCountLabel개, '
-                            '${isBookmarked ? "내 저장됨" : "내 저장 안 됨"}',
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _TimelineActionButton(
-                                icon: GBTActionIcons.comment,
-                                label: commentCountLabel,
-                                color: commentActionColor,
-                                onTap: onFocusComment,
-                              ),
-                            ),
-                            Container(
-                              width: 1,
-                              height: 20,
-                              color: isDark
-                                  ? GBTColors.darkBorder
-                                  : GBTColors.border,
-                            ),
-                            Expanded(
-                              child: _TimelineActionButton(
-                                icon: isLiked
-                                    ? GBTActionIcons.likeActive
-                                    : GBTActionIcons.like,
-                                label: _compactCountLabel(likeCount),
-                                color: isLiked
-                                    ? GBTColors.favorite
-                                    : tertiaryColor,
-                                onTap: onToggleLike,
-                              ),
-                            ),
-                            Container(
-                              width: 1,
-                              height: 20,
-                              color: isDark
-                                  ? GBTColors.darkBorder
-                                  : GBTColors.border,
-                            ),
-                            Expanded(
-                              child: _TimelineActionButton(
-                                icon: isBookmarked
-                                    ? GBTActionIcons.bookmarkActive
-                                    : GBTActionIcons.bookmark,
-                                label: isBookmarked ? '저장됨' : '저장',
-                                color: isBookmarked
-                                    ? (isDark
-                                          ? GBTColors.darkPrimary
-                                          : GBTColors.primary)
-                                    : tertiaryColor,
-                                onTap: onToggleBookmark,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: GBTSpacing.md),
-                    const Divider(),
-                    const SizedBox(height: GBTSpacing.md),
-                  ], // Column children
-                ), // Column
-              ), // Padding (post content)
-              // EN: Comment section header — aligned to page horizontal margin.
-              // KO: 댓글 헤더 — 페이지 수평 마진에 맞춤.
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: GBTSpacing.pageHorizontal,
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      size: 18,
-                      color: isDark
-                          ? GBTColors.darkTextSecondary
-                          : GBTColors.textSecondary,
-                    ),
-                    const SizedBox(width: GBTSpacing.xs),
-                    Text(
-                      '댓글 $commentCountLabel개',
-                      style: GBTTypography.titleSmall.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: GBTSpacing.sm),
+                // EN: Comment list — full width, no horizontal padding.
+                // KO: 댓글 목록 — 좌우 패딩 없이 전체 너비.
+                _PostCommentsSection(
+                  state: commentsState,
+                  postAuthorId: post.authorId,
+                  onTapAuthor: onTapAuthor,
+                  currentUserId: currentUserId,
+                  isAdmin: isAdmin,
+                  isAuthenticated: isAuthenticated,
+                  onEditComment: onEditComment,
+                  onDeleteComment: onDeleteComment,
+                  onReportComment: onReportComment,
+                  onOpenCommentThread: onOpenCommentThread,
+                  onReplyToComment: onReplyToComment,
                 ),
-              ),
-              const SizedBox(height: GBTSpacing.sm),
-              // EN: Comment list — full width, no horizontal padding.
-              // KO: 댓글 목록 — 좌우 패딩 없이 전체 너비.
-              _PostCommentsSection(
-                state: commentsState,
-                postAuthorId: post.authorId,
-                onTapAuthor: onTapAuthor,
-                currentUserId: currentUserId,
-                isAdmin: isAdmin,
-                isAuthenticated: isAuthenticated,
-                onEditComment: onEditComment,
-                onDeleteComment: onDeleteComment,
-                onReportComment: onReportComment,
-                onOpenCommentThread: onOpenCommentThread,
-                onReplyToComment: onReplyToComment,
-              ),
-            ],
-           ),
+              ],
+            ),
           ),
         ),
         // EN: Comment composer bar with optional reply context banner.
@@ -1963,7 +1963,7 @@ class _CommentItemState extends State<_CommentItem> {
                     const SizedBox(height: GBTSpacing.xxs),
                     // EN: Comment content.
                     // KO: 댓글 내용.
-                    Text(
+                    GBTLinkifiedText(
                       _displayCommentContent(comment.content),
                       style: GBTTypography.bodyMedium.copyWith(
                         color: contentColor,
@@ -2259,31 +2259,21 @@ class _ReplyItem extends StatelessWidget {
                               }
                             }
                             if (parentAuthor != null) {
-                              return Text.rich(
-                                TextSpan(
-                                  children: [
-                                    TextSpan(
-                                      text: '@$parentAuthor ',
-                                      style: GBTTypography.bodySmall.copyWith(
-                                        color: primaryColor,
-                                        fontWeight: FontWeight.w600,
-                                        height: 1.45,
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: _displayCommentContent(
-                                        reply.content,
-                                      ),
-                                      style: GBTTypography.bodySmall.copyWith(
-                                        color: contentColor,
-                                        height: 1.45,
-                                      ),
-                                    ),
-                                  ],
+                              return GBTLinkifiedText(
+                                _displayCommentContent(reply.content),
+                                leadingText: '@$parentAuthor ',
+                                leadingStyle: GBTTypography.bodySmall.copyWith(
+                                  color: primaryColor,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.45,
+                                ),
+                                style: GBTTypography.bodySmall.copyWith(
+                                  color: contentColor,
+                                  height: 1.45,
                                 ),
                               );
                             }
-                            return Text(
+                            return GBTLinkifiedText(
                               _displayCommentContent(reply.content),
                               style: GBTTypography.bodySmall.copyWith(
                                 color: contentColor,
@@ -2427,7 +2417,7 @@ class _CommentMenuButton extends StatelessWidget {
           final action = await showGBTActionSheet<_CommentAction>(
             context: context,
             actions: [
-               if (canEdit)
+              if (canEdit)
                 const GBTActionSheetItem(
                   label: '수정',
                   value: _CommentAction.edit,
@@ -2921,7 +2911,7 @@ class _CommentThreadNodeView extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 3),
-                        Text(
+                        GBTLinkifiedText(
                           _displayCommentContent(comment.content),
                           style: GBTTypography.bodySmall.copyWith(
                             color: isDeletedPlaceholder

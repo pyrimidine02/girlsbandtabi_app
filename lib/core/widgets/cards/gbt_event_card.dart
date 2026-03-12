@@ -32,6 +32,7 @@ class GBTEventCard extends StatelessWidget {
     this.isLive = false,
     this.isUpcoming = true,
     this.isFavorite = false,
+    this.highlightBorderColor,
     this.onTap,
     this.onFavoriteToggle,
   });
@@ -76,6 +77,10 @@ class GBTEventCard extends StatelessWidget {
   /// KO: 이벤트가 즐겨찾기인지 여부
   final bool isFavorite;
 
+  /// EN: Optional highlight border color (e.g., attended event).
+  /// KO: 선택적 강조 테두리 색상(예: 방문한 이벤트).
+  final Color? highlightBorderColor;
+
   /// EN: Callback when card is tapped
   /// KO: 카드가 탭되었을 때 콜백
   final VoidCallback? onTap;
@@ -98,6 +103,7 @@ class GBTEventCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final resolvedHighlightColor = highlightBorderColor;
 
     return Semantics(
       label: _semanticLabel,
@@ -114,12 +120,22 @@ class GBTEventCard extends StatelessWidget {
           //     리스트 내 시각적 분리를 위한 얇은 하단 테두리.
           decoration: BoxDecoration(
             color: isDark ? GBTColors.darkSurface : GBTColors.surface,
-            border: Border(
-              bottom: BorderSide(
-                color: isDark ? GBTColors.darkBorder : GBTColors.divider,
-                width: 0.5,
-              ),
-            ),
+            borderRadius: resolvedHighlightColor == null
+                ? null
+                : BorderRadius.circular(GBTSpacing.radiusMd),
+            border: resolvedHighlightColor == null
+                ? Border(
+                    bottom: BorderSide(
+                      color: isDark ? GBTColors.darkBorder : GBTColors.divider,
+                      width: 0.5,
+                    ),
+                  )
+                : Border.all(
+                    color: resolvedHighlightColor.withValues(
+                      alpha: isDark ? 0.75 : 0.9,
+                    ),
+                    width: 1.2,
+                  ),
           ),
           child: Padding(
             padding: GBTSpacing.paddingMd,
@@ -158,9 +174,7 @@ class GBTEventCard extends StatelessWidget {
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: GBTColors.live.withValues(
-                                  alpha: 0.4,
-                                ),
+                                color: GBTColors.live.withValues(alpha: 0.4),
                                 blurRadius: 8,
                                 spreadRadius: 0,
                               ),
@@ -258,7 +272,9 @@ class GBTEventCard extends StatelessWidget {
                       child: AspectRatio(
                         aspectRatio: 2 / 3,
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+                          borderRadius: BorderRadius.circular(
+                            GBTSpacing.radiusSm,
+                          ),
                           child: ColoredBox(
                             color: isDark
                                 ? GBTColors.darkSurfaceElevated

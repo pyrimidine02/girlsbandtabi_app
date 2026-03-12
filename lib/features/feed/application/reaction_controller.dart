@@ -2,6 +2,9 @@
 /// KO: 게시글 반응 컨트롤러(좋아요/북마크).
 library;
 
+import 'dart:async' show unawaited;
+
+import '../../../core/connectivity/connectivity_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/error/failure.dart';
@@ -9,7 +12,9 @@ import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
 import '../../projects/application/projects_controller.dart';
 import '../domain/entities/feed_entities.dart';
+import '../domain/repositories/feed_repository.dart';
 import 'feed_repository_provider.dart';
+import 'pending_post_reaction_mutation.dart';
 
 final RegExp _uuidPattern = RegExp(
   r'^[0-9a-fA-F]{8}-'
@@ -65,6 +70,38 @@ String? _resolveReactionProjectCode(Ref ref, PostReactionTarget target) {
   return selectedProjectKey;
 }
 
+bool _shouldQueueMutationForRetry(Failure failure) {
+  return failure is NetworkFailure || failure is AuthFailure;
+}
+
+PostLikeStatus _buildOptimisticLikeStatus({
+  required PostLikeStatus? current,
+  required String postId,
+  required bool targetIsLiked,
+}) {
+  final currentCount = current?.likeCount ?? 0;
+  final nextCount = targetIsLiked
+      ? currentCount + 1
+      : (currentCount <= 0 ? 0 : currentCount - 1);
+  return PostLikeStatus(
+    postId: current?.postId.isNotEmpty == true ? current!.postId : postId,
+    isLiked: targetIsLiked,
+    likeCount: nextCount,
+  );
+}
+
+PostBookmarkStatus _buildOptimisticBookmarkStatus({
+  required PostBookmarkStatus? current,
+  required String postId,
+  required bool targetIsBookmarked,
+}) {
+  return PostBookmarkStatus(
+    postId: current?.postId.isNotEmpty == true ? current!.postId : postId,
+    isBookmarked: targetIsBookmarked,
+    bookmarkedAt: targetIsBookmarked ? DateTime.now() : null,
+  );
+}
+
 /// EN: Identifies a post reaction request context.
 /// KO: 게시글 반응 요청 컨텍스트를 식별합니다.
 class PostReactionTarget {
@@ -83,6 +120,243 @@ class PostReactionTarget {
 
   @override
   int get hashCode => Object.hash(postId, projectCodeOverride);
+}
+
+/// EN: Offline outbox controller for post reaction mutations.
+/// KO: 게시글 반응 오프라인 대기열(아웃박스) 컨트롤러입니다.
+class PostReactionOutboxController {
+  PostReactionOutboxController(this._ref) {
+    _ref.listen<AsyncValue<ConnectivityStatus>>(connectivityStatusProvider, (
+      _,
+      next,
+    ) {
+      if (next.valueOrNull == ConnectivityStatus.online) {
+        unawaited(syncPendingMutations());
+      }
+    });
+    _ref.listen<bool>(isAuthenticatedProvider, (previous, next) {
+      if (next && previous != true) {
+        unawaited(syncPendingMutations());
+      }
+    });
+    unawaited(syncPendingMutations());
+  }
+
+  final Ref _ref;
+  bool _isSyncing = false;
+  static const int _maxPendingMutations = 400;
+
+  Future<void> enqueueLike({
+    required String projectCode,
+    required String postId,
+    required bool targetIsLiked,
+  }) async {
+    await _enqueueMutation(
+      PendingPostReactionMutation(
+        projectCode: projectCode,
+        postId: postId,
+        type: PostReactionMutationType.like,
+        enabled: targetIsLiked,
+        queuedAt: DateTime.now(),
+      ),
+    );
+  }
+
+  Future<void> enqueueBookmark({
+    required String projectCode,
+    required String postId,
+    required bool targetIsBookmarked,
+  }) async {
+    await _enqueueMutation(
+      PendingPostReactionMutation(
+        projectCode: projectCode,
+        postId: postId,
+        type: PostReactionMutationType.bookmark,
+        enabled: targetIsBookmarked,
+        queuedAt: DateTime.now(),
+      ),
+    );
+  }
+
+  Future<void> removePending({
+    required String projectCode,
+    required String postId,
+    required PostReactionMutationType type,
+  }) async {
+    final pending = await _readPendingMutations();
+    final before = pending.length;
+    pending.removeWhere(
+      (mutation) =>
+          mutation.projectCode == projectCode &&
+          mutation.postId == postId &&
+          mutation.type == type,
+    );
+    if (pending.length != before) {
+      await _writePendingMutations(pending);
+    }
+  }
+
+  Future<void> syncPendingMutations() async {
+    if (_isSyncing) {
+      return;
+    }
+    if (!_ref.read(isAuthenticatedProvider)) {
+      return;
+    }
+
+    final isOnline = await _ref.read(connectivityServiceProvider).isOnline;
+    if (!isOnline) {
+      return;
+    }
+
+    _isSyncing = true;
+    try {
+      final pending = await _readPendingMutations();
+      if (pending.isEmpty) {
+        return;
+      }
+
+      final repository = await _ref.read(feedRepositoryProvider.future);
+      final remaining = <PendingPostReactionMutation>[];
+
+      for (var i = 0; i < pending.length; i += 1) {
+        final mutation = pending[i];
+        final result = await _applyMutation(
+          repository: repository,
+          mutation: mutation,
+        );
+
+        if (result is Success<void>) {
+          continue;
+        }
+
+        if (result is Err<void>) {
+          if (_shouldQueueMutationForRetry(result.failure)) {
+            remaining.add(mutation);
+            remaining.addAll(pending.skip(i + 1));
+            break;
+          }
+          // EN: Drop non-retriable mutation.
+          // KO: 재시도 불가능한 작업은 대기열에서 제거합니다.
+          continue;
+        }
+      }
+
+      await _writePendingMutations(remaining);
+    } finally {
+      _isSyncing = false;
+    }
+  }
+
+  Future<Result<void>> _applyMutation({
+    required FeedRepository repository,
+    required PendingPostReactionMutation mutation,
+  }) async {
+    switch (mutation.type) {
+      case PostReactionMutationType.like:
+        Result<PostLikeStatus> result = mutation.enabled
+            ? await repository.likePost(
+                projectCode: mutation.projectCode,
+                postId: mutation.postId,
+              )
+            : await repository.unlikePost(
+                projectCode: mutation.projectCode,
+                postId: mutation.postId,
+              );
+
+        if (!mutation.enabled && result is Err<PostLikeStatus>) {
+          final selectedProjectId = _ref.read(selectedProjectIdProvider);
+          final shouldRetryWithProjectId =
+              selectedProjectId != null &&
+              selectedProjectId.isNotEmpty &&
+              selectedProjectId != mutation.projectCode &&
+              result.failure is ServerFailure &&
+              result.failure.code == '500';
+          if (shouldRetryWithProjectId) {
+            result = await repository.unlikePost(
+              projectCode: selectedProjectId,
+              postId: mutation.postId,
+            );
+          }
+        }
+        if (result is Success<PostLikeStatus>) {
+          return const Result.success(null);
+        }
+        if (result is Err<PostLikeStatus>) {
+          return Result.failure(result.failure);
+        }
+        return const Result.failure(
+          UnknownFailure(
+            'Unknown post like mutation result',
+            code: 'unknown_post_like_mutation',
+          ),
+        );
+      case PostReactionMutationType.bookmark:
+        final result = mutation.enabled
+            ? await repository.bookmarkPost(
+                projectCode: mutation.projectCode,
+                postId: mutation.postId,
+              )
+            : await repository.unbookmarkPost(
+                projectCode: mutation.projectCode,
+                postId: mutation.postId,
+              );
+        if (result is Success<PostBookmarkStatus>) {
+          return const Result.success(null);
+        }
+        if (result is Err<PostBookmarkStatus>) {
+          return Result.failure(result.failure);
+        }
+        return const Result.failure(
+          UnknownFailure(
+            'Unknown post bookmark mutation result',
+            code: 'unknown_post_bookmark_mutation',
+          ),
+        );
+      case PostReactionMutationType.unknown:
+        return const Result.failure(
+          ValidationFailure('Unknown post reaction mutation type'),
+        );
+    }
+  }
+
+  Future<void> _enqueueMutation(PendingPostReactionMutation mutation) async {
+    final pending = await _readPendingMutations();
+    pending.removeWhere(
+      (item) =>
+          item.projectCode == mutation.projectCode &&
+          item.postId == mutation.postId &&
+          item.type == mutation.type,
+    );
+    pending.add(mutation);
+    if (pending.length > _maxPendingMutations) {
+      pending.removeRange(0, pending.length - _maxPendingMutations);
+    }
+    await _writePendingMutations(pending);
+  }
+
+  Future<List<PendingPostReactionMutation>> _readPendingMutations() async {
+    final storage = await _ref.read(localStorageProvider.future);
+    final raw = storage.getPendingPostReactionMutations();
+    return raw
+        .map(PendingPostReactionMutation.fromJson)
+        .where(
+          (mutation) =>
+              mutation.projectCode.isNotEmpty &&
+              mutation.postId.isNotEmpty &&
+              mutation.type != PostReactionMutationType.unknown,
+        )
+        .toList(growable: true);
+  }
+
+  Future<void> _writePendingMutations(
+    List<PendingPostReactionMutation> pending,
+  ) async {
+    final storage = await _ref.read(localStorageProvider.future);
+    await storage.setPendingPostReactionMutations(
+      pending.map((mutation) => mutation.toJson()).toList(growable: false),
+    );
+  }
 }
 
 /// EN: Post like status controller provider.
@@ -134,6 +408,25 @@ class PostLikeController extends StateNotifier<AsyncValue<PostLikeStatus>> {
     }
 
     final current = state.maybeWhen(data: (value) => value, orElse: () => null);
+    final targetIsLiked = !(current?.isLiked ?? false);
+    final optimistic = _buildOptimisticLikeStatus(
+      current: current,
+      postId: target.postId,
+      targetIsLiked: targetIsLiked,
+    );
+    state = AsyncData(optimistic);
+
+    final outbox = _ref.read(postReactionOutboxControllerProvider);
+    final isOnline = await _ref.read(connectivityServiceProvider).isOnline;
+    if (!isOnline) {
+      await outbox.enqueueLike(
+        projectCode: projectCode,
+        postId: target.postId,
+        targetIsLiked: targetIsLiked,
+      );
+      return Result.success(optimistic);
+    }
+
     final repository = await _ref.read(feedRepositoryProvider.future);
     final isUnlikeFlow = current?.isLiked == true;
     Result<PostLikeStatus> result = isUnlikeFlow
@@ -169,7 +462,21 @@ class PostLikeController extends StateNotifier<AsyncValue<PostLikeStatus>> {
 
     if (result is Success<PostLikeStatus>) {
       state = AsyncData(result.data);
+      await outbox.removePending(
+        projectCode: projectCode,
+        postId: target.postId,
+        type: PostReactionMutationType.like,
+      );
     } else if (result is Err<PostLikeStatus>) {
+      if (_shouldQueueMutationForRetry(result.failure)) {
+        await outbox.enqueueLike(
+          projectCode: projectCode,
+          postId: target.postId,
+          targetIsLiked: targetIsLiked,
+        );
+        state = AsyncData(optimistic);
+        return Result.success(optimistic);
+      }
       // EN: Preserve current data on toggle failure to avoid breaking action UI.
       // KO: 토글 실패 시 액션 UI가 깨지지 않도록 현재 데이터를 유지합니다.
       if (current != null) {
@@ -233,6 +540,25 @@ class PostBookmarkController
     }
 
     final current = state.maybeWhen(data: (value) => value, orElse: () => null);
+    final targetIsBookmarked = !(current?.isBookmarked ?? false);
+    final optimistic = _buildOptimisticBookmarkStatus(
+      current: current,
+      postId: target.postId,
+      targetIsBookmarked: targetIsBookmarked,
+    );
+    state = AsyncData(optimistic);
+
+    final outbox = _ref.read(postReactionOutboxControllerProvider);
+    final isOnline = await _ref.read(connectivityServiceProvider).isOnline;
+    if (!isOnline) {
+      await outbox.enqueueBookmark(
+        projectCode: projectCode,
+        postId: target.postId,
+        targetIsBookmarked: targetIsBookmarked,
+      );
+      return Result.success(optimistic);
+    }
+
     final repository = await _ref.read(feedRepositoryProvider.future);
 
     final result = current?.isBookmarked == true
@@ -247,13 +573,40 @@ class PostBookmarkController
 
     if (result is Success<PostBookmarkStatus>) {
       state = AsyncData(result.data);
+      await outbox.removePending(
+        projectCode: projectCode,
+        postId: target.postId,
+        type: PostReactionMutationType.bookmark,
+      );
     } else if (result is Err<PostBookmarkStatus>) {
+      if (_shouldQueueMutationForRetry(result.failure)) {
+        await outbox.enqueueBookmark(
+          projectCode: projectCode,
+          postId: target.postId,
+          targetIsBookmarked: targetIsBookmarked,
+        );
+        state = AsyncData(optimistic);
+        return Result.success(optimistic);
+      }
       state = AsyncError(result.failure, StackTrace.current);
     }
 
     return result;
   }
 }
+
+/// EN: Post reaction outbox controller provider.
+/// KO: 게시글 반응 오프라인 대기열 컨트롤러 프로바이더.
+final postReactionOutboxControllerProvider =
+    Provider<PostReactionOutboxController>((ref) {
+      return PostReactionOutboxController(ref);
+    });
+
+/// EN: App-scope bootstrap provider for post reaction outbox auto-sync.
+/// KO: 게시글 반응 오프라인 대기열 자동 동기화 앱 전역 부트스트랩 프로바이더.
+final postReactionOutboxBootstrapProvider = Provider<void>((ref) {
+  ref.watch(postReactionOutboxControllerProvider);
+});
 
 /// EN: Post like controller provider.
 /// KO: 게시글 좋아요 컨트롤러 프로바이더.

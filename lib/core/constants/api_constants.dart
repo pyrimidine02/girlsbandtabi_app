@@ -62,6 +62,8 @@ class ApiEndpoints {
   // ============================================================
   static const String notifications = '$apiVersion/notifications';
   static String notificationRead(String id) => '$notifications/$id/read';
+  static String notificationDelete(String id) => '$notifications/$id';
+  static const String notificationsDeleteAll = notifications;
   static const String notificationSettings = '$notifications/settings';
   static const String notificationDevices = '$notifications/devices';
   static String notificationDevice(String deviceId) =>
@@ -586,6 +588,19 @@ class ApiEndpoints {
   // ============================================================
   static const String adminStreamActivity = '$apiVersion/admin/stream/activity';
   static const String adminEventsStream = '$apiVersion/admin/events/stream';
+
+  // ============================================================
+  // EN: Banner endpoints (8.XX)
+  // KO: 배너 엔드포인트 (8.XX)
+  // ============================================================
+
+  /// EN: Active banner for the authenticated user (GET/PUT/DELETE).
+  /// KO: 인증된 사용자의 활성 배너 엔드포인트 (GET/PUT/DELETE).
+  static const String userBanner = '$userMe/banner';
+
+  /// EN: Full banner catalog with unlock state for the current user.
+  /// KO: 현재 사용자의 해금 상태가 포함된 전체 배너 카탈로그.
+  static const String banners = '$apiVersion/banners';
 
   // ============================================================
   // EN: Health check endpoints (8.25)

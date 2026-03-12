@@ -137,8 +137,37 @@ class _BoardPageState extends ConsumerState<BoardPage> {
 
     return FocusDetector(
       onFocusGained: () {
-        ref.read(communityFeedControllerProvider.notifier).reload(forceRefresh: true);
-        ref.read(postListControllerProvider.notifier).load(forceRefresh: true);
+        // EN: For the Feed section, always reset to recommended mode so that
+        //     returning from Discover (which sets mode to trending) correctly
+        //     shows recommended posts instead of trending.
+        // KO: 피드 섹션은 항상 recommended 모드로 초기화합니다.
+        //     발견 섹션(trending 모드)에서 돌아올 때 trending 대신 추천 피드가
+        //     올바르게 표시되도록 합니다.
+        if (sectionIndex == 0) {
+          final mode = ref.read(communityFeedControllerProvider).mode;
+          if (mode != CommunityFeedMode.recommended) {
+            unawaited(
+              ref
+                  .read(communityFeedControllerProvider.notifier)
+                  .setMode(CommunityFeedMode.recommended),
+            );
+          } else {
+            unawaited(
+              ref
+                  .read(communityFeedControllerProvider.notifier)
+                  .reload(forceRefresh: true),
+            );
+          }
+        } else {
+          unawaited(
+            ref
+                .read(communityFeedControllerProvider.notifier)
+                .reload(forceRefresh: true),
+          );
+        }
+        unawaited(
+          ref.read(postListControllerProvider.notifier).load(forceRefresh: true),
+        );
       },
       child: Scaffold(
         appBar: useFeedHeroHeader

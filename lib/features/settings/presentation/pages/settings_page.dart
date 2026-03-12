@@ -126,6 +126,21 @@ class SettingsPage extends ConsumerWidget {
                     ),
                     onTap: () => context.push('/settings/profile'),
                   ),
+                  _SettingsRow(
+                    icon: Icons.palette_rounded,
+                    iconBgColor: const Color(0xFFEC4899),
+                    title: context.l10n(
+                      ko: '홈 배너 꾸미기',
+                      en: 'Customize home banner',
+                      ja: 'ホームバナーをカスタマイズ',
+                    ),
+                    subtitle: context.l10n(
+                      ko: '칭호·티어 달성으로 배너 해금',
+                      en: 'Unlock banners with titles & tiers',
+                      ja: '称号・ティア達成でバナー解放',
+                    ),
+                    onTap: () => context.push('/banner-picker'),
+                  ),
                   if (canAccessAdminOps)
                     _SettingsRow(
                       icon: Icons.admin_panel_settings_rounded,

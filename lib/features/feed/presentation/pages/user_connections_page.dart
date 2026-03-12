@@ -13,6 +13,7 @@ import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
+import '../../../../core/widgets/common/gbt_linkified_text.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/inputs/gbt_search_bar.dart';
 import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
@@ -268,7 +269,7 @@ class _ConnectionsTabBody extends ConsumerWidget {
                                     if (item.bio != null &&
                                         item.bio!.trim().isNotEmpty) ...[
                                       const SizedBox(height: 4),
-                                      Text(
+                                      GBTLinkifiedText(
                                         item.bio!,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,

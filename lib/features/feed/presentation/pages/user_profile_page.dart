@@ -15,6 +15,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
+import '../../../../core/widgets/common/gbt_linkified_text.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../../settings/application/settings_controller.dart';
@@ -649,7 +650,7 @@ class _ProfileHeader extends StatelessWidget {
                       ),
                     ],
                     const SizedBox(height: GBTSpacing.sm),
-                    Text(
+                    GBTLinkifiedText(
                       bioLabel,
                       style: GBTTypography.bodySmall.copyWith(
                         color: secondaryColor,
@@ -851,7 +852,7 @@ class _PostsTab extends StatelessWidget {
                                 if (post.content != null &&
                                     post.content!.trim().isNotEmpty) ...[
                                   const SizedBox(height: 6),
-                                  Text(
+                                  GBTLinkifiedText(
                                     post.content!.trim(),
                                     style: GBTTypography.bodySmall.copyWith(
                                       color: tertiaryColor,
@@ -960,7 +961,7 @@ class _CommentsTab extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
+                                GBTLinkifiedText(
                                   comment.content,
                                   style: GBTTypography.bodyMedium,
                                   maxLines: 3,

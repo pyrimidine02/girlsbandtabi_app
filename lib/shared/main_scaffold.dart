@@ -121,7 +121,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                   ref.read(currentNavIndexProvider.notifier).state = 4;
                   switch (section) {
                     case _BoardSubSection.feed:
-                      context.go('/board');
+                      widget.navigationShell.goBranch(4, initialLocation: true);
                     case _BoardSubSection.discover:
                       context.go('/board/discover');
                     case _BoardSubSection.travelReview:

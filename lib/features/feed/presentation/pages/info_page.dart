@@ -18,7 +18,7 @@ import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../music/application/music_controller.dart';
-import '../../../music/domain/entities/music_entities.dart';
+import '../../../music/presentation/widgets/music_catalog_tab.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
@@ -244,7 +244,7 @@ class _InfoPageState extends ConsumerState<InfoPage>
               isActive: isInfoTabActive && _tabController.index == 2,
               projectId: selectedProjectId,
             ),
-            const _SongsTab(),
+            const MusicCatalogTab(),
           ],
         ),
       ),
@@ -1529,767 +1529,31 @@ class _MemberAvatar extends StatelessWidget {
 }
 
 // ===========================================================================
-// EN: Songs tab — Spotify-inspired music hub layout.
-// KO: 악곡 탭 — 스포티파이 레퍼런스 기반 음악 허브 레이아웃.
-// ===========================================================================
-
-class _SongsTab extends ConsumerStatefulWidget {
-  const _SongsTab();
-
-  @override
-  ConsumerState<_SongsTab> createState() => _SongsTabState();
-}
-
-class _SongsTabState extends ConsumerState<_SongsTab> {
-  late final ScrollController _scrollController;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController = ScrollController()..addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController
-      ..removeListener(_onScroll)
-      ..dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (!_scrollController.hasClients) return;
-    if (_scrollController.position.extentAfter > 360) return;
-    final projectKey = ref.read(projectSelectionControllerProvider).projectKey;
-    if (projectKey == null || projectKey.isEmpty) return;
-    final songsState = ref.read(musicSongsControllerProvider(projectKey));
-    if (songsState.isLoading ||
-        songsState.isLoadingMore ||
-        !songsState.hasNext) {
-      return;
-    }
-    ref.read(musicSongsControllerProvider(projectKey).notifier).loadMore();
-  }
-
-  void _loadMoreAlbumsIfNeeded(String projectKey) {
-    final albumsState = ref.read(musicAlbumsControllerProvider(projectKey));
-    if (albumsState.isLoading ||
-        albumsState.isLoadingMore ||
-        !albumsState.hasNext) {
-      return;
-    }
-    ref.read(musicAlbumsControllerProvider(projectKey).notifier).loadMore();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final selection = ref.watch(projectSelectionControllerProvider);
-    final projectKey = selection.projectKey ?? '';
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final accent = const Color(0xFF1DB954);
-    final textSecondary = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
-
-    if (projectKey.isEmpty) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(
-          horizontal: GBTSpacing.pageHorizontal,
-          vertical: GBTSpacing.xl,
-        ),
-        children: [
-          _MusicHubHeroCard(
-            title: context.l10n(ko: '뮤직 허브', en: 'Music hub', ja: 'ミュージックハブ'),
-            subtitle: context.l10n(
-              ko: '프로젝트를 선택하면 악곡 정보를 탐색할 수 있어요.',
-              en: 'Select a project to explore albums, songs, lyrics, and call guides.',
-              ja: 'プロジェクトを選択するとアルバム/楽曲/歌詞/コール表を確認できます。',
-            ),
-            accent: accent,
-            isDark: isDark,
-          ),
-        ],
-      );
-    }
-
-    final albumsState = ref.watch(musicAlbumsControllerProvider(projectKey));
-    final songsState = ref.watch(musicSongsControllerProvider(projectKey));
-
-    return ListView(
-      controller: _scrollController,
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(
-        horizontal: GBTSpacing.pageHorizontal,
-        vertical: GBTSpacing.xl,
-      ),
-      children: [
-        _MusicHubHeroCard(
-          title: context.l10n(ko: '오늘의 악곡', en: 'Today in music', ja: '今日の楽曲'),
-          subtitle: context.l10n(
-            ko: '앨범, 버전, 가사, 콜표까지 한 번에 탐색해보세요.',
-            en: 'Explore albums, versions, lyrics, and call guides in one flow.',
-            ja: 'アルバム、バージョン、歌詞、コール表を一度に確認できます。',
-          ),
-          accent: accent,
-          isDark: isDark,
-        ),
-        const SizedBox(height: GBTSpacing.xl),
-        _SectionHeaderWithCount(
-          icon: Icons.album_outlined,
-          label: context.l10n(
-            ko: '앨범 컬렉션',
-            en: 'Album collection',
-            ja: 'アルバムコレクション',
-          ),
-          count: albumsState.items.length,
-        ),
-        const SizedBox(height: GBTSpacing.sm),
-        SizedBox(
-          height: 230,
-          child: albumsState.isLoading && albumsState.items.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : albumsState.failure != null && albumsState.items.isEmpty
-              ? Center(
-                  child: Text(
-                    albumsState.failure!.userMessage,
-                    style: GBTTypography.bodySmall.copyWith(
-                      color: textSecondary,
-                    ),
-                  ),
-                )
-              : NotificationListener<ScrollNotification>(
-                  onNotification: (notification) {
-                    if (notification.metrics.axis != Axis.horizontal) {
-                      return false;
-                    }
-                    if (notification.metrics.extentAfter > 120) {
-                      return false;
-                    }
-                    _loadMoreAlbumsIfNeeded(projectKey);
-                    return false;
-                  },
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: albumsState.items.length,
-                    separatorBuilder: (_, __) =>
-                        const SizedBox(width: GBTSpacing.md),
-                    itemBuilder: (context, index) {
-                      final album = albumsState.items[index];
-                      return _AlbumHighlightCard(
-                        album: album,
-                        isDark: isDark,
-                        subtitle: _albumMeta(context, album),
-                        onTap: () =>
-                            _openAlbumBottomSheet(context, projectKey, album),
-                      );
-                    },
-                  ),
-                ),
-        ),
-        if (albumsState.isLoadingMore)
-          Padding(
-            padding: const EdgeInsets.only(top: GBTSpacing.sm),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: accent),
-              ),
-            ),
-          ),
-        const SizedBox(height: GBTSpacing.xl),
-        _SectionHeaderWithCount(
-          icon: Icons.queue_music_outlined,
-          label: context.l10n(
-            ko: '트랙 라인업',
-            en: 'Track lineup',
-            ja: 'トラックラインナップ',
-          ),
-          count: songsState.items.length,
-        ),
-        const SizedBox(height: GBTSpacing.sm),
-        if (songsState.isLoading && songsState.items.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: GBTSpacing.xl),
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else if (songsState.failure != null && songsState.items.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: GBTSpacing.md),
-            child: Text(
-              songsState.failure!.userMessage,
-              style: GBTTypography.bodyMedium.copyWith(color: textSecondary),
-            ),
-          )
-        else if (songsState.items.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: GBTSpacing.md),
-            child: Text(
-              context.l10n(
-                ko: '곡 정보가 없습니다.',
-                en: 'No songs available.',
-                ja: '楽曲情報がありません。',
-              ),
-              style: GBTTypography.bodyMedium.copyWith(color: textSecondary),
-            ),
-          )
-        else
-          ...songsState.items.indexed.map(
-            (entry) => Padding(
-              padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
-              child: _TrackListCard(
-                song: entry.$2,
-                rank: entry.$1 + 1,
-                isDark: isDark,
-                subtitle: _songMeta(context, entry.$2),
-                onTap: () =>
-                    context.goToSongDetail(entry.$2.id, projectId: projectKey),
-              ),
-            ),
-          ),
-        if (songsState.isLoadingMore)
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: GBTSpacing.md),
-            child: Center(child: CircularProgressIndicator(color: accent)),
-          ),
-      ],
-    );
-  }
-
-  Future<void> _openAlbumBottomSheet(
-    BuildContext context,
-    String projectId,
-    MusicAlbumSummary album,
-  ) async {
-    final key = (projectId: projectId, albumId: album.id);
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFF131417)
-          : Colors.white,
-      builder: (sheetContext) {
-        return Consumer(
-          builder: (context, ref, _) {
-            final state = ref.watch(musicAlbumDetailProvider(key));
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  GBTSpacing.md,
-                  GBTSpacing.sm,
-                  GBTSpacing.md,
-                  GBTSpacing.lg,
-                ),
-                child: state.when(
-                  data: (detail) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        detail.title,
-                        style: GBTTypography.titleMedium.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: GBTSpacing.xxs),
-                      Text(
-                        _albumMetaFromDetail(context, detail),
-                        style: GBTTypography.bodySmall.copyWith(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? GBTColors.darkTextSecondary
-                              : GBTColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: GBTSpacing.md),
-                      if (detail.tracks.isEmpty)
-                        Text(
-                          context.l10n(
-                            ko: '트랙 정보가 없습니다.',
-                            en: 'No track list.',
-                            ja: 'トラック情報がありません。',
-                          ),
-                          style: GBTTypography.bodySmall,
-                        )
-                      else
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxHeight: MediaQuery.sizeOf(context).height * 0.56,
-                          ),
-                          child: ListView.separated(
-                            shrinkWrap: true,
-                            itemCount: detail.tracks.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: GBTSpacing.xs),
-                            itemBuilder: (context, index) {
-                              final track = detail.tracks[index];
-                              return Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(
-                                    GBTSpacing.radiusSm,
-                                  ),
-                                  onTap: track.songId.trim().isEmpty
-                                      ? null
-                                      : () {
-                                          Navigator.of(context).pop();
-                                          context.goToSongDetail(
-                                            track.songId,
-                                            projectId: projectId,
-                                          );
-                                        },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: GBTSpacing.sm,
-                                      vertical: GBTSpacing.xs,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          Theme.of(context).brightness ==
-                                              Brightness.dark
-                                          ? const Color(0xFF1C1F24)
-                                          : const Color(0xFFF3F5F8),
-                                      borderRadius: BorderRadius.circular(
-                                        GBTSpacing.radiusSm,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        SizedBox(
-                                          width: 22,
-                                          child: Text(
-                                            '${track.trackNo}',
-                                            style: GBTTypography.bodySmall
-                                                .copyWith(
-                                                  color:
-                                                      Theme.of(
-                                                            context,
-                                                          ).brightness ==
-                                                          Brightness.dark
-                                                      ? GBTColors
-                                                            .darkTextSecondary
-                                                      : GBTColors.textSecondary,
-                                                ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: Text(
-                                            track.title,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        if ((track.versionCode ?? '')
-                                            .trim()
-                                            .isNotEmpty) ...[
-                                          const SizedBox(width: GBTSpacing.xs),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: GBTSpacing.xs,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: const Color(
-                                                0xFF1DB954,
-                                              ).withValues(alpha: 0.18),
-                                              borderRadius:
-                                                  BorderRadius.circular(999),
-                                            ),
-                                            child: Text(
-                                              track.versionCode!,
-                                              style: GBTTypography.labelSmall
-                                                  .copyWith(
-                                                    color: const Color(
-                                                      0xFF1DB954,
-                                                    ),
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                    ],
-                  ),
-                  loading: () => const SizedBox(
-                    height: 120,
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                  error: (error, _) => SizedBox(
-                    height: 120,
-                    child: Center(
-                      child: Text(
-                        error is Failure
-                            ? error.userMessage
-                            : context.l10n(
-                                ko: '앨범 정보를 불러오지 못했습니다.',
-                                en: 'Failed to load album detail.',
-                                ja: 'アルバム情報の読み込みに失敗しました。',
-                              ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  String _songMeta(BuildContext context, MusicSongSummary song) {
-    final fragments = <String>[];
-    if ((song.primaryUnitName ?? '').trim().isNotEmpty) {
-      fragments.add(song.primaryUnitName!);
-    }
-    if (song.bpm != null && song.bpm! > 0) {
-      fragments.add('BPM ${song.bpm}');
-    }
-    if (song.durationMs != null && song.durationMs! > 0) {
-      fragments.add(_durationLabel(song.durationMs!));
-    }
-    if (fragments.isEmpty) {
-      return context.l10n(ko: '상세 정보', en: 'Details', ja: '詳細情報');
-    }
-    return fragments.join(' · ');
-  }
-
-  String _albumMeta(BuildContext context, MusicAlbumSummary album) {
-    final fragments = <String>[
-      if (album.type.trim().isNotEmpty) album.type,
-      if ((album.releaseDate ?? '').trim().isNotEmpty) album.releaseDate!,
-      if (album.trackCount > 0)
-        context.l10n(
-          ko: '${album.trackCount}곡',
-          en: '${album.trackCount} tracks',
-          ja: '${album.trackCount}曲',
-        ),
-    ];
-    return fragments.join(' · ');
-  }
-
-  String _albumMetaFromDetail(BuildContext context, MusicAlbumDetail detail) {
-    final trackCount = detail.tracks.isNotEmpty
-        ? detail.tracks.length
-        : detail.trackCount;
-    final fragments = <String>[
-      if (detail.type.trim().isNotEmpty) detail.type,
-      if ((detail.releaseDate ?? '').trim().isNotEmpty) detail.releaseDate!,
-      if (trackCount > 0)
-        context.l10n(
-          ko: '$trackCount곡',
-          en: '$trackCount tracks',
-          ja: '$trackCount曲',
-        ),
-    ];
-    return fragments.join(' · ');
-  }
-
-  String _durationLabel(int durationMs) {
-    final totalSeconds = (durationMs / 1000).floor();
-    final minutes = totalSeconds ~/ 60;
-    final seconds = totalSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-}
-
-class _MusicHubHeroCard extends StatelessWidget {
-  const _MusicHubHeroCard({
-    required this.title,
-    required this.subtitle,
-    required this.accent,
-    required this.isDark,
-  });
-
-  final String title;
-  final String subtitle;
-  final Color accent;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(GBTSpacing.md),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDark
-              ? [const Color(0xFF1A1F25), const Color(0xFF0F1216)]
-              : [const Color(0xFFEDF8F1), const Color(0xFFE3EFF8)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: (isDark ? Colors.black : accent).withValues(alpha: 0.14),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GBTTypography.titleMedium.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: isDark
-                        ? GBTColors.darkTextPrimary
-                        : GBTColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: GBTSpacing.xs),
-                Text(
-                  subtitle,
-                  style: GBTTypography.bodySmall.copyWith(
-                    height: 1.36,
-                    color: isDark
-                        ? GBTColors.darkTextSecondary
-                        : GBTColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: GBTSpacing.md),
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: accent.withValues(alpha: isDark ? 0.22 : 0.2),
-            ),
-            child: Icon(Icons.graphic_eq_rounded, color: accent, size: 28),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AlbumHighlightCard extends StatelessWidget {
-  const _AlbumHighlightCard({
-    required this.album,
-    required this.isDark,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final MusicAlbumSummary album;
-  final bool isDark;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final titleColor = isDark
-        ? GBTColors.darkTextPrimary
-        : GBTColors.textPrimary;
-    final subtitleColor = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
-    return SizedBox(
-      width: 160,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-          onTap: onTap,
-          child: Ink(
-            padding: const EdgeInsets.all(GBTSpacing.sm),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF161A20) : const Color(0xFFF5F7FA),
-              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
-                    child: album.coverUrl != null
-                        ? GBTImage(
-                            imageUrl: album.coverUrl!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            semanticLabel: '${album.title} cover',
-                          )
-                        : Container(
-                            color: isDark
-                                ? const Color(0xFF20242C)
-                                : const Color(0xFFE8EDF3),
-                            child: const Center(
-                              child: Icon(Icons.album_rounded, size: 32),
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: GBTSpacing.sm),
-                Text(
-                  album.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GBTTypography.bodyMedium.copyWith(
-                    color: titleColor,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GBTTypography.labelSmall.copyWith(
-                    color: subtitleColor,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TrackListCard extends StatelessWidget {
-  const _TrackListCard({
-    required this.song,
-    required this.rank,
-    required this.isDark,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final MusicSongSummary song;
-  final int rank;
-  final bool isDark;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final titleColor = isDark
-        ? GBTColors.darkTextPrimary
-        : GBTColors.textPrimary;
-    final subtitleColor = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        onTap: onTap,
-        child: Ink(
-          padding: const EdgeInsets.symmetric(
-            horizontal: GBTSpacing.sm,
-            vertical: GBTSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF15191F) : const Color(0xFFF6F8FB),
-            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 26,
-                child: Text(
-                  '$rank',
-                  style: GBTTypography.bodySmall.copyWith(
-                    color: subtitleColor,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const SizedBox(width: GBTSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      song.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GBTTypography.bodyMedium.copyWith(
-                        color: titleColor,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GBTTypography.labelSmall.copyWith(
-                        color: subtitleColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: GBTSpacing.sm),
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF1DB954).withValues(alpha: 0.18),
-                ),
-                child: const Icon(
-                  Icons.play_arrow_rounded,
-                  size: 18,
-                  color: Color(0xFF1DB954),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ===========================================================================
-// EN: Shared section header widget
-// KO: 공유 섹션 헤더 위젯
+// EN: Shared section header widgets used across tabs.
+// KO: 탭 공통 섹션 헤더 위젯.
 // ===========================================================================
 
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.icon, required this.label});
+
   final IconData icon;
   final String label;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textSecondary = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
-
+    final primary = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final titleColor =
+        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
     return Row(
       children: [
-        Icon(icon, size: 14, color: textSecondary),
+        Icon(icon, size: 15, color: primary),
         const SizedBox(width: GBTSpacing.xs),
         Text(
           label,
-          style: GBTTypography.labelMedium.copyWith(
+          style: GBTTypography.labelLarge.copyWith(
+            color: titleColor,
             fontWeight: FontWeight.w700,
-            color: textSecondary,
-            letterSpacing: 0.3,
           ),
         ),
       ],
@@ -2297,14 +1561,13 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// EN: Section header with an inline count pill badge.
-/// KO: 인라인 카운트 필 배지가 있는 섹션 헤더.
 class _SectionHeaderWithCount extends StatelessWidget {
   const _SectionHeaderWithCount({
     required this.icon,
     required this.label,
     required this.count,
   });
+
   final IconData icon;
   final String label;
   final int count;
@@ -2312,40 +1575,26 @@ class _SectionHeaderWithCount extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textSecondary = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
-    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
-
+    final primary = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final titleColor =
+        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+    final metaColor =
+        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
     return Row(
       children: [
-        Icon(icon, size: 14, color: textSecondary),
+        Icon(icon, size: 15, color: primary),
         const SizedBox(width: GBTSpacing.xs),
         Text(
           label,
-          style: GBTTypography.labelMedium.copyWith(
+          style: GBTTypography.labelLarge.copyWith(
+            color: titleColor,
             fontWeight: FontWeight.w700,
-            color: textSecondary,
-            letterSpacing: 0.3,
           ),
         ),
         const SizedBox(width: GBTSpacing.xs),
-        // EN: Count pill in primary indigo for clear visual hierarchy.
-        // KO: 명확한 시각적 계층을 위한 기본 인디고 카운트 필.
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-          decoration: BoxDecoration(
-            color: primaryColor.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
-          ),
-          child: Text(
-            '$count',
-            style: GBTTypography.labelSmall.copyWith(
-              color: primaryColor,
-              fontWeight: FontWeight.w700,
-              fontSize: 10,
-            ),
-          ),
+        Text(
+          '($count)',
+          style: GBTTypography.labelSmall.copyWith(color: metaColor),
         ),
       ],
     );

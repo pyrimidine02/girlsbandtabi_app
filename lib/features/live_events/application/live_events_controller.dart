@@ -6,6 +6,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/connectivity/connectivity_service.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
@@ -16,12 +17,17 @@ import '../data/datasources/live_events_remote_data_source.dart';
 import '../data/repositories/live_events_repository_impl.dart';
 import '../domain/entities/live_event_entities.dart';
 import '../domain/repositories/live_events_repository.dart';
+import 'pending_live_attendance_mutation.dart';
 
 // EN: Max number of additional retries on load failure (total attempts = 1 + _kMaxRetries).
 // KO: 로드 실패 시 최대 추가 재시도 횟수 (총 시도 = 1 + _kMaxRetries).
 const int _kMaxRetries = 2;
 const int _kLiveNavIndex = 2;
 const int _kAttendanceHistoryPageSize = 20;
+
+bool _shouldQueueLiveAttendanceMutationForRetry(Failure failure) {
+  return failure is NetworkFailure || failure is AuthFailure;
+}
 
 class LiveEventsListController
     extends StateNotifier<AsyncValue<List<LiveEventSummary>>> {
@@ -246,6 +252,161 @@ class LiveEventDetailController
   }
 }
 
+/// EN: Offline outbox controller for live attendance toggle mutations.
+/// KO: 라이브 출석 토글 오프라인 대기열(아웃박스) 컨트롤러입니다.
+class LiveAttendanceOutboxController {
+  LiveAttendanceOutboxController(this._ref) {
+    _ref.listen<AsyncValue<ConnectivityStatus>>(connectivityStatusProvider, (
+      _,
+      next,
+    ) {
+      if (next.valueOrNull == ConnectivityStatus.online) {
+        unawaited(syncPendingMutations());
+      }
+    });
+    _ref.listen<bool>(isAuthenticatedProvider, (previous, next) {
+      if (next && previous != true) {
+        unawaited(syncPendingMutations());
+      }
+    });
+    unawaited(syncPendingMutations());
+  }
+
+  final Ref _ref;
+  bool _isSyncing = false;
+  static const int _maxPendingMutations = 200;
+
+  Future<void> enqueue({
+    required String projectKey,
+    required String eventId,
+    required bool attended,
+  }) async {
+    final pending = await _readPendingMutations();
+    pending.removeWhere(
+      (mutation) =>
+          mutation.projectKey == projectKey && mutation.eventId == eventId,
+    );
+    pending.add(
+      PendingLiveAttendanceMutation(
+        projectKey: projectKey,
+        eventId: eventId,
+        attended: attended,
+        queuedAt: DateTime.now(),
+      ),
+    );
+    if (pending.length > _maxPendingMutations) {
+      pending.removeRange(0, pending.length - _maxPendingMutations);
+    }
+    await _writePendingMutations(pending);
+  }
+
+  Future<void> removePending({
+    required String projectKey,
+    required String eventId,
+  }) async {
+    final pending = await _readPendingMutations();
+    final before = pending.length;
+    pending.removeWhere(
+      (mutation) =>
+          mutation.projectKey == projectKey && mutation.eventId == eventId,
+    );
+    if (pending.length != before) {
+      await _writePendingMutations(pending);
+    }
+  }
+
+  Future<PendingLiveAttendanceMutation?> findPending({
+    required String projectKey,
+    required String eventId,
+  }) async {
+    final pending = await _readPendingMutations();
+    for (var i = pending.length - 1; i >= 0; i -= 1) {
+      final mutation = pending[i];
+      if (mutation.projectKey == projectKey && mutation.eventId == eventId) {
+        return mutation;
+      }
+    }
+    return null;
+  }
+
+  Future<void> syncPendingMutations() async {
+    if (_isSyncing) {
+      return;
+    }
+    if (!_ref.read(isAuthenticatedProvider)) {
+      return;
+    }
+
+    final isOnline = await _ref.read(connectivityServiceProvider).isOnline;
+    if (!isOnline) {
+      return;
+    }
+
+    _isSyncing = true;
+    try {
+      final pending = await _readPendingMutations();
+      if (pending.isEmpty) {
+        return;
+      }
+
+      final repository = await _ref.read(liveEventsRepositoryProvider.future);
+      final remaining = <PendingLiveAttendanceMutation>[];
+      var appliedCount = 0;
+
+      for (var i = 0; i < pending.length; i += 1) {
+        final mutation = pending[i];
+        final result = await repository.toggleLiveAttendance(
+          projectId: mutation.projectKey,
+          eventId: mutation.eventId,
+          attended: mutation.attended,
+        );
+        if (result is Success<LiveAttendanceState>) {
+          appliedCount += 1;
+          continue;
+        }
+        if (result is Err<LiveAttendanceState>) {
+          if (_shouldQueueLiveAttendanceMutationForRetry(result.failure)) {
+            remaining.add(mutation);
+            remaining.addAll(pending.skip(i + 1));
+            break;
+          }
+          // EN: Drop non-retriable mutation.
+          // KO: 재시도 불가능한 작업은 대기열에서 제거합니다.
+          continue;
+        }
+      }
+
+      await _writePendingMutations(remaining);
+      if (appliedCount > 0) {
+        _ref.invalidate(liveAttendanceHistoryControllerProvider);
+      }
+    } finally {
+      _isSyncing = false;
+    }
+  }
+
+  Future<List<PendingLiveAttendanceMutation>> _readPendingMutations() async {
+    final storage = await _ref.read(localStorageProvider.future);
+    final raw = storage.getPendingLiveAttendanceMutations();
+    return raw
+        .map(PendingLiveAttendanceMutation.fromJson)
+        .where(
+          (mutation) =>
+              mutation.projectKey.isNotEmpty && mutation.eventId.isNotEmpty,
+        )
+        .toList(growable: true);
+  }
+
+  Future<void> _writePendingMutations(
+    List<PendingLiveAttendanceMutation> pending,
+  ) async {
+    final storage = await _ref.read(localStorageProvider.future);
+    await storage.setPendingLiveAttendanceMutations(
+      pending.map((mutation) => mutation.toJson()).toList(growable: false),
+    );
+  }
+}
+
 class LiveAttendanceViewState {
   const LiveAttendanceViewState({
     required this.attendance,
@@ -308,21 +469,27 @@ class LiveAttendanceController extends StateNotifier<LiveAttendanceViewState> {
     }
 
     if (result case Success<LiveAttendanceState>(:final data)) {
+      final outbox = _ref.read(liveAttendanceOutboxControllerProvider);
+      final pending = await outbox.findPending(
+        projectKey: projectKey,
+        eventId: eventId,
+      );
+      final resolved = pending == null
+          ? data
+          : _optimisticState(data, pending.attended);
       state = state.copyWith(
-        attendance: data,
+        attendance: resolved,
         isSubmitting: false,
         isLoading: false,
       );
-      return result;
+      return Result.success(resolved);
     }
 
     state = state.copyWith(isLoading: false);
     return result;
   }
 
-  Future<Result<LiveAttendanceState>> toggle(
-    bool attended,
-  ) async {
+  Future<Result<LiveAttendanceState>> toggle(bool attended) async {
     final isAuthenticated = _ref.read(isAuthenticatedProvider);
     if (!isAuthenticated) {
       return const Result.failure(
@@ -359,6 +526,25 @@ class LiveAttendanceController extends StateNotifier<LiveAttendanceViewState> {
     final previous = current;
     final optimistic = _optimisticState(previous, attended);
     state = state.copyWith(attendance: optimistic, isSubmitting: true);
+    final outbox = _ref.read(liveAttendanceOutboxControllerProvider);
+    final isOnline = await _ref.read(connectivityServiceProvider).isOnline;
+    if (!isOnline) {
+      await outbox.enqueue(
+        projectKey: projectKey,
+        eventId: eventId,
+        attended: attended,
+      );
+      if (!mounted) {
+        return Result.success(optimistic);
+      }
+      state = state.copyWith(
+        attendance: optimistic,
+        isSubmitting: false,
+        isLoading: false,
+      );
+      _ref.invalidate(liveAttendanceHistoryControllerProvider);
+      return Result.success(optimistic);
+    }
 
     final repository = await _ref.read(liveEventsRepositoryProvider.future);
     final result = await repository.toggleLiveAttendance(
@@ -372,6 +558,7 @@ class LiveAttendanceController extends StateNotifier<LiveAttendanceViewState> {
     }
 
     if (result case Success<LiveAttendanceState>(:final data)) {
+      await outbox.removePending(projectKey: projectKey, eventId: eventId);
       state = state.copyWith(
         attendance: data,
         isSubmitting: false,
@@ -379,6 +566,28 @@ class LiveAttendanceController extends StateNotifier<LiveAttendanceViewState> {
       );
       _ref.invalidate(liveAttendanceHistoryControllerProvider);
       return result;
+    }
+
+    if (result case Err<LiveAttendanceState>(:final failure)) {
+      if (_shouldQueueLiveAttendanceMutationForRetry(failure)) {
+        await outbox.enqueue(
+          projectKey: projectKey,
+          eventId: eventId,
+          attended: attended,
+        );
+        if (!mounted) {
+          return Result.success(optimistic);
+        }
+        state = state.copyWith(
+          attendance: optimistic,
+          isSubmitting: false,
+          isLoading: false,
+        );
+        _ref.invalidate(liveAttendanceHistoryControllerProvider);
+        return Result.success(optimistic);
+      }
+      state = state.copyWith(attendance: previous, isSubmitting: false);
+      return Result.failure(failure);
     }
 
     state = state.copyWith(attendance: previous, isSubmitting: false);
@@ -598,9 +807,13 @@ class LiveAttendanceHistoryController
     final sorted = [...items];
     sorted.sort((a, b) {
       final aTime =
-          a.attendedAt ?? a.showStartTime ?? DateTime.fromMillisecondsSinceEpoch(0);
+          a.attendedAt ??
+          a.showStartTime ??
+          DateTime.fromMillisecondsSinceEpoch(0);
       final bTime =
-          b.attendedAt ?? b.showStartTime ?? DateTime.fromMillisecondsSinceEpoch(0);
+          b.attendedAt ??
+          b.showStartTime ??
+          DateTime.fromMillisecondsSinceEpoch(0);
       return bTime.compareTo(aTime);
     });
     return sorted;
@@ -651,6 +864,19 @@ final liveEventDetailControllerProvider = StateNotifierProvider.autoDispose
     ) {
       return LiveEventDetailController(ref, eventId)..load();
     });
+
+/// EN: Live attendance outbox controller provider.
+/// KO: 라이브 출석 오프라인 대기열 컨트롤러 프로바이더.
+final liveAttendanceOutboxControllerProvider =
+    Provider<LiveAttendanceOutboxController>((ref) {
+      return LiveAttendanceOutboxController(ref);
+    });
+
+/// EN: App-scope bootstrap provider for live attendance outbox auto-sync.
+/// KO: 라이브 출석 아웃박스 자동 동기화를 위한 앱 전역 부트스트랩 프로바이더.
+final liveAttendanceOutboxBootstrapProvider = Provider<void>((ref) {
+  ref.watch(liveAttendanceOutboxControllerProvider);
+});
 
 final liveAttendanceControllerProvider = StateNotifierProvider.autoDispose
     .family<LiveAttendanceController, LiveAttendanceViewState, String>((

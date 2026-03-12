@@ -28,6 +28,7 @@ import '../../../../core/widgets/layout/gbt_greeting_header.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../ads/domain/entities/ad_slot_entities.dart';
+import '../../../profile_banner/application/banner_controller.dart';
 import '../../../ads/presentation/widgets/hybrid_sponsored_slot.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
@@ -83,6 +84,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     final avatarUrl = userProfile?.avatarUrl;
     final nickname = userProfile?.displayName;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isAuthenticated = ref.watch(isAuthenticatedProvider);
+    final activeBanner = ref.watch(activeBannerProvider).valueOrNull;
 
     final appBarBgColor = _isScrolled
         ? (isDark ? GBTColors.darkSurface : Colors.white).withValues(alpha: 0.8)
@@ -136,7 +139,12 @@ class _HomePageState extends ConsumerState<HomePage> {
             : state.when(
                 loading: () => _buildLoading(),
                 error: (error, _) => _buildError(error),
-                data: (summary) => _buildContent(summary, nickname),
+                data: (summary) => _buildContent(
+                  summary,
+                  nickname,
+                  userBannerUrl: activeBanner?.imageUrl,
+                  isAuthenticated: isAuthenticated,
+                ),
               ),
       ),
     );
@@ -307,7 +315,12 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildContent(HomeSummary summary, String? nickname) {
+  Widget _buildContent(
+    HomeSummary summary,
+    String? nickname, {
+    String? userBannerUrl,
+    bool isAuthenticated = false,
+  }) {
     final featuredLive = _pickFeaturedLive(summary.trendingLiveEvents);
     final headerImageUrl = _pickHeaderImage(summary, featuredLive);
 
@@ -320,6 +333,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           child: GBTGreetingHeader(
             userName: nickname,
             backgroundImageUrl: headerImageUrl,
+            userBannerUrl: userBannerUrl,
             featuredTitle: featuredLive?.title,
             featuredDate: featuredLive?.dateLabel,
             featuredPosterUrl: featuredLive?.posterUrl,
@@ -334,6 +348,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                     );
                     context.goToLiveDetail(featuredLive.id);
                   },
+            onCustomizeTap: isAuthenticated
+                ? () => context.push('/banner-picker')
+                : null,
           ),
         ),
 

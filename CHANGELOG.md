@@ -1,6 +1,155 @@
 # Changelog
 
+## 2026-03-13 (2)
+- **PROFILE BANNER CUSTOMIZATION FEATURE**:
+  - 사용자가 프로필 배너(홈 헤더 배경 이미지)를 티어/칭호 달성 배너 카탈로그에서 선택·적용할 수 있는 기능을 추가했습니다.
+  - Clean Architecture 전 계층 신규 구현:
+    - domain entities: `BannerRarity`, `BannerUnlockType`, `BannerItem`, `ActiveBanner`
+    - data DTO: `BannerItemDto`, `ActiveBannerDto` (fromJson/toJson)
+    - remote data source: `BannerRemoteDataSource` (GET/PUT/DELETE `/api/v1/users/me/banner`, GET `/api/v1/banners`)
+    - repository interface: `BannerRepository`
+    - repository impl: `BannerRepositoryImpl` (CacheManager 통합, active=10min TTL, catalog=1h TTL)
+    - application: `ActiveBannerNotifier` / `BannerCatalogNotifier` (Riverpod StateNotifierProvider)
+    - presentation: `BannerPickerPage` (3열 그리드, 희귀도 테두리, 잠금 오버레이, 하단 적용 버튼)
+  - `GBTGreetingHeader`에 `userBannerUrl`, `onCustomizeTap` 파라미터 추가 (팔레트 아이콘 버튼)
+  - `HomePage`에 `activeBannerProvider` 연결 및 커스터마이징 버튼 노출
+  - `/banner-picker` 오버레이 라우트 추가 (`AppRoutes.bannerPicker`)
+  - `ApiEndpoints.userBanner`, `ApiEndpoints.banners` 상수 추가
+  - Added:
+    - `lib/features/profile_banner/domain/entities/banner_entities.dart`
+    - `lib/features/profile_banner/data/dto/banner_dto.dart`
+    - `lib/features/profile_banner/data/datasources/banner_remote_data_source.dart`
+    - `lib/features/profile_banner/domain/repositories/banner_repository.dart`
+    - `lib/features/profile_banner/data/repositories/banner_repository_impl.dart`
+    - `lib/features/profile_banner/application/banner_controller.dart`
+    - `lib/features/profile_banner/presentation/pages/banner_picker_page.dart`
+  - Updated:
+    - `lib/core/constants/api_constants.dart`
+    - `lib/core/widgets/layout/gbt_greeting_header.dart`
+    - `lib/features/home/presentation/pages/home_page.dart`
+    - `lib/core/router/app_router.dart`
+
+## 2026-03-13
+- **OFFLINE MODE PHASE 1 (READ FALLBACK + FAVORITES/POST-REACTION/LIVE-ATTENDANCE OUTBOX)**:
+  - Cache manager에 네트워크 가용성 프로브를 추가하고,
+    오프라인일 때 읽기 정책을 `cacheOnly`로 강제하도록 반영했습니다.
+    - 대상: `networkOnly/networkFirst/staleWhileRevalidate/cacheFirst`
+    - 오프라인 + 캐시 미스 시 `CacheFailure(code=offline_cache_miss)` 반환
+  - `CacheFailure` 사용자 메시지에 `offline_cache_miss` 분기를 추가했습니다.
+  - 즐겨찾기 토글 오프라인 큐(Outbox) 1차 구현:
+    - 오프라인 상태에서도 토글을 즉시 낙관적 반영
+    - 대기 작업을 로컬 저장소에 누적(최신 상태 dedupe)
+    - 온라인 복귀 시 자동 동기화
+  - 게시글 좋아요/북마크 오프라인 큐(Outbox) 추가:
+    - 오프라인 토글 시 즉시 낙관적 반영 후 대기열 저장
+    - 앱 전역 bootstrap으로 온라인 복귀 시 자동 동기화
+    - 기존 unlike 500(UUID 재시도) 우회 로직을 outbox 동기화에도 반영
+  - 라이브 출석 토글 오프라인 큐(Outbox) 추가:
+    - 오프라인 토글 시 즉시 낙관적 반영 후 대기열 저장
+    - 라이브 상세 재진입 시 대기열 상태를 현재 출석 상태 위에 overlay
+    - 앱 전역 bootstrap으로 온라인 복귀/로그인 복귀 시 자동 동기화
+  - Added:
+    - `lib/features/favorites/application/pending_favorite_mutation.dart`
+    - `lib/features/feed/application/pending_post_reaction_mutation.dart`
+    - `lib/features/live_events/application/pending_live_attendance_mutation.dart`
+  - Updated:
+    - `lib/core/cache/cache_manager.dart`
+    - `lib/core/providers/core_providers.dart`
+    - `lib/core/error/failure.dart`
+    - `lib/core/storage/local_storage.dart`
+    - `lib/features/favorites/application/favorites_controller.dart`
+    - `lib/features/feed/application/reaction_controller.dart`
+    - `lib/features/live_events/application/live_events_controller.dart`
+    - `lib/app.dart`
+    - `test/core/cache/cache_manager_test.dart`
+    - `test/features/feed/application/pending_post_reaction_mutation_test.dart`
+    - `test/features/live_events/application/pending_live_attendance_mutation_test.dart`
+  - Validation:
+    - `flutter analyze` ✅
+    - `flutter test test/core/cache/cache_manager_test.dart` ✅
+    - `flutter test test/features/feed/application/pending_post_reaction_mutation_test.dart` ✅
+    - `flutter test test/features/live_events/application/pending_live_attendance_mutation_test.dart` ✅
+
 ## 2026-03-12
+- **BRAND LOGO CONCEPT V1 (APP ICON MARK DRAFT)**:
+  - 앱 성격(밴드 + 성지/이동)을 반영한 단일 로고 시안을 추가했습니다.
+  - 디자인 구성:
+    - 라운드 스퀘어 베이스(블루-핑크 그라데이션)
+    - 위치 핀 실루엣
+    - 핀 내부 기타 픽 + 음표 심볼
+    - 강조 스파클 포인트
+  - Added:
+    - `docs/design/logo/girlsbandtabi_logo_v1.svg`
+    - `docs/design/logo/girlsbandtabi_logo_v1.png`
+
+- **COMMUNITY REPORT REASON CATALOG EXPANSION (UI + API COMPAT FALLBACK)**:
+  - 신고 사유 선택지에 아래 항목을 추가했습니다.
+    - `거래 유도/판매글`
+    - `허위 신고/신고 악용`
+    - `조작/어뷰징`
+  - 도메인 enum 확장:
+    - `TRADE_INDUCEMENT`
+    - `FALSE_REPORT_ABUSE`
+    - `MANIPULATION_ABUSE`
+  - 서버 하위호환을 위해 신고 생성 시 확장 사유는
+    `reason=OTHER`로 전송하고, 실제 세부 사유는
+    `description`에 `[REASON_CODE]` 마커 형태로 인코딩해 전달하도록 반영했습니다.
+  - Updated:
+    - `lib/features/feed/domain/entities/community_moderation.dart`
+    - `lib/features/feed/data/repositories/community_repository_impl.dart`
+    - `test/features/feed/domain/community_moderation_reason_test.dart`
+    - `test/features/feed/data/community_repository_impl_test.dart`
+  - Validation:
+    - `flutter analyze lib/features/feed/domain/entities/community_moderation.dart lib/features/feed/data/repositories/community_repository_impl.dart lib/features/feed/presentation/widgets/community_report_sheet.dart test/features/feed/data/community_repository_impl_test.dart test/features/feed/domain/community_moderation_reason_test.dart` ✅
+    - `flutter test test/features/feed/domain/community_moderation_reason_test.dart test/features/feed/data/community_repository_impl_test.dart` ✅
+
+- **COMMUNITY RULES HARDENING (TRADE BAN + INTEGRITY + SAFETY)**:
+  - `docs/legal/커뮤니티이용규칙_v2026.03.12.md`를 보강했습니다.
+  - 내부 거래 금지 정책을 명시하고, 거래 유도 링크/오픈채팅 유도 금지를 추가했습니다.
+  - 대표 커뮤니티 운영 관행을 반영해 다음 항목을 확장했습니다:
+    - 신고 악용(허위/보복/대량 신고) 제재
+    - 다중 계정/제재 회피 금지
+    - 피싱/악성링크/자동화 어뷰징 금지
+    - 공개 저격/좌표 찍기/집단 공격 유도 금지
+    - 청소년 보호 무관용 기준(성착취물/유사 표현) 강화
+    - 민감 주제 사전 고지(스포일러/고강도 폭력 등) 운영 가능
+  - 운영 임시조치(댓글 잠금/쿨다운) 및 반복 위반 통합 제재 기준을 추가했습니다.
+
+- **MUSIC LYRICS MEMBER-PART COLOR MAP + TAP FILTER**:
+  - 악곡 상세의 가사 패널을 멤버 파트 중심 인터랙션으로 강화했습니다.
+  - 파트 배지 탭 시 해당 멤버가 선택되고, 가사 라인이 멤버 색상으로 강조되며
+    비선택 라인은 기본/보조 색상으로 감쇠 표시됩니다.
+  - `DUET`/`UNISON`/`HARMONY` 파트는 혼합색(그라데이션)으로 렌더링합니다.
+  - 파트-가사 매핑은 `lyricLineId -> lineId`를 우선 적용하고,
+    누락/불일치 시 `startMs/endMs` 시간 겹침 fallback으로 라인에 매핑합니다.
+  - 멤버 색상은 `memberId` 기반 해시 컬러맵으로 고정되며,
+    멤버/매핑 없는 라인은 기본색을 유지합니다.
+  - `eventId`가 있는 경우 `live-context` 응답의 `lyrics/parts/callGuide`를
+    우선 사용하고, 누락 시 기존 개별 상태를 fallback으로 사용합니다.
+  - Updated:
+    - `lib/features/music/presentation/pages/music_song_detail_page.dart`
+  - Validation:
+    - `flutter analyze lib/features/music/presentation/pages/music_song_detail_page.dart` ✅
+
+- **MUSIC TAB UNIT CLASSIFICATION (ALBUM + TRACK)**:
+  - 정보 > 악곡 탭에 유닛 분류 칩을 추가했습니다.
+  - 선택한 유닛 기준으로 앨범 컬렉션과 트랙 라인업이 함께 필터링됩니다.
+  - 트랙에서 유닛 키(`primaryUnitId` 우선, 없으면 `primaryUnitName`)를
+    추출해 분류 옵션을 구성하도록 반영했습니다.
+  - 유닛 데이터 변경으로 선택 옵션이 사라진 경우, 자동으로 전체(`All`)로
+    복귀하도록 상태 안정화 로직을 추가했습니다.
+  - Updated:
+    - `lib/features/feed/presentation/pages/info_page.dart`
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/info_page.dart` ✅
+
+- **ANDROID INTERNAL TEST VERSION BUMP + REBUILD**:
+  - 앱 버전을 `0.2.0+2060671857`로 상향했습니다.
+    - 이전: `0.1.0+2060671856`
+    - 현재: `0.2.0+2060671857` (major/minor 정책 반영 + build `+1`)
+  - 안드로이드 내부테스트용 릴리스 AAB를 재빌드했습니다.
+    - 산출물: `build/app/outputs/bundle/release/app-release.aab`
+
 - **MANDATORY CONSENT 3-TYPE ENFORCEMENT (TERMS/PRIVACY/LOCATION)**:
   - 필수 동의 게이트를 3종 정책 기준으로 강화했습니다.
     - `TERMS_OF_SERVICE`
