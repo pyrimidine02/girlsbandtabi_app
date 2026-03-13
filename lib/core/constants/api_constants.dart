@@ -603,6 +603,23 @@ class ApiEndpoints {
   static const String banners = '$apiVersion/banners';
 
   // ============================================================
+  // EN: Title endpoints (Title System v1)
+  // KO: 칭호 엔드포인트 (칭호 시스템 v1)
+  // ============================================================
+
+  /// EN: Full title catalog (GET). Auth optional — isEarned/isActive null when unauthenticated.
+  /// KO: 전체 칭호 카탈로그 (GET). 인증 선택 — 비인증 시 isEarned/isActive는 null.
+  static const String titles = '$apiVersion/titles';
+
+  /// EN: Authenticated user's active title (GET/PUT/DELETE).
+  /// KO: 인증된 사용자의 활성 칭호 엔드포인트 (GET/PUT/DELETE).
+  static const String userMeTitle = '$userMe/title';
+
+  /// EN: Another user's active title (GET, public).
+  /// KO: 다른 사용자의 활성 칭호 엔드포인트 (GET, 공개).
+  static String userTitle(String userId) => '$apiVersion/users/$userId/title';
+
+  // ============================================================
   // EN: Health check endpoints (8.25)
   // KO: 헬스 체크 엔드포인트 (8.25)
   // ============================================================

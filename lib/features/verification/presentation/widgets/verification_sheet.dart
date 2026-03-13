@@ -35,7 +35,6 @@ class VerificationSheet extends ConsumerStatefulWidget {
 }
 
 class _VerificationSheetState extends ConsumerState<VerificationSheet> {
-  bool _didAutoOpenReview = false;
   bool _agreedLocationNotice = false;
 
   @override
@@ -128,7 +127,6 @@ class _VerificationSheetState extends ConsumerState<VerificationSheet> {
                   }
                 });
 
-                _maybeOpenReview(context);
                 return Column(
                   children: [
                     Icon(
@@ -145,15 +143,23 @@ class _VerificationSheetState extends ConsumerState<VerificationSheet> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: GBTSpacing.md),
-                    if (widget.onWriteReview != null)
-                      Text(
-                        '후기 작성 화면으로 이동합니다',
-                        style: GBTTypography.bodySmall.copyWith(
-                          color: GBTColors.textSecondary,
+                    if (widget.onWriteReview != null) ...[
+                      _PrimaryButton(
+                        label: '후기 작성',
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          widget.onWriteReview?.call();
+                        },
+                      ),
+                      const SizedBox(height: GBTSpacing.sm),
+                      SizedBox(
+                        width: double.infinity,
+                        child: TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('건너뛰기'),
                         ),
-                        textAlign: TextAlign.center,
-                      )
-                    else
+                      ),
+                    ] else
                       _PrimaryButton(
                         label: '확인',
                         onPressed: () => Navigator.of(context).pop(),
@@ -191,17 +197,6 @@ class _VerificationSheetState extends ConsumerState<VerificationSheet> {
     );
   }
 
-  void _maybeOpenReview(BuildContext context) {
-    if (_didAutoOpenReview || widget.onWriteReview == null) {
-      return;
-    }
-    _didAutoOpenReview = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      widget.onWriteReview?.call();
-    });
-  }
 }
 
 class _LocationNoticeCard extends StatelessWidget {

@@ -13,25 +13,25 @@ void main() {
       'https://abc.r2.cloudflarestorage.com/girlsbandtabi/uploads/a.webp',
     );
 
-    expect(resolved, 'https://r2.pyrimidines.org/uploads/a.webp');
+    expect(resolved, 'https://r2.noraneko.cc/uploads/a.webp');
   });
 
   test('resolveMediaUrl accepts host-only public media URL', () {
-    final resolved = resolveMediaUrl('r2.pyrimidines.org/uploads/a.webp');
+    final resolved = resolveMediaUrl('r2.noraneko.cc/uploads/a.webp');
 
-    expect(resolved, 'https://r2.pyrimidines.org/uploads/a.webp');
+    expect(resolved, 'https://r2.noraneko.cc/uploads/a.webp');
   });
 
   test('resolveMediaUrl resolves upload object key to public CDN', () {
     final resolved = resolveMediaUrl('/uploads/a.webp');
 
-    expect(resolved, 'https://r2.pyrimidines.org/uploads/a.webp');
+    expect(resolved, 'https://r2.noraneko.cc/uploads/a.webp');
   });
 
   test('resolveMediaUrl resolves relative uploads key to public CDN', () {
     final resolved = resolveMediaUrl('uploads/a.webp');
 
-    expect(resolved, 'https://r2.pyrimidines.org/uploads/a.webp');
+    expect(resolved, 'https://r2.noraneko.cc/uploads/a.webp');
   });
 
   test(

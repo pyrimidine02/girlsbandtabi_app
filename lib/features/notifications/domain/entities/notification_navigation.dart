@@ -5,6 +5,10 @@ library;
 const String notificationTypePostCreated = 'POST_CREATED';
 const String notificationTypeSystemNotice = 'SYSTEM_NOTICE';
 
+/// EN: Notification type for automatic title grant.
+/// KO: 칭호 자동 부여 알림 타입.
+const String notificationTypeTitleEarned = 'TITLE_EARNED';
+
 /// EN: Normalize notification type with legacy alias compatibility.
 /// KO: 레거시 별칭을 포함해 알림 타입을 정규화합니다.
 String normalizeNotificationType(String? rawType) {
@@ -54,6 +58,19 @@ String? resolveNotificationNavigationPath({
 
   if (normalizedType == notificationTypeSystemNotice) {
     return '/notifications';
+  }
+
+  // EN: Title earned — navigate to the catalog page, optionally pre-selecting
+  //     the earned title via the titleId query parameter (entityId = titleId).
+  // KO: 칭호 획득 알림 — 칭호 카탈로그 페이지로 이동합니다.
+  //     entityId(= titleId)를 titleId 쿼리 파라미터로 전달해 해당 칭호를
+  //     자동으로 선택합니다.
+  if (normalizedType == notificationTypeTitleEarned) {
+    final titleId = entityId?.trim();
+    if (titleId != null && titleId.isNotEmpty) {
+      return '/title-picker?titleId=$titleId';
+    }
+    return '/title-picker';
   }
 
   return null;
@@ -134,6 +151,10 @@ String? _normalizePath(String rawPath, {String? query}) {
   }
   if (path.startsWith('/notifications')) {
     return _appendQuery(path, query);
+  }
+  if (path == '/title-picker' || path.startsWith('/title-picker') ||
+      path.startsWith('/titles')) {
+    return _appendQuery('/title-picker', query);
   }
 
   return null;

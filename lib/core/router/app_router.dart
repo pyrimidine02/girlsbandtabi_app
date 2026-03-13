@@ -50,6 +50,7 @@ import '../../features/favorites/presentation/pages/favorites_page.dart';
 import '../../features/search/presentation/pages/search_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/profile_banner/presentation/pages/banner_picker_page.dart';
+import '../../features/titles/presentation/pages/title_catalog_page.dart';
 
 DateTime? _lastPostDetailNavigationAt;
 String? _lastPostDetailNavigationPath;
@@ -151,6 +152,10 @@ class AppRoutes {
   // EN: Profile banner picker overlay route.
   // KO: 프로필 배너 피커 오버레이 라우트.
   static const String bannerPicker = 'banner-picker';
+
+  // EN: Title catalog picker overlay route.
+  // KO: 칭호 카탈로그 피커 오버레이 라우트.
+  static const String titlePicker = 'title-picker';
 }
 
 /// EN: Navigation shell branch index
@@ -652,6 +657,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return _buildAdaptiveOverlayPage(
             key: state.pageKey,
             child: const BannerPickerPage(),
+          );
+        },
+      ),
+
+      // EN: Title catalog picker — overlay route outside the shell.
+      // KO: 칭호 카탈로그 피커 — 쉘 외부 오버레이 라우트.
+      GoRoute(
+        path: '/title-picker',
+        name: AppRoutes.titlePicker,
+        pageBuilder: (context, state) {
+          final initialTitleId = state.uri.queryParameters['titleId'];
+          return _buildAdaptiveOverlayPage(
+            key: state.pageKey,
+            child: TitleCatalogPage(initialTitleId: initialTitleId),
           );
         },
       ),

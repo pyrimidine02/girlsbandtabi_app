@@ -28,6 +28,7 @@ import 'features/notifications/application/notifications_controller.dart';
 import 'features/notifications/domain/entities/notification_entities.dart';
 import 'features/notifications/domain/entities/notification_navigation.dart';
 import 'features/feed/application/reaction_controller.dart';
+import 'features/titles/application/titles_controller.dart';
 import 'features/live_events/application/live_events_controller.dart';
 import 'features/settings/application/mandatory_consent_controller.dart';
 import 'features/settings/application/settings_controller.dart';
@@ -111,6 +112,19 @@ class GBTApp extends ConsumerWidget {
                 actionUrl: item.actionUrl,
                 projectCode: item.projectCode,
               ),
+            );
+          }
+          // EN: Invalidate title caches immediately when a TITLE_EARNED
+          //     notification arrives so the title picker always shows
+          //     freshly-granted titles without waiting for the next TTL expiry.
+          // KO: TITLE_EARNED 알림 수신 즉시 칭호 캐시를 무효화하여 다음 TTL
+          //     만료를 기다리지 않고 칭호 피커에서 최신 획득 상태를 표시합니다.
+          if (type == notificationTypeTitleEarned) {
+            unawaited(
+              ref.read(titlesRepositoryProvider.future).then((repo) async {
+                await repo.invalidateTitleCaches();
+                unawaited(ref.read(activeTitleProvider.notifier).refresh());
+              }),
             );
           }
         });
@@ -266,6 +280,20 @@ class GBTApp extends ConsumerWidget {
     final notifier = ref.read(notificationsControllerProvider.notifier);
     if (tapEvent.notificationId.isNotEmpty) {
       unawaited(notifier.markAsRead(tapEvent.notificationId, refresh: false));
+    }
+
+    final normalizedType = normalizeNotificationType(tapEvent.type);
+    // EN: Ensure title caches are fresh before navigating so the title picker
+    //     reflects earned titles granted since the last cache population.
+    // KO: 탭 후 이동 전 칭호 캐시를 무효화하여 마지막 캐시 이후 부여된
+    //     칭호가 칭호 피커에 반영되도록 합니다.
+    if (normalizedType == notificationTypeTitleEarned) {
+      unawaited(
+        ref.read(titlesRepositoryProvider.future).then((repo) async {
+          await repo.invalidateTitleCaches();
+          unawaited(ref.read(activeTitleProvider.notifier).refresh());
+        }),
+      );
     }
 
     final targetPath =

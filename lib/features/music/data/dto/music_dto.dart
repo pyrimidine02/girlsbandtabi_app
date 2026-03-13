@@ -38,6 +38,14 @@ class MusicCursorPageDto<T> {
       hasNext: hasNext,
     );
   }
+
+  /// EN: Serializes the page to JSON using the provided item serializer.
+  /// KO: 제공된 항목 직렬화 함수를 사용해 페이지를 JSON으로 변환합니다.
+  Map<String, dynamic> toJson(Map<String, dynamic> Function(T) itemToJson) => {
+    'items': items.map(itemToJson).toList(),
+    'nextCursor': nextCursor,
+    'hasNext': hasNext,
+  };
 }
 
 class MusicAlbumSummaryDto {
@@ -78,6 +86,18 @@ class MusicAlbumSummaryDto {
       catalogNo: _stringOrNull(json['catalogNo']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'projectId': projectId,
+    'title': title,
+    'type': type,
+    if (coverUrl != null) 'coverUrl': coverUrl,
+    if (releaseDate != null) 'releaseDate': releaseDate,
+    'trackCount': trackCount,
+    if (label != null) 'label': label,
+    if (catalogNo != null) 'catalogNo': catalogNo,
+  };
 }
 
 class MusicAlbumTrackDto {
@@ -104,6 +124,14 @@ class MusicAlbumTrackDto {
       durationMs: _intOrNull(json['durationMs']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'songId': songId,
+    'trackNo': trackNo,
+    'title': title,
+    if (versionCode != null) 'versionCode': versionCode,
+    if (durationMs != null) 'durationMs': durationMs,
+  };
 }
 
 class MusicAlbumDetailDto extends MusicAlbumSummaryDto {
@@ -142,6 +170,12 @@ class MusicAlbumDetailDto extends MusicAlbumSummaryDto {
       tracks: tracks,
     );
   }
+
+  @override
+  Map<String, dynamic> toJson() => {
+    ...super.toJson(),
+    'tracks': tracks.map((t) => t.toJson()).toList(),
+  };
 }
 
 class MusicSongSummaryDto {
@@ -194,6 +228,22 @@ class MusicSongSummaryDto {
       defaultVersionCode: _stringOrNull(json['defaultVersionCode']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'projectId': projectId,
+    'title': title,
+    if (titleJa != null) 'titleJa': titleJa,
+    if (titleEn != null) 'titleEn': titleEn,
+    if (durationMs != null) 'durationMs': durationMs,
+    if (bpm != null) 'bpm': bpm,
+    if (primaryUnitId != null) 'primaryUnitId': primaryUnitId,
+    if (primaryUnitName != null) 'primaryUnitName': primaryUnitName,
+    if (albumId != null) 'albumId': albumId,
+    if (trackNo != null) 'trackNo': trackNo,
+    if (isTitleTrack != null) 'isTitleTrack': isTitleTrack,
+    if (defaultVersionCode != null) 'defaultVersionCode': defaultVersionCode,
+  };
 }
 
 class MusicSongDetailDto extends MusicSongSummaryDto {
@@ -245,6 +295,13 @@ class MusicSongDetailDto extends MusicSongSummaryDto {
       ),
     );
   }
+
+  @override
+  Map<String, dynamic> toJson() => {
+    ...super.toJson(),
+    'versions': versions.map((v) => v.toJson()).toList(),
+    if (previewUrl != null) 'previewUrl': previewUrl,
+  };
 }
 
 class MusicSongVersionInfoDto {
@@ -277,6 +334,16 @@ class MusicSongVersionInfoDto {
       arrangementNote: _stringOrNull(json['arrangementNote']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'versionCode': versionCode,
+    if (durationMs != null) 'durationMs': durationMs,
+    if (bpm != null) 'bpm': bpm,
+    if (key != null) 'key': key,
+    if (timeSignature != null) 'timeSignature': timeSignature,
+    'isDefault': isDefault,
+    if (arrangementNote != null) 'arrangementNote': arrangementNote,
+  };
 }
 
 class MusicLyricLineDto {
@@ -312,6 +379,17 @@ class MusicLyricLineDto {
       textTranslated: _stringOrNull(json['textTranslated']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'lineId': lineId,
+    'order': order,
+    'startMs': startMs,
+    'endMs': endMs,
+    'section': section,
+    'textOriginal': textOriginal,
+    if (textRomanized != null) 'textRomanized': textRomanized,
+    if (textTranslated != null) 'textTranslated': textTranslated,
+  };
 }
 
 class MusicLyricsPayloadDto {
@@ -341,6 +419,12 @@ class MusicLyricsPayloadDto {
       lines: lines,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'songId': songId,
+    'version': version,
+    'lyrics': lines.map((l) => l.toJson()).toList(),
+  };
 }
 
 class MusicPartSegmentDto {
@@ -379,6 +463,18 @@ class MusicPartSegmentDto {
       lyricLineId: _stringOrNull(json['lyricLineId']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'segmentId': segmentId,
+    'startMs': startMs,
+    'endMs': endMs,
+    if (memberId != null) 'memberId': memberId,
+    if (memberName != null) 'memberName': memberName,
+    if (unitId != null) 'unitId': unitId,
+    if (unitName != null) 'unitName': unitName,
+    if (partType != null) 'partType': partType,
+    if (lyricLineId != null) 'lyricLineId': lyricLineId,
+  };
 }
 
 class MusicPartsPayloadDto {
@@ -408,6 +504,12 @@ class MusicPartsPayloadDto {
       segments: segments,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'songId': songId,
+    'version': version,
+    'parts': segments.map((s) => s.toJson()).toList(),
+  };
 }
 
 class MusicCallCueDto {
@@ -443,6 +545,17 @@ class MusicCallCueDto {
       note: _stringOrNull(json['note']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'cueId': cueId,
+    'startMs': startMs,
+    'endMs': endMs,
+    'cueType': cueType,
+    'cueText': cueText,
+    if (intensity != null) 'intensity': intensity,
+    if (target != null) 'target': target,
+    if (note != null) 'note': note,
+  };
 }
 
 class MusicCallGuidePayloadDto {
@@ -472,6 +585,12 @@ class MusicCallGuidePayloadDto {
       cues: cues,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'songId': songId,
+    'version': version,
+    'callGuide': cues.map((c) => c.toJson()).toList(),
+  };
 }
 
 class MusicCreditContributorDto {
@@ -488,6 +607,12 @@ class MusicCreditContributorDto {
       type: _stringOrNull(json['type']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    if (id != null) 'id': id,
+    'name': name,
+    if (type != null) 'type': type,
+  };
 }
 
 class MusicCreditGroupDto {
@@ -506,6 +631,11 @@ class MusicCreditGroupDto {
       contributors: contributors,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'role': role,
+    'contributors': contributors.map((c) => c.toJson()).toList(),
+  };
 }
 
 class MusicDifficultyDto {
@@ -537,6 +667,16 @@ class MusicDifficultyDto {
       tempoScore: _int(metrics['tempoScore']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'difficultyLevel': difficultyLevel,
+    'callIntensity': callIntensity,
+    'metrics': {
+      'cueDensityPerMin': cueDensityPerMin,
+      'vocalRangeScore': vocalRangeScore,
+      'tempoScore': tempoScore,
+    },
+  };
 }
 
 class MusicPreviewDto {
@@ -553,6 +693,12 @@ class MusicPreviewDto {
       waveformUrl: _stringOrNull(json['waveformUrl']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    if (url != null) 'url': url,
+    if (durationSec != null) 'durationSec': durationSec,
+    if (waveformUrl != null) 'waveformUrl': waveformUrl,
+  };
 }
 
 class MusicStreamingLinkDto {
@@ -573,6 +719,12 @@ class MusicStreamingLinkDto {
       regionAvailability: _stringOrNull(json['regionAvailability']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'provider': provider,
+    'url': url,
+    if (regionAvailability != null) 'regionAvailability': regionAvailability,
+  };
 }
 
 class MusicMediaLinksDto {
@@ -596,6 +748,11 @@ class MusicMediaLinksDto {
       streamingLinks: links,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'preview': preview.toJson(),
+    'streamingLinks': streamingLinks.map((l) => l.toJson()).toList(),
+  };
 }
 
 class MusicAvailabilityDto {
@@ -626,6 +783,15 @@ class MusicAvailabilityDto {
       rightsPolicy: _string(map['rightsPolicy'], fallback: 'OK'),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'isAvailableNow': isAvailableNow,
+    if (availableFrom != null) 'availableFrom': availableFrom!.toIso8601String(),
+    if (availableUntil != null) 'availableUntil': availableUntil!.toIso8601String(),
+    'allowedCountries': allowedCountries,
+    'blockedCountries': blockedCountries,
+    'rightsPolicy': rightsPolicy,
+  };
 }
 
 class MusicSetlistItemDto {
@@ -673,6 +839,21 @@ class MusicSetlistItemDto {
       source: _stringOrNull(json['source']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'order': order,
+    'eventId': eventId,
+    if (unitId != null) 'unitId': unitId,
+    if (unitName != null) 'unitName': unitName,
+    if (songId != null) 'songId': songId,
+    if (songTitle != null) 'songTitle': songTitle,
+    if (versionCode != null) 'versionCode': versionCode,
+    'segmentType': segmentType,
+    if (startAt != null) 'startAt': startAt!.toIso8601String(),
+    if (endAt != null) 'endAt': endAt!.toIso8601String(),
+    'isEncore': isEncore,
+    if (source != null) 'source': source,
+  };
 }
 
 class MusicUnitSetlistDto {
@@ -699,6 +880,14 @@ class MusicUnitSetlistDto {
       parsedSongs: _stringList(json['parsedSongs']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'unitId': unitId,
+    if (unitName != null) 'unitName': unitName,
+    if (performanceOrder != null) 'performanceOrder': performanceOrder,
+    if (rawSetlist != null) 'rawSetlist': rawSetlist,
+    'parsedSongs': parsedSongs,
+  };
 }
 
 class MusicLiveSetlistDto {
@@ -731,6 +920,13 @@ class MusicLiveSetlistDto {
       unitSetlists: unitSetlists,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'liveEventId': liveEventId,
+    'eventStatus': eventStatus,
+    'items': items.map((i) => i.toJson()).toList(),
+    'unitSetlists': unitSetlists.map((u) => u.toJson()).toList(),
+  };
 }
 
 class MusicSongLiveContextDto {
@@ -771,6 +967,14 @@ class MusicSongLiveContextDto {
           : MusicLiveSetlistDto.fromJson(setlistContextData),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    if (song != null) 'song': song!.toJson(),
+    if (lyrics != null) 'lyrics': lyrics!.toJson(),
+    if (parts != null) 'parts': parts!.toJson(),
+    if (callGuide != null) 'callGuide': callGuide!.toJson(),
+    if (setlistContext != null) 'setlistContext': setlistContext!.toJson(),
+  };
 }
 
 Map<String, dynamic>? _asMap(dynamic value) {

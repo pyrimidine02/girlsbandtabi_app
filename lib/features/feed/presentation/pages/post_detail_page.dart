@@ -34,6 +34,8 @@ import '../../domain/entities/community_moderation.dart';
 import '../../domain/entities/feed_entities.dart';
 import '../widgets/community_translation_panel.dart';
 import '../widgets/community_report_sheet.dart';
+import '../../../titles/application/titles_controller.dart';
+import '../../../titles/presentation/widgets/active_title_badge.dart';
 
 /// EN: Post detail page widget.
 /// KO: 게시글 상세 페이지 위젯.
@@ -889,7 +891,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   }
 }
 
-class _PostDetailContent extends StatelessWidget {
+class _PostDetailContent extends ConsumerWidget {
   const _PostDetailContent({
     required this.post,
     required this.commentsState,
@@ -951,13 +953,16 @@ class _PostDetailContent extends StatelessWidget {
   final Future<void> Function() onRefresh;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final authorLabel = post.authorName?.isNotEmpty == true
         ? post.authorName!
         : '익명';
     final authorAvatarUrl = post.authorAvatarUrl?.isNotEmpty == true
         ? post.authorAvatarUrl
         : null;
+    final authorTitleItem = ref
+        .watch(userActiveTitleProvider(post.authorId))
+        .valueOrNull;
     final likeStatus = likeState.maybeWhen(
       data: (value) => value,
       orElse: () => null,
@@ -1058,6 +1063,13 @@ class _PostDetailContent extends StatelessWidget {
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
+                                        if (authorTitleItem?.hasTitle ==
+                                            true) ...[
+                                          const SizedBox(width: 6),
+                                          ActiveTitleBadge.fromActiveItem(
+                                            authorTitleItem!,
+                                          ),
+                                        ],
                                         const SizedBox(width: GBTSpacing.xs),
                                         Flexible(
                                           child: Text(
@@ -1806,7 +1818,7 @@ class _DeletedRootCommentItemState extends State<_DeletedRootCommentItem> {
 // EN: Comment item with inline expandable replies.
 // KO: 인라인 확장 대댓글을 지원하는 댓글 아이템.
 // ================================================
-class _CommentItem extends StatefulWidget {
+class _CommentItem extends ConsumerStatefulWidget {
   const _CommentItem({
     required this.comment,
     required this.replies,
@@ -1838,10 +1850,10 @@ class _CommentItem extends StatefulWidget {
   final ValueChanged<PostComment> onReply;
 
   @override
-  State<_CommentItem> createState() => _CommentItemState();
+  ConsumerState<_CommentItem> createState() => _CommentItemState();
 }
 
-class _CommentItemState extends State<_CommentItem> {
+class _CommentItemState extends ConsumerState<_CommentItem> {
   bool _repliesExpanded = false;
 
   @override
@@ -1869,6 +1881,9 @@ class _CommentItemState extends State<_CommentItem> {
     final avatarUrl = comment.authorAvatarUrl?.isNotEmpty == true
         ? comment.authorAvatarUrl
         : null;
+    final commentAuthorTitleItem = ref
+        .watch(userActiveTitleProvider(comment.authorId))
+        .valueOrNull;
     final isEdited =
         comment.updatedAt != null &&
         comment.updatedAt!.isAfter(comment.createdAt);
@@ -1931,6 +1946,10 @@ class _CommentItemState extends State<_CommentItem> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              if (commentAuthorTitleItem?.hasTitle == true)
+                                ActiveTitleBadge.fromActiveItem(
+                                  commentAuthorTitleItem!,
+                                ),
                               if (isPostAuthor)
                                 _AuthorBadge(color: primaryColor),
                               Text(

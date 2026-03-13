@@ -9,7 +9,7 @@ set -euo pipefail
 #   bash scripts/api_probe.sh
 #
 # Optional:
-#   BASE_URL=https://api.pyrimidines.org
+#   BASE_URL=https://api.noraneko.cc
 #   OUT=docs/api_probe_results.md
 #   ALLOW_MUTATIONS=1   # Enable POST/DELETE verification (side effects)
 

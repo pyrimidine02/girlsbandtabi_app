@@ -14,11 +14,11 @@ const String _developmentBaseUrlOverride = String.fromEnvironment(
 );
 const String _stagingBaseUrl = String.fromEnvironment(
   'STAGING_BASE_URL',
-  defaultValue: 'https://staging-api.pyrimidines.org',
+  defaultValue: 'https://staging-api.noraneko.cc',
 );
 const String _productionBaseUrl = String.fromEnvironment(
   'PRODUCTION_BASE_URL',
-  defaultValue: 'https://api.pyrimidines.org',
+  defaultValue: 'https://api.noraneko.cc',
 );
 
 /// EN: Application configuration singleton

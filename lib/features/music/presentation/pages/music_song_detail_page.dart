@@ -2,6 +2,8 @@
 /// KO: 악곡 정보 API용 곡 상세 페이지 — 탭 기반 레이아웃입니다.
 library;
 
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -12,6 +14,7 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/widgets/common/gbt_image.dart';
 import '../../application/music_controller.dart';
 import '../../domain/entities/music_entities.dart';
 
@@ -151,6 +154,21 @@ class _MusicSongDetailPageState extends ConsumerState<MusicSongDetailPage>
     final accent = _musicAccent(isDark);
     final bgColor = isDark ? GBTColors.darkBackground : GBTColors.background;
 
+    // EN: Fetch album cover when albumId is available.
+    // KO: albumId가 있을 때 앨범 커버를 가져옵니다.
+    // JA: albumIdが存在する場合、アルバムカバーを取得します。
+    final albumCoverUrl = (song?.albumId?.isNotEmpty == true)
+        ? ref
+              .watch(
+                musicAlbumDetailProvider((
+                  projectId: widget.projectId,
+                  albumId: song!.albumId!,
+                )),
+              )
+              .valueOrNull
+              ?.coverUrl
+        : null;
+
     return DefaultTabController(
       length: 4,
       child: Scaffold(
@@ -159,7 +177,7 @@ class _MusicSongDetailPageState extends ConsumerState<MusicSongDetailPage>
           headerSliverBuilder: (context, innerBoxIsScrolled) {
             return [
               SliverAppBar(
-                expandedHeight: 268,
+                expandedHeight: 360,
                 pinned: true,
                 backgroundColor: bgColor,
                 surfaceTintColor: Colors.transparent,
@@ -193,6 +211,7 @@ class _MusicSongDetailPageState extends ConsumerState<MusicSongDetailPage>
                   collapseMode: CollapseMode.pin,
                   background: _SongHeroBg(
                     songState: songState,
+                    albumCoverUrl: albumCoverUrl,
                     isDark: isDark,
                     accent: accent,
                     bgColor: bgColor,
@@ -326,9 +345,11 @@ class _SongHeroBg extends StatelessWidget {
     required this.accent,
     required this.bgColor,
     required this.onRetry,
+    this.albumCoverUrl,
   });
 
   final AsyncValue<MusicSongDetail> songState;
+  final String? albumCoverUrl;
   final bool isDark;
   final Color accent;
   final Color bgColor;
@@ -376,6 +397,7 @@ class _SongHeroBg extends StatelessWidget {
       ),
       data: (song) => _HeroBgData(
         song: song,
+        albumCoverUrl: albumCoverUrl,
         isDark: isDark,
         accent: accent,
         bgColor: bgColor,
@@ -425,25 +447,41 @@ class _HeroBgData extends StatelessWidget {
     required this.isDark,
     required this.accent,
     required this.bgColor,
+    this.albumCoverUrl,
   });
 
   final MusicSongDetail song;
+  final String? albumCoverUrl;
   final bool isDark;
   final Color accent;
   final Color bgColor;
 
   @override
   Widget build(BuildContext context) {
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textSecondary =
-        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
     final isTitleTrack = song.isTitleTrack ?? false;
     final altTitle = (song.titleJa ?? '').trim().isNotEmpty
         ? song.titleJa!
         : (song.titleEn ?? '').trim().isNotEmpty
         ? song.titleEn!
         : null;
+    final hasCover = (albumCoverUrl ?? '').trim().isNotEmpty;
+
+    if (hasCover) {
+      // ── Cover-present layout: blur background + 140×140 card ──────────
+      return _HeroBgWithCover(
+        song: song,
+        albumCoverUrl: albumCoverUrl!,
+        accent: accent,
+        isTitleTrack: isTitleTrack,
+        altTitle: altTitle,
+      );
+    }
+
+    // ── No-cover layout: gradient bg + vinyl disc placeholder ─────────
+    final textPrimary =
+        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+    final textSecondary =
+        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
 
     return Container(
       decoration: BoxDecoration(
@@ -451,9 +489,11 @@ class _HeroBgData extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            accent.withValues(alpha: 0.28),
+            accent.withValues(alpha: 0.32),
+            accent.withValues(alpha: 0.06),
             bgColor,
           ],
+          stops: const [0.0, 0.55, 1.0],
         ),
       ),
       child: SafeArea(
@@ -468,30 +508,48 @@ class _HeroBgData extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // EN: Album art placeholder — API does not provide cover URL.
-              // KO: 앨범 아트 플레이스홀더 — API에서 커버 URL을 제공하지 않습니다.
+              // EN: Vinyl disc style placeholder — circular gradient with
+              //     center dot and music note icon.
+              // KO: 바이닐 디스크 스타일 플레이스홀더 — 원형 그라디언트,
+              //     중앙 점, 음표 아이콘.
+              // JA: ビニール盤スタイルのプレースホルダー — 円形グラデーション。
               Container(
-                width: 120,
-                height: 120,
+                width: 100,
+                height: 100,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
                     colors: [
-                      accent.withValues(alpha: 0.24),
-                      accent.withValues(alpha: 0.08),
+                      accent.withValues(alpha: 0.18),
+                      accent.withValues(alpha: 0.28),
+                      accent.withValues(alpha: 0.10),
                     ],
+                    stops: const [0.0, 0.55, 1.0],
                   ),
                   border: Border.all(
-                    color: accent.withValues(alpha: 0.22),
-                    width: 1,
+                    color: accent.withValues(alpha: 0.20),
+                    width: 1.5,
                   ),
                 ),
-                child: Icon(
-                  Icons.music_note_rounded,
-                  size: 48,
-                  color: accent.withValues(alpha: 0.4),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // EN: Inner circle to mimic vinyl label.
+                    // KO: 비닐 레이블을 모방하는 내부 원.
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: accent.withValues(alpha: 0.14),
+                      ),
+                    ),
+                    Icon(
+                      Icons.music_note_rounded,
+                      size: 22,
+                      color: accent.withValues(alpha: 0.55),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: GBTSpacing.sm),
@@ -525,10 +583,10 @@ class _HeroBgData extends StatelessWidget {
               // KO: 곡 제목.
               Text(
                 song.title,
-                style: GBTTypography.displaySmall.copyWith(
+                style: GBTTypography.headlineSmall.copyWith(
                   color: textPrimary,
                   fontWeight: FontWeight.w800,
-                  height: 1.15,
+                  height: 1.2,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 2,
@@ -590,6 +648,205 @@ class _HeroBgData extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// HERO WITH COVER
+// ══════════════════════════════════════════════════════════════
+
+/// EN: Hero layout when album cover URL is available.
+///     Blurred cover fills the background; a 140×140 rounded card
+///     sits at center, with text info below.
+/// KO: 앨범 커버 URL이 있을 때의 히어로 레이아웃입니다.
+///     블러 처리된 커버가 배경을 채우고, 중앙에 140×140 둥근 카드,
+///     아래에 텍스트 정보가 위치합니다.
+/// JA: アルバムカバーURLがある場合のヒーローレイアウトです。
+class _HeroBgWithCover extends StatelessWidget {
+  const _HeroBgWithCover({
+    required this.song,
+    required this.albumCoverUrl,
+    required this.accent,
+    required this.isTitleTrack,
+    this.altTitle,
+  });
+
+  final MusicSongDetail song;
+  final String albumCoverUrl;
+  final Color accent;
+  final bool isTitleTrack;
+  final String? altTitle;
+
+  @override
+  Widget build(BuildContext context) {
+    // EN: Text on blurred cover always uses white variants for contrast.
+    // KO: 블러 커버 위 텍스트는 대비를 위해 항상 흰색 계열을 사용합니다.
+    // JA: ブラー背景上のテキストはコントラストのため常に白系を使用します。
+    const titleColor = Colors.white;
+    final tertiaryColor = Colors.white.withValues(alpha: 0.65);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+          // ── Blurred cover background ───────────────────────────
+          // EN: ImageFiltered applies a 20px Gaussian blur to the full image.
+          // KO: ImageFiltered로 전체 이미지에 20px 가우시안 블러를 적용합니다.
+          ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: GBTImage(
+              imageUrl: albumCoverUrl,
+              fit: BoxFit.cover,
+              useShimmer: false,
+              semanticLabel: '',
+            ),
+          ),
+
+          // EN: Dark dim overlay — 70% opacity for text legibility.
+          // KO: 텍스트 가독성을 위한 70% 어두운 오버레이.
+          Container(color: Colors.black.withValues(alpha: 0.70)),
+
+          // ── Foreground content ─────────────────────────────────
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                GBTSpacing.pageHorizontal,
+                GBTSpacing.md,
+                GBTSpacing.pageHorizontal,
+                GBTSpacing.sm,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // EN: 140×140 album cover card with elevation shadows.
+                  // KO: 그림자 효과가 있는 140×140 앨범 커버 카드.
+                  Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.50),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.28),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius:
+                          BorderRadius.circular(GBTSpacing.radiusLg),
+                      child: GBTImage(
+                        imageUrl: albumCoverUrl,
+                        fit: BoxFit.cover,
+                        semanticLabel:
+                            '${song.title} album cover',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: GBTSpacing.sm),
+
+                  // EN: Title track badge.
+                  // KO: 타이틀 트랙 배지.
+                  if (isTitleTrack) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.75),
+                        borderRadius:
+                            BorderRadius.circular(GBTSpacing.radiusFull),
+                      ),
+                      child: Text(
+                        'TITLE',
+                        style: GBTTypography.caption.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                  ],
+
+                  // EN: Song title — headlineSmall to prevent 2-line clipping.
+                  // KO: 곡 제목 — 2줄 잘림 방지를 위해 headlineSmall 사용.
+                  Text(
+                    song.title,
+                    style: GBTTypography.headlineSmall.copyWith(
+                      color: titleColor,
+                      fontWeight: FontWeight.w800,
+                      height: 1.2,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  // EN: Unit name in accent pink (w600).
+                  // KO: 유닛 이름 — 핑크 accent, w600.
+                  if ((song.primaryUnitName ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      song.primaryUnitName!,
+                      style: GBTTypography.bodySmall.copyWith(
+                        color: accent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+
+                  // EN: Alternative title — italic, semi-transparent white.
+                  // KO: 대체 제목 — 이탤릭, 반투명 흰색.
+                  if (altTitle != null) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      altTitle!,
+                      style: GBTTypography.bodySmall.copyWith(
+                        color: tertiaryColor,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+
+                  const SizedBox(height: GBTSpacing.sm),
+
+                  // EN: BPM + duration chips.
+                  // KO: BPM + 재생시간 칩.
+                  Wrap(
+                    spacing: GBTSpacing.xs,
+                    runSpacing: GBTSpacing.xs,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      if (song.durationMs != null)
+                        _InfoChip(
+                          icon: Icons.schedule_rounded,
+                          label: _formatMs(song.durationMs!),
+                          isDark: true,
+                        ),
+                      if (song.bpm != null)
+                        _InfoChip(
+                          icon: Icons.speed_rounded,
+                          label: 'BPM ${song.bpm}',
+                          isDark: true,
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
     );
   }
 }
@@ -759,6 +1016,17 @@ class _InfoTab extends ConsumerWidget {
     final textSecondary =
         isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
 
+    // EN: Fetch album title from album detail so the Info tab shows a
+    //     human-readable name instead of a raw UUID.
+    // KO: 앨범 상세에서 앨범 제목을 가져와 정보 탭에 UUID 대신 표시합니다.
+    // JA: アルバム詳細からタイトルを取得してUUIDではなく表示します。
+    final albumKey = (song?.albumId?.isNotEmpty == true)
+        ? (projectId: projectId, albumId: song!.albumId!)
+        : null;
+    final albumTitle = albumKey != null
+        ? ref.watch(musicAlbumDetailProvider(albumKey)).valueOrNull?.title
+        : null;
+
     return RefreshIndicator(
       color: accent,
       onRefresh: onRefresh,
@@ -787,7 +1055,11 @@ class _InfoTab extends ConsumerWidget {
           else if (song != null) ...[
             _MetaRow(
               label: context.l10n(ko: '앨범', en: 'Album', ja: 'アルバム'),
-              value: (song.albumId ?? '').isNotEmpty ? song.albumId! : '-',
+              // EN: Show resolved album title; fall back to albumId if title
+              //     not yet loaded, or '-' when albumId is absent.
+              // KO: 앨범 제목 표시. 아직 로드 전이면 albumId, 없으면 '-'.
+              value: albumTitle ??
+                  ((song.albumId ?? '').isNotEmpty ? song.albumId! : '-'),
               isDark: isDark,
             ),
             _MetaRow(

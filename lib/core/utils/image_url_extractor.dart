@@ -9,7 +9,7 @@ import 'media_url.dart';
 // KO: 상수 및 패턴
 // ========================================
 
-const _publicR2Host = 'r2.pyrimidines.org';
+const _publicR2Host = 'r2.noraneko.cc';
 const _legacyR2Suffix = 'r2.cloudflarestorage.com';
 const _imageExtensions = <String>{
   '.jpg',
@@ -29,7 +29,7 @@ final _htmlImagePattern = RegExp(
 );
 final _urlPattern = RegExp(r'''(https?://[^\s)<>"']+)''');
 final _bareR2Pattern = RegExp(
-  r'''(?<!https://)(?<!http://)(r2\.pyrimidines\.org/[^\s)<>"']+)''',
+  r'''(?<!https://)(?<!http://)(r2\.noraneko\.cc/[^\s)<>"']+)''',
   caseSensitive: false,
 );
 
@@ -132,7 +132,7 @@ String _ensureScheme(String value) {
   if (value.startsWith('http://') || value.startsWith('https://')) {
     return value;
   }
-  if (value.startsWith('r2.pyrimidines.org/')) {
+  if (value.startsWith('r2.noraneko.cc/')) {
     return 'https://$value';
   }
   return value;

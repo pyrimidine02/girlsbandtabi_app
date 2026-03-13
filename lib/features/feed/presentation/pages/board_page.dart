@@ -44,6 +44,8 @@ import '../models/feed_native_ad_placement.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../widgets/community_translation_panel.dart';
 import '../widgets/community_report_sheet.dart';
+import '../../../titles/application/titles_controller.dart';
+import '../../../titles/presentation/widgets/active_title_badge.dart';
 
 // ========================================
 // EN: Board Page — section-driven by sub bottom nav, Toss minimal
@@ -2272,6 +2274,11 @@ class _CommunityPostCard extends ConsumerWidget {
       data: (projects) => _resolveProjectName(projects, post.projectId),
       orElse: () => post.projectId,
     );
+    // EN: Author active title — shown as a small badge below the author name.
+    // KO: 작성자의 활성 칭호 — 작성자 이름 아래 작은 배지로 표시합니다.
+    final authorTitleItem = ref
+        .watch(userActiveTitleProvider(post.authorId))
+        .valueOrNull;
 
     // EN: Timeline block — edge-to-edge content with bottom divider.
     // KO: 타임라인 블록 — 카드 테두리 대신 하단 구분선 기반 레이아웃.
@@ -2312,14 +2319,27 @@ class _CommunityPostCard extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            authorLabel,
-                            style: GBTTypography.labelLarge.copyWith(
-                              fontWeight: FontWeight.w700,
-                              height: 1.2,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  authorLabel,
+                                  style: GBTTypography.labelLarge.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.2,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (authorTitleItem?.hasTitle == true) ...[
+                                const SizedBox(width: 6),
+                                ActiveTitleBadge.fromActiveItem(
+                                  authorTitleItem!,
+                                ),
+                              ],
+                            ],
                           ),
                           const SizedBox(height: 2),
                           // EN: Emphasize project identity with a tinted badge.

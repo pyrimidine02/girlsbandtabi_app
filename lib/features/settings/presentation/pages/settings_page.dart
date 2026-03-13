@@ -141,6 +141,21 @@ class SettingsPage extends ConsumerWidget {
                     ),
                     onTap: () => context.push('/banner-picker'),
                   ),
+                  _SettingsRow(
+                    icon: Icons.workspace_premium_rounded,
+                    iconBgColor: const Color(0xFF6366F1),
+                    title: context.l10n(
+                      ko: '칭호 관리',
+                      en: 'Manage titles',
+                      ja: '称号管理',
+                    ),
+                    subtitle: context.l10n(
+                      ko: '획득한 칭호 확인 및 활성 칭호 설정',
+                      en: 'View earned titles & set active title',
+                      ja: '取得した称号の確認と称号の設定',
+                    ),
+                    onTap: () => context.push('/title-picker'),
+                  ),
                   if (canAccessAdminOps)
                     _SettingsRow(
                       icon: Icons.admin_panel_settings_rounded,

@@ -697,14 +697,14 @@ class _AlbumCard extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
       child: InkWell(
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
         onTap: onTap,
         child: Ink(
           decoration: BoxDecoration(
             color: cardBg,
-            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -713,7 +713,7 @@ class _AlbumCard extends StatelessWidget {
               Expanded(
                 child: ClipRRect(
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(GBTSpacing.radiusMd),
+                    top: Radius.circular(GBTSpacing.radiusLg),
                   ),
                   child: Stack(
                     fit: StackFit.expand,
@@ -762,8 +762,8 @@ class _AlbumCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                      // EN: Album type badge
-                      // KO: 앨범 타입 배지
+                      // EN: Album type badge — top-left corner.
+                      // KO: 앨범 타입 배지 — 왼쪽 상단 모서리.
                       if (album.type.trim().isNotEmpty)
                         Positioned(
                           top: GBTSpacing.xs,
@@ -790,67 +790,116 @@ class _AlbumCard extends StatelessWidget {
                             ),
                           ),
                         ),
+
+                      // EN: Title + meta text overlaid on cover image bottom.
+                      //     Only shown when cover is available.
+                      // KO: 커버가 있을 때 커버 이미지 하단에 제목·메타 오버레이.
+                      if (hasCover)
+                        Positioned(
+                          left: GBTSpacing.sm,
+                          right: GBTSpacing.sm,
+                          bottom: GBTSpacing.sm,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                album.title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: GBTTypography.labelMedium.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.3,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              if (releaseYear != null ||
+                                  album.trackCount > 0)
+                                Text(
+                                  [
+                                    if (releaseYear != null) releaseYear,
+                                    if (album.trackCount > 0)
+                                      context.l10n(
+                                        ko: '${album.trackCount}곡',
+                                        en: '${album.trackCount} tracks',
+                                        ja: '${album.trackCount}曲',
+                                      ),
+                                  ].join('  ·  '),
+                                  style: GBTTypography.caption.copyWith(
+                                    color: Colors.white
+                                        .withValues(alpha: 0.75),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
 
-              // ── Info area ──────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  GBTSpacing.sm,
-                  GBTSpacing.xs2,
-                  GBTSpacing.sm,
-                  GBTSpacing.sm,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      album.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GBTTypography.labelMedium.copyWith(
-                        color: titleColor,
-                        fontWeight: FontWeight.w700,
-                        height: 1.3,
+              // EN: Info area — when cover is present, text is shown as a
+              //     gradient overlay inside the art area (already added in
+              //     the Stack above). When no cover, show below the art.
+              // KO: 정보 영역 — 커버가 있으면 아트 영역 내 그라디언트 오버레이로
+              //     텍스트를 표시합니다. 커버가 없으면 아트 아래에 표시합니다.
+              if (!hasCover)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    GBTSpacing.sm,
+                    GBTSpacing.xs2,
+                    GBTSpacing.sm,
+                    GBTSpacing.sm,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        album.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GBTTypography.labelMedium.copyWith(
+                          color: titleColor,
+                          fontWeight: FontWeight.w700,
+                          height: 1.3,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        if (releaseYear != null) ...[
-                          Text(
-                            releaseYear,
-                            style: GBTTypography.caption.copyWith(
-                              color: metaColor,
-                            ),
-                          ),
-                          if (album.trackCount > 0) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          if (releaseYear != null) ...[
                             Text(
-                              '  ·  ',
+                              releaseYear,
                               style: GBTTypography.caption.copyWith(
                                 color: metaColor,
                               ),
                             ),
+                            if (album.trackCount > 0) ...[
+                              Text(
+                                '  ·  ',
+                                style: GBTTypography.caption.copyWith(
+                                  color: metaColor,
+                                ),
+                              ),
+                            ],
                           ],
+                          if (album.trackCount > 0)
+                            Text(
+                              context.l10n(
+                                ko: '${album.trackCount}곡',
+                                en: '${album.trackCount} tracks',
+                                ja: '${album.trackCount}曲',
+                              ),
+                              style: GBTTypography.caption.copyWith(
+                                color: metaColor,
+                              ),
+                            ),
                         ],
-                        if (album.trackCount > 0)
-                          Text(
-                            context.l10n(
-                              ko: '${album.trackCount}곡',
-                              en: '${album.trackCount} tracks',
-                              ja: '${album.trackCount}曲',
-                            ),
-                            style: GBTTypography.caption.copyWith(
-                              color: metaColor,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -997,9 +1046,6 @@ class _SongRow extends StatelessWidget {
         : GBTColors.surfaceVariant;
     final titleColor =
         isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final rankColor = rank <= 3
-        ? accent
-        : (isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary);
     final metaColor =
         isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
     final isTitleTrack = song.isTitleTrack ?? false;
@@ -1032,19 +1078,40 @@ class _SongRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // ── Rank ────────────────────────────────────────
-              SizedBox(
-                width: 28,
-                child: Text(
-                  '$rank',
-                  textAlign: TextAlign.center,
-                  style: GBTTypography.bodySmall.copyWith(
-                    color: rankColor,
-                    fontWeight: rank <= 3 ? FontWeight.w800 : FontWeight.w400,
+              // EN: 44×44 music art placeholder (trackNo or gradient disc).
+              //     Replaced rank number to avoid implying a popularity order.
+              // KO: 44×44 음악 아트 플레이스홀더 (트랙 번호 또는 그라디언트 디스크).
+              //     순위를 암시하는 숫자를 제거했습니다.
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+                  gradient: LinearGradient(
+                    colors: [
+                      accent.withValues(alpha: 0.20),
+                      accent.withValues(alpha: 0.08),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
                 ),
+                alignment: Alignment.center,
+                child: song.trackNo != null
+                    ? Text(
+                        '${song.trackNo}',
+                        style: GBTTypography.labelMedium.copyWith(
+                          color: accent.withValues(alpha: 0.70),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      )
+                    : Icon(
+                        Icons.music_note_rounded,
+                        size: 18,
+                        color: accent.withValues(alpha: 0.45),
+                      ),
               ),
-              const SizedBox(width: GBTSpacing.xs),
+              const SizedBox(width: GBTSpacing.sm),
 
               // ── Title + metadata ─────────────────────────────
               Expanded(
@@ -1149,8 +1216,6 @@ class _AlbumSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleColor =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
     final metaColor =
         isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
     final divider = isDark ? GBTColors.darkBorder : GBTColors.border;
@@ -1164,106 +1229,148 @@ class _AlbumSheet extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ── Album header ─────────────────────────────────────
+        // ── Album banner header (full-width, 200px) ───────────
+        // EN: Full-width cover banner with gradient overlay for title text.
+        //     Replaces the old 80×80 horizontal layout for a music-app feel.
+        // KO: 제목 텍스트용 그라디언트 오버레이가 있는 전체 폭 커버 배너.
+        //     이전 80×80 가로 레이아웃을 대체해 음악 앱 감성을 부여합니다.
+        // JA: グラデーションオーバーレイ付きのフル幅カバーバナー。
+        ClipRRect(
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(GBTSpacing.radiusXl),
+          ),
+          child: SizedBox(
+            height: 200,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // EN: Cover image or gradient placeholder.
+                // KO: 커버 이미지 또는 그라디언트 플레이스홀더.
+                if (hasCover)
+                  GBTImage(
+                    imageUrl: detail.coverUrl!,
+                    fit: BoxFit.cover,
+                    semanticLabel: '${detail.title} cover',
+                  )
+                else
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          accent.withValues(alpha: 0.28),
+                          accent.withValues(alpha: 0.08),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.album_rounded,
+                        size: 64,
+                        color: accent.withValues(alpha: 0.30),
+                      ),
+                    ),
+                  ),
+
+                // EN: Bottom gradient overlay (80px) for text readability.
+                // KO: 텍스트 가독성을 위한 하단 80px 그라디언트 오버레이.
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(
+                            alpha: hasCover ? 0.72 : 0.40,
+                          ),
+                        ],
+                        stops: const [0.45, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // EN: Album type badge + title text at bottom-left.
+                // KO: 왼쪽 하단의 앨범 타입 배지 + 제목 텍스트.
+                Positioned(
+                  left: GBTSpacing.md,
+                  right: GBTSpacing.md,
+                  bottom: GBTSpacing.md,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (detail.type.trim().isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 5),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(
+                              GBTSpacing.radiusFull,
+                            ),
+                          ),
+                          child: Text(
+                            detail.type.toUpperCase(),
+                            style: GBTTypography.caption.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 9,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      Text(
+                        detail.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GBTTypography.titleSmall.copyWith(
+                          // EN: Always white on gradient overlay for contrast.
+                          // KO: 그라디언트 오버레이 위에서 항상 흰색 사용.
+                          color: hasCover
+                              ? Colors.white
+                              : (isDark
+                                    ? GBTColors.darkTextPrimary
+                                    : GBTColors.textPrimary),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // ── Meta row (year · tracks · label) ─────────────────
+        // EN: Compact one-line metadata row below the banner.
+        // KO: 배너 아래의 간결한 한 줄 메타데이터 행.
         Padding(
           padding: const EdgeInsets.fromLTRB(
             GBTSpacing.md,
             GBTSpacing.sm,
             GBTSpacing.md,
-            GBTSpacing.md,
+            GBTSpacing.xs,
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Cover art
-              ClipRRect(
-                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-                child: SizedBox(
-                  width: 80,
-                  height: 80,
-                  child: hasCover
-                      ? GBTImage(
-                          imageUrl: detail.coverUrl!,
-                          fit: BoxFit.cover,
-                          semanticLabel: '${detail.title} cover',
-                        )
-                      : Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                accent.withValues(alpha: 0.18),
-                                accent.withValues(alpha: 0.06),
-                              ],
-                            ),
-                          ),
-                          child: Center(
-                            child: Icon(
-                              Icons.album_rounded,
-                              size: 36,
-                              color: accent.withValues(alpha: 0.4),
-                            ),
-                          ),
-                        ),
+          child: Text(
+            [
+              if (releaseYear != null) releaseYear,
+              if (effectiveTrackCount > 0)
+                context.l10n(
+                  ko: '$effectiveTrackCount곡',
+                  en: '$effectiveTrackCount tracks',
+                  ja: '$effectiveTrackCount曲',
                 ),
-              ),
-              const SizedBox(width: GBTSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (detail.type.trim().isNotEmpty)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 4),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: accent.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(
-                            GBTSpacing.radiusFull,
-                          ),
-                        ),
-                        child: Text(
-                          detail.type.toUpperCase(),
-                          style: GBTTypography.caption.copyWith(
-                            color: accent,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 9,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    Text(
-                      detail.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GBTTypography.titleSmall.copyWith(
-                        color: titleColor,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      [
-                        if (releaseYear != null) releaseYear,
-                        if (effectiveTrackCount > 0)
-                          context.l10n(
-                            ko: '$effectiveTrackCount곡',
-                            en: '$effectiveTrackCount tracks',
-                            ja: '$effectiveTrackCount曲',
-                          ),
-                        if ((detail.label ?? '').trim().isNotEmpty)
-                          detail.label!.trim(),
-                      ].join('  ·  '),
-                      style: GBTTypography.bodySmall.copyWith(
-                        color: metaColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              if ((detail.label ?? '').trim().isNotEmpty) detail.label!.trim(),
+            ].join('  ·  '),
+            style: GBTTypography.bodySmall.copyWith(color: metaColor),
           ),
         ),
 
@@ -1293,8 +1400,14 @@ class _AlbumSheet extends StatelessWidget {
                   itemBuilder: (context, i) {
                     final track = detail.tracks[i];
                     final songId = _resolveSongId(track);
+                    // EN: Look up matched song to check isTitleTrack.
+                    // KO: 매칭된 곡을 조회해 isTitleTrack 여부를 확인합니다.
+                    final matchedSong = songsById[track.songId];
+                    final isTitleTrack =
+                        matchedSong?.isTitleTrack ?? false;
                     return _SheetTrackRow(
                       track: track,
+                      isTitleTrack: isTitleTrack,
                       isDark: isDark,
                       accent: accent,
                       onTap: songId == null ? null : () => onSongTap(songId),
@@ -1307,15 +1420,21 @@ class _AlbumSheet extends StatelessWidget {
   }
 }
 
+/// EN: Single track row inside the album bottom sheet.
+///     Highlights title tracks with accent color and bold weight.
+/// KO: 앨범 바텀 시트 내 단일 트랙 행.
+///     타이틀 트랙은 accent 색상과 굵은 폰트로 강조합니다.
 class _SheetTrackRow extends StatelessWidget {
   const _SheetTrackRow({
     required this.track,
     required this.isDark,
     required this.accent,
+    required this.isTitleTrack,
     this.onTap,
   });
 
   final MusicAlbumTrack track;
+  final bool isTitleTrack;
   final bool isDark;
   final Color accent;
   final VoidCallback? onTap;
@@ -1326,6 +1445,12 @@ class _SheetTrackRow extends StatelessWidget {
         isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
     final metaColor =
         isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+    // EN: Title tracks get accent-colored track number, regular tracks get
+    //     tertiary grey.
+    // KO: 타이틀 트랙 번호는 accent, 일반 트랙은 tertiary 회색.
+    final trackNoColor = isTitleTrack
+        ? accent
+        : (isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary);
 
     return Material(
       color: Colors.transparent,
@@ -1340,12 +1465,18 @@ class _SheetTrackRow extends StatelessWidget {
           ),
           child: Row(
             children: [
+              // EN: Track number — accent + w700 for title tracks.
+              // KO: 트랙 번호 — 타이틀 트랙은 accent + w700.
               SizedBox(
                 width: 28,
                 child: Text(
                   '${track.trackNo}',
                   textAlign: TextAlign.center,
-                  style: GBTTypography.bodySmall.copyWith(color: metaColor),
+                  style: GBTTypography.bodySmall.copyWith(
+                    color: trackNoColor,
+                    fontWeight:
+                        isTitleTrack ? FontWeight.w700 : FontWeight.w400,
+                  ),
                 ),
               ),
               const SizedBox(width: GBTSpacing.xs),
@@ -1356,7 +1487,10 @@ class _SheetTrackRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GBTTypography.bodyMedium.copyWith(
                     color: onTap != null ? titleColor : metaColor,
-                    fontWeight: FontWeight.w500,
+                    // EN: Title tracks use w700, others w500.
+                    // KO: 타이틀 트랙 w700, 일반 w500.
+                    fontWeight:
+                        isTitleTrack ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
               ),

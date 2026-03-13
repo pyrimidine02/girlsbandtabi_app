@@ -17,11 +17,11 @@ void main() {
   });
 
   test('extractImageUrls supports scheme-less R2 URLs', () {
-    const content = '본문\n![](r2.pyrimidines.org/uploads/sample.webp)\n';
+    const content = '본문\n![](r2.noraneko.cc/uploads/sample.webp)\n';
 
     final urls = extractImageUrls(content);
 
-    expect(urls, contains('r2.pyrimidines.org/uploads/sample.webp'));
+    expect(urls, contains('r2.noraneko.cc/uploads/sample.webp'));
   });
 
   test('stripImageMarkdown removes relative markdown image blocks', () {

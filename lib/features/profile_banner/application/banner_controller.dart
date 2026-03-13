@@ -177,6 +177,16 @@ class BannerCatalogNotifier
     if (!mounted) return;
     await _load();
   }
+
+  /// EN: Removes the active banner, reverting to the default gradient header.
+  ///     Refreshes the catalog so isActive flags are cleared.
+  /// KO: 활성 배너를 해제하고 기본 그라디언트 헤더로 되돌립니다.
+  ///     카탈로그를 새로 불러서 isActive 플래그가 초기화되도록 합니다.
+  Future<void> removeBanner() async {
+    await _ref.read(activeBannerProvider.notifier).clearActive();
+    if (!mounted) return;
+    await _load();
+  }
 }
 
 /// EN: Auto-disposing provider for [BannerCatalogNotifier].

@@ -120,8 +120,15 @@ class GBTGreetingHeader extends StatelessWidget {
     final resolvedBackgroundUrl = (effectiveBackgroundUrl?.trim().isNotEmpty == true)
         ? effectiveBackgroundUrl
         : null;
+    // EN: Hide the live chip when the user has a custom banner set,
+    //     so the banner image shows cleanly without the live poster overlay.
+    // KO: 사용자 배너가 설정된 경우 라이브 칩을 숨겨서
+    //     라이브 포스터 오버레이 없이 배너 이미지만 깔끔하게 표시합니다.
+    final hasUserBanner = uBannerUrl != null && uBannerUrl.trim().isNotEmpty;
     final hasFeaturedLive =
-        featuredTitle != null && featuredTitle!.trim().isNotEmpty;
+        !hasUserBanner &&
+        featuredTitle != null &&
+        featuredTitle!.trim().isNotEmpty;
     final featuredExtraHeight = hasFeaturedLive ? 56.0 : 0.0;
     final textScaleExtraHeight = ((textScale - 1.0) * 36.0).clamp(0.0, 40.0);
     final headerHeight =

@@ -15,6 +15,8 @@ import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../places/domain/entities/place_entities.dart';
+import '../../../projects/application/projects_controller.dart';
+import '../../../projects/domain/entities/project_entities.dart';
 import '../../../live_events/presentation/pages/live_attendance_history_page.dart';
 import '../../application/visits_controller.dart';
 import '../../domain/entities/visit_entities.dart';
@@ -58,7 +60,9 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage>
   @override
   Widget build(BuildContext context) {
     final visitsState = ref.watch(userVisitsControllerProvider);
-    final placesMapState = ref.watch(visitPlacesMapProvider);
+    final allPlacesMapState = ref.watch(visitAllProjectsPlacesMapProvider);
+    final orderedProjects =
+        ref.watch(projectsControllerProvider).valueOrNull ?? const <Project>[];
 
     return Scaffold(
       appBar: AppBar(
@@ -66,12 +70,8 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage>
         bottom: TabBar(
           controller: _tabController,
           tabs: [
-            Tab(
-              text: context.l10n(ko: '장소', en: 'Places', ja: '場所'),
-            ),
-            Tab(
-              text: context.l10n(ko: '라이브', en: 'Live', ja: 'ライブ'),
-            ),
+            Tab(text: context.l10n(ko: '장소', en: 'Places', ja: '場所')),
+            Tab(text: context.l10n(ko: '라이브', en: 'Live', ja: 'ライブ')),
           ],
         ),
         actions: [
@@ -85,7 +85,12 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildPlaceHistoryBody(context, visitsState, placesMapState),
+          _buildPlaceHistoryBody(
+            context,
+            visitsState,
+            allPlacesMapState,
+            orderedProjects,
+          ),
           const LiveAttendanceHistoryBody(),
         ],
       ),
@@ -95,38 +100,20 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage>
   Widget _buildPlaceHistoryBody(
     BuildContext context,
     AsyncValue<List<VisitEvent>> visitsState,
-    AsyncValue<Map<String, PlaceSummary>> placesMapState,
+    AsyncValue<
+      Map<String, ({PlaceSummary place, String projectId, String projectName})>
+    > allPlacesMapState,
+    List<Project> orderedProjects,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
+
     return RefreshIndicator(
       onRefresh: () => ref
           .read(userVisitsControllerProvider.notifier)
           .load(forceRefresh: true),
       child: visitsState.when(
-        loading: () {
-          final isDark = Theme.of(context).brightness == Brightness.dark;
-          final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
-          return ListView.separated(
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(
-              horizontal: GBTSpacing.pageHorizontal,
-              vertical: GBTSpacing.lg,
-            ),
-            itemCount: 6,
-            separatorBuilder: (_, __) => const SizedBox(height: GBTSpacing.sm),
-            itemBuilder: (context, index) {
-              return GBTShimmer(
-                child: Container(
-                  height: 88,
-                  decoration: BoxDecoration(
-                    color: isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant,
-                    border: Border.all(color: borderColor, width: 0.5),
-                    borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-                  ),
-                ),
-              );
-            },
-          );
-        },
+        loading: () => _buildVisitShimmer(isDark, borderColor),
         error: (error, _) {
           final message = error is Failure
               ? error.userMessage
@@ -137,11 +124,10 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage>
                 );
           return _VisitEmptyState(
             message: message,
-            onRetry: () {
-              ref
-                  .read(userVisitsControllerProvider.notifier)
-                  .load(forceRefresh: true);
-            },
+            onRetry: () =>
+                ref.read(userVisitsControllerProvider.notifier).load(
+                  forceRefresh: true,
+                ),
           );
         },
         data: (visits) {
@@ -155,34 +141,67 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage>
             );
           }
 
+          // EN: Show shimmer while the all-projects places map is loading
+          //     to avoid a flash of mis-grouped visits.
+          // KO: 프로젝트 장소 맵 로딩 중에는 쉬머를 표시하여
+          //     잘못 그룹화된 방문이 반짝이는 현상을 방지합니다.
+          if (allPlacesMapState is AsyncLoading) {
+            return _buildVisitShimmer(isDark, borderColor);
+          }
+
           final sorted = [...visits]..sort((a, b) => _compareVisitedAt(b, a));
-          final placesLoading = placesMapState is AsyncLoading;
-          final placeMap =
-              placesMapState.valueOrNull ?? const <String, PlaceSummary>{};
+          final allPlacesMap = allPlacesMapState.valueOrNull ?? const {};
 
-          // EN: Group visits by month for timeline sections.
-          // KO: 타임라인 섹션을 위해 방문을 월별로 그룹화합니다.
-          final grouped = _groupByMonth(sorted, context);
+          // EN: Partition visits into project buckets via place → project lookup.
+          //     Visits whose placeId is not found in any project land in the
+          //     unknown bucket and are rendered last under "기타".
+          // KO: 장소 → 프로젝트 조회로 방문을 프로젝트 버킷으로 분류합니다.
+          //     어떤 프로젝트에도 속하지 않는 방문은 미확인 버킷에 들어가
+          //     마지막 "기타" 섹션으로 렌더됩니다.
+          const unknownProjectId = '__unknown__';
+          final buckets = <String, List<VisitEvent>>{};
+          for (final visit in sorted) {
+            final meta = allPlacesMap[visit.placeId];
+            final key = meta?.projectId ?? unknownProjectId;
+            (buckets[key] ??= []).add(visit);
+          }
 
-          return CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              // EN: Summary header card
-              // KO: 요약 헤더 카드
-              SliverToBoxAdapter(
-                child: _SummaryHeader(
-                  totalVisits: sorted.length,
-                  uniquePlaces: sorted.map((v) => v.placeId).toSet().length,
-                ),
+          // EN: Order: projects in API list order, then unknown bucket last.
+          // KO: 순서: API 목록 순서대로 프로젝트, 미확인 버킷은 마지막.
+          final orderedKeys = [
+            for (final p in orderedProjects)
+              if (buckets.containsKey(p.id)) p.id,
+            if (buckets.containsKey(unknownProjectId)) unknownProjectId,
+          ];
+          final projectNameOf = {
+            for (final p in orderedProjects) p.id: p.name,
+          };
+
+          // EN: Build a flat sliver list: project header → month header → tiles.
+          // KO: 프로젝트 헤더 → 월별 헤더 → 타일 순의 평탄한 슬리버 리스트 구성.
+          final slivers = <Widget>[
+            SliverToBoxAdapter(
+              child: _SummaryHeader(
+                totalVisits: sorted.length,
+                uniquePlaces: sorted.map((v) => v.placeId).toSet().length,
               ),
+            ),
+          ];
 
-              for (final entry in grouped.entries) ...[
-                // EN: Month section header
-                // KO: 월별 섹션 헤더
+          for (final projectId in orderedKeys) {
+            final label = projectId == unknownProjectId
+                ? context.l10n(ko: '기타', en: 'Other', ja: 'その他')
+                : (projectNameOf[projectId] ?? '');
+            slivers.add(
+              SliverToBoxAdapter(child: _ProjectHeader(label: label)),
+            );
+
+            final grouped = _groupByMonth(buckets[projectId]!, context);
+            for (final entry in grouped.entries) {
+              slivers.add(
                 SliverToBoxAdapter(child: _MonthHeader(label: entry.key)),
-
-                // EN: Visit cards for this month
-                // KO: 이 달의 방문 카드
+              );
+              slivers.add(
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: GBTSpacing.pageHorizontal,
@@ -191,16 +210,13 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage>
                     itemCount: entry.value.length,
                     separatorBuilder: (_, __) =>
                         const SizedBox(height: GBTSpacing.sm),
-                    itemBuilder: (context, index) {
+                    itemBuilder: (ctx, index) {
                       final visit = entry.value[index];
-                      final placeFound = placeMap.containsKey(visit.placeId);
-                      final place = placeMap[visit.placeId];
-                      final showLoading = placesLoading && !placeFound;
-
+                      final meta = allPlacesMap[visit.placeId];
                       return _VisitCard(
                         visit: visit,
-                        place: place,
-                        isLoading: showLoading,
+                        place: meta?.place,
+                        isLoading: false,
                         onTap: () => context.goToVisitDetail(
                           visitId: visit.id,
                           placeId: visit.placeId,
@@ -212,22 +228,52 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage>
                     },
                   ),
                 ),
-
+              );
+              slivers.add(
                 const SliverToBoxAdapter(
                   child: SizedBox(height: GBTSpacing.md),
                 ),
-              ],
+              );
+            }
+          }
 
-              // EN: Bottom safe area
-              // KO: 하단 안전 영역
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: MediaQuery.of(context).padding.bottom + GBTSpacing.lg,
-                ),
+          slivers.add(
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: MediaQuery.of(context).padding.bottom + GBTSpacing.lg,
               ),
-            ],
+            ),
+          );
+
+          return CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: slivers,
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildVisitShimmer(bool isDark, Color borderColor) {
+    return ListView.separated(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.pageHorizontal,
+        vertical: GBTSpacing.lg,
+      ),
+      itemCount: 6,
+      separatorBuilder: (_, __) => const SizedBox(height: GBTSpacing.sm),
+      itemBuilder: (context, index) => GBTShimmer(
+        child: Container(
+          height: 88,
+          decoration: BoxDecoration(
+            color: isDark
+                ? GBTColors.darkSurfaceVariant
+                : GBTColors.surfaceVariant,
+            border: Border.all(color: borderColor, width: 0.5),
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          ),
+        ),
       ),
     );
   }
@@ -372,6 +418,37 @@ class _SummaryItem extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// EN: Project section header
+// KO: 프로젝트 섹션 헤더
+// ---------------------------------------------------------------------------
+
+class _ProjectHeader extends StatelessWidget {
+  const _ProjectHeader({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        GBTSpacing.pageHorizontal,
+        GBTSpacing.xl,
+        GBTSpacing.pageHorizontal,
+        GBTSpacing.xxs,
+      ),
+      child: Text(
+        label,
+        style: GBTTypography.headlineSmall.copyWith(
+          color: isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }

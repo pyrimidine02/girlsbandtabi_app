@@ -64,6 +64,10 @@ class _BannerPickerPageState extends ConsumerState<BannerPickerPage> {
   // KO: 적용 변이가 진행 중인 경우 true.
   bool _isApplying = false;
 
+  // EN: True while the remove mutation is in-flight.
+  // KO: 해제 변이가 진행 중인 경우 true.
+  bool _isRemoving = false;
+
   @override
   void initState() {
     super.initState();
@@ -97,6 +101,33 @@ class _BannerPickerPageState extends ConsumerState<BannerPickerPage> {
       return;
     }
     setState(() => _selectedId = item.id);
+  }
+
+  Future<void> _onRemove() async {
+    if (_isRemoving) return;
+    setState(() => _isRemoving = true);
+    try {
+      await ref.read(bannerCatalogProvider.notifier).removeBanner();
+      if (!mounted) return;
+      setState(() => _selectedId = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('배너가 해제되었어요'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('배너 해제에 실패했어요: ${e.toString()}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isRemoving = false);
+    }
   }
 
   Future<void> _onApply() async {
@@ -216,13 +247,16 @@ class _BannerPickerPageState extends ConsumerState<BannerPickerPage> {
             ),
           ),
 
-          // EN: Bottom apply bar
-          // KO: 하단 적용 바
+          // EN: Bottom bar — apply selected banner or remove active banner.
+          // KO: 하단 바 — 선택한 배너 적용 또는 활성 배너 해제.
           _ApplyBar(
             isDark: isDark,
             isDisabled: isApplyDisabled,
             isApplying: _isApplying,
             onApply: _onApply,
+            hasActiveBanner: activeId != null,
+            isRemoving: _isRemoving,
+            onRemove: _onRemove,
           ),
         ],
       ),
@@ -550,12 +584,20 @@ class _ApplyBar extends StatelessWidget {
     required this.isDisabled,
     required this.isApplying,
     required this.onApply,
+    this.hasActiveBanner = false,
+    this.isRemoving = false,
+    this.onRemove,
   });
 
   final bool isDark;
   final bool isDisabled;
   final bool isApplying;
   final VoidCallback onApply;
+  // EN: Whether the user currently has an active banner (enables the remove button).
+  // KO: 사용자에게 활성 배너가 있는지 여부 (해제 버튼 활성화).
+  final bool hasActiveBanner;
+  final bool isRemoving;
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -577,35 +619,75 @@ class _ApplyBar extends StatelessWidget {
           GBTSpacing.pageHorizontal,
           GBTSpacing.md + bottomPadding,
         ),
-        child: SizedBox(
-          height: 48,
-          child: ElevatedButton(
-            onPressed: isDisabled ? null : onApply,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isDark ? GBTColors.darkPrimary : GBTColors.primary,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: isDark
-                  ? GBTColors.darkSurfaceVariant
-                  : GBTColors.surfaceVariant,
-              disabledForegroundColor: isDark
-                  ? GBTColors.darkTextTertiary
-                  : GBTColors.textTertiary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // EN: Apply button — primary CTA.
+            // KO: 적용 버튼 — 기본 CTA.
+            SizedBox(
+              height: 48,
+              child: ElevatedButton(
+                onPressed: isDisabled ? null : onApply,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDark ? GBTColors.darkPrimary : GBTColors.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: isDark
+                      ? GBTColors.darkSurfaceVariant
+                      : GBTColors.surfaceVariant,
+                  disabledForegroundColor: isDark
+                      ? GBTColors.darkTextTertiary
+                      : GBTColors.textTertiary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                  ),
+                  elevation: 0,
+                ),
+                child: isApplying
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('이 배너 적용'),
               ),
-              elevation: 0,
             ),
-            child: isApplying
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
+
+            // EN: Remove button — secondary, only shown when banner is active.
+            // KO: 해제 버튼 — 보조, 활성 배너가 있을 때만 표시됩니다.
+            if (hasActiveBanner) ...[
+              const SizedBox(height: GBTSpacing.xs),
+              SizedBox(
+                height: 40,
+                child: TextButton(
+                  onPressed: isRemoving ? null : onRemove,
+                  style: TextButton.styleFrom(
+                    foregroundColor: isDark
+                        ? GBTColors.darkTextSecondary
+                        : GBTColors.textSecondary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
                     ),
-                  )
-                : const Text('이 배너 적용'),
-          ),
+                  ),
+                  child: isRemoving
+                      ? SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: isDark
+                                ? GBTColors.darkTextSecondary
+                                : GBTColors.textSecondary,
+                          ),
+                        )
+                      : const Text('배너 해제'),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );

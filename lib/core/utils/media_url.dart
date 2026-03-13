@@ -4,7 +4,7 @@ library;
 
 import '../config/app_config.dart';
 
-const _publicMediaHost = 'r2.pyrimidines.org';
+const _publicMediaHost = 'r2.noraneko.cc';
 const _legacyR2Suffix = 'r2.cloudflarestorage.com';
 const _legacyBuckets = <String>{'girlsbandtabi', 'girlsbandtabi-dev'};
 final _schemePattern = RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*:');
@@ -57,8 +57,8 @@ String _normalizeInputUrl(String rawUrl) {
     return 'https:$rawUrl';
   }
 
-  // EN: Support public host without scheme (e.g. r2.pyrimidines.org/...).
-  // KO: 스킴 없는 공개 호스트 URL(r2.pyrimidines.org/...)을 지원합니다.
+  // EN: Support public host without scheme (e.g. r2.noraneko.cc/...).
+  // KO: 스킴 없는 공개 호스트 URL(r2.noraneko.cc/...)을 지원합니다.
   if (rawUrl.startsWith('$_publicMediaHost/')) {
     return 'https://$rawUrl';
   }

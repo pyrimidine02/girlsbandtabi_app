@@ -2,6 +2,8 @@
 /// KO: 장소/라이브 인증 컨트롤러.
 library;
 
+import 'dart:async' show unawaited;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/error/error_handler.dart';
@@ -9,6 +11,7 @@ import '../../../core/error/failure.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
+import '../../titles/application/titles_controller.dart';
 import '../../visits/application/visits_controller.dart';
 import '../data/datasources/verification_remote_data_source.dart';
 import '../data/repositories/verification_repository_impl.dart';
@@ -253,6 +256,13 @@ class VerificationController
         _ref.invalidate(visitSummaryProvider(placeId));
       }
       _ref.invalidate(userRankingProvider);
+      // EN: Invalidate title caches so the next title-picker open reflects
+      //     any titles auto-granted by the backend after verification.
+      // KO: 칭호 캐시를 무효화하여 인증 후 백엔드에서 자동 부여된 칭호를
+      //     다음 칭호 피커 열기 시 반영합니다.
+      final titlesRepo = await _ref.read(titlesRepositoryProvider.future);
+      await titlesRepo.invalidateTitleCaches();
+      unawaited(_ref.read(activeTitleProvider.notifier).refresh());
     } catch (e, stackTrace) {
       AppLogger.warning(
         'Visit data refresh failed after verification',
