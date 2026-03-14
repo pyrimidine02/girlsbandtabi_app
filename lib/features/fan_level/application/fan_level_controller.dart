@@ -51,7 +51,12 @@ class FanLevelNotifier
     if (!mounted) return;
     state = result.when(
       success: AsyncValue.data,
-      failure: (f) => AsyncValue.error(f, StackTrace.current),
+      failure: (f) {
+        // EN: 404 means the user has no profile yet — show empty state, not error.
+        // KO: 404는 아직 프로필이 없는 것이므로 에러가 아닌 빈 상태로 표시합니다.
+        if (f is NotFoundFailure) return const AsyncValue.data(null);
+        return AsyncValue.error(f, StackTrace.current);
+      },
     );
   }
 

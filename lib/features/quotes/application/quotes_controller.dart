@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/error/failure.dart';
 import '../../../core/providers/core_providers.dart';
 import '../data/datasources/quotes_remote_data_source.dart';
 import '../data/repositories/quotes_repository_impl.dart';
@@ -36,7 +37,12 @@ class QuotesNotifier extends StateNotifier<AsyncValue<List<QuoteCard>>> {
     if (!mounted) return;
     state = result.when(
       success: AsyncValue.data,
-      failure: (f) => AsyncValue.error(f, StackTrace.current),
+      failure: (f) {
+        // EN: 404 means no quotes exist yet — show empty list, not an error.
+        // KO: 404는 아직 명대사가 없는 것이므로 에러가 아닌 빈 목록으로 표시합니다.
+        if (f is NotFoundFailure) return const AsyncValue.data(<QuoteCard>[]);
+        return AsyncValue.error(f, StackTrace.current);
+      },
     );
   }
 

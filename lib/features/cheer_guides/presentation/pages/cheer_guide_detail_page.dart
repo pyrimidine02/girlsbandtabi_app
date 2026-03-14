@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/error/failure.dart';
 import '../../../../core/localization/locale_text.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -56,21 +57,31 @@ class CheerGuideDetailPage extends ConsumerWidget {
       ),
       body: guideAsync.when(
         loading: () => _CheerGuideDetailShimmer(),
-        error: (_, __) => Center(
-          child: GBTEmptyState(
-            icon: Icons.wifi_off_rounded,
-            message: context.l10n(
-              ko: '가이드를 불러오지 못했어요',
-              en: 'Could not load guide',
-              ja: 'ガイドを読み込めませんでした',
-            ),
-            actionLabel: context.l10n(
-              ko: '다시 시도',
-              en: 'Retry',
-              ja: '再試行',
-            ),
-            onAction: () => ref.refresh(cheerGuideDetailProvider(guideId)),
-          ),
+        error: (error, __) => Center(
+          child: error is NotFoundFailure
+              ? GBTEmptyState(
+                  icon: Icons.search_off_rounded,
+                  message: context.l10n(
+                    ko: '가이드를 찾을 수 없어요',
+                    en: 'Guide not found',
+                    ja: 'ガイドが見つかりません',
+                  ),
+                )
+              : GBTEmptyState(
+                  icon: Icons.wifi_off_rounded,
+                  message: context.l10n(
+                    ko: '가이드를 불러오지 못했어요',
+                    en: 'Could not load guide',
+                    ja: 'ガイドを読み込めませんでした',
+                  ),
+                  actionLabel: context.l10n(
+                    ko: '다시 시도',
+                    en: 'Retry',
+                    ja: '再試行',
+                  ),
+                  onAction: () =>
+                      ref.refresh(cheerGuideDetailProvider(guideId)),
+                ),
         ),
         data: (guide) => _GuideContent(guide: guide),
       ),

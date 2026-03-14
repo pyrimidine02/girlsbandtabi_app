@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/error/failure.dart';
 import '../../../core/providers/core_providers.dart';
 import '../data/datasources/calendar_remote_data_source.dart';
 import '../data/repositories/calendar_repository_impl.dart';
@@ -24,9 +25,9 @@ final calendarRepositoryProvider = Provider<CalendarRepository>((ref) {
 typedef CalendarEventsQuery = ({int year, int month, String? projectId});
 
 /// EN: Family provider — loads events for a specific year/month.
-/// EN: Returns an empty list on failure so the UI stays functional.
+/// EN: Returns empty list on 404 (no events yet); throws on other failures.
 /// KO: Family 프로바이더 — 특정 연도/월의 이벤트를 로드합니다.
-/// KO: 실패 시 빈 목록을 반환해 UI 동작을 유지합니다.
+/// KO: 404(이벤트 없음)는 빈 목록 반환, 그 외 실패는 throw합니다.
 final calendarEventsProvider = FutureProvider.autoDispose
     .family<List<CalendarEvent>, CalendarEventsQuery>((ref, query) async {
   final repo = ref.watch(calendarRepositoryProvider);
@@ -37,6 +38,11 @@ final calendarEventsProvider = FutureProvider.autoDispose
   );
   return result.when(
     success: (events) => events,
-    failure: (_) => const <CalendarEvent>[],
+    failure: (f) {
+      // EN: 404 means no events this month — return empty list, not an error.
+      // KO: 404는 해당 월에 이벤트가 없는 것이므로 에러가 아닌 빈 목록을 반환합니다.
+      if (f is NotFoundFailure) return const <CalendarEvent>[];
+      throw f;
+    },
   );
 });

@@ -47,11 +47,15 @@ final cheerGuidesListProvider = FutureProvider.autoDispose
       if (result case Success<List<CheerGuideSummary>>(:final data)) {
         return data;
       }
-      throw result.failureOrNull ??
+      final failure = result.failureOrNull ??
           const UnknownFailure(
             'Unknown cheer guides list provider state',
             code: 'unknown_cheer_guides_list_provider',
           );
+      // EN: 404 means no guides exist yet — treat as empty list, not an error.
+      // KO: 404는 아직 가이드가 없는 것이므로 에러가 아닌 빈 목록으로 처리합니다.
+      if (failure is NotFoundFailure) return const [];
+      throw failure;
     });
 
 /// EN: Returns the full [CheerGuide] detail for a given guide ID.

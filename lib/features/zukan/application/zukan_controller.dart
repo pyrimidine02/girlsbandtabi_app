@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/error/failure.dart';
 import '../../../core/providers/core_providers.dart';
 import '../data/datasources/zukan_remote_data_source.dart';
 import '../data/repositories/zukan_repository_impl.dart';
@@ -27,7 +28,12 @@ final zukanCollectionsProvider = FutureProvider.autoDispose
   final result = await repo.fetchCollections(projectId: projectId);
   return result.when(
     success: (list) => list,
-    failure: (_) => const <ZukanCollectionSummary>[],
+    failure: (f) {
+      // EN: 404 means no collections yet — return empty list, not an error.
+      // KO: 404는 아직 도감이 없는 것이므로 에러가 아닌 빈 목록으로 반환합니다.
+      if (f is NotFoundFailure) return const <ZukanCollectionSummary>[];
+      throw f;
+    },
   );
 });
 
@@ -39,6 +45,11 @@ final zukanCollectionDetailProvider = FutureProvider.autoDispose
   final result = await repo.fetchCollectionDetail(collectionId);
   return result.when(
     success: (c) => c,
-    failure: (_) => null,
+    failure: (f) {
+      // EN: 404 means this collection doesn't exist — return null for empty state.
+      // KO: 404는 해당 도감이 없는 것이므로 빈 상태용 null을 반환합니다.
+      if (f is NotFoundFailure) return null;
+      throw f;
+    },
   );
 });
