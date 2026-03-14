@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 
@@ -274,11 +275,31 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
       imageQuality: 90,
     );
     if (picked == null) return;
+
+    // EN: Show 1:1 crop UI before uploading the avatar.
+    // KO: 아바타 업로드 전에 1:1 비율 자르기 UI를 표시합니다.
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: picked.path,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: '프로필 사진 자르기',
+          lockAspectRatio: true,
+        ),
+        IOSUiSettings(
+          title: '프로필 사진 자르기',
+          aspectRatioLockEnabled: true,
+          resetAspectRatioEnabled: false,
+        ),
+      ],
+    );
+    if (cropped == null) return;
+
     setState(() => _isUploadingAvatar = true);
     try {
       final payload = await convertToWebp(
-        path: picked.path,
-        originalFilename: p.basename(picked.path),
+        path: cropped.path,
+        originalFilename: p.basename(cropped.path),
         maxWidth: 1024,
         maxHeight: 1024,
         quality: 85,
@@ -322,11 +343,31 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
       imageQuality: 90,
     );
     if (picked == null) return;
+
+    // EN: Show 16:9 crop UI before uploading the cover image.
+    // KO: 배경 이미지 업로드 전에 16:9 비율 자르기 UI를 표시합니다.
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: picked.path,
+      aspectRatio: const CropAspectRatio(ratioX: 16, ratioY: 9),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: '배경 이미지 자르기',
+          lockAspectRatio: true,
+        ),
+        IOSUiSettings(
+          title: '배경 이미지 자르기',
+          aspectRatioLockEnabled: true,
+          resetAspectRatioEnabled: false,
+        ),
+      ],
+    );
+    if (cropped == null) return;
+
     setState(() => _isUploadingCover = true);
     try {
       final payload = await convertToWebp(
-        path: picked.path,
-        originalFilename: p.basename(picked.path),
+        path: cropped.path,
+        originalFilename: p.basename(cropped.path),
         maxWidth: 1920,
         maxHeight: 1080,
         quality: 80,

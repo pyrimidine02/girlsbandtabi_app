@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -746,6 +747,11 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                         icon: Icons.camera_alt_outlined,
                         onTap: _isSubmitting ? null : _pickFromCamera,
                       ),
+                      const SizedBox(width: GBTSpacing.xs),
+                      _ComposerToolbarIconButton(
+                        icon: Icons.gif_box_outlined,
+                        onTap: _isSubmitting ? null : _pickGif,
+                      ),
                     ],
                   ),
                 ),
@@ -1034,6 +1040,31 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
         return;
       }
       _showMessage('카메라를 열지 못했어요.');
+    }
+  }
+
+  /// EN: Pick GIF files from the file system and append to the image list.
+  /// KO: 파일 시스템에서 GIF 파일을 선택하여 이미지 목록에 추가합니다.
+  Future<void> _pickGif() async {
+    if (_remainingImageSlots <= 0) {
+      _showMessage('이미지는 최대 $_maxImageCount장까지 첨부할 수 있어요.');
+      return;
+    }
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['gif'],
+        allowMultiple: true,
+      );
+      if (result == null || result.files.isEmpty || !mounted) return;
+      final files = result.files
+          .where((f) => f.path != null)
+          .map((f) => XFile(f.path!))
+          .toList();
+      _appendPickedImages(files);
+    } catch (_) {
+      if (!mounted) return;
+      _showMessage('GIF 파일을 열지 못했어요.');
     }
   }
 

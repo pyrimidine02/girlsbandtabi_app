@@ -21,7 +21,9 @@ class WebpImagePayload {
 }
 
 /// EN: Convert the image file to WebP. Best-effort keeps metadata.
+/// GIF files are passed through as-is to preserve animation.
 /// KO: 이미지 파일을 WebP로 변환합니다. 메타데이터는 최대한 유지합니다.
+/// GIF 파일은 애니메이션 보존을 위해 변환 없이 원본 그대로 반환합니다.
 Future<WebpImagePayload> convertToWebp({
   required String path,
   required String originalFilename,
@@ -31,6 +33,18 @@ Future<WebpImagePayload> convertToWebp({
   bool forceJpeg = false,
 }) async {
   final ext = p.extension(originalFilename).toLowerCase();
+
+  // EN: GIF files are passed through without conversion to keep animation intact.
+  // KO: GIF 파일은 애니메이션을 유지하기 위해 변환 없이 원본 바이트를 그대로 반환합니다.
+  if (ext == '.gif') {
+    final bytes = await File(path).readAsBytes();
+    return WebpImagePayload(
+      bytes: bytes,
+      filename: originalFilename,
+      contentType: 'image/gif',
+    );
+  }
+
   if (ext == '.webp' && !forceJpeg) {
     final bytes = await File(path).readAsBytes();
     return WebpImagePayload(
