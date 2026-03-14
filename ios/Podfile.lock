@@ -5,6 +5,40 @@ PODS:
     - Flutter
   - device_info_plus (0.0.1):
     - Flutter
+  - DKImagePickerController/Core (4.3.9):
+    - DKImagePickerController/ImageDataManager
+    - DKImagePickerController/Resource
+  - DKImagePickerController/ImageDataManager (4.3.9)
+  - DKImagePickerController/PhotoGallery (4.3.9):
+    - DKImagePickerController/Core
+    - DKPhotoGallery
+  - DKImagePickerController/Resource (4.3.9)
+  - DKPhotoGallery (0.0.19):
+    - DKPhotoGallery/Core (= 0.0.19)
+    - DKPhotoGallery/Model (= 0.0.19)
+    - DKPhotoGallery/Preview (= 0.0.19)
+    - DKPhotoGallery/Resource (= 0.0.19)
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Core (0.0.19):
+    - DKPhotoGallery/Model
+    - DKPhotoGallery/Preview
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Model (0.0.19):
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Preview (0.0.19):
+    - DKPhotoGallery/Model
+    - DKPhotoGallery/Resource
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Resource (0.0.19):
+    - SDWebImage
+    - SwiftyGif
+  - file_picker (0.0.1):
+    - DKImagePickerController/PhotoGallery
+    - Flutter
   - Firebase/Analytics (11.15.0):
     - Firebase/Core
   - Firebase/Core (11.15.0):
@@ -151,6 +185,9 @@ PODS:
   - GoogleUtilities/UserDefaults (8.1.0):
     - GoogleUtilities/Logger
     - GoogleUtilities/Privacy
+  - image_cropper (0.0.4):
+    - Flutter
+    - TOCropViewController (~> 2.7.4)
   - image_picker_ios (0.0.1):
     - Flutter
   - integration_test (0.0.1):
@@ -192,6 +229,8 @@ PODS:
   - sqflite_darwin (0.0.4):
     - Flutter
     - FlutterMacOS
+  - SwiftyGif (5.4.5)
+  - TOCropViewController (2.7.4)
   - url_launcher_ios (0.0.1):
     - Flutter
   - webview_flutter_wkwebview (0.0.1):
@@ -202,6 +241,7 @@ DEPENDENCIES:
   - apple_maps_flutter (from `.symlinks/plugins/apple_maps_flutter/ios`)
   - connectivity_plus (from `.symlinks/plugins/connectivity_plus/ios`)
   - device_info_plus (from `.symlinks/plugins/device_info_plus/ios`)
+  - file_picker (from `.symlinks/plugins/file_picker/ios`)
   - firebase_analytics (from `.symlinks/plugins/firebase_analytics/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
   - firebase_messaging (from `.symlinks/plugins/firebase_messaging/ios`)
@@ -212,6 +252,7 @@ DEPENDENCIES:
   - geolocator_apple (from `.symlinks/plugins/geolocator_apple/darwin`)
   - google_maps_flutter_ios (from `.symlinks/plugins/google_maps_flutter_ios/ios`)
   - google_mobile_ads (from `.symlinks/plugins/google_mobile_ads/ios`)
+  - image_cropper (from `.symlinks/plugins/image_cropper/ios`)
   - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
@@ -223,6 +264,8 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
+    - DKImagePickerController
+    - DKPhotoGallery
     - Firebase
     - FirebaseAnalytics
     - FirebaseCore
@@ -243,6 +286,8 @@ SPEC REPOS:
     - PromisesObjC
     - SDWebImage
     - SDWebImageWebPCoder
+    - SwiftyGif
+    - TOCropViewController
 
 EXTERNAL SOURCES:
   apple_maps_flutter:
@@ -251,6 +296,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/connectivity_plus/ios"
   device_info_plus:
     :path: ".symlinks/plugins/device_info_plus/ios"
+  file_picker:
+    :path: ".symlinks/plugins/file_picker/ios"
   firebase_analytics:
     :path: ".symlinks/plugins/firebase_analytics/ios"
   firebase_core:
@@ -271,6 +318,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/google_maps_flutter_ios/ios"
   google_mobile_ads:
     :path: ".symlinks/plugins/google_mobile_ads/ios"
+  image_cropper:
+    :path: ".symlinks/plugins/image_cropper/ios"
   image_picker_ios:
     :path: ".symlinks/plugins/image_picker_ios/ios"
   integration_test:
@@ -292,6 +341,9 @@ SPEC CHECKSUMS:
   apple_maps_flutter: 2237d66a8e242082a2d88134af372f7b3375d7a6
   connectivity_plus: cb623214f4e1f6ef8fe7403d580fdad517d2f7dd
   device_info_plus: 21fcca2080fbcd348be798aa36c3e5ed849eefbe
+  DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
+  DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
+  file_picker: a0560bc09d61de87f12d246fc47d2119e6ef37be
   Firebase: d99ac19b909cd2c548339c2241ecd0d1599ab02e
   firebase_analytics: 0e25ca1d4001ccedd40b4e5b74c0ec34e18f6425
   firebase_core: 995454a784ff288be5689b796deb9e9fa3601818
@@ -316,6 +368,7 @@ SPEC CHECKSUMS:
   GoogleMaps: 8939898920281c649150e0af74aa291c60f2e77d
   GoogleUserMessagingPlatform: befe603da6501006420c206222acd449bba45a9c
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
+  image_cropper: c4326ea50132b1e1564499e5d32a84f01fb03537
   image_picker_ios: e0ece4aa2a75771a7de3fa735d26d90817041326
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
@@ -328,6 +381,8 @@ SPEC CHECKSUMS:
   SDWebImageWebPCoder: 0e06e365080397465cc73a7a9b472d8a3bd0f377
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
   sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
+  SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
+  TOCropViewController: 80b8985ad794298fb69d3341de183f33d1853654
   url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
   webview_flutter_wkwebview: 8ebf4fded22593026f7dbff1fbff31ea98573c8d
 
