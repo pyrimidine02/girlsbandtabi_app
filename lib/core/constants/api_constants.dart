@@ -87,6 +87,20 @@ class ApiEndpoints {
   // ============================================================
   static const String homeSummary = '$apiVersion/home/summary';
   static const String homeSummaryByProject = '$homeSummary/by-project';
+
+  /// EN: Active home page banner slides (GET).
+  /// KO: 홈 페이지 활성 배너 슬라이드 (GET).
+  static const String homeBanners = '$apiVersion/home/banners';
+
+  // ============================================================
+  // EN: Calendar endpoints (8.27)
+  // KO: 캘린더 엔드포인트 (8.27)
+  // ============================================================
+
+  /// EN: Paginated calendar events filtered by year, month, and optional projectId.
+  /// KO: 연도, 월, 선택적 projectId로 필터링된 페이지네이션 캘린더 이벤트.
+  static const String calendarEvents = '$apiVersion/calendar/events';
+
   static const String search = '$apiVersion/search';
   static const String searchDiscoveryPopular =
       '$apiVersion/search/discovery/popular';
@@ -627,6 +641,60 @@ class ApiEndpoints {
   static const String healthDetailed = '$apiVersion/health/detailed';
   static const String healthReady = '$apiVersion/health/ready';
   static const String healthLive = '$apiVersion/health/live';
+
+  // ============================================================
+  // EN: Fan level (덕力) endpoints
+  // KO: 팬 레벨(덕력) 엔드포인트
+  // ============================================================
+
+  /// EN: Authenticated user's fan level profile (GET).
+  /// KO: 인증된 사용자의 팬 레벨 프로필 (GET).
+  static const String fanLevelProfile = '$apiVersion/users/me/fan-level';
+
+  /// EN: Daily check-in endpoint for the authenticated user (POST).
+  /// KO: 인증된 사용자의 일일 출석 체크 엔드포인트 (POST).
+  static const String fanLevelCheckIn =
+      '$apiVersion/users/me/fan-level/check-in';
+
+  // ============================================================
+  // EN: Cheer guide endpoints
+  // KO: 응원 가이드 엔드포인트
+  // ============================================================
+
+  /// EN: List of all cheer guides (GET).
+  /// KO: 모든 응원 가이드 목록 (GET).
+  static const String cheerGuides = '$apiVersion/cheer-guides';
+
+  /// EN: Single cheer guide detail by ID (GET).
+  /// KO: ID로 단일 응원 가이드 상세 조회 (GET).
+  static String cheerGuide(String guideId) => '$cheerGuides/$guideId';
+
+  // ============================================================
+  // EN: Quote card endpoints
+  // KO: 명대사 카드 엔드포인트
+  // ============================================================
+
+  /// EN: List of quote cards (GET).
+  /// KO: 명대사 카드 목록 (GET).
+  static const String quotes = '$apiVersion/quotes';
+
+  /// EN: Like/unlike a quote card (POST/DELETE).
+  /// KO: 명대사 카드 좋아요/취소 (POST/DELETE).
+  static String quoteLike(String quoteId) => '$quotes/$quoteId/like';
+
+  // ============================================================
+  // EN: Zukan / pilgrimage stamp collection endpoints
+  // KO: 도감 / 성지순례 스탬프 컬렉션 엔드포인트
+  // ============================================================
+
+  /// EN: List of zukan collections (GET).
+  /// KO: 도감 컬렉션 목록 (GET).
+  static const String zukanCollections = '$apiVersion/zukan/collections';
+
+  /// EN: Single zukan collection detail by ID (GET).
+  /// KO: ID로 단일 도감 컬렉션 상세 조회 (GET).
+  static String zukanCollection(String collectionId) =>
+      '$zukanCollections/$collectionId';
 }
 
 /// EN: API timeout configurations (in milliseconds)

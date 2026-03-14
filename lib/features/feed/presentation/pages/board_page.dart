@@ -2538,6 +2538,16 @@ class _CommunityPostCard extends ConsumerWidget {
                     height: 1.32,
                   ),
                 ),
+                CommunityTranslationPanel(
+                  contentId: 'post-title:${post.id}',
+                  text: post.title,
+                  textStyle: GBTTypography.titleLarge.copyWith(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    height: 1.32,
+                  ),
+                  compact: true,
+                ),
                 if (previewSnippet.isNotEmpty)
                   LayoutBuilder(
                     builder: (context, constraints) {
@@ -2625,11 +2635,16 @@ class _CommunityPostCard extends ConsumerWidget {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: AspectRatio(
-                          aspectRatio: 16 / 10,
+                        child: ConstrainedBox(
+                          // EN: Cap very tall images (e.g. 9:16 portrait) at 480px.
+                          // KO: 매우 세로 긴 이미지(9:16 등)를 480px로 제한합니다.
+                          constraints: const BoxConstraints(
+                            minHeight: 60,
+                            maxHeight: 480,
+                          ),
                           child: _FallbackPreviewImage(
                             imageUrls: previewImageUrls,
-                            fit: BoxFit.cover,
+                            fit: BoxFit.fitWidth,
                             semanticLabel:
                                 '${post.title} ${context.l10n(ko: "첨부 이미지", en: "attached image", ja: "添付画像")}',
                           ),
@@ -2640,7 +2655,7 @@ class _CommunityPostCard extends ConsumerWidget {
                 const SizedBox(height: GBTSpacing.sm),
                 Semantics(
                   label:
-                      '${context.l10n(ko: "좋아요", en: "Likes", ja: "いいね")} $likeCount${context.l10n(ko: "개", en: "", ja: "件")}, ${context.l10n(ko: "댓글", en: "Comments", ja: "コメント")} $commentCount${context.l10n(ko: "개", en: "", ja: "件")}, ${context.l10n(ko: "북마크", en: "Bookmark", ja: "ブックマーク")} ${isBookmarked ? context.l10n(ko: "저장됨", en: "saved", ja: "保存済み") : context.l10n(ko: "미저장", en: "not saved", ja: "未保存")}',
+                      '${context.l10n(ko: "좋아요", en: "Likes", ja: "いいね")} $likeCount${context.l10n(ko: "개", en: "", ja: "件")}, ${context.l10n(ko: "댓글", en: "Comments", ja: "コメント")} $commentCount${context.l10n(ko: "개", en: "", ja: "件")}, ${context.l10n(ko: "북마크", en: "Bookmark", ja: "ブックマーク")} ${isBookmarked ? context.l10n(ko: "북마크됨", en: "bookmarked", ja: "ブックマーク済み") : context.l10n(ko: "북마크 안 됨", en: "not bookmarked", ja: "未ブックマーク")}',
                   child: Row(
                     children: [
                       _AnimatedLikeButton(
@@ -2671,8 +2686,16 @@ class _CommunityPostCard extends ConsumerWidget {
                         activeColor: bookmarkActionColor,
                         inactiveColor: tertiaryColor,
                         textLabel: isBookmarked
-                            ? context.l10n(ko: '저장됨', en: 'Saved', ja: '保存済み')
-                            : context.l10n(ko: '저장', en: 'Save', ja: '保存'),
+                            ? context.l10n(
+                                ko: '북마크됨',
+                                en: 'Bookmarked',
+                                ja: 'ブックマーク済み',
+                              )
+                            : context.l10n(
+                                ko: '북마크',
+                                en: 'Bookmark',
+                                ja: 'ブックマーク',
+                              ),
                       ),
                       const Spacer(),
                     ],
@@ -3117,6 +3140,7 @@ class _FallbackPreviewImageState extends State<_FallbackPreviewImage> {
     return GBTImage(
       key: ValueKey(widget.imageUrls[resolvedIndex]),
       imageUrl: widget.imageUrls[resolvedIndex],
+      width: double.infinity,
       fit: widget.fit,
       semanticLabel: widget.semanticLabel,
       onError: _advanceImage,

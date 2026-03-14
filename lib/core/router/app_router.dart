@@ -47,10 +47,18 @@ import '../../features/visits/presentation/pages/visit_detail_page.dart';
 import '../../features/visits/presentation/pages/visit_history_page.dart';
 import '../../features/visits/presentation/pages/visit_stats_page.dart';
 import '../../features/favorites/presentation/pages/favorites_page.dart';
+import '../../features/feed/presentation/pages/post_bookmarks_page.dart';
 import '../../features/search/presentation/pages/search_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/profile_banner/presentation/pages/banner_picker_page.dart';
 import '../../features/titles/presentation/pages/title_catalog_page.dart';
+import '../../features/calendar/presentation/pages/calendar_page.dart';
+import '../../features/fan_level/presentation/pages/fan_level_page.dart';
+import '../../features/cheer_guides/presentation/pages/cheer_guides_page.dart';
+import '../../features/cheer_guides/presentation/pages/cheer_guide_detail_page.dart';
+import '../../features/quotes/presentation/pages/quotes_page.dart';
+import '../../features/zukan/presentation/pages/zukan_page.dart';
+import '../../features/zukan/presentation/pages/zukan_detail_page.dart';
 
 DateTime? _lastPostDetailNavigationAt;
 String? _lastPostDetailNavigationPath;
@@ -148,6 +156,7 @@ class AppRoutes {
   static const String search = 'search';
   static const String notifications = 'notifications';
   static const String favorites = 'favorites';
+  static const String postBookmarks = 'post-bookmarks';
 
   // EN: Profile banner picker overlay route.
   // KO: 프로필 배너 피커 오버레이 라우트.
@@ -156,6 +165,16 @@ class AppRoutes {
   // EN: Title catalog picker overlay route.
   // KO: 칭호 카탈로그 피커 오버레이 라우트.
   static const String titlePicker = 'title-picker';
+
+  // EN: Otaku feature routes.
+  // KO: 오타쿠 기능 라우트.
+  static const String calendar = 'calendar';
+  static const String fanLevel = 'fan-level';
+  static const String cheerGuides = 'cheer-guides';
+  static const String cheerGuideDetail = 'cheer-guide-detail';
+  static const String quotes = 'quotes';
+  static const String zukan = 'zukan';
+  static const String zukanDetail = 'zukan-detail';
 }
 
 /// EN: Navigation shell branch index
@@ -644,6 +663,75 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const FavoritesPage(),
       ),
       GoRoute(
+        path: '/post-bookmarks',
+        name: AppRoutes.postBookmarks,
+        builder: (context, state) => const PostBookmarksPage(),
+      ),
+
+      // EN: Otaku feature routes (overlay, outside shell)
+      // KO: 오타쿠 기능 라우트 (오버레이, 쉘 외부)
+      GoRoute(
+        path: '/calendar',
+        name: AppRoutes.calendar,
+        pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+          key: state.pageKey,
+          child: const CalendarPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/fan-level',
+        name: AppRoutes.fanLevel,
+        pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+          key: state.pageKey,
+          child: const FanLevelPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/cheer-guides',
+        name: AppRoutes.cheerGuides,
+        pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+          key: state.pageKey,
+          child: const CheerGuidesPage(),
+        ),
+        routes: [
+          GoRoute(
+            path: ':guideId',
+            name: AppRoutes.cheerGuideDetail,
+            builder: (context, state) {
+              final guideId = state.pathParameters['guideId']!;
+              return CheerGuideDetailPage(guideId: guideId);
+            },
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/quotes',
+        name: AppRoutes.quotes,
+        pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+          key: state.pageKey,
+          child: const QuotesPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/zukan',
+        name: AppRoutes.zukan,
+        pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+          key: state.pageKey,
+          child: const ZukanPage(),
+        ),
+        routes: [
+          GoRoute(
+            path: ':collectionId',
+            name: AppRoutes.zukanDetail,
+            builder: (context, state) {
+              final collectionId = state.pathParameters['collectionId']!;
+              return ZukanDetailPage(collectionId: collectionId);
+            },
+          ),
+        ],
+      ),
+
+      GoRoute(
         path: '/live-attendance',
         redirect: (context, state) => '/visits?tab=live',
       ),
@@ -879,10 +967,16 @@ extension AppRouterExtension on BuildContext {
   bool _isOverlayPath(String path) {
     return path.startsWith('/settings') ||
         path.startsWith('/favorites') ||
+        path.startsWith('/post-bookmarks') ||
         path.startsWith('/visits') ||
         path.startsWith('/visit-stats') ||
         path.startsWith('/notifications') ||
         path.startsWith('/search') ||
+        path.startsWith('/calendar') ||
+        path.startsWith('/fan-level') ||
+        path.startsWith('/cheer-guides') ||
+        path.startsWith('/quotes') ||
+        path.startsWith('/zukan') ||
         path.startsWith('/overlay/music') ||
         path.startsWith('/overlay');
   }
@@ -1264,6 +1358,12 @@ extension AppRouterExtension on BuildContext {
   /// KO: 커뮤니티 설정으로 이동
   void goToCommunitySettings() {
     pushNamed(AppRoutes.communitySettings);
+  }
+
+  /// EN: Navigate to post bookmarks page.
+  /// KO: 북마크한 게시글 페이지로 이동
+  void goToPostBookmarks() {
+    pushNamed(AppRoutes.postBookmarks);
   }
 
   /// EN: Navigate to visit stats

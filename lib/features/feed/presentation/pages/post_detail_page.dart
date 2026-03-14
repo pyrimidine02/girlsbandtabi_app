@@ -3,9 +3,12 @@
 library;
 
 import 'dart:async';
+import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gal/gal.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/failure.dart';
@@ -350,7 +353,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                 .read(postBookmarkControllerProvider(reactionTarget).notifier)
                 .toggleBookmark();
             if (result is Err<PostBookmarkStatus> && context.mounted) {
-              _showSnackBar(context, '저장 상태를 반영하지 못했어요');
+              _showSnackBar(context, '북마크 상태를 반영하지 못했어요');
             }
           },
           onSubmitComment: () async {
@@ -1250,7 +1253,7 @@ class _PostDetailContent extends ConsumerWidget {
                               '좋아요 $likeCount개, '
                               '${isLiked ? "좋아요 누른 상태" : "좋아요 안 누른 상태"}, '
                               '댓글 $commentCountLabel개, '
-                              '${isBookmarked ? "내 저장됨" : "내 저장 안 됨"}',
+                              '${isBookmarked ? "북마크됨" : "북마크 안 됨"}',
                           child: Row(
                             children: [
                               Expanded(
@@ -1292,7 +1295,7 @@ class _PostDetailContent extends ConsumerWidget {
                                   icon: isBookmarked
                                       ? GBTActionIcons.bookmarkActive
                                       : GBTActionIcons.bookmark,
-                                  label: isBookmarked ? '저장됨' : '저장',
+                                  label: isBookmarked ? '북마크됨' : '북마크',
                                   color: isBookmarked
                                       ? (isDark
                                             ? GBTColors.darkPrimary
@@ -3071,90 +3074,50 @@ class _PostDetailSkeleton extends StatelessWidget {
 
 /// EN: Twitter-style horizontal swipeable image carousel with dot indicator.
 /// KO: 점 인디케이터가 있는 트위터 스타일 가로 스와이프 이미지 캐러셀.
-class _ImageCarousel extends StatefulWidget {
+/// EN: Vertical image gallery — each image at its natural aspect ratio.
+/// KO: 각 이미지를 원본 비율로 세로 나열하는 갤러리입니다.
+class _ImageCarousel extends StatelessWidget {
   const _ImageCarousel({required this.imageUrls, required this.onTapImage});
 
   final List<String> imageUrls;
   final ValueChanged<int> onTapImage;
 
   @override
-  State<_ImageCarousel> createState() => _ImageCarouselState();
-}
-
-class _ImageCarouselState extends State<_ImageCarousel> {
-  late final PageController _pageController;
-  int _currentIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController();
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final hasMultiple = widget.imageUrls.length > 1;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: widget.imageUrls.length,
-              onPageChanged: (index) => setState(() => _currentIndex = index),
-              itemBuilder: (context, index) {
-                return Semantics(
-                  label: '첨부 이미지 ${index + 1}/${widget.imageUrls.length}',
-                  hint: '탭하면 확대합니다',
-                  button: true,
-                  child: GestureDetector(
-                    onTap: () => widget.onTapImage(index),
-                    child: GBTImage(
-                      imageUrl: widget.imageUrls[index],
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      semanticLabel: '첨부 이미지 ${index + 1}',
-                    ),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: List.generate(imageUrls.length, (index) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: index < imageUrls.length - 1 ? GBTSpacing.sm : 0,
+          ),
+          child: Semantics(
+            label: '첨부 이미지 ${index + 1}/${imageUrls.length}',
+            hint: '탭하면 확대합니다',
+            button: true,
+            child: GestureDetector(
+              onTap: () => onTapImage(index),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                child: ConstrainedBox(
+                  // EN: Cap extreme portrait images (e.g. 9:16+) at 600px.
+                  // KO: 극단적인 세로 이미지(9:16 이상)를 600px로 제한합니다.
+                  constraints: const BoxConstraints(
+                    minHeight: 60,
+                    maxHeight: 600,
                   ),
-                );
-              },
+                  child: GBTImage(
+                    imageUrl: imageUrls[index],
+                    width: double.infinity,
+                    fit: BoxFit.fitWidth,
+                    semanticLabel: '첨부 이미지 ${index + 1}',
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
-        if (hasMultiple) ...[
-          const SizedBox(height: GBTSpacing.sm),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(widget.imageUrls.length, (index) {
-              final isActive = index == _currentIndex;
-              return AnimatedContainer(
-                duration: GBTAnimations.fast,
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                width: isActive ? 16 : 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(3),
-                  color: isActive
-                      ? (isDark ? GBTColors.darkPrimary : GBTColors.primary)
-                      : (isDark
-                            ? GBTColors.darkTextTertiary
-                            : GBTColors.textTertiary),
-                ),
-              );
-            }),
-          ),
-        ],
-      ],
+        );
+      }),
     );
   }
 }
@@ -3200,6 +3163,7 @@ class _FullScreenImageViewer extends StatefulWidget {
 class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
   late final PageController _pageController;
   late int _currentIndex;
+  bool _isDownloading = false;
 
   @override
   void initState() {
@@ -3212,6 +3176,50 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  /// EN: Download the currently displayed image to the device photo library.
+  /// KO: 현재 표시 중인 이미지를 기기 사진 보관함에 저장합니다.
+  Future<void> _downloadCurrentImage() async {
+    if (_isDownloading) return;
+    setState(() => _isDownloading = true);
+
+    final url = resolveMediaUrl(widget.imageUrls[_currentIndex]);
+    try {
+      final hasAccess = await Gal.hasAccess(toAlbum: false);
+      if (!hasAccess) {
+        final granted = await Gal.requestAccess(toAlbum: false);
+        if (!granted) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('사진 저장 권한이 필요합니다')),
+            );
+          }
+          return;
+        }
+      }
+
+      final response = await Dio().get<List<int>>(
+        url,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final bytes = Uint8List.fromList(response.data!);
+      await Gal.putImageBytes(bytes);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('이미지가 저장되었어요')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('이미지 저장에 실패했어요')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
+    }
   }
 
   @override
@@ -3234,6 +3242,26 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
           tooltip: '닫기',
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: [
+          if (_isDownloading)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.download_rounded),
+              tooltip: '이미지 저장',
+              onPressed: _downloadCurrentImage,
+            ),
+        ],
       ),
       body: PageView.builder(
         controller: _pageController,

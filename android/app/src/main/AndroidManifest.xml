@@ -6,6 +6,8 @@
     <!-- Background location permission (optional, for background location access) -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Write external storage for saving images on Android 9 and below -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     
     <application
         android:label="걸즈밴드타비"

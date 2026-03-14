@@ -91,9 +91,9 @@ class FavoritesPage extends ConsumerWidget {
                   GBTEmptyState(
                     icon: Icons.favorite_border,
                     message: context.l10n(
-                      ko: '저장된 즐겨찾기가 없습니다.\n마음에 드는 장소나 이벤트를 저장해보세요.',
-                      en: 'No saved favorites.\nSave places or events you like.',
-                      ja: '保存されたお気に入りがありません。\n気に入った場所やイベントを保存してください。',
+                      ko: '저장된 즐겨찾기가 없습니다.\n마음에 드는 장소, 이벤트, 뉴스를 저장해보세요.',
+                      en: 'No saved favorites.\nSave places, events, or news you like.',
+                      ja: '保存されたお気に入りがありません。\n気に入った場所、イベント、ニュースを保存してください。',
                     ),
                   ),
                 ],
@@ -128,7 +128,9 @@ class FavoritesPage extends ConsumerWidget {
                   Expanded(
                     child: TabBarView(
                       children: [
-                        _FavoritesList(items: items),
+                        _FavoritesList(
+                          items: _filterExcluding(items, FavoriteType.post),
+                        ),
                         _FavoritesList(
                           items: _filter(items, FavoriteType.place),
                         ),
@@ -378,6 +380,13 @@ class _TypeBadge extends StatelessWidget {
 
 List<FavoriteItem> _filter(List<FavoriteItem> items, FavoriteType type) {
   return items.where((item) => item.type == type).toList();
+}
+
+List<FavoriteItem> _filterExcluding(
+  List<FavoriteItem> items,
+  FavoriteType exclude,
+) {
+  return items.where((item) => item.type != exclude).toList();
 }
 
 String _typeLabel(BuildContext context, FavoriteType type) {

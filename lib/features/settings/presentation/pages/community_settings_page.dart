@@ -150,12 +150,12 @@ class CommunitySettingsPage extends ConsumerWidget {
                       : null,
                 ),
                 _CommunitySettingsRow(
-                  icon: Icons.favorite_rounded,
+                  icon: Icons.bookmark_rounded,
                   iconBgColor: const Color(0xFFEF4444),
                   title: context.l10n(
-                    ko: '저장한 글',
-                    en: 'Saved posts',
-                    ja: '保存した投稿',
+                    ko: '북마크한 글',
+                    en: 'Bookmarked posts',
+                    ja: 'ブックマークした投稿',
                   ),
                   subtitle: context.l10n(
                     ko: '북마크한 커뮤니티 글 모아보기',
@@ -164,7 +164,7 @@ class CommunitySettingsPage extends ConsumerWidget {
                   ),
                   enabled: isAuthenticated,
                   onTap: isAuthenticated
-                      ? () => context.push('/favorites')
+                      ? () => context.push('/post-bookmarks')
                       : null,
                 ),
                 _CommunitySettingsRow(

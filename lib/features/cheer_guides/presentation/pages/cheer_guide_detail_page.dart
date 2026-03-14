@@ -1,0 +1,401 @@
+/// EN: Cheer guide detail page — full section-by-section guide.
+/// KO: 응원 가이드 상세 페이지 — 섹션별 전체 가이드.
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/localization/locale_text.dart';
+import '../../../../core/theme/gbt_colors.dart';
+import '../../../../core/theme/gbt_spacing.dart';
+import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../application/cheer_guides_controller.dart';
+import '../../domain/entities/cheer_guide.dart';
+
+/// EN: Displays the full section-by-section cheer guide for a single song.
+/// KO: 한 곡의 섹션별 전체 응원 가이드를 표시합니다.
+class CheerGuideDetailPage extends ConsumerWidget {
+  const CheerGuideDetailPage({super.key, required this.guideId});
+
+  final String guideId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final guideAsync = ref.watch(cheerGuideDetailProvider(guideId));
+
+    return Scaffold(
+      backgroundColor:
+          isDark ? GBTColors.darkBackground : GBTColors.background,
+      appBar: AppBar(
+        backgroundColor: isDark ? GBTColors.darkSurface : GBTColors.surface,
+        title: guideAsync.maybeWhen(
+          data: (guide) => Text(
+            guide.songTitle,
+            style: GBTTypography.titleLarge.copyWith(
+              color: isDark
+                  ? GBTColors.darkTextPrimary
+                  : GBTColors.textPrimary,
+            ),
+          ),
+          orElse: () => Text(
+            context.l10n(
+              ko: '응원 가이드',
+              en: 'Cheer Guide',
+              ja: '応援ガイド',
+            ),
+            style: GBTTypography.titleLarge.copyWith(
+              color: isDark
+                  ? GBTColors.darkTextPrimary
+                  : GBTColors.textPrimary,
+            ),
+          ),
+        ),
+        elevation: 0,
+      ),
+      body: guideAsync.when(
+        loading: () => _CheerGuideDetailShimmer(),
+        error: (_, __) => Center(
+          child: GBTEmptyState(
+            icon: Icons.wifi_off_rounded,
+            message: context.l10n(
+              ko: '가이드를 불러오지 못했어요',
+              en: 'Could not load guide',
+              ja: 'ガイドを読み込めませんでした',
+            ),
+            actionLabel: context.l10n(
+              ko: '다시 시도',
+              en: 'Retry',
+              ja: '再試行',
+            ),
+            onAction: () => ref.refresh(cheerGuideDetailProvider(guideId)),
+          ),
+        ),
+        data: (guide) => _GuideContent(guide: guide),
+      ),
+    );
+  }
+}
+
+/// EN: Shimmer skeleton shown while the guide detail is loading.
+/// KO: 가이드 상세 로딩 중 표시되는 쉬머 스켈레톤.
+class _CheerGuideDetailShimmer extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(GBTSpacing.pageHorizontal),
+      child: Column(
+        children: List.generate(
+          5,
+          (_) => Padding(
+            padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
+            child: GBTShimmer(
+              child: Container(
+                height: 100,
+                decoration: BoxDecoration(
+                  color: GBTColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// EN: Scrollable content for a full [CheerGuide].
+/// KO: 전체 [CheerGuide]의 스크롤 가능한 콘텐츠.
+class _GuideContent extends StatelessWidget {
+  const _GuideContent({required this.guide});
+
+  final CheerGuide guide;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return ListView(
+      padding: const EdgeInsets.all(GBTSpacing.pageHorizontal),
+      children: [
+        // EN: Overall guide notes banner
+        // KO: 전체 가이드 메모 배너
+        if (guide.overallNotes != null) ...[
+          Container(
+            padding: const EdgeInsets.all(GBTSpacing.md),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? GBTColors.darkPrimary.withValues(alpha: 0.1)
+                  : GBTColors.primary.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: 16,
+                  color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
+                ),
+                const SizedBox(width: GBTSpacing.xs),
+                Expanded(
+                  child: Text(
+                    guide.overallNotes!,
+                    style: GBTTypography.bodySmall.copyWith(
+                      color: isDark
+                          ? GBTColors.darkTextSecondary
+                          : GBTColors.textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: GBTSpacing.md),
+        ],
+        ...guide.sections.map(
+          (section) => _SectionCard(section: section),
+        ),
+        const SizedBox(height: GBTSpacing.xl),
+      ],
+    );
+  }
+}
+
+/// EN: Card for a single [CheerSection] showing lyrics, cheer text, and
+/// penlight colors.
+/// KO: 가사, 응원 텍스트, 펜라이트 색상을 표시하는 단일 [CheerSection] 카드.
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.section});
+
+  final CheerSection section;
+
+  // EN: Semantic color for each cheer type (light / dark).
+  // KO: 응원 유형별 시맨틱 색상 (라이트 / 다크).
+  Color _typeColor(CheerType type, bool isDark) {
+    return switch (type) {
+      CheerType.call => isDark
+          ? const Color(0xFF60A5FA)
+          : const Color(0xFF2563EB),
+      CheerType.response => isDark
+          ? const Color(0xFFA78BFA)
+          : const Color(0xFF7C3AED),
+      CheerType.silence => isDark
+          ? const Color(0xFF9CA3AF)
+          : const Color(0xFF6B7280),
+      CheerType.unified => isDark
+          ? const Color(0xFFFBBF24)
+          : const Color(0xFFD97706),
+      CheerType.none => isDark
+          ? GBTColors.darkTextTertiary
+          : GBTColors.textTertiary,
+    };
+  }
+
+  String _typeLabel(CheerType type, BuildContext context) {
+    return switch (type) {
+      CheerType.call =>
+        context.l10n(ko: '콜', en: 'Call', ja: 'コール'),
+      CheerType.response =>
+        context.l10n(ko: '응답', en: 'Response', ja: 'レスポンス'),
+      CheerType.silence =>
+        context.l10n(ko: '조용히', en: 'Silence', ja: '静かに'),
+      CheerType.unified =>
+        context.l10n(ko: '합창', en: 'Unified', ja: 'ユニゾン'),
+      CheerType.none => '',
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final typeColor = _typeColor(section.cheerType, isDark);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? GBTColors.darkSurface : GBTColors.surface,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // EN: Section header row (name, timing, cheer type badge)
+            // KO: 섹션 헤더 행 (이름, 타이밍, 응원 유형 배지)
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: GBTSpacing.md,
+                vertical: GBTSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? GBTColors.darkSurfaceVariant
+                    : GBTColors.surfaceVariant,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(GBTSpacing.radiusSm),
+                  topRight: Radius.circular(GBTSpacing.radiusSm),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      section.sectionName,
+                      style: GBTTypography.labelMedium.copyWith(
+                        color: isDark
+                            ? GBTColors.darkTextPrimary
+                            : GBTColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (section.timing != null) ...[
+                    Icon(
+                      Icons.access_time_rounded,
+                      size: 12,
+                      color: isDark
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      section.timing!,
+                      style: GBTTypography.labelSmall.copyWith(
+                        color: isDark
+                            ? GBTColors.darkTextTertiary
+                            : GBTColors.textTertiary,
+                      ),
+                    ),
+                    const SizedBox(width: GBTSpacing.sm),
+                  ],
+                  if (section.cheerType != CheerType.none)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: typeColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        _typeLabel(section.cheerType, context),
+                        style: GBTTypography.labelSmall.copyWith(
+                          color: typeColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            // EN: Section body (penlight colors, lyrics, cheer text, notes)
+            // KO: 섹션 본문 (펜라이트 색상, 가사, 응원 텍스트, 메모)
+            Padding(
+              padding: const EdgeInsets.all(GBTSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (section.penlightColors.isNotEmpty) ...[
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.flashlight_on_outlined,
+                          size: 14,
+                          color: isDark
+                              ? GBTColors.darkTextSecondary
+                              : GBTColors.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        ...section.penlightColors.map(
+                          (hex) => Container(
+                            width: 18,
+                            height: 18,
+                            margin: const EdgeInsets.only(right: 4),
+                            decoration: BoxDecoration(
+                              color: _hexToColor(hex),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isDark
+                                    ? GBTColors.darkSurfaceVariant
+                                    : GBTColors.surfaceVariant,
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: GBTSpacing.sm),
+                  ],
+                  if (section.lyrics != null) ...[
+                    Text(
+                      section.lyrics!,
+                      style: GBTTypography.bodySmall.copyWith(
+                        color: isDark
+                            ? GBTColors.darkTextSecondary
+                            : GBTColors.textSecondary,
+                        height: 1.6,
+                      ),
+                    ),
+                    const SizedBox(height: GBTSpacing.sm),
+                  ],
+                  if (section.cheerText != null)
+                    Container(
+                      padding: const EdgeInsets.all(GBTSpacing.sm),
+                      decoration: BoxDecoration(
+                        color: typeColor.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(
+                          GBTSpacing.radiusXs,
+                        ),
+                        border: Border.all(
+                          color: typeColor.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Text(
+                        section.cheerText!,
+                        style: GBTTypography.bodyMedium.copyWith(
+                          color: typeColor,
+                          fontWeight: FontWeight.w600,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                  if (section.notes != null) ...[
+                    const SizedBox(height: GBTSpacing.xs),
+                    Text(
+                      section.notes!,
+                      style: GBTTypography.bodySmall.copyWith(
+                        color: isDark
+                            ? GBTColors.darkTextTertiary
+                            : GBTColors.textTertiary,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // EN: Parse a CSS hex color string to a Flutter [Color].
+  // KO: CSS 16진수 색상 문자열을 Flutter [Color]로 파싱합니다.
+  Color _hexToColor(String hex) {
+    final clean = hex.replaceAll('#', '').trim();
+    if (clean.length == 6) {
+      return Color(int.parse('FF$clean', radix: 16));
+    }
+    if (clean.length == 8) {
+      return Color(int.parse(clean, radix: 16));
+    }
+    return Colors.grey;
+  }
+}

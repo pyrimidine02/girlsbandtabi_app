@@ -215,6 +215,87 @@ class SettingsPage extends ConsumerWidget {
               ),
             ],
 
+            // EN: Otaku features section
+            // KO: 덕질 모음 섹션
+            const SizedBox(height: GBTSpacing.lg),
+            _SettingsGroup(
+              title: context.l10n(ko: '덕질 모음', en: 'Fan Activities', ja: 'オタ活'),
+              children: [
+                _SettingsRow(
+                  icon: Icons.bolt_rounded,
+                  iconBgColor: const Color(0xFF7C3AED),
+                  title: context.l10n(ko: '나의 덕력', en: 'Fan Level', ja: 'ファンレベル'),
+                  subtitle: context.l10n(
+                    ko: 'XP·등급·출석 체크',
+                    en: 'XP, grade & daily check-in',
+                    ja: 'XP・グレード・出席チェック',
+                  ),
+                  onTap: () => context.push('/fan-level'),
+                ),
+                _SettingsRow(
+                  icon: Icons.calendar_month_rounded,
+                  iconBgColor: const Color(0xFF2563EB),
+                  title: context.l10n(
+                    ko: '이벤트 캘린더',
+                    en: 'Event Calendar',
+                    ja: 'イベントカレンダー',
+                  ),
+                  subtitle: context.l10n(
+                    ko: '생일·발매·라이브 일정',
+                    en: 'Birthdays, releases & live dates',
+                    ja: '誕生日・発売・ライブ日程',
+                  ),
+                  onTap: () => context.push('/calendar'),
+                ),
+                _SettingsRow(
+                  icon: Icons.photo_album_rounded,
+                  iconBgColor: const Color(0xFF059669),
+                  title: context.l10n(
+                    ko: '성지순례 도감',
+                    en: 'Place Collection',
+                    ja: '聖地巡礼図鑑',
+                  ),
+                  subtitle: context.l10n(
+                    ko: '장소 스탬프 수집',
+                    en: 'Collect place stamps',
+                    ja: '場所スタンプコレクション',
+                  ),
+                  onTap: () => context.push('/zukan'),
+                ),
+                _SettingsRow(
+                  icon: Icons.music_note_rounded,
+                  iconBgColor: const Color(0xFFD97706),
+                  title: context.l10n(
+                    ko: '응원 가이드',
+                    en: 'Cheer Guide',
+                    ja: '応援ガイド',
+                  ),
+                  subtitle: context.l10n(
+                    ko: '곡별 콜·펜라이트 가이드',
+                    en: 'Per-song call & penlight guide',
+                    ja: '曲別コール・ペンライトガイド',
+                  ),
+                  onTap: () => context.push('/cheer-guides'),
+                ),
+                _SettingsRow(
+                  icon: Icons.format_quote_rounded,
+                  iconBgColor: const Color(0xFFDB2777),
+                  title: context.l10n(
+                    ko: '명대사 카드',
+                    en: 'Quote Cards',
+                    ja: '名言カード',
+                  ),
+                  subtitle: context.l10n(
+                    ko: '좋아하는 명대사 저장·공유',
+                    en: 'Save & share favourite quotes',
+                    ja: 'お気に入り名言を保存・シェア',
+                  ),
+                  onTap: () => context.push('/quotes'),
+                  isLast: true,
+                ),
+              ],
+            ),
+
             // EN: Legal/privacy self-service section for authenticated users.
             // KO: 로그인 사용자를 위한 법률/개인정보 셀프서비스 섹션.
             if (isAuthenticated) ...[
