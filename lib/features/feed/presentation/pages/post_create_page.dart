@@ -1057,9 +1057,13 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
         allowMultiple: true,
       );
       if (result == null || result.files.isEmpty || !mounted) return;
+      // EN: Preserve original filename (f.name) so .gif extension is
+      // reliably detected even if the temp path has no extension.
+      // KO: 임시 경로에 확장자가 없는 경우에도 .gif 감지를 위해
+      // 원본 파일명(f.name)을 유지합니다.
       final files = result.files
           .where((f) => f.path != null)
-          .map((f) => XFile(f.path!))
+          .map((f) => XFile(f.path!, name: f.name))
           .toList();
       _appendPickedImages(files);
     } catch (_) {
@@ -1102,9 +1106,14 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
     final uploads = <UploadInfo>[];
 
     for (final image in _images) {
+      // EN: Use image.name so the original filename (including .gif extension
+      // from file_picker) is preserved for MIME-type detection.
+      // KO: file_picker 원본 파일명(.gif 확장자 포함)을 MIME 타입 감지에 사용합니다.
+      final originalFilename =
+          image.name.isNotEmpty ? image.name : p.basename(image.path);
       final payload = await convertToWebp(
         path: image.path,
-        originalFilename: p.basename(image.path),
+        originalFilename: originalFilename,
         // EN: Force JPEG on Android to keep feed thumbnail generation stable.
         // KO: 안드로이드에서는 피드 썸네일 생성 안정화를 위해 JPEG로 강제합니다.
         forceJpeg: Platform.isAndroid,

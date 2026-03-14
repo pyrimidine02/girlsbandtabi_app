@@ -70,9 +70,9 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
     final repository = await _ref.read(uploadsRepositoryProvider.future);
 
     // EN: Server rejects presigned URLs for image/* content types with 400.
-    // Use direct upload immediately for images.
+    // Use direct upload immediately for images (includes image/gif).
     // KO: 서버는 image/* contentType에 대해 presigned URL을 400으로 거부합니다.
-    // 이미지는 바로 direct 업로드를 사용합니다.
+    // 이미지(image/gif 포함)는 바로 direct 업로드를 사용합니다.
     if (contentType.startsWith('image/')) {
       AppLogger.debug(
         'Image content type detected ($contentType), '
