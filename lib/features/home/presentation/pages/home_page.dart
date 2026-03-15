@@ -29,7 +29,6 @@ import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../ads/domain/entities/ad_slot_entities.dart';
 import '../../../profile_banner/application/banner_controller.dart';
-import '../../../home_banners/presentation/widgets/home_banner_carousel.dart';
 import '../../../ads/presentation/widgets/hybrid_sponsored_slot.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
@@ -329,7 +328,8 @@ class _HomePageState extends ConsumerState<HomePage> {
       controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
-        // 1. GBTGreetingHeader (includes SafeArea + AppBar space)
+        // 1. GBTGreetingHeader — greeting area
+        // KO: GBTGreetingHeader — 인사말 영역
         SliverToBoxAdapter(
           child: GBTGreetingHeader(
             userName: nickname,
@@ -355,16 +355,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ),
 
-        // 2. Home banner carousel — auto-advancing slides
-        // KO: 홈 배너 캐러셀 — 자동 전환 슬라이드
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.only(top: GBTSpacing.lg),
-            child: HomeBannerCarousel(),
-          ),
-        ),
-
-        // 3. ProjectSelector — edge-to-edge pill row
+        // 2. ProjectSelector — edge-to-edge pill row
         const SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.only(top: GBTSpacing.lg),
