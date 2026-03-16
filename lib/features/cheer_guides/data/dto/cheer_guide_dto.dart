@@ -97,7 +97,7 @@ class CheerGuideDto {
           json['projectId'] as String? ?? json['project_id'] as String?,
       artistName:
           json['artistName'] as String? ?? json['artist_name'] as String?,
-      difficulty: json['difficulty'] as int?,
+      difficulty: _parseDifficulty(json['difficulty']),
       overallNotes:
           json['overallNotes'] as String? ??
           json['overall_notes'] as String?,
@@ -146,6 +146,22 @@ class CheerGuideDto {
   }
 }
 
+// EN: Parses difficulty from either a numeric int or a string enum (e.g. "BEGINNER").
+// KO: difficulty 값을 int 또는 문자열 열거형("BEGINNER" 등)으로부터 파싱합니다.
+int? _parseDifficulty(dynamic raw) {
+  if (raw == null) return null;
+  if (raw is int) return raw;
+  if (raw is String) {
+    return switch (raw.toUpperCase()) {
+      'BEGINNER' => 1,
+      'INTERMEDIATE' => 2,
+      'ADVANCED' => 3,
+      _ => null,
+    };
+  }
+  return null;
+}
+
 /// EN: DTO for a cheer guide summary item in a list response.
 /// KO: 목록 응답의 응원 가이드 요약 항목 DTO.
 class CheerGuideSummaryDto {
@@ -172,7 +188,7 @@ class CheerGuideSummaryDto {
           json['projectId'] as String? ?? json['project_id'] as String?,
       artistName:
           json['artistName'] as String? ?? json['artist_name'] as String?,
-      difficulty: json['difficulty'] as int?,
+      difficulty: _parseDifficulty(json['difficulty']),
       sectionCount:
           json['sectionCount'] as int? ??
           json['section_count'] as int? ??

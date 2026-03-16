@@ -95,7 +95,10 @@ enum FanActivityType {
       'place_visit' || 'placevisit' => FanActivityType.placeVisit,
       'post_created' || 'postcreated' => FanActivityType.postCreated,
       'live_attendance' || 'liveattendance' => FanActivityType.liveAttendance,
-      'daily_check_in' || 'dailycheckin' => FanActivityType.dailyCheckIn,
+      // EN: API sends 'ATTENDANCE' for daily check-in action.
+      // KO: API는 일일 출석 체크 동작에 'ATTENDANCE'를 전송합니다.
+      'daily_check_in' || 'dailycheckin' || 'attendance' =>
+        FanActivityType.dailyCheckIn,
       'comment_created' || 'commentcreated' => FanActivityType.commentCreated,
       'post_liked' || 'postliked' => FanActivityType.postLiked,
       _ => FanActivityType.other,
