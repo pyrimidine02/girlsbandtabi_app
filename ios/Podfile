@@ -41,10 +41,15 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
 
-    # Fix: ensure dSYM is generated for all pod targets (including objective_c.framework)
-    # so Xcode archive validation does not fail with "missing dSYM" errors.
     target.build_configurations.each do |config|
+      # Fix: ensure dSYM is generated for all pod targets (including objective_c.framework)
+      # so Xcode archive validation does not fail with "missing dSYM" errors.
       config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
+
+      # Fix: exclude arm64 simulator slice from simulator SDK builds.
+      # Prevents App Store rejection: "unsupported platform in the arm64 slice"
+      # caused by objective_c.framework (gRPC pod) including a simulator-tagged arm64 binary.
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
     end
   end
 

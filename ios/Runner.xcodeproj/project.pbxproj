@@ -199,6 +199,7 @@
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
+				D8C418D7CD3641498FC5DC92 /* Strip Simulator Slices */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				2FA61974C4C8CEAE3C195018 /* [CP] Copy Pods Resources */,
 			);
@@ -311,6 +312,20 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources.sh\"\n";
 			showEnvVarsInLog = 0;
+		};
+		D8C418D7CD3641498FC5DC92 /* Strip Simulator Slices */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Strip Simulator Slices";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "APP_PATH=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\"\nfind \"$APP_PATH\" -name '*.framework' -type d | while read -r FRAMEWORK; do\n  BINARY=\"${FRAMEWORK}/$(basename \"$FRAMEWORK\" .framework)\"\n  if [ -f \"$BINARY\" ]; then\n    if xcrun vtool -show-build \"$BINARY\" 2>/dev/null | grep -q 'IOSSIMULATOR'; then\n      lipo -remove x86_64 -output \"$BINARY\" \"$BINARY\" 2>/dev/null || true\n      lipo -remove arm64 -output \"$BINARY\" \"$BINARY\" 2>/dev/null || true\n      echo \"Stripped simulator slices from $(basename $FRAMEWORK)\"\n    fi\n  fi\ndone\n";
 		};
 		3B06AD1E1E4923F5004D2608 /* Thin Binary */ = {
 			isa = PBXShellScriptBuildPhase;
