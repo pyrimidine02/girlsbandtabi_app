@@ -23,12 +23,12 @@ class FanActivityDto {
       // EN: API uses 'action' field; fall back to 'type' for backwards compat.
       // KO: API는 'action' 필드를 사용합니다. 이전 호환을 위해 'type'도 읽습니다.
       type: json['action'] as String? ?? json['type'] as String?,
-      // EN: API uses 'points' field; fall back to camelCase/snake_case variants.
-      // KO: API는 'points' 필드를 사용합니다. 카멜케이스/스네이크케이스도 읽습니다.
+      // EN: API now uses 'xpEarned'; fall back to 'points' for older responses.
+      // KO: API가 'xpEarned'로 변경되었습니다. 이전 응답 호환을 위해 'points'도 읽습니다.
       xpEarned:
-          json['points'] as int? ??
           json['xpEarned'] as int? ??
           json['xp_earned'] as int? ??
+          json['points'] as int? ??
           0,
       earnedAt: DateTime.tryParse(
             json['earnedAt'] as String? ??
@@ -68,6 +68,7 @@ class FanLevelProfileDto {
     required this.rank,
     this.grade,
     this.hasCheckedInToday = false,
+    this.consecutiveDays = 0,
     this.recentActivities = const [],
   });
 
@@ -121,6 +122,10 @@ class FanLevelProfileDto {
           json['hasCheckedInToday'] as bool? ??
           json['has_checked_in_today'] as bool? ??
           false,
+      consecutiveDays:
+          json['consecutiveDays'] as int? ??
+          json['consecutive_days'] as int? ??
+          0,
       recentActivities: activitiesJson
           .whereType<Map<String, dynamic>>()
           .map(FanActivityDto.fromJson)
@@ -135,6 +140,7 @@ class FanLevelProfileDto {
   final int nextLevelXp;
   final int rank;
   final bool hasCheckedInToday;
+  final int consecutiveDays;
   final List<FanActivityDto> recentActivities;
 
   /// EN: Converts this DTO to its domain [FanLevelProfile] entity.
@@ -147,6 +153,7 @@ class FanLevelProfileDto {
     nextLevelXp: nextLevelXp,
     rank: rank,
     hasCheckedInToday: hasCheckedInToday,
+    consecutiveDays: consecutiveDays,
     recentActivities: recentActivities
         .map((a) => a.toEntity())
         .toList(growable: false),
@@ -157,14 +164,13 @@ class FanLevelProfileDto {
 /// KO: 앱 내 활동 XP 획득 결과 DTO.
 class EarnXpResultDto {
   const EarnXpResultDto({
+    required this.awarded,
     required this.xpEarned,
-    required this.bonusXpEarned,
     required this.totalPoints,
     this.currentLevel,
     this.leveledUp = false,
     this.newLevel,
-    this.alreadyGranted = false,
-    this.dailyLimitReached = false,
+    this.skipReason,
   });
 
   /// EN: Deserializes an [EarnXpResultDto] from a raw JSON map.
@@ -173,40 +179,37 @@ class EarnXpResultDto {
     final currentLevel = json['currentLevel'] as Map<String, dynamic>?;
     final newLevel = json['newLevel'] as Map<String, dynamic>?;
     return EarnXpResultDto(
+      awarded: json['awarded'] as bool? ?? false,
       xpEarned: json['xpEarned'] as int? ?? 0,
-      bonusXpEarned: json['bonusXpEarned'] as int? ?? 0,
       totalPoints:
           json['totalPoints'] as int? ?? json['newTotalXp'] as int? ?? 0,
       currentLevel: currentLevel,
       leveledUp: json['leveledUp'] as bool? ?? false,
       newLevel: newLevel,
-      alreadyGranted: json['alreadyGranted'] as bool? ?? false,
-      dailyLimitReached: json['dailyLimitReached'] as bool? ?? false,
+      skipReason: json['skipReason'] as String?,
     );
   }
 
+  final bool awarded;
   final int xpEarned;
-  final int bonusXpEarned;
   final int totalPoints;
   final Map<String, dynamic>? currentLevel;
   final bool leveledUp;
   final Map<String, dynamic>? newLevel;
-  final bool alreadyGranted;
-  final bool dailyLimitReached;
+  final String? skipReason;
 
   /// EN: Converts this DTO to its domain [EarnXpResult] entity.
   /// KO: 이 DTO를 도메인 [EarnXpResult] 엔티티로 변환합니다.
   EarnXpResult toEntity() => EarnXpResult(
+    awarded: awarded,
     xpEarned: xpEarned,
-    bonusXpEarned: bonusXpEarned,
     totalPoints: totalPoints,
     currentGrade: FanGrade.fromString(currentLevel?['code'] as String?),
     leveledUp: leveledUp,
     newGrade: leveledUp
         ? FanGrade.fromString(newLevel?['code'] as String?)
         : null,
-    alreadyGranted: alreadyGranted,
-    dailyLimitReached: dailyLimitReached,
+    skipReason: skipReason,
   );
 }
 
@@ -215,23 +218,26 @@ class EarnXpResultDto {
 class CheckInResultDto {
   const CheckInResultDto({
     required this.xpEarned,
+    required this.bonusXpEarned,
     required this.newTotalXp,
     required this.streakDays,
     this.newGrade,
     this.didLevelUp = false,
+    this.bonusMessage,
   });
 
   /// EN: Deserializes a [CheckInResultDto] from a raw JSON map.
   /// KO: 원시 JSON 맵에서 [CheckInResultDto]를 역직렬화합니다.
   factory CheckInResultDto.fromJson(Map<String, dynamic> json) {
     return CheckInResultDto(
-      // EN: API uses 'pointsEarned'; fall back to camelCase/snake_case variants.
-      // KO: API는 'pointsEarned' 필드를 사용합니다.
+      // EN: API uses 'xpEarned' (changed from 'pointsEarned').
+      // KO: API가 'xpEarned'로 변경되었습니다 (기존 'pointsEarned').
       xpEarned:
-          json['pointsEarned'] as int? ??
           json['xpEarned'] as int? ??
           json['xp_earned'] as int? ??
+          json['pointsEarned'] as int? ??
           10,
+      bonusXpEarned: json['bonusXpEarned'] as int? ?? 0,
       // EN: API uses 'totalPoints' for the new cumulative total.
       // KO: API는 누적 합계에 'totalPoints' 필드를 사용합니다.
       newTotalXp:
@@ -241,7 +247,7 @@ class CheckInResultDto {
           0,
       newGrade:
           json['newGrade'] as String? ?? json['new_grade'] as String?,
-      // EN: API uses 'consecutiveDays'; fall back to camelCase/snake_case variants.
+      // EN: API uses 'consecutiveDays'.
       // KO: API는 'consecutiveDays' 필드를 사용합니다.
       streakDays:
           json['consecutiveDays'] as int? ??
@@ -252,22 +258,27 @@ class CheckInResultDto {
           json['didLevelUp'] as bool? ??
           json['did_level_up'] as bool? ??
           false,
+      bonusMessage: json['bonusMessage'] as String?,
     );
   }
 
   final int xpEarned;
+  final int bonusXpEarned;
   final int newTotalXp;
   final String? newGrade;
   final int streakDays;
   final bool didLevelUp;
+  final String? bonusMessage;
 
   /// EN: Converts this DTO to its domain [CheckInResult] entity.
   /// KO: 이 DTO를 도메인 [CheckInResult] 엔티티로 변환합니다.
   CheckInResult toEntity() => CheckInResult(
     xpEarned: xpEarned,
+    bonusXpEarned: bonusXpEarned,
     newTotalXp: newTotalXp,
     newGrade: FanGrade.fromString(newGrade),
     streakDays: streakDays,
     didLevelUp: didLevelUp,
+    bonusMessage: bonusMessage,
   );
 }

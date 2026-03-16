@@ -117,6 +117,7 @@ class FanLevelProfile {
     required this.nextLevelXp,
     required this.rank,
     this.hasCheckedInToday = false,
+    this.consecutiveDays = 0,
     this.recentActivities = const [],
   });
 
@@ -139,6 +140,10 @@ class FanLevelProfile {
   /// EN: Whether the user has already performed today's check-in.
   /// KO: 사용자가 오늘 이미 출석 체크를 수행했는지 여부.
   final bool hasCheckedInToday;
+
+  /// EN: Current consecutive check-in streak in days.
+  /// KO: 현재 연속 출석 체크 스트릭 일수.
+  final int consecutiveDays;
 
   /// EN: Recent XP activity records (newest first).
   /// KO: 최근 XP 활동 기록 (최신순).
@@ -177,23 +182,22 @@ class FanActivity {
 /// KO: 앱 내 활동에 대한 XP 획득 결과.
 class EarnXpResult {
   const EarnXpResult({
+    required this.awarded,
     required this.xpEarned,
-    required this.bonusXpEarned,
     required this.totalPoints,
     required this.currentGrade,
     required this.leveledUp,
-    required this.alreadyGranted,
-    required this.dailyLimitReached,
     this.newGrade,
+    this.skipReason,
   });
 
-  /// EN: Base XP earned from this activity.
-  /// KO: 이번 활동으로 획득한 기본 XP.
-  final int xpEarned;
+  /// EN: Whether XP was actually awarded (false when already granted or limit reached).
+  /// KO: XP가 실제로 부여되었는지 여부 (이미 부여되었거나 한도에 도달한 경우 false).
+  final bool awarded;
 
-  /// EN: Bonus XP earned (e.g. streak or event multiplier).
-  /// KO: 보너스 XP (예: 연속 보너스 또는 이벤트 배율).
-  final int bonusXpEarned;
+  /// EN: XP earned from this activity (0 when not awarded).
+  /// KO: 이번 활동으로 획득한 XP (미부여 시 0).
+  final int xpEarned;
 
   /// EN: New total XP after earning.
   /// KO: 획득 후 새로운 총 XP.
@@ -211,13 +215,9 @@ class EarnXpResult {
   /// KO: 레벨업 발생 시 새로운 등급; 발생하지 않으면 null.
   final FanGrade? newGrade;
 
-  /// EN: True when this entity has already been granted XP (idempotent 200).
-  /// KO: 이미 XP가 부여된 경우 true (멱등성 200).
-  final bool alreadyGranted;
-
-  /// EN: True when today's daily XP limit for this activity type is reached.
-  /// KO: 이 활동 유형의 오늘 일일 XP 한도에 도달한 경우 true.
-  final bool dailyLimitReached;
+  /// EN: Reason XP was skipped when [awarded] is false (e.g. "ALREADY_GRANTED_TODAY").
+  /// KO: [awarded]가 false일 때 XP 미부여 사유 (예: "ALREADY_GRANTED_TODAY").
+  final String? skipReason;
 }
 
 /// EN: Result returned after a successful daily check-in.
@@ -225,15 +225,21 @@ class EarnXpResult {
 class CheckInResult {
   const CheckInResult({
     required this.xpEarned,
+    required this.bonusXpEarned,
     required this.newTotalXp,
     required this.newGrade,
     required this.streakDays,
     this.didLevelUp = false,
+    this.bonusMessage,
   });
 
-  /// EN: XP earned from this check-in.
-  /// KO: 이번 출석 체크로 획득한 XP.
+  /// EN: Base XP earned from this check-in (always 10).
+  /// KO: 이번 출석 체크로 획득한 기본 XP (항상 10).
   final int xpEarned;
+
+  /// EN: Bonus XP earned from streak multiplier (0 when no streak bonus).
+  /// KO: 스트릭 보너스로 획득한 XP (보너스 없으면 0).
+  final int bonusXpEarned;
 
   /// EN: New total XP after the check-in.
   /// KO: 출석 체크 후 새로운 총 XP.
@@ -250,4 +256,8 @@ class CheckInResult {
   /// EN: Whether this check-in triggered a grade promotion.
   /// KO: 이번 출석 체크로 등급 승급이 발생했는지 여부.
   final bool didLevelUp;
+
+  /// EN: Optional streak bonus message from the server (e.g. "3일 연속 출석! 보너스 5XP 추가 지급").
+  /// KO: 서버에서 전달하는 스트릭 보너스 메시지 (예: "3일 연속 출석! 보너스 5XP 추가 지급").
+  final String? bonusMessage;
 }

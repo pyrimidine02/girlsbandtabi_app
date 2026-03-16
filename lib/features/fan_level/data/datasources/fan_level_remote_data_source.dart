@@ -51,6 +51,7 @@ class FanLevelRemoteDataSource {
       data: {
         'activityType': activityType,
         'entityId': entityId,
+        'entityType': _entityTypeFor(activityType),
         if (projectId != null && projectId.isNotEmpty) 'projectId': projectId,
       },
       fromJson: (json) => EarnXpResultDto.fromJson(
@@ -58,4 +59,14 @@ class FanLevelRemoteDataSource {
       ),
     );
   }
+
+  /// EN: Derives the entity type string from the activity type.
+  /// KO: 활동 유형에서 엔티티 타입 문자열을 도출합니다.
+  static String _entityTypeFor(String activityType) => switch (activityType) {
+    'PLACE_VISIT' => 'PLACE',
+    'LIVE_ATTENDANCE' => 'LIVE_EVENT',
+    'POST_CREATED' => 'POST',
+    'COMMENT_CREATED' => 'COMMENT',
+    _ => activityType,
+  };
 }
