@@ -94,14 +94,20 @@ class GBTImage extends StatelessWidget {
         onError?.call();
         return _buildError(isDark: isDark);
       },
-      imageBuilder: (context, imageProvider) {
-        return Image(
-          image: imageProvider,
-          width: width,
-          height: height,
-          fit: fit,
-        );
-      },
+      // EN: Skip imageBuilder for GIFs so CachedNetworkImage renders animation
+      //     frames natively via Flutter's image codec pipeline.
+      // KO: GIF는 imageBuilder를 건너뛰어 Flutter 이미지 코덱 파이프라인을 통해
+      //     CachedNetworkImage가 애니메이션 프레임을 네이티브로 렌더링하게 합니다.
+      imageBuilder: isGif
+          ? null
+          : (context, imageProvider) {
+              return Image(
+                image: imageProvider,
+                width: width,
+                height: height,
+                fit: fit,
+              );
+            },
     );
 
     // EN: Wrap with semantics: label if provided, exclude if decorative
