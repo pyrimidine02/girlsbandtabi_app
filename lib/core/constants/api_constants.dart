@@ -656,6 +656,10 @@ class ApiEndpoints {
   static const String fanLevelCheckIn =
       '$apiVersion/users/me/fan-level/check-in';
 
+  /// EN: XP earning endpoint for in-app activities (POST).
+  /// KO: 앱 내 활동 XP 획득 엔드포인트 (POST).
+  static const String fanLevelEarnXp = '$apiVersion/users/me/fan-level/xp';
+
   // ============================================================
   // EN: Cheer guide endpoints
   // KO: 응원 가이드 엔드포인트

@@ -82,6 +82,28 @@ class FanLevelNotifier
     }
     return checkInResult;
   }
+
+  /// EN: Records an in-app activity and grants XP, then refreshes the profile.
+  ///     Returns [EarnXpResult] on success, or null on failure (e.g. already granted).
+  /// KO: 앱 내 활동을 기록하고 XP를 부여한 후 프로필을 새로 불러옵니다.
+  ///     성공 시 [EarnXpResult]를 반환하고, 실패 시 null을 반환합니다.
+  Future<EarnXpResult?> earnXp(
+    String activityType,
+    String entityId, {
+    String? projectId,
+  }) async {
+    final result = await _repository.earnXp(
+      activityType,
+      entityId,
+      projectId: projectId,
+    );
+    if (!mounted) return null;
+    final earnResult = result.when(success: (r) => r, failure: (_) => null);
+    if (earnResult != null) {
+      await _load();
+    }
+    return earnResult;
+  }
 }
 
 // =============================================================================
@@ -129,6 +151,14 @@ class _NopFanLevelRepository implements FanLevelRepository {
 
   @override
   Future<Result<CheckInResult>> checkIn() async =>
+      const Result.failure(UnknownFailure('not initialized'));
+
+  @override
+  Future<Result<EarnXpResult>> earnXp(
+    String activityType,
+    String entityId, {
+    String? projectId,
+  }) async =>
       const Result.failure(UnknownFailure('not initialized'));
 }
 

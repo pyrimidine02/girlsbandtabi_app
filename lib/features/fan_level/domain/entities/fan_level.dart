@@ -173,6 +173,53 @@ class FanActivity {
   final String? description;
 }
 
+/// EN: Result of earning XP for an in-app activity.
+/// KO: 앱 내 활동에 대한 XP 획득 결과.
+class EarnXpResult {
+  const EarnXpResult({
+    required this.xpEarned,
+    required this.bonusXpEarned,
+    required this.totalPoints,
+    required this.currentGrade,
+    required this.leveledUp,
+    required this.alreadyGranted,
+    required this.dailyLimitReached,
+    this.newGrade,
+  });
+
+  /// EN: Base XP earned from this activity.
+  /// KO: 이번 활동으로 획득한 기본 XP.
+  final int xpEarned;
+
+  /// EN: Bonus XP earned (e.g. streak or event multiplier).
+  /// KO: 보너스 XP (예: 연속 보너스 또는 이벤트 배율).
+  final int bonusXpEarned;
+
+  /// EN: New total XP after earning.
+  /// KO: 획득 후 새로운 총 XP.
+  final int totalPoints;
+
+  /// EN: Current grade after earning XP.
+  /// KO: XP 획득 후 현재 등급.
+  final FanGrade currentGrade;
+
+  /// EN: Whether this earning triggered a level-up.
+  /// KO: 이번 XP 획득으로 레벨업이 발생했는지 여부.
+  final bool leveledUp;
+
+  /// EN: New grade if a level-up occurred; null otherwise.
+  /// KO: 레벨업 발생 시 새로운 등급; 발생하지 않으면 null.
+  final FanGrade? newGrade;
+
+  /// EN: True when this entity has already been granted XP (idempotent 200).
+  /// KO: 이미 XP가 부여된 경우 true (멱등성 200).
+  final bool alreadyGranted;
+
+  /// EN: True when today's daily XP limit for this activity type is reached.
+  /// KO: 이 활동 유형의 오늘 일일 XP 한도에 도달한 경우 true.
+  final bool dailyLimitReached;
+}
+
 /// EN: Result returned after a successful daily check-in.
 /// KO: 일일 출석 체크 성공 후 반환되는 결과.
 class CheckInResult {

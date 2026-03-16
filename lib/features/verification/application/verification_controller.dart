@@ -92,9 +92,11 @@ class VerificationController
     if (result is Success<VerificationResult>) {
       state = AsyncData(result.data);
       await _refreshVisitData(placeId);
-      // EN: Invalidate fan level so XP from place visit is reflected immediately.
-      // KO: 성지 방문 XP가 즉시 반영되도록 팬 레벨 프로바이더를 무효화합니다.
-      _ref.invalidate(fanLevelControllerProvider);
+      // EN: Earn XP for the place visit and refresh fan level profile.
+      // KO: 성지 방문 XP를 획득하고 팬 레벨 프로필을 갱신합니다.
+      unawaited(
+        _earnXpForActivity('PLACE_VISIT', placeId, resolvedProjectKey),
+      );
       return result;
     }
     if (result is Err<VerificationResult>) {
@@ -178,9 +180,11 @@ class VerificationController
 
     if (result is Success<VerificationResult>) {
       state = AsyncData(result.data);
-      // EN: Invalidate fan level so XP from live attendance is reflected immediately.
-      // KO: 라이브 참석 XP가 즉시 반영되도록 팬 레벨 프로바이더를 무효화합니다.
-      _ref.invalidate(fanLevelControllerProvider);
+      // EN: Earn XP for live attendance and refresh fan level profile.
+      // KO: 라이브 참석 XP를 획득하고 팬 레벨 프로필을 갱신합니다.
+      unawaited(
+        _earnXpForActivity('LIVE_ATTENDANCE', liveEventId, resolvedProjectKey),
+      );
       return result;
     }
     if (result is Err<VerificationResult>) {
@@ -237,6 +241,9 @@ class VerificationController
     if (retryResult is Success<VerificationResult>) {
       state = AsyncData(retryResult.data);
       await _refreshVisitData(placeId);
+      if (targetType != null && targetId != null && projectId != null) {
+        unawaited(_earnXpForActivity(targetType, targetId, projectId));
+      }
     } else if (retryResult is Err<VerificationResult>) {
       state = AsyncError(retryResult.failure, StackTrace.current);
       // EN: Record failure after key-reset retry as well.
@@ -252,6 +259,30 @@ class VerificationController
       }
     }
     return retryResult;
+  }
+
+  /// EN: Fire-and-forget XP earn for a verification activity; invalidates fan
+  ///     level on success so the profile is refreshed on next page open.
+  /// KO: 인증 활동에 대한 XP 획득 (fire-and-forget); 성공 시 팬 레벨을 무효화하여
+  ///     다음 페이지 열기 시 프로필이 갱신되도록 합니다.
+  Future<void> _earnXpForActivity(
+    String activityType,
+    String entityId,
+    String projectId,
+  ) async {
+    try {
+      final repository = _ref.read(fanLevelRepositoryProvider);
+      await repository.earnXp(activityType, entityId, projectId: projectId);
+      if (mounted) {
+        _ref.invalidate(fanLevelControllerProvider);
+      }
+    } catch (e) {
+      AppLogger.warning(
+        'XP earn failed for $activityType/$entityId',
+        data: e,
+        tag: 'VerificationController',
+      );
+    }
   }
 
   Future<void> _refreshVisitData(String? placeId) async {

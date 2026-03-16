@@ -153,6 +153,63 @@ class FanLevelProfileDto {
   );
 }
 
+/// EN: DTO for the result of an XP-earning in-app activity.
+/// KO: 앱 내 활동 XP 획득 결과 DTO.
+class EarnXpResultDto {
+  const EarnXpResultDto({
+    required this.xpEarned,
+    required this.bonusXpEarned,
+    required this.totalPoints,
+    this.currentLevel,
+    this.leveledUp = false,
+    this.newLevel,
+    this.alreadyGranted = false,
+    this.dailyLimitReached = false,
+  });
+
+  /// EN: Deserializes an [EarnXpResultDto] from a raw JSON map.
+  /// KO: 원시 JSON 맵에서 [EarnXpResultDto]를 역직렬화합니다.
+  factory EarnXpResultDto.fromJson(Map<String, dynamic> json) {
+    final currentLevel = json['currentLevel'] as Map<String, dynamic>?;
+    final newLevel = json['newLevel'] as Map<String, dynamic>?;
+    return EarnXpResultDto(
+      xpEarned: json['xpEarned'] as int? ?? 0,
+      bonusXpEarned: json['bonusXpEarned'] as int? ?? 0,
+      totalPoints:
+          json['totalPoints'] as int? ?? json['newTotalXp'] as int? ?? 0,
+      currentLevel: currentLevel,
+      leveledUp: json['leveledUp'] as bool? ?? false,
+      newLevel: newLevel,
+      alreadyGranted: json['alreadyGranted'] as bool? ?? false,
+      dailyLimitReached: json['dailyLimitReached'] as bool? ?? false,
+    );
+  }
+
+  final int xpEarned;
+  final int bonusXpEarned;
+  final int totalPoints;
+  final Map<String, dynamic>? currentLevel;
+  final bool leveledUp;
+  final Map<String, dynamic>? newLevel;
+  final bool alreadyGranted;
+  final bool dailyLimitReached;
+
+  /// EN: Converts this DTO to its domain [EarnXpResult] entity.
+  /// KO: 이 DTO를 도메인 [EarnXpResult] 엔티티로 변환합니다.
+  EarnXpResult toEntity() => EarnXpResult(
+    xpEarned: xpEarned,
+    bonusXpEarned: bonusXpEarned,
+    totalPoints: totalPoints,
+    currentGrade: FanGrade.fromString(currentLevel?['code'] as String?),
+    leveledUp: leveledUp,
+    newGrade: leveledUp
+        ? FanGrade.fromString(newLevel?['code'] as String?)
+        : null,
+    alreadyGranted: alreadyGranted,
+    dailyLimitReached: dailyLimitReached,
+  );
+}
+
 /// EN: DTO for the result of a daily check-in.
 /// KO: 일일 출석 체크 결과 DTO.
 class CheckInResultDto {

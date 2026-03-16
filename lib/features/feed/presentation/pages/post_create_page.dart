@@ -960,9 +960,15 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
           ? _selectedTopic!.trim()
           : 'general';
       unawaited(ref.read(analyticsServiceProvider).logPostCreate(category));
-      // EN: Invalidate fan level so XP from post creation is reflected.
-      // KO: 게시글 작성 XP가 반영되도록 팬 레벨 프로바이더를 무효화합니다.
-      ref.invalidate(fanLevelControllerProvider);
+      // EN: Earn XP for post creation and refresh fan level profile.
+      // KO: 게시글 작성 XP를 획득하고 팬 레벨 프로필을 갱신합니다.
+      unawaited(
+        ref.read(fanLevelRepositoryProvider).earnXp(
+          'POST_CREATED',
+          data.id,
+          projectId: projectCode,
+        ).then((_) => ref.invalidate(fanLevelControllerProvider)),
+      );
       await Future.wait([
         ref
             .read(communityFeedControllerProvider.notifier)

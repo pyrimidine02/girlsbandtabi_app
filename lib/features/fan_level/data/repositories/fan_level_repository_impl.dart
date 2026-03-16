@@ -48,4 +48,27 @@ class FanLevelRepositoryImpl implements FanLevelRepository {
       return Result.failure(ErrorHandler.mapException(e, stackTrace));
     }
   }
+
+  @override
+  Future<Result<EarnXpResult>> earnXp(
+    String activityType,
+    String entityId, {
+    String? projectId,
+  }) async {
+    try {
+      final result = await _remoteDataSource.earnXp(
+        activityType,
+        entityId,
+        projectId: projectId,
+      );
+      return switch (result) {
+        Success(:final data) => Result.success(data.toEntity()),
+        Err(:final failure) => Result.failure(failure),
+      };
+    } on Failure catch (f) {
+      return Result.failure(f);
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
 }
