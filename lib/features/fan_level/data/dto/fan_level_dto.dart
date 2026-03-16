@@ -99,12 +99,17 @@ class FanLevelProfileDto {
           json['totalXp'] as int? ??
           json['total_xp'] as int? ??
           0,
-      // EN: Progress within current level — fall back to nested minPoints.
-      // KO: 현재 레벨 내 진행 XP — 중첩 minPoints로 폴백합니다.
+      // EN: Current-level XP used for the progress bar.
+      //     API v1 does not return a per-level offset, so fall back to
+      //     totalPoints (= absolute score) which gives a correct ratio when
+      //     divided by nextLevel.minPoints.
+      // KO: 진행 바에 사용할 현재 레벨 XP.
+      //     API v1은 레벨 내 상대 점수를 반환하지 않으므로 totalPoints(절대 점수)를
+      //     폴백으로 사용합니다. nextLevel.minPoints로 나누면 올바른 비율이 됩니다.
       currentLevelXp:
           json['currentLevelXp'] as int? ??
           json['current_level_xp'] as int? ??
-          (currentLevel?['minPoints'] as int? ?? 0),
+          (json['totalPoints'] as int? ?? 0),
       // EN: XP threshold for next level — fall back to nested minPoints.
       // KO: 다음 레벨 XP 임계값 — 중첩 minPoints로 폴백합니다.
       nextLevelXp:

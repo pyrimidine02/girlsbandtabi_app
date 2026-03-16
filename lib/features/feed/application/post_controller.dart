@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
+import '../../fan_level/application/fan_level_controller.dart';
 import '../../projects/application/projects_controller.dart';
 import '../domain/entities/feed_entities.dart';
 import '../domain/repositories/feed_repository.dart';
@@ -322,6 +323,9 @@ class PostCommentsController
       );
       state = AsyncData([result.data, ...current]);
       await _refreshCommentsFromServer(repository);
+      // EN: Invalidate fan level so XP from comment creation is reflected.
+      // KO: 댓글 작성 XP가 반영되도록 팬 레벨 프로바이더를 무효화합니다.
+      _ref.invalidate(fanLevelControllerProvider);
     } else if (result is Err<PostComment>) {
       // EN: Keep existing data visible for project-required guard failures.
       // KO: 프로젝트 선택 가드 실패 시 기존 목록을 유지합니다.

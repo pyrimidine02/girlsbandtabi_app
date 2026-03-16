@@ -27,6 +27,7 @@ import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/dialogs/gbt_adaptive_dialog.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../fan_level/application/fan_level_controller.dart';
 import '../../application/feed_controller.dart';
 import '../../domain/entities/feed_entities.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
@@ -959,6 +960,9 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
           ? _selectedTopic!.trim()
           : 'general';
       unawaited(ref.read(analyticsServiceProvider).logPostCreate(category));
+      // EN: Invalidate fan level so XP from post creation is reflected.
+      // KO: 게시글 작성 XP가 반영되도록 팬 레벨 프로바이더를 무효화합니다.
+      ref.invalidate(fanLevelControllerProvider);
       await Future.wait([
         ref
             .read(communityFeedControllerProvider.notifier)

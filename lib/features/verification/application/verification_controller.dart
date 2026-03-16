@@ -11,6 +11,7 @@ import '../../../core/error/failure.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
+import '../../fan_level/application/fan_level_controller.dart';
 import '../../titles/application/titles_controller.dart';
 import '../../visits/application/visits_controller.dart';
 import '../data/datasources/verification_remote_data_source.dart';
@@ -91,6 +92,9 @@ class VerificationController
     if (result is Success<VerificationResult>) {
       state = AsyncData(result.data);
       await _refreshVisitData(placeId);
+      // EN: Invalidate fan level so XP from place visit is reflected immediately.
+      // KO: 성지 방문 XP가 즉시 반영되도록 팬 레벨 프로바이더를 무효화합니다.
+      _ref.invalidate(fanLevelControllerProvider);
       return result;
     }
     if (result is Err<VerificationResult>) {
@@ -174,6 +178,9 @@ class VerificationController
 
     if (result is Success<VerificationResult>) {
       state = AsyncData(result.data);
+      // EN: Invalidate fan level so XP from live attendance is reflected immediately.
+      // KO: 라이브 참석 XP가 즉시 반영되도록 팬 레벨 프로바이더를 무효화합니다.
+      _ref.invalidate(fanLevelControllerProvider);
       return result;
     }
     if (result is Err<VerificationResult>) {
