@@ -32,10 +32,18 @@ class UploadsRemoteDataSource {
       ),
     });
 
+    // EN: Use formData.contentType so the boundary is included in the
+    //     Content-Type header (e.g. "multipart/form-data; boundary=<id>").
+    //     Passing a bare "multipart/form-data" string strips the boundary,
+    //     which causes the server to return 400.
+    // KO: formData.contentType를 사용해야 Content-Type 헤더에 boundary가
+    //     포함됩니다(예: "multipart/form-data; boundary=<id>").
+    //     "multipart/form-data" 문자열만 넘기면 boundary가 빠져
+    //     서버에서 400 오류가 발생합니다.
     return _apiClient.post<UploadInfoResponse>(
       ApiEndpoints.uploadsDirect,
       data: formData,
-      options: Options(contentType: 'multipart/form-data'),
+      options: Options(contentType: 'multipart/form-data; boundary=${formData.boundary}'),
       fromJson: (json) =>
           UploadInfoResponse.fromJson(json as Map<String, dynamic>),
     );
