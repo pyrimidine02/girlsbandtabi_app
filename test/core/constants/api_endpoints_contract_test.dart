@@ -16,6 +16,71 @@ void main() {
         (path: ApiEndpoints.oauthCallback('{provider}'), method: 'GET'),
         (path: ApiEndpoints.projects, method: 'GET'),
         (path: ApiEndpoints.projectUnits('{projectId}'), method: 'GET'),
+        (path: ApiEndpoints.projectUnits('{projectId}'), method: 'POST'),
+        (path: ApiEndpoints.projectUnitsSearch('{projectId}'), method: 'GET'),
+        (
+          path: ApiEndpoints.projectUnit('{projectId}', '{unitSlug}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.projectUnit('{projectId}', '{unitSlug}'),
+          method: 'PUT',
+        ),
+        (
+          path: ApiEndpoints.projectUnit('{projectId}', '{unitSlug}'),
+          method: 'DELETE',
+        ),
+        (
+          path: ApiEndpoints.unitMembers('{projectId}', '{unitId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.unitMembers('{projectId}', '{unitId}'),
+          method: 'POST',
+        ),
+        (
+          path: ApiEndpoints.unitMember(
+            '{projectId}',
+            '{unitId}',
+            '{memberId}',
+          ),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.unitMember(
+            '{projectId}',
+            '{unitId}',
+            '{memberId}',
+          ),
+          method: 'PUT',
+        ),
+        (
+          path: ApiEndpoints.unitMember(
+            '{projectId}',
+            '{unitId}',
+            '{memberId}',
+          ),
+          method: 'DELETE',
+        ),
+        (path: ApiEndpoints.projectVoiceActors('{projectId}'), method: 'GET'),
+        (
+          path: ApiEndpoints.projectVoiceActor('{projectId}', '{voiceActorId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.projectVoiceActorMembers(
+            '{projectId}',
+            '{voiceActorId}',
+          ),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.projectVoiceActorCredits(
+            '{projectId}',
+            '{voiceActorId}',
+          ),
+          method: 'GET',
+        ),
         (path: ApiEndpoints.homeSummary, method: 'GET'),
         (path: ApiEndpoints.homeSummaryByProject, method: 'GET'),
         (path: ApiEndpoints.search, method: 'GET'),
@@ -37,6 +102,10 @@ void main() {
         (path: ApiEndpoints.placeGuides('{placeId}'), method: 'GET'),
         (path: ApiEndpoints.placeComments('{placeId}'), method: 'GET'),
         (path: ApiEndpoints.placeComments('{placeId}'), method: 'POST'),
+        (
+          path: ApiEndpoints.placeComment('{placeId}', '{commentId}'),
+          method: 'DELETE',
+        ),
         (path: ApiEndpoints.rankingsMostVisited('{projectId}'), method: 'GET'),
         (path: ApiEndpoints.rankingsMostLiked('{projectId}'), method: 'GET'),
         (path: ApiEndpoints.rankingsUsers('{projectId}'), method: 'GET'),
@@ -61,11 +130,69 @@ void main() {
           method: 'PUT',
         ),
         (
+          path: ApiEndpoints.liveEventSetlist('{projectId}', '{liveEventId}'),
+          method: 'GET',
+        ),
+        (
           path: ApiEndpoints.liveEventVerification(
             '{projectId}',
             '{liveEventId}',
           ),
           method: 'POST',
+        ),
+        (path: ApiEndpoints.musicAlbums('{projectId}'), method: 'GET'),
+        (
+          path: ApiEndpoints.musicAlbum('{projectId}', '{albumId}'),
+          method: 'GET',
+        ),
+        (path: ApiEndpoints.musicSongs('{projectId}'), method: 'GET'),
+        (
+          path: ApiEndpoints.musicSong('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongLyrics('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongParts('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongCallGuide('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongVersions('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongVersion(
+            '{projectId}',
+            '{songId}',
+            '{versionCode}',
+          ),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongCredits('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongDifficulty('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongMediaLinks('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongAvailability('{projectId}', '{songId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.musicSongLiveContext('{projectId}', '{songId}'),
+          method: 'GET',
         ),
         (path: ApiEndpoints.news('{projectId}'), method: 'GET'),
         (
@@ -179,6 +306,7 @@ void main() {
         (path: ApiEndpoints.communityReport('{reportId}'), method: 'DELETE'),
         (path: ApiEndpoints.userMe, method: 'GET'),
         (path: ApiEndpoints.userMe, method: 'PATCH'),
+        (path: ApiEndpoints.userMeAccessLevel, method: 'GET'),
         (path: ApiEndpoints.userProfile('{userId}'), method: 'GET'),
         (path: ApiEndpoints.userFollow('{userId}'), method: 'GET'),
         (path: ApiEndpoints.userFollow('{userId}'), method: 'POST'),
@@ -209,11 +337,17 @@ void main() {
         (path: ApiEndpoints.uploadsDirect, method: 'POST'),
         (path: ApiEndpoints.uploadsPresignedUrl, method: 'POST'),
         (path: ApiEndpoints.uploadsConfirm('{uploadId}'), method: 'POST'),
-        (path: ApiEndpoints.uploadsApprove('{uploadId}'), method: 'PUT'),
         (path: ApiEndpoints.uploadsMy, method: 'GET'),
         (path: ApiEndpoints.uploadsDelete('{uploadId}'), method: 'DELETE'),
         (path: ApiEndpoints.verificationAppeals('{projectId}'), method: 'GET'),
         (path: ApiEndpoints.verificationAppeals('{projectId}'), method: 'POST'),
+        (path: ApiEndpoints.projectRoleRequests, method: 'GET'),
+        (path: ApiEndpoints.projectRoleRequests, method: 'POST'),
+        (path: ApiEndpoints.projectRoleRequest('{requestId}'), method: 'GET'),
+        (
+          path: ApiEndpoints.projectRoleRequest('{requestId}'),
+          method: 'DELETE',
+        ),
         (path: ApiEndpoints.adminUserAccessLevel('{userId}'), method: 'GET'),
         (path: ApiEndpoints.adminUserAccessGrants('{userId}'), method: 'POST'),
         (
@@ -236,6 +370,24 @@ void main() {
         (
           path: ApiEndpoints.adminCommunityReportAssign('{reportId}'),
           method: 'PATCH',
+        ),
+        (path: ApiEndpoints.adminProjectRoleRequests, method: 'GET'),
+        (
+          path: ApiEndpoints.adminProjectRoleRequest('{requestId}'),
+          method: 'GET',
+        ),
+        (
+          path: ApiEndpoints.adminProjectRoleRequestReview('{requestId}'),
+          method: 'PATCH',
+        ),
+        (path: ApiEndpoints.adminMediaDeletions, method: 'GET'),
+        (
+          path: ApiEndpoints.adminMediaDeletionApprove('{requestId}'),
+          method: 'POST',
+        ),
+        (
+          path: ApiEndpoints.adminMediaDeletionReject('{requestId}'),
+          method: 'POST',
         ),
       ];
 

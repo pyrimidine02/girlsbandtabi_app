@@ -9,7 +9,7 @@ import 'media_url.dart';
 // KO: 상수 및 패턴
 // ========================================
 
-const _publicR2Host = 'r2.pyrimidines.org';
+const _publicR2Host = 'r2.noraneko.cc';
 const _legacyR2Suffix = 'r2.cloudflarestorage.com';
 const _imageExtensions = <String>{
   '.jpg',
@@ -22,14 +22,14 @@ const _imageExtensions = <String>{
   '.heif',
 };
 
-final _markdownImagePattern = RegExp(r'!\[[^\]]*\]\((https?://[^)\s]+)[^)]*\)');
+final _markdownImagePattern = RegExp(r'!\[[^\]]*\]\(([^)\s]+)[^)]*\)');
 final _htmlImagePattern = RegExp(
-  r'''<img[^>]*src=["'](https?://[^"']+)["']''',
+  r'''<img[^>]*src=["']([^"']+)["']''',
   caseSensitive: false,
 );
 final _urlPattern = RegExp(r'''(https?://[^\s)<>"']+)''');
 final _bareR2Pattern = RegExp(
-  r'''(?<!https://)(?<!http://)(r2\.pyrimidines\.org/[^\s)<>"']+)''',
+  r'''(?<!https://)(?<!http://)(r2\.noraneko\.cc/[^\s)<>"']+)''',
   caseSensitive: false,
 );
 
@@ -114,18 +114,17 @@ String _stripInlineImageUrls(String content) {
 
 bool _isLikelyImageUrl(String value) {
   if (value.isEmpty) return false;
-  final resolvedValue = _ensureScheme(value);
+  final resolvedValue = resolveMediaUrl(_ensureScheme(value));
   final uri = Uri.tryParse(resolvedValue);
   if (uri == null || uri.host.isEmpty) return false;
   if (uri.scheme != 'http' && uri.scheme != 'https') return false;
 
-  final normalizedUri = Uri.tryParse(resolveMediaUrl(resolvedValue)) ?? uri;
-  final host = normalizedUri.host.toLowerCase();
+  final host = uri.host.toLowerCase();
   if (host == _publicR2Host || host.endsWith(_legacyR2Suffix)) {
     return true;
   }
 
-  final path = normalizedUri.path.toLowerCase();
+  final path = uri.path.toLowerCase();
   return _imageExtensions.any(path.endsWith);
 }
 
@@ -133,7 +132,7 @@ String _ensureScheme(String value) {
   if (value.startsWith('http://') || value.startsWith('https://')) {
     return value;
   }
-  if (value.startsWith('r2.pyrimidines.org/')) {
+  if (value.startsWith('r2.noraneko.cc/')) {
     return 'https://$value';
   }
   return value;

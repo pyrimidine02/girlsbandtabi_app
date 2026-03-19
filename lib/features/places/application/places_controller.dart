@@ -468,6 +468,32 @@ class PlaceCommentsController
       state = AsyncError(result.failure, StackTrace.current);
     }
   }
+
+  /// EN: Delete one place comment, then refresh the list.
+  /// KO: 장소 댓글 1건 삭제 후 목록을 새로고침합니다.
+  Future<Result<void>> deleteComment(String commentId) async {
+    if (placeId.isEmpty || commentId.isEmpty) {
+      return const Result.failure(
+        ValidationFailure('Invalid place or comment id'),
+      );
+    }
+
+    final repository = await _ref.read(placesRepositoryProvider.future);
+    final result = await repository.deletePlaceComment(
+      placeId: placeId,
+      commentId: commentId,
+    );
+    if (result is Success<void>) {
+      await load(forceRefresh: true);
+      return const Result.success(null);
+    }
+    if (result is Err<void>) {
+      return Result.failure(result.failure);
+    }
+    return const Result.failure(
+      UnknownFailure('Unknown place comment delete result'),
+    );
+  }
 }
 
 /// EN: Places repository provider.

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:girlsbandtabi_app/core/config/app_config.dart';
 import 'package:girlsbandtabi_app/core/providers/core_providers.dart';
 import 'package:girlsbandtabi_app/core/storage/local_storage.dart';
 import 'package:girlsbandtabi_app/core/utils/result.dart';
@@ -42,6 +43,7 @@ void main() {
 
       await tester.pump();
       expect(find.textContaining('임시 저장됨 ·'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 1300));
     });
 
     testWidgets('create page restores recoverable draft via banner action', (
@@ -73,6 +75,7 @@ void main() {
       expect(find.text('복구된 제목'), findsOneWidget);
       expect(find.text('복구된 내용'), findsOneWidget);
       expect(find.textContaining('임시 저장 글을 복구했어요'), findsWidgets);
+      await tester.pump(const Duration(milliseconds: 1300));
     });
 
     testWidgets('edit page delete action clears recoverable draft and banner', (
@@ -117,6 +120,7 @@ void main() {
 
       expect(find.text('임시 저장된 글이 있어요'), findsNothing);
       expect(await harness.store.read(draftKey), isNull);
+      await tester.pump(const Duration(milliseconds: 1300));
     });
   });
 }
@@ -136,6 +140,10 @@ class _Harness {
 }
 
 Future<_Harness> _createHarness() async {
+  AppConfig.instance.init(
+    environment: Environment.development,
+    baseUrl: 'http://localhost:8080',
+  );
   SharedPreferences.setMockInitialValues(<String, Object>{});
   final prefs = await SharedPreferences.getInstance();
   final localStorage = LocalStorage(prefs);
@@ -187,11 +195,77 @@ class _FakeProjectsRepository implements ProjectsRepository {
   }
 
   @override
+  Future<Result<Unit>> getUnitDetail({
+    required String projectId,
+    required String unitIdentifier,
+    bool forceRefresh = false,
+  }) async {
+    return Success(
+      Unit(
+        id: unitIdentifier,
+        code: unitIdentifier,
+        displayName: unitIdentifier,
+      ),
+    );
+  }
+
+  @override
   Future<Result<List<UnitMember>>> getUnitMembers({
     required String projectId,
-    required String unitId,
+    required String unitIdentifier,
     bool forceRefresh = false,
   }) async {
     return const Success(<UnitMember>[]);
+  }
+
+  @override
+  Future<Result<UnitMember>> getUnitMemberDetail({
+    required String projectId,
+    required String unitIdentifier,
+    required String memberId,
+    bool forceRefresh = false,
+  }) async {
+    return Success(UnitMember(id: memberId, name: 'member'));
+  }
+
+  @override
+  Future<Result<List<VoiceActorListItem>>> searchVoiceActors({
+    required String projectId,
+    String query = '',
+    int page = 0,
+    int size = 20,
+    String? sort,
+    bool forceRefresh = false,
+  }) async {
+    return const Success(<VoiceActorListItem>[]);
+  }
+
+  @override
+  Future<Result<VoiceActorDetail>> getVoiceActorDetail({
+    required String projectId,
+    required String voiceActorId,
+    bool forceRefresh = false,
+  }) async {
+    return Success(
+      VoiceActorDetail(id: voiceActorId, displayName: 'voice-actor'),
+    );
+  }
+
+  @override
+  Future<Result<List<VoiceActorMemberSummary>>> getVoiceActorMembers({
+    required String projectId,
+    required String voiceActorId,
+    bool forceRefresh = false,
+  }) async {
+    return const Success(<VoiceActorMemberSummary>[]);
+  }
+
+  @override
+  Future<Result<List<VoiceActorCreditSummary>>> getVoiceActorCredits({
+    required String projectId,
+    required String voiceActorId,
+    bool forceRefresh = false,
+  }) async {
+    return const Success(<VoiceActorCreditSummary>[]);
   }
 }

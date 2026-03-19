@@ -1,5 +1,5 @@
-/// EN: Notifications page with grouped notifications.
-/// KO: 그룹화된 알림을 포함한 알림 페이지.
+/// EN: Notifications page — grouped list with swipe-delete, type icons, navigation.
+/// KO: 알림 페이지 — 그룹 목록, 스와이프 삭제, 타입 아이콘, 네비게이션.
 library;
 
 import 'dart:async';
@@ -54,17 +54,48 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _isAppResumed = state == AppLifecycleState.resumed;
-    if (_isAppResumed) {
-      _refreshNotificationsIfVisible();
-    }
+    if (_isAppResumed) _refreshNotificationsIfVisible();
   }
 
   void _refreshNotificationsIfVisible() {
     if (!mounted || !_isAppResumed) return;
     final route = ModalRoute.of(context);
     if (route != null && !route.isCurrent) return;
-
     ref.read(notificationsControllerProvider.notifier).refreshInBackground();
+  }
+
+  Future<void> _confirmDeleteAll() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.l10n(ko: '전체 삭제', en: 'Delete all', ja: 'すべて削除')),
+        content: Text(
+          ctx.l10n(
+            ko: '모든 알림을 삭제할까요? 되돌릴 수 없습니다.',
+            en: 'Delete all notifications? This cannot be undone.',
+            ja: '通知をすべて削除しますか？元に戻せません。',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(ctx.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル')),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(ctx.l10n(ko: '삭제', en: 'Delete', ja: '削除')),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await ref
+          .read(notificationsControllerProvider.notifier)
+          .deleteAllNotifications();
+    }
   }
 
   @override
@@ -78,27 +109,29 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage>
           GBTAppBarIconButton(
             icon: Icons.done_all,
             tooltip: context.l10n(
-              ko: '전체 읽음 처리',
-              en: 'Mark all as read',
-              ja: 'すべて既読にする',
+              ko: '전체 읽음',
+              en: 'Mark all read',
+              ja: 'すべて既読',
             ),
             onPressed: () => ref
                 .read(notificationsControllerProvider.notifier)
                 .markAllAsRead(),
           ),
           GBTAppBarIconButton(
-            icon: Icons.refresh,
-            tooltip: context.l10n(ko: '새로고침', en: 'Refresh', ja: '更新'),
-            onPressed: () => ref
-                .read(notificationsControllerProvider.notifier)
-                .load(forceRefresh: true),
+            icon: Icons.delete_sweep_outlined,
+            tooltip: context.l10n(
+              ko: '전체 삭제',
+              en: 'Delete all',
+              ja: 'すべて削除',
+            ),
+            onPressed: _confirmDeleteAll,
           ),
           GBTAppBarIconButton(
             icon: Icons.settings_outlined,
             tooltip: context.l10n(
               ko: '알림 설정',
-              en: 'Notification settings',
-              ja: '通知設定',
+              en: 'Settings',
+              ja: '設定',
             ),
             onPressed: () => context.push('/settings/notifications'),
           ),
@@ -115,16 +148,14 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage>
             children: [
               _FilterRow(
                 showUnreadOnly: _showUnreadOnly,
-                onFilterChanged: (next) {
-                  setState(() => _showUnreadOnly = next);
-                },
+                onFilterChanged: (v) => setState(() => _showUnreadOnly = v),
               ),
               const SizedBox(height: GBTSpacing.md),
               GBTLoading(
                 message: context.l10n(
                   ko: '알림을 불러오는 중...',
-                  en: 'Loading notifications...',
-                  ja: '通知を読み込み中...',
+                  en: 'Loading…',
+                  ja: '読み込み中…',
                 ),
               ),
             ],
@@ -134,8 +165,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage>
                 ? error.userMessage
                 : context.l10n(
                     ko: '알림을 불러오지 못했어요',
-                    en: 'Failed to load notifications',
-                    ja: '通知を読み込めませんでした',
+                    en: 'Failed to load',
+                    ja: '読み込めませんでした',
                   );
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -143,9 +174,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage>
               children: [
                 _FilterRow(
                   showUnreadOnly: _showUnreadOnly,
-                  onFilterChanged: (next) {
-                    setState(() => _showUnreadOnly = next);
-                  },
+                  onFilterChanged: (v) => setState(() => _showUnreadOnly = v),
                 ),
                 const SizedBox(height: GBTSpacing.md),
                 GBTErrorState(
@@ -158,20 +187,19 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage>
             );
           },
           data: (items) {
-            final visibleItems = _showUnreadOnly
-                ? items.where((item) => !item.isRead).toList()
+            final visible = _showUnreadOnly
+                ? items.where((e) => !e.isRead).toList()
                 : items;
 
-            if (visibleItems.isEmpty) {
+            if (visible.isEmpty) {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: GBTSpacing.paddingPage,
                 children: [
                   _FilterRow(
                     showUnreadOnly: _showUnreadOnly,
-                    onFilterChanged: (next) {
-                      setState(() => _showUnreadOnly = next);
-                    },
+                    onFilterChanged: (v) =>
+                        setState(() => _showUnreadOnly = v),
                   ),
                   const SizedBox(height: GBTSpacing.md),
                   GBTEmptyState(
@@ -184,66 +212,42 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage>
                           )
                         : context.l10n(
                             ko: '새 알림이 없습니다.',
-                            en: 'No new notifications.',
-                            ja: '新しい通知はありません。',
+                            en: 'No notifications.',
+                            ja: '通知はありません。',
                           ),
                   ),
                 ],
               );
             }
 
-            final grouped = _groupBySection(visibleItems);
+            final grouped = _groupBySection(visible);
 
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: GBTSpacing.paddingPage,
+              padding: const EdgeInsets.only(bottom: GBTSpacing.xl),
               children: [
-                _FilterRow(
-                  showUnreadOnly: _showUnreadOnly,
-                  onFilterChanged: (next) {
-                    setState(() => _showUnreadOnly = next);
-                  },
+                Padding(
+                  padding: GBTSpacing.paddingPage,
+                  child: _FilterRow(
+                    showUnreadOnly: _showUnreadOnly,
+                    onFilterChanged: (v) =>
+                        setState(() => _showUnreadOnly = v),
+                  ),
                 ),
-                const SizedBox(height: GBTSpacing.md),
+                const SizedBox(height: GBTSpacing.sm),
                 for (final entry in grouped.entries) ...[
                   _SectionHeader(title: entry.key),
                   ...entry.value.map(
-                    (item) => _NotificationItem(
+                    (item) => _NotificationRow(
+                      key: ValueKey(item.id),
                       item: item,
-                      onTap: () async {
-                        final notifier = ref.read(
-                          notificationsControllerProvider.notifier,
-                        );
-                        await notifier.markAsRead(item.id, refresh: false);
-                        if (!context.mounted) return;
-
-                        final targetPath = resolveNotificationNavigationPath(
-                          type: item.type,
-                          deeplink: item.deeplink,
-                          actionUrl: item.actionUrl,
-                          entityId: item.entityId,
-                        );
-                        final router = GoRouter.of(context);
-                        final currentPath =
-                            router.routeInformationProvider.value.uri.path;
-                        final destination =
-                            targetPath ??
-                            (normalizeNotificationType(item.type) ==
-                                    notificationTypeSystemNotice
-                                ? '/notifications'
-                                : null);
-                        if (destination != null && currentPath != destination) {
-                          context.push(destination);
-                        }
-
-                        await notifier.refreshInBackground(
-                          minInterval: Duration.zero,
-                        );
-                      },
+                      onTap: () => _handleTap(item),
+                      onDelete: () => ref
+                          .read(notificationsControllerProvider.notifier)
+                          .deleteNotification(item.id),
                     ),
                   ),
                 ],
-                const SizedBox(height: GBTSpacing.xl),
               ],
             );
           },
@@ -251,10 +255,57 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage>
       ),
     );
   }
+
+  // EN: Mark read then navigate to the notification's target.
+  //     Guard against pushing the current route again (e.g. SYSTEM_NOTICE
+  //     resolves to /notifications while we are already on /notifications).
+  // KO: 읽음 처리 후 알림 대상 경로로 이동합니다.
+  //     현재 경로와 동일한 경로를 push하지 않도록 방어합니다
+  //     (예: SYSTEM_NOTICE → /notifications 이미 알림 페이지인 경우).
+  Future<void> _handleTap(NotificationItem item) async {
+    final notifier = ref.read(notificationsControllerProvider.notifier);
+    await notifier.markAsRead(item.id, refresh: false);
+    if (!mounted) return;
+
+    final type = normalizeNotificationType(item.type);
+    final targetPath = resolveNotificationNavigationPath(
+      type: type,
+      deeplink: item.deeplink,
+      actionUrl: item.actionUrl,
+      entityId: item.entityId,
+    );
+
+    final destination = targetPath ?? _fallbackPath(type);
+    if (destination != null && mounted) {
+      final currentPath =
+          GoRouter.of(context).routeInformationProvider.value.uri.path;
+      // EN: Only navigate when destination differs from current page.
+      // KO: 현재 페이지와 목적지가 다를 때만 이동합니다.
+      if (destination != currentPath) {
+        context.push(destination);
+      }
+    }
+
+    unawaited(notifier.refreshInBackground(minInterval: Duration.zero));
+  }
+
+  String? _fallbackPath(String type) {
+    return switch (type) {
+      notificationTypePostCreated ||
+      'COMMENT_CREATED' ||
+      'COMMENT_REPLY_CREATED' ||
+      'POST_LIKED' => '/board',
+      // EN: System notices have no external target — stay on this page.
+      // KO: 시스템 공지는 별도 이동 대상이 없으므로 현재 페이지에 머뭅니다.
+      _ => null,
+    };
+  }
 }
 
-/// EN: Compact unread filter row — replaces intro card.
-/// KO: 읽지 않음 필터 행 — 인트로 카드 대체.
+// ─────────────────────────────────────────────────────────────
+// Filter row
+// ─────────────────────────────────────────────────────────────
+
 class _FilterRow extends StatelessWidget {
   const _FilterRow({
     required this.showUnreadOnly,
@@ -277,17 +328,261 @@ class _FilterRow extends StatelessWidget {
           ),
           ButtonSegment<bool>(
             value: true,
-            label: Text(context.l10n(ko: '읽지 않음', en: 'Unread', ja: '未読')),
+            label:
+                Text(context.l10n(ko: '읽지 않음', en: 'Unread', ja: '未読')),
           ),
         ],
-        selected: <bool>{showUnreadOnly},
-        onSelectionChanged: (selection) {
-          onFilterChanged(selection.first);
-        },
+        selected: {showUnreadOnly},
+        onSelectionChanged: (s) => onFilterChanged(s.first),
       ),
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// Section header
+// ─────────────────────────────────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        GBTSpacing.lg,
+        GBTSpacing.md,
+        GBTSpacing.lg,
+        GBTSpacing.xs,
+      ),
+      child: Text(
+        title,
+        style: GBTTypography.labelMedium.copyWith(
+          color: isDark
+              ? GBTColors.darkTextSecondary
+              : GBTColors.textSecondary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Notification row — swipe-to-delete
+// ─────────────────────────────────────────────────────────────
+
+class _NotificationRow extends StatelessWidget {
+  const _NotificationRow({
+    super.key,
+    required this.item,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  final NotificationItem item;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Dismissible(
+      key: ValueKey('dismiss_${item.id}'),
+      direction: DismissDirection.endToStart,
+      background: _DeleteBackground(isDark: isDark),
+      onDismissed: (_) => onDelete(),
+      child: _NotificationTile(
+        item: item,
+        isDark: isDark,
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+class _DeleteBackground extends StatelessWidget {
+  const _DeleteBackground({required this.isDark});
+
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: isDark
+          ? const Color(0xFFB71C1C).withValues(alpha: 0.9)
+          : const Color(0xFFE53935).withValues(alpha: 0.9),
+      child: const Align(
+        alignment: Alignment.centerRight,
+        child: Padding(
+          padding: EdgeInsets.only(right: GBTSpacing.lg),
+          child: Icon(Icons.delete_outline, color: Colors.white, size: 22),
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationTile extends StatelessWidget {
+  const _NotificationTile({
+    required this.item,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  final NotificationItem item;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  // EN: Resolve icon for notification type.
+  // KO: 알림 타입에 맞는 아이콘을 반환합니다.
+  IconData _iconForType(String? type) {
+    final t = normalizeNotificationType(type);
+    return switch (t) {
+      notificationTypePostCreated => Icons.article_outlined,
+      'COMMENT_CREATED' || 'COMMENT_REPLY_CREATED' =>
+        Icons.chat_bubble_outline,
+      'POST_LIKED' => Icons.favorite_border,
+      notificationTypeSystemNotice => Icons.campaign_outlined,
+      _ => Icons.notifications_outlined,
+    };
+  }
+
+  // EN: Resolve accent color for notification type.
+  // KO: 알림 타입에 맞는 강조 색상을 반환합니다.
+  Color _colorForType(String? type) {
+    final t = normalizeNotificationType(type);
+    return switch (t) {
+      notificationTypePostCreated => isDark
+          ? GBTColors.darkPrimary
+          : GBTColors.primary,
+      'COMMENT_CREATED' || 'COMMENT_REPLY_CREATED' => isDark
+          ? GBTColors.darkSecondary
+          : GBTColors.secondary,
+      'POST_LIKED' => isDark
+          ? GBTColors.darkSecondary
+          : GBTColors.secondary,
+      _ => isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accentColor = _colorForType(item.type);
+    final textSecondary =
+        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+    final bg = item.isRead
+        ? Colors.transparent
+        : (isDark
+              ? GBTColors.darkPrimary.withValues(alpha: 0.06)
+              : GBTColors.primary.withValues(alpha: 0.04));
+
+    return Semantics(
+      label:
+          '${item.isRead ? '읽음' : '읽지 않음'} 알림: ${item.title}. ${item.body}',
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        child: ColoredBox(
+          color: bg,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: GBTSpacing.md,
+              vertical: GBTSpacing.sm2,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // EN: Type icon with tinted background.
+                // KO: 틴트 배경이 있는 타입 아이콘입니다.
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _iconForType(item.type),
+                    color: accentColor,
+                    size: GBTSpacing.iconSm,
+                  ),
+                ),
+                const SizedBox(width: GBTSpacing.sm2),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // EN: Title — bold when unread.
+                      // KO: 제목 — 읽지 않음이면 굵게 표시합니다.
+                      Text(
+                        item.title,
+                        style: GBTTypography.bodyMedium.copyWith(
+                          fontWeight: item.isRead
+                              ? FontWeight.w400
+                              : FontWeight.w600,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (item.body.isNotEmpty) ...[
+                        const SizedBox(height: GBTSpacing.xxs),
+                        Text(
+                          item.body,
+                          style: GBTTypography.bodySmall.copyWith(
+                            color: textSecondary,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      const SizedBox(height: GBTSpacing.xs),
+                      Text(
+                        _relativeTime(item.createdAt),
+                        style: GBTTypography.labelSmall.copyWith(
+                          color: isDark
+                              ? GBTColors.darkTextTertiary
+                              : GBTColors.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // EN: Unread indicator dot.
+                // KO: 읽지 않음 표시 점입니다.
+                if (!item.isRead)
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      top: GBTSpacing.xs,
+                      left: GBTSpacing.sm,
+                    ),
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? GBTColors.darkPrimary
+                            : GBTColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
 
 Map<String, List<NotificationItem>> _groupBySection(
   List<NotificationItem> items,
@@ -308,109 +603,22 @@ Map<String, List<NotificationItem>> _groupBySection(
     }
   }
 
-  final map = <String, List<NotificationItem>>{};
-  if (today.isNotEmpty) map['오늘'] = today;
-  if (week.isNotEmpty) map['이번 주'] = week;
-  if (older.isNotEmpty) map['이전'] = older;
-  return map;
+  return {
+    if (today.isNotEmpty) '오늘': today,
+    if (week.isNotEmpty) '이번 주': week,
+    if (older.isNotEmpty) '이전': older,
+  };
 }
 
-/// EN: Section header widget.
-/// KO: 섹션 헤더 위젯.
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        GBTSpacing.md,
-        GBTSpacing.md,
-        GBTSpacing.md,
-        GBTSpacing.sm,
-      ),
-      color: isDark
-          ? GBTColors.darkSurfaceVariant.withValues(alpha: 0.5)
-          : GBTColors.surfaceVariant.withValues(alpha: 0.5),
-      child: Text(
-        title,
-        style: GBTTypography.labelMedium.copyWith(
-          color: isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-/// EN: Notification item widget.
-/// KO: 알림 아이템 위젯.
-class _NotificationItem extends StatelessWidget {
-  const _NotificationItem({required this.item, required this.onTap});
-
-  final NotificationItem item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    // EN: Use neutral icon color instead of brand secondary.
-    // KO: 브랜드 보조색 대신 뉴트럴 아이콘 색상을 사용합니다.
-    final iconColor = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
-    final tertiaryColor = isDark
-        ? GBTColors.darkTextTertiary
-        : GBTColors.textTertiary;
-
-    // EN: Determine status label for accessibility
-    // KO: 접근성을 위한 상태 라벨 결정
-    final readStatus = item.isRead ? '읽음' : '읽지 않음';
-
-    return Semantics(
-      label: '$readStatus 알림: ${item.title}. ${item.body}',
-      button: true,
-      child: ListTile(
-        onTap: onTap,
-        leading: CircleAvatar(
-          radius: 20,
-          backgroundColor: iconColor.withValues(alpha: 0.12),
-          child: Icon(Icons.notifications, color: iconColor, size: 20),
-        ),
-        title: Text(
-          item.title,
-          style: GBTTypography.bodyMedium.copyWith(
-            fontWeight: item.isRead ? FontWeight.w400 : FontWeight.w600,
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          item.body,
-          style: GBTTypography.bodySmall.copyWith(color: tertiaryColor),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: item.isRead
-            ? null
-            : Semantics(
-                label: '읽지 않은 알림 표시',
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    // EN: Use primary purple for unread dot (CTA/status indicator).
-                    // KO: 읽지 않음 점에는 기본 보라색 사용 (CTA/상태 표시).
-                    color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-      ),
-    );
-  }
+/// EN: Human-readable relative timestamp.
+/// KO: 사람이 읽기 좋은 상대적 시간 문자열을 반환합니다.
+String _relativeTime(DateTime createdAt) {
+  final diff = DateTime.now().difference(createdAt.toLocal());
+  if (diff.inSeconds < 60) return '방금 전';
+  if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
+  if (diff.inHours < 24) return '${diff.inHours}시간 전';
+  if (diff.inDays == 1) return '어제';
+  if (diff.inDays < 7) return '${diff.inDays}일 전';
+  final local = createdAt.toLocal();
+  return '${local.month}/${local.day}';
 }

@@ -9,27 +9,37 @@ class NotificationSettings {
     required this.pushEnabled,
     required this.emailEnabled,
     required this.categories,
+    this.version,
+    this.updatedAt,
   });
 
   final bool pushEnabled;
   final bool emailEnabled;
   final List<String> categories;
+  final int? version;
+  final DateTime? updatedAt;
 
   static const String categoryLiveEvents = 'LIVE_EVENT';
   static const String categoryFavorites = 'FAVORITE';
   static const String categoryComments = 'COMMENT';
+  static const String categoryFollowingPost = 'FOLLOWING_POST';
 
   bool get liveEventsEnabled => _hasCategory(categories, categoryLiveEvents);
   bool get favoritesEnabled => _hasCategory(categories, categoryFavorites);
   bool get commentsEnabled => _hasCategory(categories, categoryComments);
+  bool get followingPostsEnabled =>
+      _hasCategory(categories, categoryFollowingPost);
 
   NotificationSettings copyWith({
     bool? pushEnabled,
     bool? emailEnabled,
     List<String>? categories,
+    int? version,
+    DateTime? updatedAt,
     bool? liveEventsEnabled,
     bool? favoritesEnabled,
     bool? commentsEnabled,
+    bool? followingPostsEnabled,
   }) {
     final updatedCategories = categories ?? List<String>.from(this.categories);
 
@@ -42,11 +52,20 @@ class NotificationSettings {
     if (commentsEnabled != null) {
       _toggleCategory(updatedCategories, categoryComments, commentsEnabled);
     }
+    if (followingPostsEnabled != null) {
+      _toggleCategory(
+        updatedCategories,
+        categoryFollowingPost,
+        followingPostsEnabled,
+      );
+    }
 
     return NotificationSettings(
       pushEnabled: pushEnabled ?? this.pushEnabled,
       emailEnabled: emailEnabled ?? this.emailEnabled,
       categories: updatedCategories,
+      version: version ?? this.version,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
@@ -55,6 +74,8 @@ class NotificationSettings {
       pushEnabled: dto.pushEnabled,
       emailEnabled: dto.emailEnabled,
       categories: dto.categories,
+      version: dto.version,
+      updatedAt: dto.updatedAt,
     );
   }
 
@@ -66,6 +87,7 @@ class NotificationSettings {
         categoryLiveEvents,
         categoryFavorites,
         categoryComments,
+        categoryFollowingPost,
       ],
     );
   }

@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/localization/locale_text.dart';
+import 'package:focus_detector/focus_detector.dart';
 import '../../../../core/security/user_access_level.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -24,7 +25,7 @@ import '../../../../core/widgets/common/gbt_action_icons.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/dialogs/gbt_adaptive_dialog.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
-import '../../../../core/widgets/navigation/gbt_profile_action.dart';
+import '../../../../core/widgets/sheets/gbt_bottom_sheet.dart';
 import '../../../ads/domain/entities/ad_slot_entities.dart';
 import '../../../ads/presentation/widgets/hybrid_sponsored_slot.dart';
 import '../../../projects/presentation/widgets/project_selector.dart';
@@ -34,6 +35,7 @@ import '../../../settings/application/settings_controller.dart';
 import '../../application/community_ban_view_helper.dart';
 import '../../application/community_moderation_controller.dart';
 import '../../application/feed_controller.dart';
+import '../../application/local_post_bookmarks_controller.dart';
 import '../../application/report_rate_limiter.dart';
 import '../../application/user_follow_list_controller.dart';
 import '../../domain/entities/community_moderation.dart';
@@ -42,6 +44,8 @@ import '../models/feed_native_ad_placement.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../widgets/community_translation_panel.dart';
 import '../widgets/community_report_sheet.dart';
+import '../../../titles/application/titles_controller.dart';
+import '../../../titles/presentation/widgets/active_title_badge.dart';
 
 // ========================================
 // EN: Board Page — section-driven by sub bottom nav, Toss minimal
@@ -107,16 +111,19 @@ class _BoardPageState extends ConsumerState<BoardPage> {
   @override
   Widget build(BuildContext context) {
     final isAuthenticated = ref.watch(isAuthenticatedProvider);
+    final selectedProjectId = ref.watch(selectedProjectIdProvider);
+    final selectedProjectKey = ref.watch(selectedProjectKeyProvider);
     final profileState = ref.watch(userProfileControllerProvider);
     final isAdmin = profileState.maybeWhen(
       data: (profile) => _isAdminRole(
         effectiveAccessLevel: profile?.effectiveAccessLevel,
         accountRole: profile?.accountRole,
+        projectRolesByProject: profile?.projectRolesByProject,
+        projectId: selectedProjectId,
+        projectCode: selectedProjectKey,
       ),
       orElse: () => false,
     );
-    final avatarUrl = profileState.valueOrNull?.avatarUrl;
-
     // EN: Section index determines which content to show (controlled by sub bottom nav).
     // KO: 섹션 인덱스가 표시할 콘텐츠를 결정합니다 (서브 하단바로 제어).
     final sectionIndex = widget.initialTabIndex.clamp(0, 2);
@@ -128,10 +135,44 @@ class _BoardPageState extends ConsumerState<BoardPage> {
 
     final useFeedHeroHeader = sectionIndex == 0;
 
-    return Scaffold(
-      appBar: useFeedHeroHeader
-          ? null
-          : AppBar(
+    return FocusDetector(
+      onFocusGained: () {
+        // EN: For the Feed section, always reset to recommended mode so that
+        //     returning from Discover (which sets mode to trending) correctly
+        //     shows recommended posts instead of trending.
+        // KO: 피드 섹션은 항상 recommended 모드로 초기화합니다.
+        //     발견 섹션(trending 모드)에서 돌아올 때 trending 대신 추천 피드가
+        //     올바르게 표시되도록 합니다.
+        if (sectionIndex == 0) {
+          final mode = ref.read(communityFeedControllerProvider).mode;
+          if (mode != CommunityFeedMode.recommended) {
+            unawaited(
+              ref
+                  .read(communityFeedControllerProvider.notifier)
+                  .setMode(CommunityFeedMode.recommended),
+            );
+          } else {
+            unawaited(
+              ref
+                  .read(communityFeedControllerProvider.notifier)
+                  .reload(forceRefresh: true),
+            );
+          }
+        } else {
+          unawaited(
+            ref
+                .read(communityFeedControllerProvider.notifier)
+                .reload(forceRefresh: true),
+          );
+        }
+        unawaited(
+          ref.read(postListControllerProvider.notifier).load(forceRefresh: true),
+        );
+      },
+      child: Scaffold(
+        appBar: useFeedHeroHeader
+            ? null
+            : AppBar(
               titleSpacing: 0,
               title: Row(
                 children: [
@@ -153,7 +194,15 @@ class _BoardPageState extends ConsumerState<BoardPage> {
                     tooltip: context.l10n(ko: '검색', en: 'Search', ja: '検索'),
                     onPressed: () => _openSearchSheet(context),
                   ),
-                GBTProfileAction(avatarUrl: avatarUrl),
+                GBTAppBarIconButton(
+                  icon: Icons.menu_rounded,
+                  tooltip: context.l10n(
+                    ko: '커뮤니티 설정',
+                    en: 'Community settings',
+                    ja: 'コミュニティ設定',
+                  ),
+                  onPressed: context.goToCommunitySettings,
+                ),
               ],
             ),
       body: switch (sectionIndex) {
@@ -220,6 +269,7 @@ class _BoardPageState extends ConsumerState<BoardPage> {
             ),
         ],
       ),
+     ),
     );
   }
 }
@@ -499,7 +549,6 @@ class _FeedSectionState extends ConsumerState<_FeedSection>
                     en: 'Open community settings',
                     ja: 'コミュニティ設定を開く',
                   ),
-                  showDot: true,
                   onPressed: context.goToCommunitySettings,
                 ),
               ],
@@ -586,13 +635,11 @@ class _FeedHeaderIconButton extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onPressed,
-    this.showDot = false,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback onPressed;
-  final bool showDot;
 
   @override
   Widget build(BuildContext context) {
@@ -626,19 +673,6 @@ class _FeedHeaderIconButton extends StatelessWidget {
                   ),
                 ),
                 Center(child: Icon(icon, size: 22, color: iconColor)),
-                if (showDot)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.error,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -2021,7 +2055,7 @@ class _FeedSponsoredCampaign {
             en: 'GirlsBandTabi Sponsored',
             ja: 'GirlsBandTabi スポンサー',
           ),
-          onTap: () => context.goNamed(AppRoutes.places),
+          onTap: () => context.go('/explore'),
         );
       case 2:
         return SponsoredFallbackContent(
@@ -2075,7 +2109,7 @@ class _FeedSponsoredCampaign {
             en: 'GirlsBandTabi Sponsored',
             ja: 'GirlsBandTabi スポンサー',
           ),
-          onTap: () => context.goNamed(AppRoutes.live),
+          onTap: () => context.go('/explore?tab=1'),
         );
     }
   }
@@ -2213,6 +2247,9 @@ class _CommunityPostCard extends ConsumerWidget {
       data: (profile) => _isAdminRole(
         effectiveAccessLevel: profile?.effectiveAccessLevel,
         accountRole: profile?.accountRole,
+        projectRolesByProject: profile?.projectRolesByProject,
+        projectId: post.projectId,
+        projectCode: post.projectId,
       ),
       orElse: () => false,
     );
@@ -2243,6 +2280,11 @@ class _CommunityPostCard extends ConsumerWidget {
       data: (projects) => _resolveProjectName(projects, post.projectId),
       orElse: () => post.projectId,
     );
+    // EN: Author active title — shown as a small badge below the author name.
+    // KO: 작성자의 활성 칭호 — 작성자 이름 아래 작은 배지로 표시합니다.
+    final authorTitleItem = ref
+        .watch(userActiveTitleProvider(post.authorId))
+        .valueOrNull;
 
     // EN: Timeline block — edge-to-edge content with bottom divider.
     // KO: 타임라인 블록 — 카드 테두리 대신 하단 구분선 기반 레이아웃.
@@ -2283,14 +2325,27 @@ class _CommunityPostCard extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            authorLabel,
-                            style: GBTTypography.labelLarge.copyWith(
-                              fontWeight: FontWeight.w700,
-                              height: 1.2,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  authorLabel,
+                                  style: GBTTypography.labelLarge.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.2,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (authorTitleItem?.hasTitle == true) ...[
+                                const SizedBox(width: 6),
+                                ActiveTitleBadge.fromActiveItem(
+                                  authorTitleItem!,
+                                ),
+                              ],
+                            ],
                           ),
                           const SizedBox(height: 2),
                           // EN: Emphasize project identity with a tinted badge.
@@ -2371,7 +2426,7 @@ class _CommunityPostCard extends ConsumerWidget {
                         ),
                       ),
                     if (showMoreButton)
-                      PopupMenuButton<_PostCardAction>(
+                      IconButton(
                         icon: Icon(
                           Icons.more_horiz,
                           size: 20,
@@ -2383,7 +2438,72 @@ class _CommunityPostCard extends ConsumerWidget {
                           ja: 'その他',
                         ),
                         padding: EdgeInsets.zero,
-                        onSelected: (action) {
+                        onPressed: () async {
+                          final actions = <GBTActionSheetItem<_PostCardAction>>[
+                            if (isAuthor)
+                              GBTActionSheetItem(
+                                label: context.l10n(
+                                  ko: '수정',
+                                  en: 'Edit',
+                                  ja: '編集',
+                                ),
+                                value: _PostCardAction.edit,
+                                icon: Icons.edit_outlined,
+                              ),
+                            if (isAuthor || isAdmin)
+                              GBTActionSheetItem(
+                                label: isAuthor
+                                    ? context.l10n(
+                                        ko: '삭제',
+                                        en: 'Delete',
+                                        ja: '削除',
+                                      )
+                                    : context.l10n(
+                                        ko: '관리 삭제',
+                                        en: 'Admin delete',
+                                        ja: '管理者削除',
+                                      ),
+                                value: _PostCardAction.delete,
+                                icon: Icons.delete_outline,
+                                isDestructive: true,
+                              ),
+                            if (!isAuthor && isAuthenticated)
+                              GBTActionSheetItem(
+                                label: context.l10n(
+                                  ko: '신고',
+                                  en: 'Report',
+                                  ja: '通報',
+                                ),
+                                value: _PostCardAction.report,
+                                icon: Icons.flag_outlined,
+                              ),
+                            if (!isAuthor && isAuthenticated)
+                              GBTActionSheetItem(
+                                label: blockLabel,
+                                value: _PostCardAction.blockToggle,
+                                icon: Icons.person_off_outlined,
+                              ),
+                            if (isAdmin && !isAuthor)
+                              GBTActionSheetItem(
+                                label: context.l10n(
+                                  ko: '커뮤니티 제재',
+                                  en: 'Moderation ban',
+                                  ja: 'コミュニティ制裁',
+                                ),
+                                value: _PostCardAction.ban,
+                                icon: Icons.block,
+                                isDestructive: true,
+                              ),
+                          ];
+
+                          final action = await showGBTActionSheet<_PostCardAction>(
+                            context: context,
+                            actions: actions,
+                            cancelLabel: '취소',
+                          );
+
+                          if (action == null || !context.mounted) return;
+
                           if (action == _PostCardAction.edit) {
                             context.goToPostDetail(
                               post.id,
@@ -2412,110 +2532,6 @@ class _CommunityPostCard extends ConsumerWidget {
                             _confirmBanUser(context, ref);
                           }
                         },
-                        itemBuilder: (menuContext) {
-                          final cs = Theme.of(menuContext).colorScheme;
-                          return [
-                            if (isAuthor)
-                              PopupMenuItem(
-                                value: _PostCardAction.edit,
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.edit_outlined, size: 18),
-                                    SizedBox(width: GBTSpacing.sm),
-                                    Text(
-                                      context.l10n(
-                                        ko: '수정',
-                                        en: 'Edit',
-                                        ja: '編集',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            if (isAuthor) const PopupMenuDivider(),
-                            if (isAuthor || isAdmin)
-                              PopupMenuItem(
-                                value: _PostCardAction.delete,
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.delete_outline,
-                                      size: 18,
-                                      color: cs.error,
-                                    ),
-                                    SizedBox(width: GBTSpacing.sm),
-                                    Text(
-                                      isAuthor
-                                          ? context.l10n(
-                                              ko: '삭제',
-                                              en: 'Delete',
-                                              ja: '削除',
-                                            )
-                                          : context.l10n(
-                                              ko: '관리 삭제',
-                                              en: 'Admin delete',
-                                              ja: '管理者削除',
-                                            ),
-                                      style: TextStyle(color: cs.error),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            if (!isAuthor && isAuthenticated)
-                              PopupMenuItem(
-                                value: _PostCardAction.report,
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.flag_outlined, size: 18),
-                                    SizedBox(width: GBTSpacing.sm),
-                                    Text(
-                                      context.l10n(
-                                        ko: '신고',
-                                        en: 'Report',
-                                        ja: '通報',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            if (!isAuthor && isAuthenticated)
-                              PopupMenuItem(
-                                value: _PostCardAction.blockToggle,
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.person_off_outlined,
-                                      size: 18,
-                                    ),
-                                    const SizedBox(width: GBTSpacing.sm),
-                                    Text(blockLabel),
-                                  ],
-                                ),
-                              ),
-                            if (isAdmin && !isAuthor)
-                              PopupMenuItem(
-                                value: _PostCardAction.ban,
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.block,
-                                      size: 18,
-                                      color: cs.error,
-                                    ),
-                                    SizedBox(width: GBTSpacing.sm),
-                                    Text(
-                                      context.l10n(
-                                        ko: '커뮤니티 제재',
-                                        en: 'Moderation ban',
-                                        ja: 'コミュニティ制裁',
-                                      ),
-                                      style: TextStyle(color: cs.error),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ];
-                        },
                       ),
                   ],
                 ),
@@ -2527,6 +2543,16 @@ class _CommunityPostCard extends ConsumerWidget {
                     fontWeight: FontWeight.w700,
                     height: 1.32,
                   ),
+                ),
+                CommunityTranslationPanel(
+                  contentId: 'post-title:${post.id}',
+                  text: post.title,
+                  textStyle: GBTTypography.titleLarge.copyWith(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    height: 1.32,
+                  ),
+                  compact: true,
                 ),
                 if (previewSnippet.isNotEmpty)
                   LayoutBuilder(
@@ -2615,11 +2641,16 @@ class _CommunityPostCard extends ConsumerWidget {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: AspectRatio(
-                          aspectRatio: 16 / 10,
+                        child: ConstrainedBox(
+                          // EN: Cap very tall images (e.g. 9:16 portrait) at 480px.
+                          // KO: 매우 세로 긴 이미지(9:16 등)를 480px로 제한합니다.
+                          constraints: const BoxConstraints(
+                            minHeight: 60,
+                            maxHeight: 480,
+                          ),
                           child: _FallbackPreviewImage(
                             imageUrls: previewImageUrls,
-                            fit: BoxFit.cover,
+                            fit: BoxFit.fitWidth,
                             semanticLabel:
                                 '${post.title} ${context.l10n(ko: "첨부 이미지", en: "attached image", ja: "添付画像")}',
                           ),
@@ -2630,7 +2661,7 @@ class _CommunityPostCard extends ConsumerWidget {
                 const SizedBox(height: GBTSpacing.sm),
                 Semantics(
                   label:
-                      '${context.l10n(ko: "좋아요", en: "Likes", ja: "いいね")} $likeCount${context.l10n(ko: "개", en: "", ja: "件")}, ${context.l10n(ko: "댓글", en: "Comments", ja: "コメント")} $commentCount${context.l10n(ko: "개", en: "", ja: "件")}, ${context.l10n(ko: "북마크", en: "Bookmark", ja: "ブックマーク")} ${isBookmarked ? context.l10n(ko: "저장됨", en: "saved", ja: "保存済み") : context.l10n(ko: "미저장", en: "not saved", ja: "未保存")}',
+                      '${context.l10n(ko: "좋아요", en: "Likes", ja: "いいね")} $likeCount${context.l10n(ko: "개", en: "", ja: "件")}, ${context.l10n(ko: "댓글", en: "Comments", ja: "コメント")} $commentCount${context.l10n(ko: "개", en: "", ja: "件")}, ${context.l10n(ko: "북마크", en: "Bookmark", ja: "ブックマーク")} ${isBookmarked ? context.l10n(ko: "북마크됨", en: "bookmarked", ja: "ブックマーク済み") : context.l10n(ko: "북마크 안 됨", en: "not bookmarked", ja: "未ブックマーク")}',
                   child: Row(
                     children: [
                       _AnimatedLikeButton(
@@ -2661,8 +2692,16 @@ class _CommunityPostCard extends ConsumerWidget {
                         activeColor: bookmarkActionColor,
                         inactiveColor: tertiaryColor,
                         textLabel: isBookmarked
-                            ? context.l10n(ko: '저장됨', en: 'Saved', ja: '保存済み')
-                            : context.l10n(ko: '저장', en: 'Save', ja: '保存'),
+                            ? context.l10n(
+                                ko: '북마크됨',
+                                en: 'Bookmarked',
+                                ja: 'ブックマーク済み',
+                              )
+                            : context.l10n(
+                                ko: '북마크',
+                                en: 'Bookmark',
+                                ja: 'ブックマーク',
+                              ),
                       ),
                       const Spacer(),
                     ],
@@ -2785,6 +2824,28 @@ class _CommunityPostCard extends ConsumerWidget {
         .read(postBookmarkControllerProvider(_reactionTarget).notifier)
         .toggleBookmark();
     if (!context.mounted) return;
+    if (result is Success<PostBookmarkStatus>) {
+      final bookmarksNotifier = ref.read(
+        localPostBookmarksControllerProvider.notifier,
+      );
+      if (result.data.isBookmarked) {
+        unawaited(
+          bookmarksNotifier.addBookmark(
+            LocalBookmarkedPost(
+              postId: post.id,
+              projectCode: post.projectId,
+              title: post.title,
+              thumbnailUrl:
+                  post.thumbnailUrl ??
+                  (post.imageUrls.isNotEmpty ? post.imageUrls.first : null),
+              bookmarkedAt: result.data.bookmarkedAt ?? DateTime.now(),
+            ),
+          ),
+        );
+      } else {
+        unawaited(bookmarksNotifier.removeBookmark(post.id));
+      }
+    }
     if (result is Err<PostBookmarkStatus>) {
       _showSnackBar(
         context,
@@ -3107,6 +3168,7 @@ class _FallbackPreviewImageState extends State<_FallbackPreviewImage> {
     return GBTImage(
       key: ValueKey(widget.imageUrls[resolvedIndex]),
       imageUrl: widget.imageUrls[resolvedIndex],
+      width: double.infinity,
       fit: widget.fit,
       semanticLabel: widget.semanticLabel,
       onError: _advanceImage,
@@ -3503,10 +3565,19 @@ IconData _searchScopeIcon(CommunitySearchScope scope) {
 
 /// EN: Returns true when profile can perform moderation actions.
 /// KO: 프로필이 모더레이션 액션을 수행할 수 있는지 반환합니다.
-bool _isAdminRole({String? effectiveAccessLevel, String? accountRole}) {
-  return canModerateCommunity(
+bool _isAdminRole({
+  String? effectiveAccessLevel,
+  String? accountRole,
+  Map<String, List<String>>? projectRolesByProject,
+  String? projectId,
+  String? projectCode,
+}) {
+  return canModerateProjectCommunity(
     effectiveAccessLevel: effectiveAccessLevel,
     accountRole: accountRole,
+    projectRolesByProject: projectRolesByProject,
+    projectId: projectId,
+    projectCode: projectCode,
   );
 }
 

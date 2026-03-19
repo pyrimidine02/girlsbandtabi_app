@@ -30,6 +30,12 @@ class LocalStorageKeys {
   static const String selectedProjectKey = 'selected_project_key';
   static const String selectedUnitIds = 'selected_unit_ids';
   static const String recentSearches = 'recent_searches';
+  static const String pendingFavoriteMutations = 'pending_favorite_mutations';
+  static const String pendingPostReactionMutations =
+      'pending_post_reaction_mutations';
+  static const String pendingLiveAttendanceMutations =
+      'pending_live_attendance_mutations';
+  static const String localPostBookmarks = 'local_post_bookmarks';
 
   // EN: Cache Keys
   // KO: 캐시 키
@@ -189,6 +195,60 @@ class LocalStorage {
     final searches = getRecentSearches();
     searches.remove(query);
     return _prefs.setStringList(LocalStorageKeys.recentSearches, searches);
+  }
+
+  /// EN: Get pending offline favorite mutations.
+  /// KO: 오프라인 즐겨찾기 대기 작업을 조회합니다.
+  List<Map<String, dynamic>> getPendingFavoriteMutations() {
+    return getJsonList(LocalStorageKeys.pendingFavoriteMutations) ?? const [];
+  }
+
+  /// EN: Persist pending offline favorite mutations.
+  /// KO: 오프라인 즐겨찾기 대기 작업을 저장합니다.
+  Future<bool> setPendingFavoriteMutations(List<Map<String, dynamic>> value) {
+    return setJsonList(LocalStorageKeys.pendingFavoriteMutations, value);
+  }
+
+  /// EN: Get pending offline post reaction mutations.
+  /// KO: 오프라인 게시글 반응 대기 작업을 조회합니다.
+  List<Map<String, dynamic>> getPendingPostReactionMutations() {
+    return getJsonList(LocalStorageKeys.pendingPostReactionMutations) ??
+        const [];
+  }
+
+  /// EN: Persist pending offline post reaction mutations.
+  /// KO: 오프라인 게시글 반응 대기 작업을 저장합니다.
+  Future<bool> setPendingPostReactionMutations(
+    List<Map<String, dynamic>> value,
+  ) {
+    return setJsonList(LocalStorageKeys.pendingPostReactionMutations, value);
+  }
+
+  /// EN: Get locally cached bookmarked posts.
+  /// KO: 로컬 캐시에 저장된 북마크 게시글을 조회합니다.
+  List<Map<String, dynamic>> getLocalPostBookmarks() {
+    return getJsonList(LocalStorageKeys.localPostBookmarks) ?? const [];
+  }
+
+  /// EN: Persist locally cached bookmarked posts.
+  /// KO: 북마크 게시글을 로컬 캐시에 저장합니다.
+  Future<bool> setLocalPostBookmarks(List<Map<String, dynamic>> value) {
+    return setJsonList(LocalStorageKeys.localPostBookmarks, value);
+  }
+
+  /// EN: Get pending offline live attendance mutations.
+  /// KO: 오프라인 라이브 출석 대기 작업을 조회합니다.
+  List<Map<String, dynamic>> getPendingLiveAttendanceMutations() {
+    return getJsonList(LocalStorageKeys.pendingLiveAttendanceMutations) ??
+        const [];
+  }
+
+  /// EN: Persist pending offline live attendance mutations.
+  /// KO: 오프라인 라이브 출석 대기 작업을 저장합니다.
+  Future<bool> setPendingLiveAttendanceMutations(
+    List<Map<String, dynamic>> value,
+  ) {
+    return setJsonList(LocalStorageKeys.pendingLiveAttendanceMutations, value);
   }
 
   // ========================================

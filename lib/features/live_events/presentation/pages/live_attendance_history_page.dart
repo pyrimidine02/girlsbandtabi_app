@@ -14,6 +14,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../projects/application/projects_controller.dart';
 import '../../application/live_events_controller.dart';
 import '../../domain/entities/live_event_entities.dart';
 
@@ -40,6 +41,65 @@ class _LiveAttendanceHistoryBodyState
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// EN: Builds the project-grouped list of attendance records.
+  ///     Groups items by [LiveAttendanceHistoryRecord.projectKey] in insertion
+  ///     order (most recently attended project first).
+  /// KO: 출석 기록을 프로젝트별로 그룹화한 리스트를 구성합니다.
+  ///     [LiveAttendanceHistoryRecord.projectKey]로 삽입 순서(최근 참여 프로젝트
+  ///     우선) 대로 그룹화합니다.
+  Widget _buildGroupedList(BuildContext context) {
+    final historyState = ref.watch(liveAttendanceHistoryControllerProvider);
+
+    // EN: Build projectKey → name lookup from the projects provider.
+    // KO: 프로젝트 프로바이더에서 projectKey → 이름 조회 맵을 구성합니다.
+    final projectNameOf = <String, String>{};
+    ref.watch(projectsControllerProvider).whenData((projects) {
+      for (final p in projects) {
+        if (p.code.isNotEmpty) projectNameOf[p.code] = p.name;
+        projectNameOf[p.id] = p.name;
+      }
+    });
+
+    // EN: Group records by projectKey, preserving insertion order.
+    // KO: 삽입 순서를 유지하며 projectKey별로 기록을 그룹화합니다.
+    final groups = <String, List<LiveAttendanceHistoryRecord>>{};
+    for (final record in historyState.items) {
+      (groups[record.projectKey] ??= []).add(record);
+    }
+
+    // EN: Build a flat children list: project header → cards per project.
+    // KO: 평탄한 children 리스트 구성: 프로젝트 헤더 → 프로젝트별 카드.
+    final children = <Widget>[];
+    for (final projectKey in groups.keys) {
+      final projectName = projectNameOf[projectKey] ?? projectKey;
+      children.add(_LiveProjectHeader(label: projectName));
+      for (final record in groups[projectKey]!) {
+        children.add(_HistoryCard(record: record));
+        children.add(const SizedBox(height: GBTSpacing.sm));
+      }
+    }
+    if (historyState.isLoadingMore) {
+      children.add(
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: GBTSpacing.md),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    return ListView(
+      controller: _scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        GBTSpacing.pageHorizontal,
+        GBTSpacing.md,
+        GBTSpacing.pageHorizontal,
+        GBTSpacing.xl,
+      ),
+      children: children,
+    );
   }
 
   void _onScroll() {
@@ -109,31 +169,38 @@ class _LiveAttendanceHistoryBodyState
                 ja: 'まだライブ参加記録がありません。\nライブ詳細で参加トグルをオンにしてください。',
               ),
             )
-          : ListView.separated(
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(
-                GBTSpacing.pageHorizontal,
-                GBTSpacing.md,
-                GBTSpacing.pageHorizontal,
-                GBTSpacing.xl,
-              ),
-              itemBuilder: (context, index) {
-                if (index >= historyState.items.length) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: GBTSpacing.md),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                final record = historyState.items[index];
-                return _HistoryCard(record: record);
-              },
-              separatorBuilder: (_, __) =>
-                  const SizedBox(height: GBTSpacing.sm),
-              itemCount:
-                  historyState.items.length +
-                  (historyState.isLoadingMore ? 1 : 0),
-            ),
+          : _buildGroupedList(context),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// EN: Project section header for live attendance history.
+// KO: 라이브 방문 기록 프로젝트 섹션 헤더.
+// ---------------------------------------------------------------------------
+
+class _LiveProjectHeader extends StatelessWidget {
+  const _LiveProjectHeader({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        0,
+        GBTSpacing.lg,
+        0,
+        GBTSpacing.xs,
+      ),
+      child: Text(
+        label,
+        style: GBTTypography.headlineSmall.copyWith(
+          color: isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }

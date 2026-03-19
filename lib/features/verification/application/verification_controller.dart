@@ -2,6 +2,8 @@
 /// KO: 장소/라이브 인증 컨트롤러.
 library;
 
+import 'dart:async' show unawaited;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/error/error_handler.dart';
@@ -9,6 +11,8 @@ import '../../../core/error/failure.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
+import '../../fan_level/application/fan_level_controller.dart';
+import '../../titles/application/titles_controller.dart';
 import '../../visits/application/visits_controller.dart';
 import '../data/datasources/verification_remote_data_source.dart';
 import '../data/repositories/verification_repository_impl.dart';
@@ -88,6 +92,11 @@ class VerificationController
     if (result is Success<VerificationResult>) {
       state = AsyncData(result.data);
       await _refreshVisitData(placeId);
+      // EN: Earn XP for the place visit and refresh fan level profile.
+      // KO: 성지 방문 XP를 획득하고 팬 레벨 프로필을 갱신합니다.
+      unawaited(
+        _earnXpForActivity('PLACE_VISIT', placeId, resolvedProjectKey),
+      );
       return result;
     }
     if (result is Err<VerificationResult>) {
@@ -171,6 +180,11 @@ class VerificationController
 
     if (result is Success<VerificationResult>) {
       state = AsyncData(result.data);
+      // EN: Earn XP for live attendance and refresh fan level profile.
+      // KO: 라이브 참석 XP를 획득하고 팬 레벨 프로필을 갱신합니다.
+      unawaited(
+        _earnXpForActivity('LIVE_ATTENDANCE', liveEventId, resolvedProjectKey),
+      );
       return result;
     }
     if (result is Err<VerificationResult>) {
@@ -227,6 +241,9 @@ class VerificationController
     if (retryResult is Success<VerificationResult>) {
       state = AsyncData(retryResult.data);
       await _refreshVisitData(placeId);
+      if (targetType != null && targetId != null && projectId != null) {
+        unawaited(_earnXpForActivity(targetType, targetId, projectId));
+      }
     } else if (retryResult is Err<VerificationResult>) {
       state = AsyncError(retryResult.failure, StackTrace.current);
       // EN: Record failure after key-reset retry as well.
@@ -244,6 +261,30 @@ class VerificationController
     return retryResult;
   }
 
+  /// EN: Fire-and-forget XP earn for a verification activity; invalidates fan
+  ///     level on success so the profile is refreshed on next page open.
+  /// KO: 인증 활동에 대한 XP 획득 (fire-and-forget); 성공 시 팬 레벨을 무효화하여
+  ///     다음 페이지 열기 시 프로필이 갱신되도록 합니다.
+  Future<void> _earnXpForActivity(
+    String activityType,
+    String entityId,
+    String projectId,
+  ) async {
+    try {
+      final repository = _ref.read(fanLevelRepositoryProvider);
+      await repository.earnXp(activityType, entityId, projectId: projectId);
+      if (mounted) {
+        _ref.invalidate(fanLevelControllerProvider);
+      }
+    } catch (e) {
+      AppLogger.warning(
+        'XP earn failed for $activityType/$entityId',
+        data: e,
+        tag: 'VerificationController',
+      );
+    }
+  }
+
   Future<void> _refreshVisitData(String? placeId) async {
     try {
       await _ref
@@ -253,6 +294,13 @@ class VerificationController
         _ref.invalidate(visitSummaryProvider(placeId));
       }
       _ref.invalidate(userRankingProvider);
+      // EN: Invalidate title caches so the next title-picker open reflects
+      //     any titles auto-granted by the backend after verification.
+      // KO: 칭호 캐시를 무효화하여 인증 후 백엔드에서 자동 부여된 칭호를
+      //     다음 칭호 피커 열기 시 반영합니다.
+      final titlesRepo = await _ref.read(titlesRepositoryProvider.future);
+      await titlesRepo.invalidateTitleCaches();
+      unawaited(_ref.read(activeTitleProvider.notifier).refresh());
     } catch (e, stackTrace) {
       AppLogger.warning(
         'Visit data refresh failed after verification',

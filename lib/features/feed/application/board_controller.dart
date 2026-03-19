@@ -16,7 +16,7 @@ import '../../../core/utils/result.dart';
 import '../domain/entities/feed_entities.dart';
 import 'feed_repository_provider.dart';
 
-const int _kBoardNavIndex = 3;
+const int _kBoardNavIndex = 4;
 
 bool _isBoardTabActive(Ref ref) {
   return ref.read(currentNavIndexProvider) == _kBoardNavIndex;
@@ -34,11 +34,25 @@ class PostListController extends StateNotifier<AsyncValue<List<PostSummary>>> {
       if (next != _kBoardNavIndex || next == previous) {
         return;
       }
-      load(forceRefresh: true);
+      // EN: Only load on tab return if there is no data yet — background
+      // EN: polling handles freshness while the tab is active.
+      // KO: 데이터가 없을 때만 탭 복귀 시 로드 — 탭 활성 중 백그라운드 폴링이 최신성을 유지합니다.
+      if (state.valueOrNull == null) load();
     });
   }
 
   final Ref _ref;
+
+  /// EN: Prepend new posts to the top of the current list without a full reload.
+  /// KO: 전체 재로딩 없이 새 게시글을 현재 목록 상단에 추가합니다.
+  void prependPosts(List<PostSummary> posts) {
+    final current = state.valueOrNull;
+    if (current == null || posts.isEmpty) return;
+    final existingIds = current.map((p) => p.id).toSet();
+    final unique = posts.where((p) => !existingIds.contains(p.id)).toList();
+    if (unique.isEmpty) return;
+    state = AsyncData([...unique, ...current]);
+  }
 
   Future<void> load({bool forceRefresh = false}) async {
     if (!_isBoardTabActive(_ref)) {
@@ -231,6 +245,9 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
   static const int _pageSize = 20;
   bool _isBackgroundSyncing = false;
   DateTime? _lastBackgroundSyncAt;
+  // EN: Guard flag preventing concurrent reload() calls from listeners/FocusDetector.
+  // KO: 리스너/FocusDetector의 동시 reload() 호출을 방지하는 가드 플래그.
+  bool _isReloading = false;
   SseConnection? _realtimeConnection;
   StreamSubscription<SseEvent>? _realtimeSubscription;
   Timer? _realtimeReconnectTimer;
@@ -576,10 +593,15 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
   }
 
   Future<void> reload({bool forceRefresh = false}) async {
+    // EN: Skip concurrent reloads — listeners and FocusDetector can fire together.
+    // KO: 동시 리로드를 건너뜁니다 — 리스너와 FocusDetector가 동시에 실행될 수 있습니다.
+    if (_isReloading) return;
     if (!_isBoardTabActive(_ref)) {
       return;
     }
-    final projectKey = _ref.read(selectedProjectKeyProvider);
+    _isReloading = true;
+    try {
+      final projectKey = _ref.read(selectedProjectKeyProvider);
     final isSearching = state.isSearching;
     final requiresProjectSelection =
         isSearching ||
@@ -767,6 +789,9 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
             failure: result.failure,
           );
         }
+    }
+    } finally {
+      _isReloading = false;
     }
   }
 

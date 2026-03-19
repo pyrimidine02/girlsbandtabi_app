@@ -563,13 +563,26 @@ class _ProjectPill extends StatelessWidget {
         onTap: onTap,
         hapticType: GBTHapticType.selection,
         child: AnimatedContainer(
-          duration: GBTAnimations.normal,
-          curve: GBTAnimations.defaultCurve,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCirc,
           height: 36,
           padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
           decoration: BoxDecoration(
             color: bgColor,
             borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+            border: isSelected
+                ? Border.all(color: paletteColor.withValues(alpha: 0.3), width: 1.5)
+                : Border.all(color: Colors.transparent, width: 1.5),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: paletteColor.withValues(alpha: 0.25),
+                      blurRadius: 12,
+                      spreadRadius: 1,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : [],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

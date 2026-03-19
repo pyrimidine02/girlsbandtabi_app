@@ -90,3 +90,91 @@ class VerificationAppeal {
     );
   }
 }
+
+class ProjectRoleRequest {
+  const ProjectRoleRequest({
+    required this.id,
+    required this.projectId,
+    required this.requestedRole,
+    required this.status,
+    required this.justification,
+    required this.createdAt,
+    this.projectCode,
+    this.projectName,
+    this.adminMemo,
+    this.reviewedAt,
+    this.reviewerId,
+    this.reviewerName,
+  });
+
+  final String id;
+  final String projectId;
+  final String? projectCode;
+  final String? projectName;
+  final String requestedRole;
+  final String status;
+  final String justification;
+  final DateTime createdAt;
+  final String? adminMemo;
+  final DateTime? reviewedAt;
+  final String? reviewerId;
+  final String? reviewerName;
+
+  bool get isPending {
+    return status.toUpperCase() == 'PENDING' ||
+        status.toUpperCase() == 'OPEN' ||
+        status.toUpperCase() == 'REQUESTED';
+  }
+
+  String get statusLabel {
+    switch (status.toUpperCase()) {
+      case 'PENDING':
+      case 'OPEN':
+      case 'REQUESTED':
+        return '대기중';
+      case 'APPROVED':
+      case 'GRANTED':
+        return '승인됨';
+      case 'REJECTED':
+      case 'DENIED':
+        return '거절됨';
+      case 'CANCELED':
+      case 'CANCELLED':
+        return '취소됨';
+      default:
+        return status;
+    }
+  }
+
+  String get requestedRoleLabel {
+    switch (requestedRole.toUpperCase()) {
+      case 'PLACE_EDITOR':
+        return '콘텐츠 편집';
+      case 'COMMUNITY_MODERATOR':
+        return '커뮤니티 운영';
+      case 'ADMIN':
+        return '프로젝트 관리자';
+      case 'MEMBER':
+        return '멤버';
+      default:
+        return requestedRole;
+    }
+  }
+
+  factory ProjectRoleRequest.fromDto(ProjectRoleRequestDto dto) {
+    return ProjectRoleRequest(
+      id: dto.id,
+      projectId: dto.projectId,
+      projectCode: dto.projectCode,
+      projectName: dto.projectName,
+      requestedRole: dto.requestedRole,
+      status: dto.status,
+      justification: dto.justification,
+      createdAt: dto.createdAt,
+      adminMemo: dto.adminMemo,
+      reviewedAt: dto.reviewedAt,
+      reviewerId: dto.reviewerId,
+      reviewerName: dto.reviewerName,
+    );
+  }
+}

@@ -64,14 +64,19 @@ class CacheManager {
     this._localStorage, {
     DateTime Function()? now,
     Duration cacheFirstRevalidateInterval = const Duration(minutes: 10),
+    Future<bool> Function()? isOnline,
   }) : _now = now ?? DateTime.now,
-       _cacheFirstRevalidateInterval = cacheFirstRevalidateInterval;
+       _cacheFirstRevalidateInterval = cacheFirstRevalidateInterval,
+       _isOnline = isOnline;
 
   final LocalStorage _localStorage;
   final DateTime Function() _now;
   // EN: Default interval to probe server changes for cacheFirst hits.
   // KO: cacheFirst 적중 시 서버 변경사항을 확인하는 기본 주기.
   final Duration _cacheFirstRevalidateInterval;
+  // EN: Optional runtime network availability probe.
+  // KO: 런타임 네트워크 가용성 확인(선택).
+  final Future<bool> Function()? _isOnline;
   final Map<String, Future<void>> _refreshTasks = {};
 
   static const String _namespace = 'gbt_cache';
@@ -90,11 +95,20 @@ class CacheManager {
     Duration? revalidateAfter,
   }) async {
     final cached = getJsonEntry(key, fromJson: fromJson);
+    final online = await _probeOnline();
+    final isOffline = online == false;
+    final effectivePolicy = isOffline ? _offlineFallbackPolicy(policy) : policy;
 
-    switch (policy) {
+    switch (effectivePolicy) {
       case CachePolicy.cacheOnly:
         final entry = cached;
         if (entry == null) {
+          if (isOffline) {
+            throw const CacheFailure(
+              'Offline and no cached data',
+              code: 'offline_cache_miss',
+            );
+          }
           throw const CacheFailure('Cache miss', code: 'cache_miss');
         }
         return CacheResult(
@@ -162,6 +176,28 @@ class CacheManager {
         await setJson(key, toJson(data), ttl: ttl);
         return CacheResult(data: data, isFromCache: false, isStale: false);
     }
+  }
+
+  Future<bool?> _probeOnline() async {
+    final probe = _isOnline;
+    if (probe == null) {
+      return null;
+    }
+    try {
+      return await probe();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  CachePolicy _offlineFallbackPolicy(CachePolicy original) {
+    return switch (original) {
+      CachePolicy.cacheOnly => CachePolicy.cacheOnly,
+      CachePolicy.cacheFirst => CachePolicy.cacheOnly,
+      CachePolicy.staleWhileRevalidate => CachePolicy.cacheOnly,
+      CachePolicy.networkFirst => CachePolicy.cacheOnly,
+      CachePolicy.networkOnly => CachePolicy.cacheOnly,
+    };
   }
 
   /// EN: Save JSON object to cache.

@@ -192,4 +192,61 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(fetchCount, 1);
   });
+
+  test(
+    'offline mode forces cache fallback and skips fetch for cacheFirst',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      final storage = LocalStorage(prefs);
+      final manager = CacheManager(storage, isOnline: () async => false);
+
+      await manager.setJson('offline_home', {
+        'title': 'cached_offline',
+      }, ttl: const Duration(minutes: 10));
+
+      var fetchCount = 0;
+      final result = await manager.resolve<Map<String, dynamic>>(
+        key: 'offline_home',
+        policy: CachePolicy.cacheFirst,
+        fetcher: () async {
+          fetchCount += 1;
+          return {'title': 'network'};
+        },
+        toJson: (data) => data,
+        fromJson: (json) => json,
+        ttl: const Duration(minutes: 10),
+        revalidateAfter: const Duration(minutes: 1),
+      );
+
+      expect(fetchCount, 0);
+      expect(result.isFromCache, true);
+      expect(result.data['title'], 'cached_offline');
+    },
+  );
+
+  test(
+    'offline mode returns offline_cache_miss when no cache exists',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      final storage = LocalStorage(prefs);
+      final manager = CacheManager(storage, isOnline: () async => false);
+
+      await expectLater(
+        manager.resolve<Map<String, dynamic>>(
+          key: 'offline_missing',
+          policy: CachePolicy.networkFirst,
+          fetcher: () async => {'x': 1},
+          toJson: (data) => data,
+          fromJson: (json) => json,
+        ),
+        throwsA(
+          isA<CacheFailure>().having(
+            (failure) => failure.code,
+            'code',
+            'offline_cache_miss',
+          ),
+        ),
+      );
+    },
+  );
 }

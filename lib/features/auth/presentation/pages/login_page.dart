@@ -81,14 +81,38 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                     child: Column(
                       children: [
-                        Icon(
-                          Icons.music_note,
-                          size: 64,
-                          color: colorScheme.primary,
-                          semanticLabel: context.l10n(
-                            ko: 'Girls Band Tabi 로고',
-                            en: 'Girls Band Tabi logo',
-                            ja: 'Girls Band Tabi ロゴ',
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [colorScheme.primary, colorScheme.tertiary],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: colorScheme.primary.withValues(alpha: 0.3),
+                                blurRadius: 16,
+                                spreadRadius: 4,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Semantics(
+                            label: context.l10n(
+                              ko: 'Girls Band Tabi 로고',
+                              en: 'Girls Band Tabi logo',
+                              ja: 'Girls Band Tabi ロゴ',
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.music_note_rounded,
+                                size: 40,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: GBTSpacing.md),

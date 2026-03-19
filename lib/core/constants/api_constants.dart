@@ -31,6 +31,7 @@ class ApiEndpoints {
   // KO: 사용자 엔드포인트 (8.2)
   // ============================================================
   static const String userMe = '$apiVersion/users/me';
+  static const String userMeAccessLevel = '$userMe/access-level';
   static const String userVisits = '$apiVersion/users/me/visits';
   static const String userVisitsSummary = '$apiVersion/users/me/visits/summary';
   static String userVisitDetail(String visitId) => '$userVisits/$visitId';
@@ -38,6 +39,7 @@ class ApiEndpoints {
   static String userProfile(String userId) => '$apiVersion/users/$userId';
   static const String userPrivacySettings = '$userMe/privacy-settings';
   static const String userConsents = '$userMe/consents';
+  static const String userConsentStatus = '$userMe/consent-status';
   static const String userPrivacyRequests = '$userMe/privacy-requests';
   static String userFollow(String userId) => '${userProfile(userId)}/follow';
   static String userFollowers(String userId) =>
@@ -60,6 +62,8 @@ class ApiEndpoints {
   // ============================================================
   static const String notifications = '$apiVersion/notifications';
   static String notificationRead(String id) => '$notifications/$id/read';
+  static String notificationDelete(String id) => '$notifications/$id';
+  static const String notificationsDeleteAll = notifications;
   static const String notificationSettings = '$notifications/settings';
   static const String notificationDevices = '$notifications/devices';
   static String notificationDevice(String deviceId) =>
@@ -83,6 +87,20 @@ class ApiEndpoints {
   // ============================================================
   static const String homeSummary = '$apiVersion/home/summary';
   static const String homeSummaryByProject = '$homeSummary/by-project';
+
+  /// EN: Active home page banner slides (GET).
+  /// KO: 홈 페이지 활성 배너 슬라이드 (GET).
+  static const String homeBanners = '$apiVersion/home/banners';
+
+  // ============================================================
+  // EN: Calendar endpoints (8.27)
+  // KO: 캘린더 엔드포인트 (8.27)
+  // ============================================================
+
+  /// EN: Paginated calendar events filtered by year, month, and optional projectId.
+  /// KO: 연도, 월, 선택적 projectId로 필터링된 페이지네이션 캘린더 이벤트.
+  static const String calendarEvents = '$apiVersion/calendar/events';
+
   static const String search = '$apiVersion/search';
   static const String searchDiscoveryPopular =
       '$apiVersion/search/discovery/popular';
@@ -109,6 +127,18 @@ class ApiEndpoints {
       '${projectUnits(projectId)}/$unitId/members';
   static String unitMember(String projectId, String unitId, String memberId) =>
       '${unitMembers(projectId, unitId)}/$memberId';
+  static String projectVoiceActors(String projectId) =>
+      '${projectUnits(projectId)}/voice-actors';
+  static String projectVoiceActor(String projectId, String voiceActorId) =>
+      '${projectVoiceActors(projectId)}/$voiceActorId';
+  static String projectVoiceActorMembers(
+    String projectId,
+    String voiceActorId,
+  ) => '${projectVoiceActor(projectId, voiceActorId)}/members';
+  static String projectVoiceActorCredits(
+    String projectId,
+    String voiceActorId,
+  ) => '${projectVoiceActor(projectId, voiceActorId)}/credits';
 
   // ============================================================
   // EN: Place endpoints (8.6)
@@ -279,6 +309,44 @@ class ApiEndpoints {
       '${liveEvent(projectId, liveEventId)}/attendance';
   static String liveEventVerification(String projectId, String liveEventId) =>
       '${liveEvent(projectId, liveEventId)}/verification';
+  static String liveEventSetlist(String projectId, String liveEventId) =>
+      '${liveEvent(projectId, liveEventId)}/setlist';
+
+  // ============================================================
+  // EN: Music information endpoints (8.26)
+  // KO: 악곡 정보 엔드포인트 (8.26)
+  // ============================================================
+  static String musicAlbums(String projectId) =>
+      '${project(projectId)}/music/albums';
+  static String musicAlbum(String projectId, String albumId) =>
+      '${musicAlbums(projectId)}/$albumId';
+  static String musicSongs(String projectId) =>
+      '${project(projectId)}/music/songs';
+  static String musicSong(String projectId, String songId) =>
+      '${musicSongs(projectId)}/$songId';
+  static String musicSongLyrics(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/lyrics';
+  static String musicSongParts(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/parts';
+  static String musicSongCallGuide(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/call-guide';
+  static String musicSongVersions(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/versions';
+  static String musicSongVersion(
+    String projectId,
+    String songId,
+    String versionCode,
+  ) => '${musicSongVersions(projectId, songId)}/$versionCode';
+  static String musicSongCredits(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/credits';
+  static String musicSongDifficulty(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/difficulty';
+  static String musicSongMediaLinks(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/media-links';
+  static String musicSongAvailability(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/availability';
+  static String musicSongLiveContext(String projectId, String songId) =>
+      '${musicSong(projectId, songId)}/live-context';
 
   // ============================================================
   // EN: Community endpoints (8.16) - Uses projectCode!
@@ -374,11 +442,8 @@ class ApiEndpoints {
   static String uploadsConfirm(String uploadId) =>
       '$apiVersion/uploads/$uploadId/confirm';
   static const String uploadsMy = '$apiVersion/uploads/my';
-  static const String uploadsPending = '$apiVersion/uploads/pending';
   static String uploadsDelete(String uploadId) =>
       '$apiVersion/uploads/$uploadId';
-  static String uploadsApprove(String uploadId) =>
-      '$apiVersion/uploads/$uploadId/approve';
 
   // ============================================================
   // EN: Media Link endpoints (8.19)
@@ -453,6 +518,16 @@ class ApiEndpoints {
       '${projectRoles(projectId)}/grant';
   static String projectRolesRevoke(String projectId) =>
       '${projectRoles(projectId)}/revoke';
+  static const String projectRoleRequests =
+      '$apiVersion/projects/role-requests';
+  static String projectRoleRequest(String requestId) =>
+      '$projectRoleRequests/$requestId';
+  static const String adminProjectRoleRequests =
+      '$apiVersion/admin/projects/role-requests';
+  static String adminProjectRoleRequest(String requestId) =>
+      '$adminProjectRoleRequests/$requestId';
+  static String adminProjectRoleRequestReview(String requestId) =>
+      '${adminProjectRoleRequest(requestId)}/review';
   static const String adminPasswordSecurityConfig =
       '$apiVersion/admin/password-security/config';
   static const String adminPasswordSecurityTest =
@@ -477,6 +552,11 @@ class ApiEndpoints {
       '$adminCommunityReports/$reportId';
   static String adminCommunityReportAssign(String reportId) =>
       '${adminCommunityReport(reportId)}/assign';
+  static const String adminMediaDeletions = '$apiVersion/admin/media-deletions';
+  static String adminMediaDeletionApprove(String requestId) =>
+      '$adminMediaDeletions/$requestId/approve';
+  static String adminMediaDeletionReject(String requestId) =>
+      '$adminMediaDeletions/$requestId/reject';
   static const String adminAuditLogs = '$apiVersion/admin/audit-logs';
   static const String adminExports = '$apiVersion/admin/exports';
   static String adminExport(String id) => '$adminExports/$id';
@@ -524,6 +604,36 @@ class ApiEndpoints {
   static const String adminEventsStream = '$apiVersion/admin/events/stream';
 
   // ============================================================
+  // EN: Banner endpoints (8.XX)
+  // KO: 배너 엔드포인트 (8.XX)
+  // ============================================================
+
+  /// EN: Active banner for the authenticated user (GET/PUT/DELETE).
+  /// KO: 인증된 사용자의 활성 배너 엔드포인트 (GET/PUT/DELETE).
+  static const String userBanner = '$userMe/banner';
+
+  /// EN: Full banner catalog with unlock state for the current user.
+  /// KO: 현재 사용자의 해금 상태가 포함된 전체 배너 카탈로그.
+  static const String banners = '$apiVersion/banners';
+
+  // ============================================================
+  // EN: Title endpoints (Title System v1)
+  // KO: 칭호 엔드포인트 (칭호 시스템 v1)
+  // ============================================================
+
+  /// EN: Full title catalog (GET). Auth optional — isEarned/isActive null when unauthenticated.
+  /// KO: 전체 칭호 카탈로그 (GET). 인증 선택 — 비인증 시 isEarned/isActive는 null.
+  static const String titles = '$apiVersion/titles';
+
+  /// EN: Authenticated user's active title (GET/PUT/DELETE).
+  /// KO: 인증된 사용자의 활성 칭호 엔드포인트 (GET/PUT/DELETE).
+  static const String userMeTitle = '$userMe/title';
+
+  /// EN: Another user's active title (GET, public).
+  /// KO: 다른 사용자의 활성 칭호 엔드포인트 (GET, 공개).
+  static String userTitle(String userId) => '$apiVersion/users/$userId/title';
+
+  // ============================================================
   // EN: Health check endpoints (8.25)
   // KO: 헬스 체크 엔드포인트 (8.25)
   // ============================================================
@@ -531,6 +641,79 @@ class ApiEndpoints {
   static const String healthDetailed = '$apiVersion/health/detailed';
   static const String healthReady = '$apiVersion/health/ready';
   static const String healthLive = '$apiVersion/health/live';
+
+  // ============================================================
+  // EN: Fan level (덕力) endpoints
+  // KO: 팬 레벨(덕력) 엔드포인트
+  // ============================================================
+
+  /// EN: Authenticated user's fan level profile (GET).
+  /// KO: 인증된 사용자의 팬 레벨 프로필 (GET).
+  static const String fanLevelProfile = '$apiVersion/users/me/fan-level';
+
+  /// EN: Daily check-in endpoint for the authenticated user (POST).
+  /// KO: 인증된 사용자의 일일 출석 체크 엔드포인트 (POST).
+  static const String fanLevelCheckIn =
+      '$apiVersion/users/me/fan-level/check-in';
+
+  /// EN: XP earning endpoint for in-app activities (POST).
+  /// KO: 앱 내 활동 XP 획득 엔드포인트 (POST).
+  static const String fanLevelEarnXp = '$apiVersion/users/me/fan-level/xp';
+
+  // ============================================================
+  // EN: Cheer guide endpoints
+  // KO: 응원 가이드 엔드포인트
+  // ============================================================
+
+  /// EN: List of all cheer guides (GET).
+  /// KO: 모든 응원 가이드 목록 (GET).
+  static const String cheerGuides = '$apiVersion/cheer-guides';
+
+  /// EN: Single cheer guide detail by ID (GET).
+  /// KO: ID로 단일 응원 가이드 상세 조회 (GET).
+  static String cheerGuide(String guideId) => '$cheerGuides/$guideId';
+
+  // ============================================================
+  // EN: Quote card endpoints
+  // KO: 명대사 카드 엔드포인트
+  // ============================================================
+
+  /// EN: List of quote cards (GET).
+  /// KO: 명대사 카드 목록 (GET).
+  static const String quotes = '$apiVersion/quotes';
+
+  /// EN: Like/unlike a quote card (POST/DELETE).
+  /// KO: 명대사 카드 좋아요/취소 (POST/DELETE).
+  static String quoteLike(String quoteId) => '$quotes/$quoteId/like';
+
+  // ============================================================
+  // EN: Contributors endpoint — public, no auth required.
+  // KO: 기여자 목록 엔드포인트 — 공개, 인증 불필요.
+  // ============================================================
+
+  /// EN: Deduplicated contributor list for any entity type (GET, public).
+  ///     Sorted by lastModifiedAt DESC; `isRegistrant: true` marks the original creator.
+  /// KO: 모든 엔티티 타입의 중복 제거된 기여자 목록 (GET, 공개).
+  ///     lastModifiedAt 내림차순 정렬; `isRegistrant: true`가 최초 등록자.
+  ///
+  /// `entityType`: `places` | `lives` | `units` | `characters`
+  ///               | `projects` | `songs` | `albums`
+  static String contributors(String entityType, String entityId) =>
+      '$apiVersion/$entityType/$entityId/contributors';
+
+  // ============================================================
+  // EN: Zukan / pilgrimage stamp collection endpoints
+  // KO: 도감 / 성지순례 스탬프 컬렉션 엔드포인트
+  // ============================================================
+
+  /// EN: List of zukan collections (GET).
+  /// KO: 도감 컬렉션 목록 (GET).
+  static const String zukanCollections = '$apiVersion/zukan/collections';
+
+  /// EN: Single zukan collection detail by ID (GET).
+  /// KO: ID로 단일 도감 컬렉션 상세 조회 (GET).
+  static String zukanCollection(String collectionId) =>
+      '$zukanCollections/$collectionId';
 }
 
 /// EN: API timeout configurations (in milliseconds)
@@ -550,6 +733,7 @@ class ApiHeaders {
 
   static const String authorization = 'Authorization';
   static const String bearer = 'Bearer';
+  static const String accept = 'Accept';
   static const String contentType = 'Content-Type';
   static const String applicationJson = 'application/json';
   static const String clientType = 'X-Client-Type';

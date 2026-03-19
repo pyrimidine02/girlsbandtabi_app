@@ -15,4 +15,12 @@ abstract class NotificationsRepository {
   });
 
   Future<Result<void>> markAsRead(String notificationId);
+
+  /// EN: Delete a single notification by ID.
+  /// KO: ID로 단일 알림을 삭제합니다.
+  Future<Result<void>> deleteNotification(String notificationId);
+
+  /// EN: Delete all notifications for the current user.
+  /// KO: 현재 사용자의 모든 알림을 삭제합니다.
+  Future<Result<void>> deleteAllNotifications();
 }

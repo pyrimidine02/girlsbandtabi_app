@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/localization/locale_text.dart';
+import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
@@ -16,6 +17,9 @@ import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../favorites/application/favorites_controller.dart';
 import '../../../favorites/domain/entities/favorite_entities.dart';
+import '../../../music/application/music_controller.dart';
+import '../../../music/domain/entities/music_entities.dart';
+import '../../../../core/widgets/common/registrant_credit_widget.dart';
 import '../../application/live_events_controller.dart';
 import '../../domain/entities/live_event_entities.dart';
 
@@ -165,6 +169,19 @@ class LiveEventDetailPage extends ConsumerWidget {
     final attendanceState = ref.watch(
       liveAttendanceControllerProvider(event.id),
     );
+    final setlistProjectId = event.projectIds.isNotEmpty
+        ? event.projectIds.first
+        : '';
+    final AsyncValue<MusicLiveSetlist?> setlistState = setlistProjectId.isEmpty
+        ? const AsyncData<MusicLiveSetlist?>(null)
+        : ref
+              .watch(
+                liveEventSetlistProvider((
+                  projectId: setlistProjectId,
+                  liveEventId: event.id,
+                )),
+              )
+              .whenData<MusicLiveSetlist?>((value) => value);
     final isFavorite = favoritesState.maybeWhen(
       data: (items) => items.any(
         (item) =>
@@ -439,6 +456,12 @@ class LiveEventDetailPage extends ConsumerWidget {
                         _toggleAttendance(context, ref, event, attended),
                   ),
                   const SizedBox(height: GBTSpacing.lg),
+                  _LiveSetlistSection(
+                    state: setlistState,
+                    projectId: setlistProjectId,
+                    liveEventId: event.id,
+                  ),
+                  const SizedBox(height: GBTSpacing.lg),
                   const Divider(),
                   const SizedBox(height: GBTSpacing.lg),
                   Text(
@@ -501,6 +524,13 @@ class LiveEventDetailPage extends ConsumerWidget {
                         ),
                       ),
                     ),
+                  const SizedBox(height: GBTSpacing.lg),
+                  // EN: Contributors credit — who registered and edited this live event.
+                  // KO: 기여자 크레딧 — 이 라이브 이벤트를 등록하고 수정한 사람을 표시합니다.
+                  ContributorsCreditWidget(
+                    entityType: 'lives',
+                    entityId: event.id,
+                  ),
                   const SizedBox(height: GBTSpacing.xxl),
                 ],
               ),
@@ -638,6 +668,168 @@ class _LiveAttendanceSection extends StatelessWidget {
   }
 }
 
+class _LiveSetlistSection extends StatelessWidget {
+  const _LiveSetlistSection({
+    required this.state,
+    required this.projectId,
+    required this.liveEventId,
+  });
+
+  final AsyncValue<MusicLiveSetlist?> state;
+  final String projectId;
+  final String liveEventId;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+    final titleColor = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final secondaryColor = isDark
+        ? GBTColors.darkTextSecondary
+        : GBTColors.textSecondary;
+    final tertiaryColor = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
+    return Container(
+      width: double.infinity,
+      padding: GBTSpacing.paddingMd,
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                context.l10n(ko: '세트리스트', en: 'Setlist', ja: 'セットリスト'),
+                style: GBTTypography.titleSmall.copyWith(
+                  color: titleColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: GBTSpacing.sm),
+          state.when(
+            data: (setlist) {
+              if (setlist == null || setlist.items.isEmpty) {
+                return Text(
+                  context.l10n(
+                    ko: '세트리스트 정보 준비중',
+                    en: 'Setlist will be available soon.',
+                    ja: 'セットリスト情報は準備中です。',
+                  ),
+                  style: GBTTypography.bodySmall.copyWith(
+                    color: secondaryColor,
+                  ),
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: GBTSpacing.sm,
+                      vertical: GBTSpacing.xxs,
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          (isDark ? GBTColors.darkPrimary : GBTColors.primary)
+                              .withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(
+                        GBTSpacing.radiusFull,
+                      ),
+                    ),
+                    child: Text(
+                      'Status: ${setlist.eventStatus}',
+                      style: GBTTypography.labelSmall.copyWith(
+                        color: isDark
+                            ? GBTColors.darkPrimary
+                            : GBTColors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: GBTSpacing.sm),
+                  ...setlist.items.map((item) {
+                    final hasSongLink =
+                        item.hasSongLink && projectId.isNotEmpty;
+                    final subtitleParts = <String>[
+                      if ((item.unitName ?? '').trim().isNotEmpty)
+                        item.unitName!,
+                      if ((item.versionCode ?? '').trim().isNotEmpty)
+                        item.versionCode!,
+                      item.segmentType,
+                    ];
+                    return ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: SizedBox(
+                        width: 18,
+                        child: Text(
+                          '${item.order}',
+                          style: GBTTypography.bodyMedium.copyWith(
+                            color: tertiaryColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        item.songTitle ?? '-',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        subtitleParts.join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: item.isEncore
+                          ? const Icon(Icons.star_rounded, size: 16)
+                          : null,
+                      onTap: !hasSongLink
+                          ? null
+                          : () => context.goToSongDetail(
+                              item.songId!,
+                              projectId: projectId,
+                              eventId: liveEventId,
+                            ),
+                    );
+                  }),
+                ],
+              );
+            },
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: GBTSpacing.sm),
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+            error: (error, _) => Text(
+              error is Failure
+                  ? error.userMessage
+                  : context.l10n(
+                      ko: '세트리스트를 불러오지 못했어요.',
+                      en: 'Failed to load setlist.',
+                      ja: 'セットリストの読み込みに失敗しました。',
+                    ),
+              style: GBTTypography.bodySmall.copyWith(color: secondaryColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 String _attendanceStatusLabel(BuildContext context, String status) {
   final normalized = LiveAttendanceStatus.normalize(status);
   return switch (normalized) {
@@ -733,7 +925,7 @@ class _StatusChip extends StatelessWidget {
 
 /// EN: Horizontal info card — icon + label + value in compact card.
 /// KO: 가로 정보 카드 — 아이콘 + 라벨 + 값 콤팩트 카드.
-class _InfoCard extends StatelessWidget {
+class _InfoCard extends StatefulWidget {
   const _InfoCard({
     required this.icon,
     required this.label,
@@ -749,52 +941,78 @@ class _InfoCard extends StatelessWidget {
   final Color? accent;
 
   @override
+  State<_InfoCard> createState() => _InfoCardState();
+}
+
+class _InfoCardState extends State<_InfoCard> {
+  bool _isPressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    final bgColor = isDark
+    final bgColor = widget.isDark
         ? GBTColors.darkSurfaceVariant
         : GBTColors.surfaceVariant;
-    final labelColor = isDark
+    final labelColor = widget.isDark
         ? GBTColors.darkTextTertiary
         : GBTColors.textTertiary;
     final valueColor =
-        accent ?? (isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary);
+        widget.accent ??
+        (widget.isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary);
     final iconColor =
-        accent ??
-        (isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary);
+        widget.accent ??
+        (widget.isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary);
 
-    return Container(
-      width: 140,
-      padding: const EdgeInsets.all(GBTSpacing.md),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 14, color: iconColor),
-              const SizedBox(width: GBTSpacing.xs),
-              Text(
-                label,
-                style: GBTTypography.labelSmall.copyWith(color: labelColor),
-              ),
-            ],
-          ),
-          const SizedBox(height: GBTSpacing.xs),
-          Expanded(
-            child: Text(
-              value,
-              style: GBTTypography.bodySmall.copyWith(
-                color: valueColor,
-                fontWeight: FontWeight.w500,
-              ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedContainer(
+        duration: GBTAnimations.fast,
+        curve: GBTAnimations.defaultCurve,
+        width: 140,
+        padding: const EdgeInsets.all(GBTSpacing.md),
+        decoration: BoxDecoration(
+          color: _isPressed ? bgColor.withValues(alpha: 0.7) : bgColor,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+          boxShadow: _isPressed
+              ? []
+              : [
+                  BoxShadow(
+                    color: widget.isDark
+                        ? Colors.black26
+                        : Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(widget.icon, size: 14, color: iconColor),
+                const SizedBox(width: GBTSpacing.xs),
+                Text(
+                  widget.label,
+                  style: GBTTypography.labelSmall.copyWith(color: labelColor),
+                ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: GBTSpacing.xs),
+            Expanded(
+              child: Text(
+                widget.value,
+                style: GBTTypography.bodySmall.copyWith(
+                  color: valueColor,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -37,4 +37,25 @@ void main() {
       );
     });
   });
+
+  group('AdminMediaDeletionStatusX', () {
+    test('maps API values to media deletion status enum', () {
+      expect(
+        AdminMediaDeletionStatusX.fromApiValue('PENDING'),
+        AdminMediaDeletionStatus.pending,
+      );
+      expect(
+        AdminMediaDeletionStatusX.fromApiValue('APPROVED'),
+        AdminMediaDeletionStatus.approved,
+      );
+      expect(
+        AdminMediaDeletionStatusX.fromApiValue('REJECTED'),
+        AdminMediaDeletionStatus.rejected,
+      );
+      expect(
+        AdminMediaDeletionStatusX.fromApiValue('UNKNOWN_STATUS'),
+        AdminMediaDeletionStatus.unknown,
+      );
+    });
+  });
 }

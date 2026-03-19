@@ -55,13 +55,18 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
     );
   }
 
-  /// EN: Upload bytes and return upload info (presigned first, direct fallback).
-  /// KO: 바이트 업로드 후 업로드 정보를 반환합니다(presigned 우선, direct 폴백).
+  /// EN: Upload bytes and return upload info.
+  /// KO: 바이트 업로드 후 업로드 정보를 반환합니다.
   ///
-  /// EN: For image content types, the server requires using the direct upload
-  /// endpoint, so we skip presigned URL and go straight to direct upload.
-  /// KO: 이미지 contentType의 경우 서버가 direct 업로드 엔드포인트를
-  /// 요구하므로 presigned URL을 건너뛰고 바로 direct 업로드를 사용합니다.
+  /// EN: GIF files are routed through the presigned URL flow because the
+  /// direct upload endpoint converts files to WebP (which would destroy
+  /// animation). The server's presigned-url endpoint explicitly allows
+  /// image/gif. All other image/* types use the direct upload endpoint
+  /// which performs server-side WebP conversion.
+  /// KO: GIF 파일은 presigned URL 경로를 사용합니다. direct 업로드 엔드포인트는
+  /// 파일을 WebP로 변환하므로 애니메이션이 손실됩니다. 서버의 presigned-url
+  /// 엔드포인트는 image/gif를 명시적으로 허용합니다. 그 외 image/* 타입은
+  /// 서버 측 WebP 변환을 수행하는 direct 업로드 엔드포인트를 사용합니다.
   Future<Result<UploadInfo>> uploadImageBytes({
     required Uint8List bytes,
     required String filename,
@@ -69,11 +74,13 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
   }) async {
     final repository = await _ref.read(uploadsRepositoryProvider.future);
 
-    // EN: Server rejects presigned URLs for image/* content types with 400.
-    // Use direct upload immediately for images.
-    // KO: 서버는 image/* contentType에 대해 presigned URL을 400으로 거부합니다.
-    // 이미지는 바로 direct 업로드를 사용합니다.
-    if (contentType.startsWith('image/')) {
+    // EN: GIF must go through presigned URL (server converts direct-upload
+    // images to WebP, which breaks animation). Presigned URL stores the
+    // file as-is in R2.
+    // KO: GIF는 presigned URL을 통해 업로드해야 합니다. direct 업로드는
+    // 이미지를 WebP로 변환하여 애니메이션이 손실됩니다. Presigned URL은
+    // 파일을 R2에 그대로 저장합니다.
+    if (contentType != 'image/gif' && contentType.startsWith('image/')) {
       AppLogger.debug(
         'Image content type detected ($contentType), '
         'using direct upload',
@@ -85,13 +92,13 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
         contentType: contentType,
       );
       if (directResult is Success<UploadInfo>) {
-        await load(forceRefresh: true);
+        _upsertUpload(directResult.data);
       }
       return directResult;
     }
 
-    // EN: Non-image files: try presigned URL first, fallback to direct.
-    // KO: 이미지가 아닌 파일: presigned URL 우선, direct로 폴백.
+    // EN: GIF and non-image files: presigned URL first, fallback to direct.
+    // KO: GIF 및 이미지 외 파일: presigned URL 우선, direct로 폴백.
     final presignedResult = await _uploadViaPresigned(
       repository: repository,
       bytes: bytes,
@@ -117,7 +124,7 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
           contentType: contentType,
         );
         if (directResult is Success<UploadInfo>) {
-          await load(forceRefresh: true);
+          _upsertUpload(directResult.data);
         }
         return directResult;
       }
@@ -145,23 +152,6 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
     final repository = await _ref.read(uploadsRepositoryProvider.future);
     final result = await repository.deleteUpload(uploadId);
     if (result is Success<void>) {
-      await load(forceRefresh: true);
-    }
-    return result;
-  }
-
-  /// EN: Approve or reject an upload.
-  /// KO: 업로드를 승인하거나 반려합니다.
-  Future<Result<ApproveUploadResponse>> approveUpload({
-    required String uploadId,
-    required bool isApproved,
-  }) async {
-    final repository = await _ref.read(uploadsRepositoryProvider.future);
-    final result = await repository.approveUpload(
-      uploadId: uploadId,
-      isApproved: isApproved,
-    );
-    if (result is Success<ApproveUploadResponse>) {
       await load(forceRefresh: true);
     }
     return result;
@@ -233,21 +223,34 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
       return Result.failure(confirmResult.failure);
     }
 
-    final listResult = await repository.getMyUploads(forceRefresh: true);
-    if (listResult is Success<List<UploadInfo>>) {
-      final match = listResult.data
-          .where((item) => item.uploadId == presigned.uploadId)
-          .toList();
-      if (match.isNotEmpty) {
-        return Result.success(match.first);
-      }
-    } else if (listResult is Err<List<UploadInfo>>) {
-      return Result.failure(listResult.failure);
-    }
-
-    return const Result.failure(
-      UnknownFailure('Uploaded file not found after confirm'),
+    final uploaded = UploadInfo(
+      uploadId: presigned.uploadId,
+      url: _stripQueryAndFragment(presigned.url),
+      filename: filename,
+      isApproved: true,
     );
+    _upsertUpload(uploaded);
+    return Result.success(uploaded);
+  }
+
+  void _upsertUpload(UploadInfo upload) {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return;
+    }
+    final next = <UploadInfo>[
+      upload,
+      ...current.where((item) => item.uploadId != upload.uploadId),
+    ];
+    state = AsyncData(next);
+  }
+
+  String _stripQueryAndFragment(String rawUrl) {
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null) {
+      return rawUrl;
+    }
+    return uri.replace(query: null, fragment: null).toString();
   }
 }
 

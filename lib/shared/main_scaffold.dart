@@ -33,7 +33,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   int? _lastSyncedIndex;
   bool _syncScheduled = false;
   DateTime? _lastBackPressed;
-  String _lastNonBoardLocation = '/home';
+  String _lastNonCommunityLocation = '/home';
 
   void _scheduleSync(int index) {
     if (_syncScheduled) return;
@@ -53,13 +53,15 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     final currentUri = GoRouterState.of(context).uri;
     final currentPath = currentUri.path;
     final currentLocation = currentUri.toString();
-    final isBoardBranch = currentIndex == 3;
+    final isCommunityBranch = currentIndex == 4;
+    final isCommunityRoot =
+        isCommunityBranch && _isCommunityRootRoute(currentPath);
     final shouldShowBottomNav = _shouldShowBottomNav(
       currentIndex: currentIndex,
       currentPath: currentPath,
     );
-    if (!isBoardBranch) {
-      _lastNonBoardLocation = currentLocation;
+    if (!isCommunityBranch) {
+      _lastNonCommunityLocation = currentLocation;
     }
     if (_lastSyncedIndex != currentIndex) {
       _scheduleSync(currentIndex);
@@ -69,6 +71,16 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       canPop: canNavigateBack,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop || canNavigateBack) return;
+        if (defaultTargetPlatform == TargetPlatform.android &&
+            isCommunityRoot) {
+          final target = _lastNonCommunityLocation;
+          context.go(
+            target.startsWith('/community') || target.isEmpty
+                ? '/home'
+                : target,
+          );
+          return;
+        }
         if (defaultTargetPlatform != TargetPlatform.android) {
           return;
         }
@@ -98,26 +110,29 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         body: widget.navigationShell,
         bottomNavigationBar: !shouldShowBottomNav
             ? null
-            : isBoardBranch
-            ? _BoardSubBottomNav(
-                section: _resolveBoardSection(currentPath),
+            : isCommunityBranch
+            ? _CommunitySubBottomNav(
+                section: _resolveCommunitySection(currentPath),
                 onBackTap: () {
-                  final target = _lastNonBoardLocation;
+                  final target = _lastNonCommunityLocation;
                   context.go(
-                    target.startsWith('/board') || target.isEmpty
+                    target.startsWith('/community') || target.isEmpty
                         ? '/home'
                         : target,
                   );
                 },
                 onSectionChanged: (section) {
-                  ref.read(currentNavIndexProvider.notifier).state = 3;
+                  ref.read(currentNavIndexProvider.notifier).state = 4;
                   switch (section) {
-                    case _BoardSubSection.feed:
-                      context.go('/board');
-                    case _BoardSubSection.discover:
-                      context.go('/board/discover');
-                    case _BoardSubSection.travelReview:
-                      context.go('/board/travel-reviews-tab');
+                    case _CommunitySubSection.feed:
+                      widget.navigationShell.goBranch(
+                        4,
+                        initialLocation: true,
+                      );
+                    case _CommunitySubSection.discover:
+                      context.go('/community/discover');
+                    case _CommunitySubSection.travelReview:
+                      context.go('/community/travel-reviews-tab');
                   }
                 },
               )
@@ -129,24 +144,29 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                     label: context.l10n(ko: '홈', en: 'Home', ja: 'ホーム'),
                   ),
                   GBTBottomNavItem(
-                    icon: Icons.place_outlined,
-                    activeIcon: Icons.place,
-                    label: context.l10n(ko: '장소', en: 'Places', ja: '場所'),
-                  ),
-                  GBTBottomNavItem(
-                    icon: Icons.music_note_outlined,
-                    activeIcon: Icons.music_note,
-                    label: context.l10n(ko: '라이브', en: 'Live', ja: 'ライブ'),
-                  ),
-                  GBTBottomNavItem(
-                    icon: Icons.forum_outlined,
-                    activeIcon: Icons.forum,
-                    label: context.l10n(ko: '게시판', en: 'Board', ja: '掲示板'),
+                    icon: Icons.explore_outlined,
+                    activeIcon: Icons.explore,
+                    label: context.l10n(ko: '탐방', en: 'Explore', ja: '探索'),
                   ),
                   GBTBottomNavItem(
                     icon: Icons.auto_stories_outlined,
                     activeIcon: Icons.auto_stories,
-                    label: context.l10n(ko: '정보', en: 'Info', ja: '情報'),
+                    label:
+                        context.l10n(ko: '정보', en: 'Info', ja: '情報'),
+                  ),
+                  GBTBottomNavItem(
+                    icon: Icons.person_outline_rounded,
+                    activeIcon: Icons.person_rounded,
+                    label: context.l10n(ko: '유저', en: 'My', ja: 'マイ'),
+                  ),
+                  GBTBottomNavItem(
+                    icon: Icons.forum_outlined,
+                    activeIcon: Icons.forum,
+                    label: context.l10n(
+                      ko: '커뮤니티',
+                      en: 'Community',
+                      ja: 'コミュニティ',
+                    ),
                   ),
                 ],
                 currentIndex: currentIndex,
@@ -160,45 +180,45 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     required int currentIndex,
     required String currentPath,
   }) {
-    if (currentIndex == 3) {
-      return _isBoardRootRoute(currentPath);
+    if (currentIndex == 4) {
+      return _isCommunityRootRoute(currentPath);
     }
     if (currentIndex == 0) {
       return currentPath == '/home';
     }
     if (currentIndex == 1) {
-      return currentPath == '/places';
+      return currentPath == '/explore';
     }
     if (currentIndex == 2) {
-      return currentPath == '/live';
+      return currentPath == '/idol';
     }
-    if (currentIndex == 4) {
-      return currentPath == '/info';
+    if (currentIndex == 3) {
+      return currentPath == '/my';
     }
     return false;
   }
 
-  bool _isBoardRootRoute(String path) {
-    return path == '/board' ||
-        path == '/board/discover' ||
-        path == '/board/travel-reviews-tab';
+  bool _isCommunityRootRoute(String path) {
+    return path == '/community' ||
+        path == '/community/discover' ||
+        path == '/community/travel-reviews-tab';
   }
 
-  _BoardSubSection _resolveBoardSection(String path) {
-    if (path.startsWith('/board/travel-reviews-tab')) {
-      return _BoardSubSection.travelReview;
+  _CommunitySubSection _resolveCommunitySection(String path) {
+    if (path.startsWith('/community/travel-reviews-tab')) {
+      return _CommunitySubSection.travelReview;
     }
-    if (path.startsWith('/board/discover')) {
-      return _BoardSubSection.discover;
+    if (path.startsWith('/community/discover')) {
+      return _CommunitySubSection.discover;
     }
-    return _BoardSubSection.feed;
+    return _CommunitySubSection.feed;
   }
 
   /// EN: Handle bottom navigation tap
   /// KO: 하단 네비게이션 탭 처리
   void _onTap(BuildContext context, int index) {
-    if (index == 3 && widget.navigationShell.currentIndex != 3) {
-      _lastNonBoardLocation = GoRouterState.of(context).uri.toString();
+    if (index == 4 && widget.navigationShell.currentIndex != 4) {
+      _lastNonCommunityLocation = GoRouterState.of(context).uri.toString();
     }
     widget.navigationShell.goBranch(
       index,
@@ -211,17 +231,21 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   }
 }
 
-enum _BoardSubSection { feed, discover, travelReview }
+enum _CommunitySubSection { feed, discover, travelReview }
 
-extension on _BoardSubSection {
+extension on _CommunitySubSection {
   String label(BuildContext context) => switch (this) {
-    _BoardSubSection.feed => context.l10n(ko: '피드', en: 'Feed', ja: 'フィード'),
-    _BoardSubSection.discover => context.l10n(
+    _CommunitySubSection.feed => context.l10n(
+      ko: '피드',
+      en: 'Feed',
+      ja: 'フィード',
+    ),
+    _CommunitySubSection.discover => context.l10n(
       ko: '발견',
       en: 'Discover',
       ja: '発見',
     ),
-    _BoardSubSection.travelReview => context.l10n(
+    _CommunitySubSection.travelReview => context.l10n(
       ko: '여행후기',
       en: 'Travel Reviews',
       ja: '旅行レビュー',
@@ -229,22 +253,22 @@ extension on _BoardSubSection {
   };
 
   IconData get icon => switch (this) {
-    _BoardSubSection.feed => Icons.dynamic_feed_outlined,
-    _BoardSubSection.discover => Icons.explore_outlined,
-    _BoardSubSection.travelReview => Icons.rate_review_outlined,
+    _CommunitySubSection.feed => Icons.dynamic_feed_outlined,
+    _CommunitySubSection.discover => Icons.explore_outlined,
+    _CommunitySubSection.travelReview => Icons.rate_review_outlined,
   };
 }
 
-class _BoardSubBottomNav extends StatelessWidget {
-  const _BoardSubBottomNav({
+class _CommunitySubBottomNav extends StatelessWidget {
+  const _CommunitySubBottomNav({
     required this.section,
     required this.onBackTap,
     required this.onSectionChanged,
   });
 
-  final _BoardSubSection section;
+  final _CommunitySubSection section;
   final VoidCallback onBackTap;
-  final ValueChanged<_BoardSubSection> onSectionChanged;
+  final ValueChanged<_CommunitySubSection> onSectionChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -352,7 +376,7 @@ class _BoardSubBottomNav extends StatelessWidget {
                   ),
                   Expanded(
                     child: Row(
-                      children: _BoardSubSection.values.map((value) {
+                      children: _CommunitySubSection.values.map((value) {
                         final isSelected = value == section;
                         final itemColor = isSelected
                             ? selectedColor
@@ -473,7 +497,7 @@ class _BoardSubBottomNav extends StatelessWidget {
               const SizedBox(width: 2),
               Expanded(
                 child: Row(
-                  children: _BoardSubSection.values
+                  children: _CommunitySubSection.values
                       .map((value) {
                         final isSelected = value == section;
                         final itemColor = isSelected

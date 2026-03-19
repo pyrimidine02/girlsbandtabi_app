@@ -12,21 +12,16 @@ class LiveEventsRemoteDataSource {
 
   final ApiClient _apiClient;
 
-  /// EN: Fetch paginated live events for a project.
-  /// KO: 프로젝트의 페이지네이션된 라이브 이벤트를 조회합니다.
+  /// EN: Fetch all live events for a project. Unit filtering is done client-side.
+  /// KO: 프로젝트의 전체 라이브 이벤트를 조회합니다. 유닛 필터링은 클라이언트에서 처리합니다.
   Future<Result<List<LiveEventSummaryDto>>> fetchLiveEvents({
     required String projectId,
-    List<String> unitIds = const [],
     int page = ApiPagination.defaultPage,
-    int size = ApiPagination.defaultSize,
+    int size = 500,
   }) {
     return _apiClient.get<List<LiveEventSummaryDto>>(
       ApiEndpoints.liveEvents(projectId),
-      queryParameters: {
-        'page': page,
-        'size': size,
-        if (unitIds.isNotEmpty) 'unitIds': unitIds,
-      },
+      queryParameters: {'page': page, 'size': size},
       fromJson: (json) => _decodeLiveEventList(json),
     );
   }

@@ -13,6 +13,14 @@ void main() {
       notificationTypePostCreated,
     );
     expect(
+      normalizeNotificationType('MY_POST_COMMENT_CREATED'),
+      'COMMENT_CREATED',
+    );
+    expect(
+      normalizeNotificationType('MY_COMMENT_REPLY_CREATED'),
+      'COMMENT_REPLY_CREATED',
+    );
+    expect(
       normalizeNotificationType('SYSTEM_BROADCAST'),
       notificationTypeSystemNotice,
     );
@@ -37,7 +45,7 @@ void main() {
       final path = resolveNotificationNavigationPath(
         type: 'POST_CREATED',
         actionUrl:
-            'https://api.pyrimidines.org/api/v1/projects/girls-band-cry/posts/38f55757-6953-44d4-abb8-8ab0ec35003e',
+            'https://api.noraneko.cc/api/v1/projects/girls-band-cry/posts/38f55757-6953-44d4-abb8-8ab0ec35003e',
       );
 
       expect(path, '/board/posts/38f55757-6953-44d4-abb8-8ab0ec35003e');

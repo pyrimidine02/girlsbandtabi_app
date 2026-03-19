@@ -14,17 +14,19 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/oauth_callback_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
-import '../../features/places/presentation/pages/places_map_page.dart';
+import '../../features/explore/presentation/pages/explore_page.dart';
 import '../../features/places/presentation/pages/place_detail_page.dart';
-import '../../features/live_events/presentation/pages/live_events_page.dart';
 import '../../features/live_events/presentation/pages/live_event_detail_page.dart';
 import '../../features/feed/presentation/pages/board_page.dart';
 import '../../features/feed/presentation/pages/info_page.dart';
+import '../../features/my/presentation/pages/my_page.dart';
 import '../../features/feed/presentation/pages/member_detail_page.dart';
 import '../../features/feed/presentation/pages/news_detail_page.dart';
 import '../../features/feed/presentation/pages/post_create_page.dart';
 import '../../features/feed/presentation/pages/post_detail_page.dart';
 import '../../features/feed/presentation/pages/unit_detail_page.dart';
+import '../../features/feed/presentation/pages/voice_actor_detail_page.dart';
+import '../../features/music/presentation/pages/music_song_detail_page.dart';
 import '../../features/projects/domain/entities/project_entities.dart'
     show Unit, UnitMember;
 import '../../features/feed/presentation/pages/post_edit_page.dart';
@@ -45,8 +47,18 @@ import '../../features/visits/presentation/pages/visit_detail_page.dart';
 import '../../features/visits/presentation/pages/visit_history_page.dart';
 import '../../features/visits/presentation/pages/visit_stats_page.dart';
 import '../../features/favorites/presentation/pages/favorites_page.dart';
+import '../../features/feed/presentation/pages/post_bookmarks_page.dart';
 import '../../features/search/presentation/pages/search_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
+import '../../features/profile_banner/presentation/pages/banner_picker_page.dart';
+import '../../features/titles/presentation/pages/title_catalog_page.dart';
+import '../../features/calendar/presentation/pages/calendar_page.dart';
+import '../../features/fan_level/presentation/pages/fan_level_page.dart';
+import '../../features/cheer_guides/presentation/pages/cheer_guides_page.dart';
+import '../../features/cheer_guides/presentation/pages/cheer_guide_detail_page.dart';
+import '../../features/quotes/presentation/pages/quotes_page.dart';
+import '../../features/zukan/presentation/pages/zukan_page.dart';
+import '../../features/zukan/presentation/pages/zukan_detail_page.dart';
 
 DateTime? _lastPostDetailNavigationAt;
 String? _lastPostDetailNavigationPath;
@@ -97,23 +109,42 @@ class AppRoutes {
   // EN: Main tab routes
   // KO: 메인 탭 라우트
   static const String home = 'home';
+
+  // EN: Explore branch (places + live + visits)
+  // KO: 탐방 분기 (장소 + 라이브 + 방문기록)
+  static const String explore = 'explore';
+  static const String placeDetail = 'place-detail';
+  static const String overlayPlaceDetail = 'overlay-place-detail';
+  static const String liveDetail = 'live-detail';
+  static const String overlayLiveDetail = 'overlay-live-detail';
+
+  // EN: Idol branch (info + cheer guides + quotes + zukan)
+  // KO: 아이돌 분기 (정보 + 응원가이드 + 명언 + 도감)
+  static const String idol = 'idol';
+
+  // EN: Community branch (board)
+  // KO: 커뮤니티 분기 (게시판)
+  static const String community = 'community';
   static const String feed = 'feed';
   static const String discover = 'discover';
   static const String travelReviewTab = 'travel-review-tab';
-  static const String places = 'places';
-  static const String placeDetail = 'place-detail';
-  static const String overlayPlaceDetail = 'overlay-place-detail';
-  static const String live = 'live';
-  static const String liveDetail = 'live-detail';
-  static const String overlayLiveDetail = 'overlay-live-detail';
-  static const String board = 'board';
+
+  // EN: My branch
+  // KO: 나 분기
+  static const String my = 'my';
+
+  // EN: Info/idol sub-routes
+  // KO: 정보/아이돌 서브 라우트
   static const String info = 'info';
   static const String newsDetail = 'news-detail';
   static const String overlayNewsDetail = 'overlay-news-detail';
   static const String unitDetail = 'unit-detail';
   static const String memberDetail = 'member-detail';
+  static const String voiceActorDetail = 'voice-actor-detail';
+  static const String songDetail = 'song-detail';
   static const String postDetail = 'post-detail';
   static const String overlayPostDetail = 'overlay-post-detail';
+  static const String overlaySongDetail = 'overlay-song-detail';
   static const String postCreate = 'post-create';
   static const String travelReviewCreate = 'travelReviewCreate';
   static const String travelReviewDetail = 'travelReviewDetail';
@@ -141,6 +172,25 @@ class AppRoutes {
   static const String search = 'search';
   static const String notifications = 'notifications';
   static const String favorites = 'favorites';
+  static const String postBookmarks = 'post-bookmarks';
+
+  // EN: Profile banner picker overlay route.
+  // KO: 프로필 배너 피커 오버레이 라우트.
+  static const String bannerPicker = 'banner-picker';
+
+  // EN: Title catalog picker overlay route.
+  // KO: 칭호 카탈로그 피커 오버레이 라우트.
+  static const String titlePicker = 'title-picker';
+
+  // EN: Otaku feature routes.
+  // KO: 오타쿠 기능 라우트.
+  static const String calendar = 'calendar';
+  static const String fanLevel = 'fan-level';
+  static const String cheerGuides = 'cheer-guides';
+  static const String cheerGuideDetail = 'cheer-guide-detail';
+  static const String quotes = 'quotes';
+  static const String zukan = 'zukan';
+  static const String zukanDetail = 'zukan-detail';
 }
 
 /// EN: Navigation shell branch index
@@ -149,10 +199,23 @@ class NavIndex {
   NavIndex._();
 
   static const int home = 0;
-  static const int places = 1;
-  static const int live = 2;
-  static const int board = 3;
-  static const int info = 4;
+
+  /// EN: Explore branch — places map, live events, visit history.
+  /// KO: 탐방 분기 — 장소 지도, 라이브, 방문기록.
+  static const int explore = 1;
+
+  /// EN: Idol branch — info, cheer guides, quotes, zukan.
+  /// KO: 아이돌 분기 — 정보, 응원가이드, 명언, 도감.
+  static const int idol = 2;
+
+  /// EN: My branch — fan level, calendar, collection, settings.
+  /// KO: 나 분기 — 팬레벨, 달력, 컬렉션, 설정.
+  static const int my = 3;
+
+  /// EN: Community branch — board / feed.
+  /// KO: 커뮤니티 분기 — 게시판.
+  static const int community = 4;
+
 }
 
 /// EN: GoRouter provider with authentication redirect
@@ -172,7 +235,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       final isAuthRoute =
           loc == '/login' || loc == '/register' || loc.startsWith('/auth/');
-      final isPublicRoute = loc == '/home' || loc.startsWith('/info');
+      final isPublicRoute =
+          loc == '/home' ||
+          loc.startsWith('/idol');
 
       // EN: If logged in and on auth pages, redirect to home.
       // KO: 로그인했고 인증 페이지면 홈으로 리다이렉트.
@@ -238,17 +303,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // EN: Places Branch (Index 1)
-          // KO: 장소 분기 (인덱스 1)
+          // EN: Explore Branch (Index 1) — map + live + visits sub-tabs.
+          // KO: 탐방 분기 (인덱스 1) — 지도 + 라이브 + 방문기록 서브탭.
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/places',
-                name: AppRoutes.places,
-                builder: (context, state) => const PlacesMapPage(),
+                path: '/explore',
+                name: AppRoutes.explore,
+                pageBuilder: (context, state) {
+                  final tabParam = state.uri.queryParameters['tab'];
+                  final tabIndex =
+                      tabParam != null ? (int.tryParse(tabParam) ?? 0) : 0;
+                  return NoTransitionPage(
+                    key: state.pageKey,
+                    child: ExplorePage(initialTabIndex: tabIndex),
+                  );
+                },
                 routes: [
                   GoRoute(
-                    path: ':placeId',
+                    path: 'places/:placeId',
                     name: AppRoutes.placeDetail,
                     pageBuilder: (context, state) {
                       final placeId = state.pathParameters['placeId']!;
@@ -258,22 +331,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       );
                     },
                   ),
-                ],
-              ),
-            ],
-          ),
-
-          // EN: Live Events Branch (Index 2)
-          // KO: 라이브 이벤트 분기 (인덱스 2)
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/live',
-                name: AppRoutes.live,
-                builder: (context, state) => const LiveEventsPage(),
-                routes: [
                   GoRoute(
-                    path: ':eventId',
+                    path: 'live/:eventId',
                     name: AppRoutes.liveDetail,
                     pageBuilder: (context, state) {
                       final eventId = state.pathParameters['eventId']!;
@@ -288,13 +347,175 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // EN: Board Branch (Index 3)
-          // KO: 게시판 분기 (인덱스 3)
+          // EN: Idol Branch (Index 2) — info, cheer guides, quotes, zukan.
+          // KO: 아이돌 분기 (인덱스 2) — 정보, 응원가이드, 명언, 도감.
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/board',
-                name: AppRoutes.board,
+                path: '/idol',
+                name: AppRoutes.idol,
+                builder: (context, state) => const InfoPage(),
+                routes: [
+                  GoRoute(
+                    path: 'news/:newsId',
+                    name: AppRoutes.newsDetail,
+                    pageBuilder: (context, state) {
+                      final newsId = state.pathParameters['newsId']!;
+                      return _buildAdaptiveDetailPage(
+                        key: state.pageKey,
+                        child: NewsDetailPage(newsId: newsId),
+                      );
+                    },
+                  ),
+                  GoRoute(
+                    path: 'units/:unitId',
+                    name: AppRoutes.unitDetail,
+                    pageBuilder: (context, state) {
+                      final unitIdentifier = state.pathParameters['unitId']!;
+                      final projectId =
+                          state.uri.queryParameters['projectId'] ?? '';
+                      if (projectId.trim().isEmpty) {
+                        return _buildAdaptiveDetailPage(
+                          key: state.pageKey,
+                          child: const _InvalidNavigationPage(
+                            message: '유닛 상세 경로 인자가 올바르지 않습니다. (projectId)',
+                          ),
+                        );
+                      }
+                      final unit = state.extra is Unit
+                          ? state.extra! as Unit
+                          : null;
+                      return _buildAdaptiveDetailPage(
+                        key: state.pageKey,
+                        child: UnitDetailPage(
+                          projectId: projectId,
+                          unitIdentifier: unitIdentifier,
+                          initialUnit: unit,
+                        ),
+                      );
+                    },
+                    routes: [
+                      GoRoute(
+                        path: 'members/:memberId',
+                        name: AppRoutes.memberDetail,
+                        pageBuilder: (context, state) {
+                          final projectId =
+                              state.uri.queryParameters['projectId'] ?? '';
+                          if (projectId.trim().isEmpty) {
+                            return _buildAdaptiveDetailPage(
+                              key: state.pageKey,
+                              child: const _InvalidNavigationPage(
+                                message: '멤버 상세 경로 인자가 올바르지 않습니다. (projectId)',
+                              ),
+                            );
+                          }
+                          final unitIdentifier =
+                              state.pathParameters['unitId']!;
+                          final memberId = state.pathParameters['memberId']!;
+                          UnitMember? member;
+                          Unit? unit;
+                          final extra = state.extra;
+                          if (extra is Map<String, dynamic>) {
+                            final maybeMember = extra['member'];
+                            final maybeUnit = extra['unit'];
+                            if (maybeMember is UnitMember) {
+                              member = maybeMember;
+                            }
+                            if (maybeUnit is Unit) {
+                              unit = maybeUnit;
+                            }
+                          }
+                          return _buildAdaptiveDetailPage(
+                            key: state.pageKey,
+                            child: MemberDetailPage(
+                              projectId: projectId,
+                              unitIdentifier: unitIdentifier,
+                              memberId: memberId,
+                              initialMember: member,
+                              unit: unit,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'voice-actors/:voiceActorId',
+                    name: AppRoutes.voiceActorDetail,
+                    pageBuilder: (context, state) {
+                      final projectId =
+                          state.uri.queryParameters['projectId'] ?? '';
+                      if (projectId.trim().isEmpty) {
+                        return _buildAdaptiveDetailPage(
+                          key: state.pageKey,
+                          child: const _InvalidNavigationPage(
+                            message: '성우 상세 경로 인자가 올바르지 않습니다. (projectId)',
+                          ),
+                        );
+                      }
+                      final voiceActorId =
+                          state.pathParameters['voiceActorId']!;
+                      final fallbackName = state.uri.queryParameters['name'];
+                      return _buildAdaptiveDetailPage(
+                        key: state.pageKey,
+                        child: VoiceActorDetailPage(
+                          projectId: projectId,
+                          voiceActorId: voiceActorId,
+                          fallbackName: fallbackName,
+                        ),
+                      );
+                    },
+                  ),
+                  GoRoute(
+                    path: 'songs/:songId',
+                    name: AppRoutes.songDetail,
+                    pageBuilder: (context, state) {
+                      final projectId =
+                          state.uri.queryParameters['projectId'] ?? '';
+                      if (projectId.trim().isEmpty) {
+                        return _buildAdaptiveDetailPage(
+                          key: state.pageKey,
+                          child: const _InvalidNavigationPage(
+                            message: '악곡 상세 경로 인자가 올바르지 않습니다. (projectId)',
+                          ),
+                        );
+                      }
+                      final songId = state.pathParameters['songId']!;
+                      final eventId = state.uri.queryParameters['eventId'];
+                      return _buildAdaptiveDetailPage(
+                        key: state.pageKey,
+                        child: MusicSongDetailPage(
+                          projectId: projectId,
+                          songId: songId,
+                          eventId: eventId,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // EN: My Branch (Index 3) — fan level, calendar, collection, settings.
+          // KO: 나 분기 (인덱스 3) — 팬레벨, 달력, 컬렉션, 설정.
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/my',
+                name: AppRoutes.my,
+                builder: (context, state) => const MyPage(),
+              ),
+            ],
+          ),
+
+          // EN: Community Branch (Index 4) — board / feed.
+          // KO: 커뮤니티 분기 (인덱스 4) — 게시판.
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/community',
+                name: AppRoutes.community,
                 pageBuilder: (context, state) => NoTransitionPage(
                   key: state.pageKey,
                   child: const BoardPage(initialTabIndex: 0),
@@ -364,125 +585,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-
-          // EN: Info Branch (Index 4)
-          // KO: 정보 분기 (인덱스 4)
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/info',
-                name: AppRoutes.info,
-                builder: (context, state) => const InfoPage(),
-                routes: [
-                  GoRoute(
-                    path: 'news/:newsId',
-                    name: AppRoutes.newsDetail,
-                    pageBuilder: (context, state) {
-                      final newsId = state.pathParameters['newsId']!;
-                      return _buildAdaptiveDetailPage(
-                        key: state.pageKey,
-                        child: NewsDetailPage(newsId: newsId),
-                      );
-                    },
-                  ),
-                  GoRoute(
-                    path: 'units/:unitId',
-                    name: AppRoutes.unitDetail,
-                    pageBuilder: (context, state) {
-                      final unit = state.extra;
-                      if (unit is! Unit) {
-                        return _buildAdaptiveDetailPage(
-                          key: state.pageKey,
-                          child: const _InvalidNavigationPage(
-                            message: '유닛 상세 경로 인자가 올바르지 않습니다.',
-                          ),
-                        );
-                      }
-                      final projectId =
-                          state.uri.queryParameters['projectId'] ?? '';
-                      return _buildAdaptiveDetailPage(
-                        key: state.pageKey,
-                        child: UnitDetailPage(unit: unit, projectId: projectId),
-                      );
-                    },
-                    routes: [
-                      GoRoute(
-                        path: 'members/:memberId',
-                        name: AppRoutes.memberDetail,
-                        pageBuilder: (context, state) {
-                          final extra = state.extra;
-                          if (extra is! Map<String, dynamic>) {
-                            return _buildAdaptiveDetailPage(
-                              key: state.pageKey,
-                              child: const _InvalidNavigationPage(
-                                message: '멤버 상세 경로 인자가 올바르지 않습니다.',
-                              ),
-                            );
-                          }
-                          final member = extra['member'];
-                          final unit = extra['unit'];
-                          if (member is! UnitMember || unit is! Unit) {
-                            return _buildAdaptiveDetailPage(
-                              key: state.pageKey,
-                              child: const _InvalidNavigationPage(
-                                message: '멤버 상세 경로 인자가 올바르지 않습니다.',
-                              ),
-                            );
-                          }
-                          return _buildAdaptiveDetailPage(
-                            key: state.pageKey,
-                            child: MemberDetailPage(member: member, unit: unit),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
         ],
-      ),
-
-      // EN: Legacy route redirects
-      // KO: 레거시 라우트 리다이렉트
-      GoRoute(path: '/feed', redirect: (context, state) => '/board'),
-      GoRoute(
-        path: '/discover',
-        redirect: (context, state) => '/board/discover',
-      ),
-      GoRoute(
-        path: '/travel-reviews-tab',
-        redirect: (context, state) => '/board/travel-reviews-tab',
-      ),
-      GoRoute(
-        path: '/posts/new',
-        redirect: (context, state) => '/board/posts/new',
-      ),
-      GoRoute(
-        path: '/travel-reviews/create',
-        redirect: (context, state) => '/board/travel-review-create',
-      ),
-      GoRoute(
-        path: '/travel-reviews/:reviewId',
-        redirect: (context, state) {
-          final reviewId = state.pathParameters['reviewId']!;
-          return '/board/travel-reviews/$reviewId';
-        },
-      ),
-      GoRoute(
-        path: '/posts/:postId',
-        redirect: (context, state) {
-          final postId = state.pathParameters['postId']!;
-          return '/board/posts/$postId';
-        },
-      ),
-      GoRoute(
-        path: '/posts/:postId/edit',
-        redirect: (context, state) {
-          final postId = state.pathParameters['postId']!;
-          return '/board/posts/$postId/edit';
-        },
       ),
 
       // EN: Settings routes (overlay, outside shell)
@@ -500,32 +603,50 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'profile',
             name: AppRoutes.profileEdit,
-            builder: (context, state) => const ProfileEditPage(),
+            pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+              key: state.pageKey,
+              child: const ProfileEditPage(),
+            ),
           ),
           GoRoute(
             path: 'notifications',
             name: AppRoutes.notificationSettings,
-            builder: (context, state) => const NotificationSettingsPage(),
+            pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+              key: state.pageKey,
+              child: const NotificationSettingsPage(),
+            ),
           ),
           GoRoute(
             path: 'account-tools',
             name: AppRoutes.accountTools,
-            builder: (context, state) => const AccountToolsPage(),
+            pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+              key: state.pageKey,
+              child: const AccountToolsPage(),
+            ),
           ),
           GoRoute(
             path: 'privacy-rights',
             name: AppRoutes.privacyRights,
-            builder: (context, state) => const PrivacyRightsPage(),
+            pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+              key: state.pageKey,
+              child: const PrivacyRightsPage(),
+            ),
           ),
           GoRoute(
             path: 'consents',
             name: AppRoutes.consentHistory,
-            builder: (context, state) => const ConsentHistoryPage(),
+            pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+              key: state.pageKey,
+              child: const ConsentHistoryPage(),
+            ),
           ),
           GoRoute(
             path: 'admin',
             name: AppRoutes.adminOps,
-            builder: (context, state) => const AdminOpsPage(),
+            pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+              key: state.pageKey,
+              child: const AdminOpsPage(),
+            ),
           ),
         ],
       ),
@@ -556,8 +677,104 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const FavoritesPage(),
       ),
       GoRoute(
+        path: '/post-bookmarks',
+        name: AppRoutes.postBookmarks,
+        builder: (context, state) => const PostBookmarksPage(),
+      ),
+
+      // EN: Otaku feature routes (overlay, outside shell)
+      // KO: 오타쿠 기능 라우트 (오버레이, 쉘 외부)
+      GoRoute(
+        path: '/calendar',
+        name: AppRoutes.calendar,
+        pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+          key: state.pageKey,
+          child: const CalendarPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/fan-level',
+        name: AppRoutes.fanLevel,
+        pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+          key: state.pageKey,
+          child: const FanLevelPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/cheer-guides',
+        name: AppRoutes.cheerGuides,
+        pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+          key: state.pageKey,
+          child: const CheerGuidesPage(),
+        ),
+        routes: [
+          GoRoute(
+            path: ':guideId',
+            name: AppRoutes.cheerGuideDetail,
+            builder: (context, state) {
+              final guideId = state.pathParameters['guideId']!;
+              return CheerGuideDetailPage(guideId: guideId);
+            },
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/quotes',
+        name: AppRoutes.quotes,
+        pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+          key: state.pageKey,
+          child: const QuotesPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/zukan',
+        name: AppRoutes.zukan,
+        pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+          key: state.pageKey,
+          child: const ZukanPage(),
+        ),
+        routes: [
+          GoRoute(
+            path: ':collectionId',
+            name: AppRoutes.zukanDetail,
+            builder: (context, state) {
+              final collectionId = state.pathParameters['collectionId']!;
+              return ZukanDetailPage(collectionId: collectionId);
+            },
+          ),
+        ],
+      ),
+
+      GoRoute(
         path: '/live-attendance',
         redirect: (context, state) => '/visits?tab=live',
+      ),
+
+      // EN: Profile banner picker — overlay route outside the shell.
+      // KO: 프로필 배너 피커 — 쉘 외부 오버레이 라우트.
+      GoRoute(
+        path: '/banner-picker',
+        name: AppRoutes.bannerPicker,
+        pageBuilder: (context, state) {
+          return _buildAdaptiveOverlayPage(
+            key: state.pageKey,
+            child: const BannerPickerPage(),
+          );
+        },
+      ),
+
+      // EN: Title catalog picker — overlay route outside the shell.
+      // KO: 칭호 카탈로그 피커 — 쉘 외부 오버레이 라우트.
+      GoRoute(
+        path: '/title-picker',
+        name: AppRoutes.titlePicker,
+        pageBuilder: (context, state) {
+          final initialTitleId = state.uri.queryParameters['titleId'];
+          return _buildAdaptiveOverlayPage(
+            key: state.pageKey,
+            child: TitleCatalogPage(initialTitleId: initialTitleId),
+          );
+        },
       ),
 
       // EN: Overlay detail routes used when opening details from overlay stacks
@@ -608,6 +825,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             child: PostDetailPage(
               postId: postId,
               projectCodeHint: projectCodeHint,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/overlay/music/songs/:songId',
+        name: AppRoutes.overlaySongDetail,
+        pageBuilder: (context, state) {
+          final projectId = state.uri.queryParameters['projectId'] ?? '';
+          if (projectId.trim().isEmpty) {
+            return _buildAdaptiveDetailPage(
+              key: state.pageKey,
+              child: const _InvalidNavigationPage(
+                message: '악곡 상세 경로 인자가 올바르지 않습니다. (projectId)',
+              ),
+            );
+          }
+          final songId = state.pathParameters['songId']!;
+          final eventId = state.uri.queryParameters['eventId'];
+          return _buildAdaptiveDetailPage(
+            key: state.pageKey,
+            child: MusicSongDetailPage(
+              projectId: projectId,
+              songId: songId,
+              eventId: eventId,
             ),
           );
         },
@@ -739,10 +981,17 @@ extension AppRouterExtension on BuildContext {
   bool _isOverlayPath(String path) {
     return path.startsWith('/settings') ||
         path.startsWith('/favorites') ||
+        path.startsWith('/post-bookmarks') ||
         path.startsWith('/visits') ||
         path.startsWith('/visit-stats') ||
         path.startsWith('/notifications') ||
         path.startsWith('/search') ||
+        path.startsWith('/calendar') ||
+        path.startsWith('/fan-level') ||
+        path.startsWith('/cheer-guides') ||
+        path.startsWith('/quotes') ||
+        path.startsWith('/zukan') ||
+        path.startsWith('/overlay/music') ||
         path.startsWith('/overlay');
   }
 
@@ -870,12 +1119,58 @@ extension AppRouterExtension on BuildContext {
     }
   }
 
+  /// EN: Navigate to song detail.
+  /// KO: 악곡 상세로 이동합니다.
+  void goToSongDetail(
+    String songId, {
+    required String projectId,
+    String? eventId,
+  }) {
+    final trimmedProjectId = projectId.trim();
+    if (trimmedProjectId.isEmpty) {
+      return;
+    }
+    final queryParameters = <String, String>{
+      'projectId': trimmedProjectId,
+      if (eventId != null && eventId.trim().isNotEmpty) 'eventId': eventId,
+    };
+    if (_isInOverlayContext()) {
+      pushNamed(
+        AppRoutes.overlaySongDetail,
+        pathParameters: {'songId': songId},
+        queryParameters: queryParameters,
+      );
+      return;
+    }
+    final router = GoRouter.of(this);
+    final targetPath = router.namedLocation(
+      AppRoutes.songDetail,
+      pathParameters: {'songId': songId},
+      queryParameters: queryParameters,
+    );
+    switch (_resolveShellNavigationAction(targetPath)) {
+      case _ShellNavigationAction.go:
+        go(targetPath);
+        return;
+      case _ShellNavigationAction.none:
+        return;
+      case _ShellNavigationAction.push:
+        pushNamed(
+          AppRoutes.songDetail,
+          pathParameters: {'songId': songId},
+          queryParameters: queryParameters,
+        );
+        return;
+    }
+  }
+
   /// EN: Navigate to unit detail page.
   /// KO: 유닛 상세 페이지로 이동.
   void goToUnitDetail({required Unit unit, required String projectId}) {
+    final unitIdentifier = unit.code.isNotEmpty ? unit.code : unit.id;
     pushNamed(
       AppRoutes.unitDetail,
-      pathParameters: {'unitId': unit.id},
+      pathParameters: {'unitId': unitIdentifier},
       queryParameters: {'projectId': projectId},
       extra: unit,
     );
@@ -888,11 +1183,35 @@ extension AppRouterExtension on BuildContext {
     required UnitMember member,
     required String projectId,
   }) {
+    final unitIdentifier = unit.code.isNotEmpty ? unit.code : unit.id;
     pushNamed(
       AppRoutes.memberDetail,
-      pathParameters: {'unitId': unit.id, 'memberId': member.id},
+      pathParameters: {'unitId': unitIdentifier, 'memberId': member.id},
       queryParameters: {'projectId': projectId},
       extra: {'member': member, 'unit': unit},
+    );
+  }
+
+  /// EN: Navigate to voice actor detail.
+  /// KO: 성우 상세로 이동
+  void goToVoiceActorDetail(
+    String voiceActorId, {
+    required String projectId,
+    String? fallbackName,
+  }) {
+    final trimmedProjectId = projectId.trim();
+    if (trimmedProjectId.isEmpty) {
+      return;
+    }
+    final trimmedName = fallbackName?.trim();
+    final queryParameters = <String, String>{
+      'projectId': trimmedProjectId,
+      if (trimmedName != null && trimmedName.isNotEmpty) 'name': trimmedName,
+    };
+    pushNamed(
+      AppRoutes.voiceActorDetail,
+      pathParameters: {'voiceActorId': voiceActorId},
+      queryParameters: queryParameters,
     );
   }
 
@@ -1053,6 +1372,12 @@ extension AppRouterExtension on BuildContext {
   /// KO: 커뮤니티 설정으로 이동
   void goToCommunitySettings() {
     pushNamed(AppRoutes.communitySettings);
+  }
+
+  /// EN: Navigate to post bookmarks page.
+  /// KO: 북마크한 게시글 페이지로 이동
+  void goToPostBookmarks() {
+    pushNamed(AppRoutes.postBookmarks);
   }
 
   /// EN: Navigate to visit stats

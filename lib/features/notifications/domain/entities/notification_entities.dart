@@ -5,6 +5,7 @@ library;
 import 'package:intl/intl.dart';
 
 import '../../data/dto/notification_dto.dart';
+import 'notification_navigation.dart';
 
 class NotificationItem {
   const NotificationItem({
@@ -42,7 +43,7 @@ class NotificationItem {
       body: dto.body,
       createdAt: dto.createdAt,
       isRead: dto.isRead,
-      type: dto.type,
+      type: normalizeNotificationType(dto.type),
       actionUrl: dto.actionUrl,
       deeplink: dto.deeplink,
       entityId: dto.entityId,

@@ -35,8 +35,18 @@ class PresignedUrlResponse {
 
   factory PresignedUrlResponse.fromJson(Map<String, dynamic> json) {
     return PresignedUrlResponse(
-      uploadId: json['uploadId'] as String? ?? '',
-      url: json['url'] as String? ?? '',
+      uploadId: _firstNonEmptyString([
+        json['uploadId'],
+        json['upload_id'],
+        json['id'],
+      ]),
+      url: _firstNonEmptyString([
+        json['url'],
+        json['uploadUrl'],
+        json['upload_url'],
+        json['presignedUrl'],
+        json['presigned_url'],
+      ]),
       headers: _stringMap(json['headers']),
     );
   }
@@ -56,8 +66,12 @@ class ConfirmUploadResponse {
 
   factory ConfirmUploadResponse.fromJson(Map<String, dynamic> json) {
     return ConfirmUploadResponse(
-      uploadId: json['uploadId'] as String? ?? '',
-      status: json['status'] as String? ?? '',
+      uploadId: _firstNonEmptyString([
+        json['uploadId'],
+        json['upload_id'],
+        json['id'],
+      ]),
+      status: _firstNonEmptyString([json['status'], json['state']]),
     );
   }
 
@@ -83,10 +97,33 @@ class UploadInfoResponse {
 
   factory UploadInfoResponse.fromJson(Map<String, dynamic> json) {
     return UploadInfoResponse(
-      uploadId: json['uploadId'] as String? ?? '',
-      url: json['url'] as String? ?? '',
-      filename: json['filename'] as String? ?? '',
-      isApproved: json['isApproved'] as bool? ?? false,
+      uploadId: _firstNonEmptyString([
+        json['uploadId'],
+        json['upload_id'],
+        json['id'],
+        json['fileId'],
+        json['file_id'],
+      ]),
+      url: _firstNonEmptyString([
+        json['url'],
+        json['fileUrl'],
+        json['file_url'],
+        json['publicUrl'],
+        json['public_url'],
+        json['cdnUrl'],
+        json['cdn_url'],
+        json['path'],
+      ]),
+      filename: _firstNonEmptyString([
+        json['filename'],
+        json['fileName'],
+        json['name'],
+        json['originalFilename'],
+      ]),
+      isApproved:
+          _boolValue(json['isApproved']) ??
+          _boolValue(json['approved']) ??
+          false,
     );
   }
 
@@ -100,33 +137,6 @@ class UploadInfoResponse {
   }
 }
 
-class ApproveUploadRequest {
-  const ApproveUploadRequest({required this.isApproved});
-
-  final bool isApproved;
-
-  Map<String, dynamic> toJson() {
-    return {'isApproved': isApproved};
-  }
-}
-
-class ApproveUploadResponse {
-  const ApproveUploadResponse({
-    required this.uploadId,
-    required this.isApproved,
-  });
-
-  final String uploadId;
-  final bool isApproved;
-
-  factory ApproveUploadResponse.fromJson(Map<String, dynamic> json) {
-    return ApproveUploadResponse(
-      uploadId: json['uploadId'] as String? ?? '',
-      isApproved: json['isApproved'] as bool? ?? false,
-    );
-  }
-}
-
 Map<String, String> _stringMap(dynamic value) {
   if (value is Map) {
     return value.map(
@@ -134,4 +144,26 @@ Map<String, String> _stringMap(dynamic value) {
     );
   }
   return <String, String>{};
+}
+
+String _firstNonEmptyString(List<dynamic> values) {
+  for (final value in values) {
+    if (value is String) {
+      final trimmed = value.trim();
+      if (trimmed.isNotEmpty && trimmed.toLowerCase() != 'null') {
+        return trimmed;
+      }
+    }
+  }
+  return '';
+}
+
+bool? _boolValue(dynamic value) {
+  if (value is bool) return value;
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == 'true') return true;
+    if (normalized == 'false') return false;
+  }
+  return null;
 }

@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/logging/app_logger.dart';
+import '../../../core/notifications/in_app_notification_queue.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/realtime/sse_client.dart';
 import '../../../core/storage/local_storage.dart';
@@ -17,6 +18,7 @@ import '../../../core/utils/result.dart';
 import '../data/datasources/notifications_remote_data_source.dart';
 import '../data/repositories/notifications_repository_impl.dart';
 import '../domain/entities/notification_entities.dart';
+import '../domain/entities/notification_navigation.dart';
 import '../domain/repositories/notifications_repository.dart';
 
 class _NotificationNavigationHint {
@@ -110,6 +112,24 @@ class NotificationsController
         return;
       }
       _reconnectBlockedUntil = null;
+    }
+
+    // EN: SSE bypasses the Dio interceptor, so proactively refresh the access
+    // EN: token here to avoid a wasted connection attempt and the 5-minute
+    // EN: auth-failure cooldown that follows a 401 on the stream endpoint.
+    // KO: SSE는 Dio 인터셉터를 거치지 않으므로 여기서 액세스 토큰을 선제 갱신합니다.
+    // KO: 스트림 엔드포인트 401 후 발생하는 5분 재연결 대기와
+    // KO: 불필요한 연결 시도를 방지합니다.
+    final apiClient = _ref.read(apiClientProvider);
+    final tokenReady = await apiClient.proactiveRefreshIfExpired();
+    if (!tokenReady) {
+      // EN: Refresh token is invalid; wait for auth state to change.
+      // KO: 리프레시 토큰이 무효합니다; 인증 상태 변경을 기다립니다.
+      AppLogger.warning(
+        '[Notifications] SSE skipped: token refresh failed',
+        tag: 'NotificationsController',
+      );
+      return;
     }
 
     final sseClient = _ref.read(sseClientProvider);
@@ -385,6 +405,39 @@ class NotificationsController
     await load(forceRefresh: true);
   }
 
+  /// EN: Optimistically remove a notification then call the delete API.
+  /// KO: 알림을 즉시 로컬에서 제거한 후 삭제 API를 호출합니다.
+  Future<void> deleteNotification(String notificationId) async {
+    final isAuthenticated = _ref.read(isAuthenticatedProvider);
+    if (!isAuthenticated) return;
+
+    // EN: Optimistic remove from local state.
+    // KO: 로컬 상태에서 즉시 제거합니다.
+    final prev = state.valueOrNull;
+    if (prev != null) {
+      state = AsyncData(prev.where((e) => e.id != notificationId).toList());
+      _knownNotificationIds.remove(notificationId);
+    }
+
+    final repository = await _ref.read(notificationsRepositoryProvider.future);
+    await repository.deleteNotification(notificationId);
+  }
+
+  /// EN: Optimistically clear all notifications then call the delete-all API.
+  /// KO: 모든 알림을 즉시 로컬에서 제거한 후 전체 삭제 API를 호출합니다.
+  Future<void> deleteAllNotifications() async {
+    final isAuthenticated = _ref.read(isAuthenticatedProvider);
+    if (!isAuthenticated) return;
+
+    // EN: Optimistic clear.
+    // KO: 즉시 전체 제거합니다.
+    state = const AsyncData([]);
+    _knownNotificationIds.clear();
+
+    final repository = await _ref.read(notificationsRepositoryProvider.future);
+    await repository.deleteAllNotifications();
+  }
+
   /// EN: Detect newly arrived unread notifications and raise local alerts.
   /// KO: 새로 도착한 미읽음 알림을 감지해 로컬 알림을 발생시킵니다.
   Future<void> _captureNotificationDelta(
@@ -414,6 +467,31 @@ class NotificationsController
     if (!allowLocalAlert || newlyArrivedUnread.isEmpty) {
       return;
     }
+
+    // EN: Push following-post and comment notifications as in-app banners.
+    // KO: 팔로잉 새글·댓글 알림을 인앱 배너로 표시합니다.
+    final inAppBannerTypes = {
+      notificationTypePostCreated,   // POST_CREATED  (팔로잉 새글)
+      'COMMENT_CREATED',             // 댓글
+      'COMMENT_REPLY_CREATED',       // 대댓글
+    };
+    final inAppQueue = _ref.read(inAppNotificationQueueProvider.notifier);
+    for (final item in newlyArrivedUnread.take(3)) {
+      final type = normalizeNotificationType(item.type);
+      if (inAppBannerTypes.contains(type)) {
+        inAppQueue.push(InAppNotificationEntry(
+          id: item.id,
+          title: item.title,
+          body: item.body,
+          type: type,
+          entityId: item.entityId,
+          deeplink: item.deeplink,
+          actionUrl: item.actionUrl,
+          projectCode: item.projectCode,
+        ));
+      }
+    }
+
     if (!await _isPushEnabledByUserSetting()) {
       return;
     }
@@ -474,9 +552,9 @@ class NotificationsController
     }
 
     _navigationHintsById[notificationId] = _NotificationNavigationHint(
-      type:
-          payload['notificationType']?.toString() ??
-          payload['type']?.toString(),
+      type: normalizeNotificationType(
+        payload['notificationType']?.toString() ?? payload['type']?.toString(),
+      ),
       actionUrl: payload['actionUrl']?.toString(),
       deeplink:
           payload['deeplink']?.toString() ?? payload['deepLink']?.toString(),

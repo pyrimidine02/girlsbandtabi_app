@@ -7,7 +7,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
+import '../logging/app_logger.dart';
 import '../connectivity/connectivity_service.dart';
 import '../cache/cache_manager.dart';
 import '../network/api_client.dart';
@@ -15,6 +17,7 @@ import '../analytics/analytics_service.dart';
 import '../location/location_service.dart';
 import '../notifications/local_notifications_service.dart';
 import '../notifications/remote_push_service.dart';
+import '../../features/notifications/domain/entities/notification_entities.dart';
 import '../realtime/sse_client.dart';
 import '../security/secure_storage.dart';
 import '../storage/local_storage.dart';
@@ -40,7 +43,11 @@ final localStorageProvider = FutureProvider<LocalStorage>((ref) async {
 /// KO: 캐시 매니저 프로바이더 (비동기 초기화 필요).
 final cacheManagerProvider = FutureProvider<CacheManager>((ref) async {
   final localStorage = await ref.read(localStorageProvider.future);
-  return CacheManager(localStorage);
+  final connectivityService = ref.watch(connectivityServiceProvider);
+  return CacheManager(
+    localStorage,
+    isOnline: () => connectivityService.isOnline,
+  );
 });
 
 // ========================================
@@ -54,7 +61,13 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   final secureStorage = ref.watch(secureStorageProvider);
   return ApiClient(
     secureStorage: secureStorage,
-    onUnauthorized: ref.read(authStateProvider.notifier).setUnauthenticated,
+    onUnauthorized: () {
+      ref.read(authStateProvider.notifier).setUnauthenticated();
+    },
+    onTokenRefreshed: () {
+      final notifier = ref.read(authTokenRefreshTickProvider.notifier);
+      notifier.state = notifier.state + 1;
+    },
   );
 });
 
@@ -62,7 +75,13 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 /// KO: 실시간 스트림 연결을 위한 SSE 클라이언트 프로바이더입니다.
 final sseClientProvider = Provider<SseClient>((ref) {
   final secureStorage = ref.watch(secureStorageProvider);
-  return SseClient(secureStorage: secureStorage);
+  return SseClient(
+    secureStorage: secureStorage,
+    ensureFreshToken: () {
+      final apiClient = ref.read(apiClientProvider);
+      return apiClient.proactiveRefreshIfExpired();
+    },
+  );
 });
 
 /// EN: Local notifications service provider.
@@ -73,6 +92,13 @@ final localNotificationsServiceProvider = Provider<LocalNotificationsService>((
   final service = LocalNotificationsService();
   ref.onDispose(service.dispose);
   return service;
+});
+
+/// EN: One-time app-scope bootstrap for local notifications initialization.
+/// KO: 로컬 알림 초기화를 위한 앱 전역 1회 부트스트랩 프로바이더입니다.
+final localNotificationsBootstrapProvider = Provider<void>((ref) {
+  final service = ref.watch(localNotificationsServiceProvider);
+  unawaited(service.initialize());
 });
 
 /// EN: Stream provider for local-notification tap events.
@@ -99,6 +125,13 @@ final remotePushServiceProvider = Provider<RemotePushService>((ref) {
   ref.onDispose(service.dispose);
   return service;
 });
+
+/// EN: Stream provider for foreground FCM messages — feeds the in-app banner queue.
+/// KO: 인앱 배너 큐에 공급하기 위한 포그라운드 FCM 메시지 스트림 프로바이더입니다.
+final remotePushForegroundMessagesProvider =
+    StreamProvider<NotificationItem>((ref) {
+      return ref.watch(remotePushServiceProvider).foregroundMessages;
+    });
 
 /// EN: Stream provider for remote-push open tap events.
 /// KO: 원격 푸시 오픈 탭 이벤트 스트림 프로바이더입니다.
@@ -163,6 +196,31 @@ final connectivityStatusProvider = StreamProvider<ConnectivityStatus>((ref) {
 final isOnlineProvider = FutureProvider<bool>((ref) async {
   final service = ref.watch(connectivityServiceProvider);
   return service.isOnline;
+});
+
+/// EN: App semantic version provider (build number excluded).
+/// KO: 앱 시맨틱 버전 프로바이더 (빌드 번호 제외).
+const String _fallbackAppVersion = String.fromEnvironment(
+  'APP_VERSION_FALLBACK',
+  defaultValue: '0.0.4',
+);
+
+final appVersionProvider = FutureProvider<String>((ref) async {
+  try {
+    final packageInfo = await PackageInfo.fromPlatform();
+    final version = packageInfo.version.trim();
+    if (version.isNotEmpty) {
+      return version;
+    }
+  } catch (error, stackTrace) {
+    AppLogger.error(
+      'Failed to load app version from platform; fallback will be used.',
+      error: error,
+      stackTrace: stackTrace,
+      tag: 'AppVersionProvider',
+    );
+  }
+  return _fallbackAppVersion;
 });
 
 // ========================================
@@ -332,4 +390,10 @@ final authStateProvider = StateNotifierProvider<AuthStateNotifier, AuthState>((
 /// KO: 사용자 인증 여부 확인
 final isAuthenticatedProvider = Provider<bool>((ref) {
   return ref.watch(authStateProvider) == AuthState.authenticated;
+});
+
+/// EN: Monotonic tick incremented when access token is refreshed.
+/// KO: 액세스 토큰 갱신 성공 시 증가하는 단조 증가 tick 값입니다.
+final authTokenRefreshTickProvider = StateProvider<int>((ref) {
+  return 0;
 });

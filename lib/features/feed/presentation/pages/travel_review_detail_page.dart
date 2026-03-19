@@ -221,7 +221,7 @@ class _TravelReviewDetailPageState
                 Container(
                   padding: const EdgeInsets.all(GBTSpacing.md),
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest.withAlpha(80),
+                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 80 / 255),
                     borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
                   ),
                   child: Column(
@@ -329,31 +329,32 @@ class _TravelReviewDetailPageState
         );
       }
 
-      final appleMap = SizedBox(
+      // EN: Wrap in SizedBox to give Stack bounded height constraints.
+      // KO: Stack에 bounded height 제약을 주기 위해 SizedBox로 감쌉니다.
+      return SizedBox(
         height: 250,
-        child: amaps.AppleMap(
-          initialCameraPosition: amaps.CameraPosition(
-            target: amaps.LatLng(
-              _places.first.latitude,
-              _places.first.longitude,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            amaps.AppleMap(
+              initialCameraPosition: amaps.CameraPosition(
+                target: amaps.LatLng(
+                  _places.first.latitude,
+                  _places.first.longitude,
+                ),
+                zoom: 12,
+              ),
+              polylines: {polyline},
+              annotations: markers,
+              scrollGesturesEnabled: false,
             ),
-            zoom: 12,
-          ),
-          polylines: {polyline},
-          annotations: markers,
-          scrollGesturesEnabled: false,
+            IgnorePointer(
+              child: ColoredBox(
+                color: gbtAppleMapOverlayColorForDarkMode(isDark),
+              ),
+            ),
+          ],
         ),
-      );
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          appleMap,
-          IgnorePointer(
-            child: ColoredBox(
-              color: gbtAppleMapOverlayColorForDarkMode(isDark),
-            ),
-          ),
-        ],
       );
     } else {
       final gmaps.Polyline polyline = gmaps.Polyline(

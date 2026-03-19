@@ -4,8 +4,10 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/error/failure.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/utils/result.dart';
+import '../../settings/application/settings_controller.dart';
 import '../data/datasources/admin_ops_remote_data_source.dart';
 import '../data/repositories/admin_ops_repository_impl.dart';
 import '../domain/entities/admin_ops_entities.dart';
@@ -35,6 +37,13 @@ class AdminDashboardController
   final Ref _ref;
 
   Future<void> load({bool forceRefresh = false}) async {
+    if (!_canAccessAdminOps(_ref)) {
+      state = AsyncError(
+        const AuthFailure('Admin access required', code: '403'),
+        StackTrace.current,
+      );
+      return;
+    }
     state = const AsyncLoading();
     final repository = await _ref.read(adminOpsRepositoryProvider.future);
     final result = await repository.getDashboard(forceRefresh: forceRefresh);
@@ -94,6 +103,16 @@ class AdminReportsController extends StateNotifier<AdminReportsState> {
     bool forceRefresh = false,
     AdminReportFilter? filter,
   }) async {
+    if (!_canAccessAdminOps(_ref)) {
+      state = state.copyWith(
+        filter: filter ?? state.filter,
+        reports: AsyncError(
+          const AuthFailure('Admin access required', code: '403'),
+          StackTrace.current,
+        ),
+      );
+      return;
+    }
     final nextFilter = filter ?? state.filter;
     state = state.copyWith(filter: nextFilter, reports: const AsyncLoading());
 
@@ -166,6 +185,210 @@ class AdminReportsController extends StateNotifier<AdminReportsState> {
   }
 }
 
+class AdminRoleRequestsState {
+  const AdminRoleRequestsState({
+    required this.filter,
+    required this.requests,
+    this.isMutating = false,
+  });
+
+  factory AdminRoleRequestsState.initial() {
+    return const AdminRoleRequestsState(
+      filter: AdminProjectRoleRequestFilter.pending,
+      requests: AsyncLoading(),
+      isMutating: false,
+    );
+  }
+
+  final AdminProjectRoleRequestFilter filter;
+  final AsyncValue<List<AdminProjectRoleRequest>> requests;
+  final bool isMutating;
+
+  AdminRoleRequestsState copyWith({
+    AdminProjectRoleRequestFilter? filter,
+    AsyncValue<List<AdminProjectRoleRequest>>? requests,
+    bool? isMutating,
+  }) {
+    return AdminRoleRequestsState(
+      filter: filter ?? this.filter,
+      requests: requests ?? this.requests,
+      isMutating: isMutating ?? this.isMutating,
+    );
+  }
+}
+
+class AdminRoleRequestsController
+    extends StateNotifier<AdminRoleRequestsState> {
+  AdminRoleRequestsController(this._ref)
+    : super(AdminRoleRequestsState.initial()) {
+    load();
+  }
+
+  final Ref _ref;
+
+  Future<void> load({
+    bool forceRefresh = false,
+    AdminProjectRoleRequestFilter? filter,
+  }) async {
+    if (!_canAccessAdminOps(_ref)) {
+      state = state.copyWith(
+        filter: filter ?? state.filter,
+        requests: AsyncError(
+          const AuthFailure('Admin access required', code: '403'),
+          StackTrace.current,
+        ),
+      );
+      return;
+    }
+    final nextFilter = filter ?? state.filter;
+    state = state.copyWith(filter: nextFilter, requests: const AsyncLoading());
+
+    final repository = await _ref.read(adminOpsRepositoryProvider.future);
+    final result = await repository.getProjectRoleRequests(
+      status: nextFilter.apiStatus,
+      page: 0,
+      size: 50,
+      forceRefresh: forceRefresh,
+    );
+
+    if (result is Success<List<AdminProjectRoleRequest>>) {
+      state = state.copyWith(requests: AsyncData(result.data));
+      return;
+    }
+    if (result is Err<List<AdminProjectRoleRequest>>) {
+      state = state.copyWith(
+        requests: AsyncError(result.failure, StackTrace.current),
+      );
+    }
+  }
+
+  Future<Result<void>> review({
+    required String requestId,
+    required AdminRoleRequestDecision decision,
+    String? adminMemo,
+  }) async {
+    state = state.copyWith(isMutating: true);
+    final repository = await _ref.read(adminOpsRepositoryProvider.future);
+    final result = await repository.reviewProjectRoleRequest(
+      requestId: requestId,
+      decision: decision,
+      adminMemo: adminMemo,
+    );
+    state = state.copyWith(isMutating: false);
+
+    if (result is Success<void>) {
+      await load(forceRefresh: true);
+      return const Result.success(null);
+    }
+    if (result is Err<void>) {
+      return Result.failure(result.failure);
+    }
+    return const Result.success(null);
+  }
+}
+
+class AdminMediaDeletionsState {
+  const AdminMediaDeletionsState({
+    required this.requests,
+    this.isMutating = false,
+  });
+
+  factory AdminMediaDeletionsState.initial() {
+    return const AdminMediaDeletionsState(requests: AsyncLoading());
+  }
+
+  final AsyncValue<List<AdminMediaDeletionRequest>> requests;
+  final bool isMutating;
+
+  AdminMediaDeletionsState copyWith({
+    AsyncValue<List<AdminMediaDeletionRequest>>? requests,
+    bool? isMutating,
+  }) {
+    return AdminMediaDeletionsState(
+      requests: requests ?? this.requests,
+      isMutating: isMutating ?? this.isMutating,
+    );
+  }
+}
+
+class AdminMediaDeletionsController
+    extends StateNotifier<AdminMediaDeletionsState> {
+  AdminMediaDeletionsController(this._ref)
+    : super(AdminMediaDeletionsState.initial()) {
+    load();
+  }
+
+  final Ref _ref;
+
+  Future<void> load({bool forceRefresh = false}) async {
+    if (!_canAccessAdminOps(_ref)) {
+      state = state.copyWith(
+        requests: AsyncError(
+          const AuthFailure('Admin access required', code: '403'),
+          StackTrace.current,
+        ),
+      );
+      return;
+    }
+    state = state.copyWith(requests: const AsyncLoading());
+    final repository = await _ref.read(adminOpsRepositoryProvider.future);
+    final result = await repository.getMediaDeletionRequests(
+      status: 'PENDING',
+      page: 0,
+      size: 50,
+      forceRefresh: forceRefresh,
+    );
+
+    if (result is Success<List<AdminMediaDeletionRequest>>) {
+      state = state.copyWith(requests: AsyncData(result.data));
+      return;
+    }
+    if (result is Err<List<AdminMediaDeletionRequest>>) {
+      state = state.copyWith(
+        requests: AsyncError(result.failure, StackTrace.current),
+      );
+    }
+  }
+
+  Future<Result<void>> approve({
+    required String requestId,
+    required bool deleteLinkedContents,
+  }) async {
+    state = state.copyWith(isMutating: true);
+    final repository = await _ref.read(adminOpsRepositoryProvider.future);
+    final result = await repository.approveMediaDeletion(
+      requestId: requestId,
+      deleteLinkedContents: deleteLinkedContents,
+    );
+    state = state.copyWith(isMutating: false);
+
+    if (result is Success<void>) {
+      await load(forceRefresh: true);
+      return const Result.success(null);
+    }
+    if (result is Err<void>) {
+      return Result.failure(result.failure);
+    }
+    return const Result.success(null);
+  }
+
+  Future<Result<void>> reject({required String requestId}) async {
+    state = state.copyWith(isMutating: true);
+    final repository = await _ref.read(adminOpsRepositoryProvider.future);
+    final result = await repository.rejectMediaDeletion(requestId: requestId);
+    state = state.copyWith(isMutating: false);
+
+    if (result is Success<void>) {
+      await load(forceRefresh: true);
+      return const Result.success(null);
+    }
+    if (result is Err<void>) {
+      return Result.failure(result.failure);
+    }
+    return const Result.success(null);
+  }
+}
+
 /// EN: Dashboard controller provider.
 /// KO: 운영 대시보드 컨트롤러 프로바이더.
 final adminDashboardControllerProvider =
@@ -181,6 +404,21 @@ final adminDashboardControllerProvider =
 final adminReportsControllerProvider =
     StateNotifierProvider<AdminReportsController, AdminReportsState>((ref) {
       return AdminReportsController(ref);
+    });
+
+final adminRoleRequestsControllerProvider =
+    StateNotifierProvider<AdminRoleRequestsController, AdminRoleRequestsState>((
+      ref,
+    ) {
+      return AdminRoleRequestsController(ref);
+    });
+
+final adminMediaDeletionsControllerProvider =
+    StateNotifierProvider<
+      AdminMediaDeletionsController,
+      AdminMediaDeletionsState
+    >((ref) {
+      return AdminMediaDeletionsController(ref);
     });
 
 /// EN: Report detail provider.
@@ -200,3 +438,11 @@ final adminReportDetailProvider = FutureProvider.autoDispose
       }
       return null;
     });
+
+bool _canAccessAdminOps(Ref ref) {
+  final profile = ref.read(userProfileControllerProvider).valueOrNull;
+  return hasAdminOpsAccess(
+    effectiveAccessLevel: profile?.effectiveAccessLevel,
+    accountRole: profile?.accountRole,
+  );
+}

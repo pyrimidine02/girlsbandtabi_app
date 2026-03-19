@@ -68,7 +68,15 @@ class VisitsRepositoryImpl implements VisitsRepository {
       if (result is Err<List<VisitEvent>>) {
         return Result.failure(result.failure);
       }
-      final visits = (result as Success<List<VisitEvent>>).data;
+      if (result is! Success<List<VisitEvent>>) {
+        return Result.failure(
+          const UnknownFailure(
+            'Unknown visits page result',
+            code: 'unknown_visits_page_result',
+          ),
+        );
+      }
+      final visits = result.data;
       allVisits.addAll(visits);
       if (visits.length < pageSize) break;
       page += 1;

@@ -4,7 +4,7 @@ library;
 
 import 'package:intl/intl.dart';
 
-enum CommunityReportTargetType { post, comment, user }
+enum CommunityReportTargetType { post, comment, user, place, guide, photo }
 
 extension CommunityReportTargetTypeX on CommunityReportTargetType {
   String get apiValue {
@@ -15,6 +15,12 @@ extension CommunityReportTargetTypeX on CommunityReportTargetType {
         return 'COMMENT';
       case CommunityReportTargetType.user:
         return 'USER';
+      case CommunityReportTargetType.place:
+        return 'PLACE';
+      case CommunityReportTargetType.guide:
+        return 'GUIDE';
+      case CommunityReportTargetType.photo:
+        return 'PHOTO';
     }
   }
 
@@ -33,6 +39,18 @@ extension CommunityReportTargetTypeX on CommunityReportTargetType {
         if (languageCode == 'en') return 'User';
         if (languageCode == 'ja') return 'ユーザー';
         return '사용자';
+      case CommunityReportTargetType.place:
+        if (languageCode == 'en') return 'Place';
+        if (languageCode == 'ja') return '場所';
+        return '장소';
+      case CommunityReportTargetType.guide:
+        if (languageCode == 'en') return 'Guide';
+        if (languageCode == 'ja') return 'ガイド';
+        return '가이드';
+      case CommunityReportTargetType.photo:
+        if (languageCode == 'en') return 'Photo';
+        if (languageCode == 'ja') return '写真';
+        return '사진';
     }
   }
 
@@ -42,6 +60,12 @@ extension CommunityReportTargetTypeX on CommunityReportTargetType {
         return CommunityReportTargetType.comment;
       case 'USER':
         return CommunityReportTargetType.user;
+      case 'PLACE':
+        return CommunityReportTargetType.place;
+      case 'GUIDE':
+        return CommunityReportTargetType.guide;
+      case 'PHOTO':
+        return CommunityReportTargetType.photo;
       default:
         return CommunityReportTargetType.post;
     }
@@ -57,6 +81,9 @@ enum CommunityReportReason {
   illegal,
   misinformation,
   copyright,
+  tradeInducement,
+  falseReportAbuse,
+  manipulationAbuse,
   other,
 }
 
@@ -79,9 +106,53 @@ extension CommunityReportReasonX on CommunityReportReason {
         return 'MISINFORMATION';
       case CommunityReportReason.copyright:
         return 'COPYRIGHT';
+      case CommunityReportReason.tradeInducement:
+        return 'TRADE_INDUCEMENT';
+      case CommunityReportReason.falseReportAbuse:
+        return 'FALSE_REPORT_ABUSE';
+      case CommunityReportReason.manipulationAbuse:
+        return 'MANIPULATION_ABUSE';
       case CommunityReportReason.other:
         return 'OTHER';
     }
+  }
+
+  /// EN: API-safe reason value for create-report requests.
+  /// KO: 신고 생성 요청에 사용하는 API 호환 사유 코드입니다.
+  String get requestApiValue {
+    switch (this) {
+      case CommunityReportReason.tradeInducement:
+      case CommunityReportReason.falseReportAbuse:
+      case CommunityReportReason.manipulationAbuse:
+        // EN: Backward compatibility for servers without extended enums.
+        // KO: 확장 enum 미지원 서버와의 하위 호환을 유지합니다.
+        return 'OTHER';
+      default:
+        return apiValue;
+    }
+  }
+
+  /// EN: Encodes extended reason detail into description when needed.
+  /// KO: 필요 시 확장 사유 코드를 description에 인코딩합니다.
+  String? buildRequestDescription(String? description) {
+    final normalized = description?.trim();
+    final detailCode = switch (this) {
+      CommunityReportReason.tradeInducement => 'TRADE_INDUCEMENT',
+      CommunityReportReason.falseReportAbuse => 'FALSE_REPORT_ABUSE',
+      CommunityReportReason.manipulationAbuse => 'MANIPULATION_ABUSE',
+      _ => null,
+    };
+    if (detailCode == null) {
+      return normalized;
+    }
+    final marker = '[$detailCode]';
+    if (normalized == null || normalized.isEmpty) {
+      return marker;
+    }
+    if (normalized.toUpperCase().contains(detailCode)) {
+      return normalized;
+    }
+    return '$marker $normalized';
   }
 
   String get label {
@@ -119,6 +190,18 @@ extension CommunityReportReasonX on CommunityReportReason {
         if (languageCode == 'en') return 'Copyright infringement';
         if (languageCode == 'ja') return '著作権侵害';
         return '저작권 침해';
+      case CommunityReportReason.tradeInducement:
+        if (languageCode == 'en') return 'Trade/Sales inducement';
+        if (languageCode == 'ja') return '取引誘導/売買投稿';
+        return '거래 유도/판매글';
+      case CommunityReportReason.falseReportAbuse:
+        if (languageCode == 'en') return 'False report abuse';
+        if (languageCode == 'ja') return '虚偽通報/通報悪用';
+        return '허위 신고/신고 악용';
+      case CommunityReportReason.manipulationAbuse:
+        if (languageCode == 'en') return 'Manipulation/abuse';
+        if (languageCode == 'ja') return '操作/不正利用';
+        return '조작/어뷰징';
       case CommunityReportReason.other:
         if (languageCode == 'en') return 'Other';
         if (languageCode == 'ja') return 'その他';
@@ -144,6 +227,12 @@ extension CommunityReportReasonX on CommunityReportReason {
         return CommunityReportReason.misinformation;
       case 'COPYRIGHT':
         return CommunityReportReason.copyright;
+      case 'TRADE_INDUCEMENT':
+        return CommunityReportReason.tradeInducement;
+      case 'FALSE_REPORT_ABUSE':
+        return CommunityReportReason.falseReportAbuse;
+      case 'MANIPULATION_ABUSE':
+        return CommunityReportReason.manipulationAbuse;
       default:
         return CommunityReportReason.other;
     }

@@ -19,6 +19,23 @@ String normalizeTranslationLanguageCode(String? rawCode) {
   return 'en';
 }
 
+String? detectLikelyTranslationLanguage(String text) {
+  final normalizedText = text.trim();
+  if (normalizedText.isEmpty) {
+    return null;
+  }
+  if (RegExp(r'[\uac00-\ud7af]').hasMatch(normalizedText)) {
+    return 'ko';
+  }
+  if (RegExp(r'[\u3040-\u30ff]').hasMatch(normalizedText)) {
+    return 'ja';
+  }
+  if (RegExp(r'[A-Za-z]').hasMatch(normalizedText)) {
+    return 'en';
+  }
+  return null;
+}
+
 /// EN: Cache key for translation lookup.
 /// KO: 번역 조회용 캐시 키입니다.
 class CommunityTranslationCacheKey {

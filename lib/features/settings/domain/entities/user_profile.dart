@@ -3,6 +3,7 @@
 library;
 
 import '../../data/dto/user_profile_dto.dart';
+import '../../data/dto/user_access_level_dto.dart';
 import '../../../../core/security/user_access_level.dart' as access;
 
 class UserProfile {
@@ -14,6 +15,8 @@ class UserProfile {
     required this.accountRole,
     required this.baselineAccessLevel,
     required this.effectiveAccessLevel,
+    required this.grants,
+    required this.projectRolesByProject,
     required this.createdAt,
     this.avatarUrl,
     this.bio,
@@ -27,6 +30,8 @@ class UserProfile {
   final String accountRole;
   final String baselineAccessLevel;
   final String effectiveAccessLevel;
+  final List<UserAccessGrantSnapshot> grants;
+  final Map<String, List<String>> projectRolesByProject;
   final DateTime createdAt;
   final String? avatarUrl;
   final String? bio;
@@ -67,6 +72,30 @@ class UserProfile {
     );
   }
 
+  /// EN: Whether this profile can edit content in a specific project.
+  /// KO: 특정 프로젝트에서 콘텐츠를 편집할 수 있는지 여부입니다.
+  bool canEditProjectContent({String? projectId, String? projectCode}) {
+    return access.canEditProjectContent(
+      effectiveAccessLevel: effectiveAccessLevel,
+      accountRole: accountRole,
+      projectId: projectId,
+      projectCode: projectCode,
+      projectRolesByProject: projectRolesByProject,
+    );
+  }
+
+  /// EN: Whether this profile can moderate community in a specific project.
+  /// KO: 특정 프로젝트 커뮤니티를 운영할 수 있는지 여부입니다.
+  bool canModerateProjectCommunity({String? projectId, String? projectCode}) {
+    return access.canModerateProjectCommunity(
+      effectiveAccessLevel: effectiveAccessLevel,
+      accountRole: accountRole,
+      projectId: projectId,
+      projectCode: projectCode,
+      projectRolesByProject: projectRolesByProject,
+    );
+  }
+
   factory UserProfile.fromDto(UserProfileDto dto) {
     return UserProfile(
       id: dto.id,
@@ -77,9 +106,57 @@ class UserProfile {
       accountRole: dto.accountRole,
       baselineAccessLevel: dto.baselineAccessLevel,
       effectiveAccessLevel: dto.effectiveAccessLevel,
+      grants: dto.grants
+          .map(UserAccessGrantSnapshot.fromDto)
+          .toList(growable: false),
+      projectRolesByProject: dto.projectRolesByProject,
       createdAt: dto.createdAt,
       bio: dto.bio,
       coverImageUrl: dto.coverImageUrl,
+    );
+  }
+}
+
+class UserAccessGrantSnapshot {
+  const UserAccessGrantSnapshot({
+    required this.grantId,
+    required this.userId,
+    required this.accessLevel,
+    required this.isActive,
+    this.grantedByUserId,
+    this.grantReason,
+    this.grantedAt,
+    this.expiresAt,
+    this.revokedAt,
+    this.revokedByUserId,
+    this.revokedReason,
+  });
+
+  final String grantId;
+  final String userId;
+  final String accessLevel;
+  final bool isActive;
+  final String? grantedByUserId;
+  final String? grantReason;
+  final DateTime? grantedAt;
+  final DateTime? expiresAt;
+  final DateTime? revokedAt;
+  final String? revokedByUserId;
+  final String? revokedReason;
+
+  factory UserAccessGrantSnapshot.fromDto(UserAccessLevelGrantDto dto) {
+    return UserAccessGrantSnapshot(
+      grantId: dto.grantId,
+      userId: dto.userId,
+      accessLevel: dto.accessLevel,
+      isActive: dto.isActive,
+      grantedByUserId: dto.grantedByUserId,
+      grantReason: dto.grantReason,
+      grantedAt: dto.grantedAt,
+      expiresAt: dto.expiresAt,
+      revokedAt: dto.revokedAt,
+      revokedByUserId: dto.revokedByUserId,
+      revokedReason: dto.revokedReason,
     );
   }
 }

@@ -170,20 +170,36 @@ class GBTEmptyState extends StatelessWidget {
               // EN: Circular icon container with subtle background
               // KO: 미세한 배경이 있는 원형 아이콘 컨테이너
               Container(
-                width: 64,
-                height: 64,
+                width: 80,
+                height: 80,
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? GBTColors.darkSurfaceVariant
-                      : GBTColors.surfaceVariant,
                   shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: isDark
+                        ? [GBTColors.darkSurfaceVariant, GBTColors.darkSurfaceElevated]
+                        : [GBTColors.surfaceVariant, Colors.white],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark 
+                          ? Colors.black.withValues(alpha: 0.2)
+                          : GBTColors.primary.withValues(alpha: 0.05),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-                child: Icon(
-                  icon ?? Icons.inbox_outlined,
-                  size: 28,
-                  color: isDark
-                      ? GBTColors.darkTextTertiary
-                      : GBTColors.textTertiary,
+                child: Center(
+                  child: Icon(
+                    icon ?? Icons.inbox_outlined,
+                    size: 36,
+                    color: isDark
+                        ? GBTColors.darkPrimary.withValues(alpha: 0.8)
+                        : GBTColors.primary.withValues(alpha: 0.6),
+                  ),
                 ),
               ),
               const SizedBox(height: GBTSpacing.lg),

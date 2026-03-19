@@ -2,6 +2,9 @@
 /// KO: 프로필/알림 설정 컨트롤러.
 library;
 
+import 'dart:async';
+
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/error/failure.dart';
@@ -9,6 +12,7 @@ import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/storage/local_storage.dart';
 import '../../../core/utils/result.dart';
+import '../data/dto/notification_settings_dto.dart';
 import '../data/datasources/settings_remote_data_source.dart';
 import '../data/repositories/settings_repository_impl.dart';
 import '../domain/entities/account_tools.dart';
@@ -28,14 +32,35 @@ class UserProfileController extends StateNotifier<AsyncValue<UserProfile?>> {
       return;
     }
 
-    state = const AsyncLoading();
+    final previousProfile = state.valueOrNull;
+    if (previousProfile == null) {
+      state = const AsyncLoading();
+    } else {
+      // EN: Keep previously resolved profile during refresh to avoid
+      // EN: permission flicker on transient /users/me failures.
+      // KO: /users/me 일시 오류 시 권한 UI가 깜빡이지 않도록
+      // KO: 새로고침 중에는 이전 프로필 상태를 유지합니다.
+      state = AsyncData(previousProfile);
+    }
     final repository = await _ref.read(settingsRepositoryProvider.future);
     final result = await repository.getUserProfile(forceRefresh: forceRefresh);
+    if (!mounted) {
+      return;
+    }
 
     if (result is Success<UserProfile>) {
       state = AsyncData(result.data);
     } else if (result is Err<UserProfile>) {
-      state = AsyncError(result.failure, StackTrace.current);
+      if (previousProfile != null) {
+        AppLogger.warning(
+          'Failed to refresh user profile; keeping previous profile cache',
+          data: result.failure,
+          tag: 'UserProfileController',
+        );
+        state = AsyncData(previousProfile);
+      } else {
+        state = AsyncError(result.failure, StackTrace.current);
+      }
     }
   }
 
@@ -59,6 +84,9 @@ class UserProfileController extends StateNotifier<AsyncValue<UserProfile?>> {
       bio: bio,
       coverImageUrl: coverImageUrl,
     );
+    if (!mounted) {
+      return result;
+    }
 
     if (result is Success<UserProfile>) {
       state = AsyncData(result.data);
@@ -93,6 +121,9 @@ class UserProfileByIdController
       userId: userId,
       forceRefresh: forceRefresh,
     );
+    if (!mounted) {
+      return;
+    }
 
     if (result is Success<UserProfile>) {
       state = AsyncData(result.data);
@@ -122,9 +153,15 @@ class NotificationSettingsController
     final result = await repository.getNotificationSettings(
       forceRefresh: forceRefresh,
     );
+    if (!mounted) {
+      return;
+    }
 
     if (result is Success<NotificationSettings>) {
       await _persistPushEnabled(result.data.pushEnabled);
+      if (!mounted) {
+        return;
+      }
       state = AsyncData(result.data);
     } else if (result is Err<NotificationSettings>) {
       state = AsyncError(result.failure, StackTrace.current);
@@ -179,13 +216,26 @@ class NotificationSettingsController
     var result = await repository.updateNotificationSettings(
       settings: settings,
     );
-    if (_isTransientSettingsFailure(result)) {
+    if (_isConflictSettingsFailure(result)) {
+      final failure = (result as Err<NotificationSettings>).failure;
+      final conflictRecovery = await _recoverFromSettingsConflict(
+        repository: repository,
+        desired: settings,
+        failure: failure,
+      );
+      if (conflictRecovery != null) {
+        result = conflictRecovery;
+      }
+    } else if (_isTransientSettingsFailure(result)) {
       result = await repository.updateNotificationSettings(settings: settings);
     }
 
     if (result is Success<NotificationSettings>) {
       final previousPushEnabled = previousState.valueOrNull?.pushEnabled;
       await _persistPushEnabled(result.data.pushEnabled);
+      if (!mounted) {
+        return result;
+      }
       state = AsyncData(result.data);
       if (!result.data.pushEnabled) {
         final deactivateResult = await _deactivateDeviceRegistration();
@@ -213,10 +263,93 @@ class NotificationSettingsController
         if (previousPushEnabled != null) {
           await _persistPushEnabled(previousPushEnabled);
         }
+        if (!mounted) {
+          return result;
+        }
         state = previousState;
       }
     }
     return result;
+  }
+
+  Future<Result<NotificationSettings>?> _recoverFromSettingsConflict({
+    required SettingsRepository repository,
+    required NotificationSettings desired,
+    required Failure failure,
+  }) async {
+    var latest = _extractConflictCurrentSettings(failure);
+    if (latest == null) {
+      final latestResult = await repository.getNotificationSettings(
+        forceRefresh: true,
+      );
+      if (latestResult is! Success<NotificationSettings>) {
+        return null;
+      }
+      latest = latestResult.data;
+    }
+
+    final retryTarget = latest.copyWith(
+      pushEnabled: desired.pushEnabled,
+      emailEnabled: desired.emailEnabled,
+      liveEventsEnabled: desired.liveEventsEnabled,
+      favoritesEnabled: desired.favoritesEnabled,
+      commentsEnabled: desired.commentsEnabled,
+      followingPostsEnabled: desired.followingPostsEnabled,
+    );
+
+    // EN: Keep UI aligned with the retried payload after conflict refresh.
+    // KO: 충돌 복구 재시도 시 UI를 재시도 페이로드와 맞춰 유지합니다.
+    state = AsyncData(retryTarget);
+    await _persistPushEnabled(retryTarget.pushEnabled);
+    return repository.updateNotificationSettings(settings: retryTarget);
+  }
+
+  bool _isConflictSettingsFailure(Result<NotificationSettings> result) {
+    if (result is! Err<NotificationSettings>) {
+      return false;
+    }
+    final failure = result.failure;
+    if (failure is! ValidationFailure) {
+      return false;
+    }
+    final code = failure.code?.trim().toUpperCase();
+    return code == 'CONFLICT' ||
+        code == '409' ||
+        code == 'NOTIFICATION_SETTINGS_VERSION_CONFLICT';
+  }
+
+  NotificationSettings? _extractConflictCurrentSettings(Failure failure) {
+    if (failure is! ValidationFailure) {
+      return null;
+    }
+    final details = failure.details;
+    if (details == null) {
+      return null;
+    }
+    final current = details['current'];
+    if (current is! Map) {
+      return null;
+    }
+
+    final currentMap = current.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+    try {
+      final dto = NotificationSettingsDto.fromJson(currentMap);
+      return NotificationSettings.fromDto(dto);
+    } catch (error, stackTrace) {
+      AppLogger.warning(
+        'Failed to parse conflict current notification settings snapshot',
+        data: error,
+        tag: 'NotificationSettingsController',
+      );
+      AppLogger.debug(
+        'Conflict current parse stacktrace',
+        data: stackTrace,
+        tag: 'NotificationSettingsController',
+      );
+      return null;
+    }
   }
 
   bool _isTransientSettingsFailure(Result<NotificationSettings> result) {
@@ -329,6 +462,9 @@ class UserBlocksController extends StateNotifier<AsyncValue<List<UserBlock>>> {
     state = const AsyncLoading();
     final repository = await _ref.read(settingsRepositoryProvider.future);
     final result = await repository.getUserBlocks(forceRefresh: forceRefresh);
+    if (!mounted) {
+      return;
+    }
 
     if (result is Success<List<UserBlock>>) {
       state = AsyncData(result.data);
@@ -340,6 +476,112 @@ class UserBlocksController extends StateNotifier<AsyncValue<List<UserBlock>>> {
   Future<Result<void>> unblock(String targetUserId) async {
     final repository = await _ref.read(settingsRepositoryProvider.future);
     final result = await repository.unblockUser(targetUserId: targetUserId);
+    if (result is Success<void>) {
+      await load(forceRefresh: true);
+    }
+    return result;
+  }
+}
+
+class ProjectRoleRequestsController
+    extends StateNotifier<AsyncValue<List<ProjectRoleRequest>>> {
+  ProjectRoleRequestsController(this._ref) : super(const AsyncLoading());
+
+  final Ref _ref;
+
+  String? _resolveProjectId() {
+    final projectId = _ref.read(selectedProjectIdProvider)?.trim();
+    if (projectId != null && projectId.isNotEmpty && _isUuid(projectId)) {
+      return projectId;
+    }
+    return null;
+  }
+
+  bool _isUuid(String value) {
+    return RegExp(
+      r'^[0-9a-fA-F]{8}-'
+      r'[0-9a-fA-F]{4}-'
+      r'[1-5][0-9a-fA-F]{3}-'
+      r'[89abAB][0-9a-fA-F]{3}-'
+      r'[0-9a-fA-F]{12}$',
+    ).hasMatch(value);
+  }
+
+  Future<void> load({bool forceRefresh = false}) async {
+    final isAuthenticated = _ref.read(isAuthenticatedProvider);
+    if (!isAuthenticated) {
+      state = const AsyncData(<ProjectRoleRequest>[]);
+      return;
+    }
+
+    state = const AsyncLoading();
+    final repository = await _ref.read(settingsRepositoryProvider.future);
+    final result = await repository.getProjectRoleRequests(
+      forceRefresh: forceRefresh,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    if (result is Success<List<ProjectRoleRequest>>) {
+      state = AsyncData(result.data);
+    } else if (result is Err<List<ProjectRoleRequest>>) {
+      state = AsyncError(result.failure, StackTrace.current);
+    }
+  }
+
+  Future<Result<ProjectRoleRequest>> create({
+    required String requestedRole,
+    required String justification,
+  }) async {
+    final normalizedRole = requestedRole.trim().toUpperCase();
+    if (normalizedRole != 'PLACE_EDITOR' &&
+        normalizedRole != 'COMMUNITY_MODERATOR') {
+      return const Result.failure(
+        ValidationFailure(
+          'Requested role must be PLACE_EDITOR or COMMUNITY_MODERATOR',
+          code: 'invalid_requested_role',
+        ),
+      );
+    }
+
+    final trimmed = justification.trim();
+    if (trimmed.length < 20 || trimmed.length > 2000) {
+      return const Result.failure(
+        ValidationFailure(
+          'Justification must be between 20 and 2000 characters',
+          code: 'invalid_justification_length',
+        ),
+      );
+    }
+
+    final projectId = _resolveProjectId();
+    if (projectId == null || projectId.isEmpty) {
+      return const Result.failure(
+        ValidationFailure(
+          'Project UUID is required for role request',
+          code: 'project_uuid_required',
+        ),
+      );
+    }
+
+    final repository = await _ref.read(settingsRepositoryProvider.future);
+    final result = await repository.createProjectRoleRequest(
+      projectId: projectId,
+      requestedRole: normalizedRole,
+      justification: trimmed,
+    );
+    if (result is Success<ProjectRoleRequest>) {
+      await load(forceRefresh: true);
+    }
+    return result;
+  }
+
+  Future<Result<void>> cancel({required String requestId}) async {
+    final repository = await _ref.read(settingsRepositoryProvider.future);
+    final result = await repository.cancelProjectRoleRequest(
+      requestId: requestId,
+    );
     if (result is Success<void>) {
       await load(forceRefresh: true);
     }
@@ -378,6 +620,9 @@ class VerificationAppealsController
       projectId: projectId,
       forceRefresh: forceRefresh,
     );
+    if (!mounted) {
+      return;
+    }
     if (result is Success<List<VerificationAppeal>>) {
       state = AsyncData(result.data);
     } else if (result is Err<List<VerificationAppeal>>) {
@@ -431,8 +676,60 @@ final userProfileControllerProvider =
     StateNotifierProvider<UserProfileController, AsyncValue<UserProfile?>>((
       ref,
     ) {
-      return UserProfileController(ref)..load();
+      return UserProfileController(ref);
     });
+
+void _scheduleUserProfileRefresh(Ref ref, {bool forceRefresh = true}) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    Future<void>(() async {
+      try {
+        await ref
+            .read(userProfileControllerProvider.notifier)
+            .load(forceRefresh: forceRefresh);
+      } on StateError {
+        // EN: Ignore race when provider is disposed before queued refresh runs.
+        // KO: 큐잉된 재조회 실행 전에 프로바이더가 dispose된 경합은 무시합니다.
+      }
+    });
+  });
+}
+
+/// EN: App-scope bootstrap for profile/access-level refresh triggers.
+/// KO: 프로필/접근레벨 재조회 트리거를 앱 전역에서 연결하는 부트스트랩입니다.
+final userAuthorizationBootstrapProvider = Provider<void>((ref) {
+  // EN: Ensure profile controller is instantiated.
+  // EN: Only schedule an initial refresh when already authenticated (e.g. app
+  // EN: re-open with valid tokens). When auth state is still `initial`, the
+  // EN: listener below handles the refresh once checkAuthStatus() completes.
+  // KO: 프로필 컨트롤러를 초기화합니다.
+  // KO: 이미 인증된 경우에만 초기 재조회를 예약합니다 (유효 토큰으로 앱 재실행 시).
+  // KO: 인증 상태가 `initial`이면 아래 리스너가 checkAuthStatus() 완료 후
+  // KO: 재조회를 처리합니다.
+  ref.read(userProfileControllerProvider.notifier);
+  if (ref.read(isAuthenticatedProvider)) {
+    _scheduleUserProfileRefresh(ref, forceRefresh: true);
+  }
+
+  ref.listen<AuthState>(authStateProvider, (_, next) {
+    if (next == AuthState.authenticated) {
+      _scheduleUserProfileRefresh(ref, forceRefresh: true);
+      return;
+    }
+    if (next == AuthState.unauthenticated) {
+      Future<void>(() => ref.invalidate(userProfileControllerProvider));
+    }
+  });
+
+  ref.listen<int>(authTokenRefreshTickProvider, (previous, next) {
+    if (previous == null || previous == next) {
+      return;
+    }
+    if (!ref.read(isAuthenticatedProvider)) {
+      return;
+    }
+    _scheduleUserProfileRefresh(ref, forceRefresh: true);
+  });
+});
 
 /// EN: User profile controller provider by ID.
 /// KO: 사용자 ID별 프로필 컨트롤러 프로바이더.
@@ -461,6 +758,16 @@ final userBlocksControllerProvider =
       ref,
     ) {
       return UserBlocksController(ref)..load();
+    });
+
+/// EN: Project role request controller provider.
+/// KO: 프로젝트 권한 요청 컨트롤러 프로바이더.
+final projectRoleRequestsControllerProvider =
+    StateNotifierProvider<
+      ProjectRoleRequestsController,
+      AsyncValue<List<ProjectRoleRequest>>
+    >((ref) {
+      return ProjectRoleRequestsController(ref)..load();
     });
 
 /// EN: Verification appeals controller provider.

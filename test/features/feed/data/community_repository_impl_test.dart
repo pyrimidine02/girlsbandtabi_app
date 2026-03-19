@@ -14,6 +14,13 @@ class MockCommunityRemoteDataSource extends Mock
 void main() {
   setUpAll(() {
     registerFallbackValue(
+      const ReportCreateRequestDto(
+        targetType: 'POST',
+        targetId: 'post-1',
+        reason: 'SPAM',
+      ),
+    );
+    registerFallbackValue(
       const AppealCreateRequestDto(
         targetType: 'POST',
         targetId: 'post-1',
@@ -23,6 +30,38 @@ void main() {
     registerFallbackValue(
       const ProjectCommunityBanRequestDto(reason: 'rule violation'),
     );
+  });
+
+  test('createReport encodes extended reason with OTHER fallback', () async {
+    final remoteDataSource = MockCommunityRemoteDataSource();
+    final repository = CommunityRepositoryImpl(
+      remoteDataSource: remoteDataSource,
+    );
+
+    when(
+      () => remoteDataSource.createReport(request: any(named: 'request')),
+    ).thenAnswer((_) async => const Result.success(null));
+
+    final result = await repository.createReport(
+      targetType: CommunityReportTargetType.post,
+      targetId: 'post-1',
+      reason: CommunityReportReason.tradeInducement,
+      description: '중고 티켓 판매 유도',
+    );
+
+    expect(result, isA<Success<void>>());
+
+    final captured =
+        verify(
+              () => remoteDataSource.createReport(
+                request: captureAny(named: 'request'),
+              ),
+            ).captured.single
+            as ReportCreateRequestDto;
+    expect(captured.targetType, 'POST');
+    expect(captured.targetId, 'post-1');
+    expect(captured.reason, 'OTHER');
+    expect(captured.description, '[TRADE_INDUCEMENT] 중고 티켓 판매 유도');
   });
 
   test('getMySanctionStatus returns none when endpoint is not found', () async {

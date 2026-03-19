@@ -7,19 +7,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/localization/locale_text.dart';
-import '../../../../core/security/user_access_level.dart';
+import '../../../../core/providers/core_providers.dart';
 import '../../../../core/theme/gbt_animations.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
+import '../../../../core/widgets/common/gbt_linkified_text.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../favorites/application/favorites_controller.dart';
 import '../../../favorites/domain/entities/favorite_entities.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../settings/application/settings_controller.dart';
-import '../../../uploads/application/uploads_controller.dart';
 import '../../../verification/application/verification_controller.dart';
 import '../../../verification/presentation/widgets/verification_sheet.dart';
 import '../../application/places_controller.dart';
@@ -28,6 +28,7 @@ import '../../domain/entities/place_entities.dart';
 import '../../domain/entities/place_guide_entities.dart';
 import '../../domain/utils/place_type_search.dart';
 import '../utils/place_directions_launcher.dart';
+import '../../../../core/widgets/common/registrant_credit_widget.dart';
 import '../widgets/place_review_sheet.dart';
 
 /// EN: Place detail page widget
@@ -177,19 +178,11 @@ class PlaceDetailPage extends ConsumerWidget {
         : GBTColors.textTertiary;
     final selection = ref.watch(projectSelectionControllerProvider);
     final favoritesState = ref.watch(favoritesControllerProvider);
-    final profileState = ref.watch(userProfileControllerProvider);
     final isFavorite = favoritesState.maybeWhen(
       data: (items) => items.any(
         (item) => item.entityId == place.id && item.type == FavoriteType.place,
       ),
       orElse: () => place.isFavorite,
-    );
-    final isAdmin = profileState.maybeWhen(
-      data: (profile) => _isAdminRole(
-        effectiveAccessLevel: profile?.effectiveAccessLevel,
-        accountRole: profile?.accountRole,
-      ),
-      orElse: () => false,
     );
     final projectKey = selection.projectKey;
     final unitsState = projectKey != null && projectKey.isNotEmpty
@@ -234,7 +227,7 @@ class PlaceDetailPage extends ConsumerWidget {
         // KO: 오버레이 아이콘 버튼 — 어떤 사진에서도 가독성을 위한 어두운 배경.
         actions: [
           _OverlayIconButton(
-            icon: isFavorite ? Icons.favorite : Icons.favorite_border,
+            icon: isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
             tooltip: isFavorite
                 ? context.l10n(
                     ko: '즐겨찾기 해제',
@@ -335,7 +328,7 @@ class PlaceDetailPage extends ConsumerWidget {
                       ),
                       const SizedBox(width: GBTSpacing.sm),
                       _QuickStatBadge(
-                        icon: Icons.favorite_outline_rounded,
+                        icon: Icons.star_outline_rounded,
                         label: context.l10n(
                           ko: '${place.favoriteCount ?? 0}명 관심',
                           en: '${place.favoriteCount ?? 0} interested',
@@ -496,9 +489,9 @@ class PlaceDetailPage extends ConsumerWidget {
                               .map(
                                 (unit) => Chip(
                                   label: Text(
-                                    unit.code.isNotEmpty
-                                        ? unit.code
-                                        : unit.displayName,
+                                    unit.displayName.isNotEmpty
+                                        ? unit.displayName
+                                        : unit.code,
                                   ),
                                   visualDensity: VisualDensity.compact,
                                 ),
@@ -546,7 +539,13 @@ class PlaceDetailPage extends ConsumerWidget {
                           placeCommentsControllerProvider(place.id).notifier,
                         )
                         .load(forceRefresh: true),
-                    isAdmin: isAdmin,
+                  ),
+                  const SizedBox(height: GBTSpacing.lg),
+                  // EN: Contributors credit — who registered and edited this place.
+                  // KO: 기여자 크레딧 — 이 장소를 등록하고 수정한 사람을 표시합니다.
+                  ContributorsCreditWidget(
+                    entityType: 'places',
+                    entityId: place.id,
                   ),
                   const SizedBox(height: GBTSpacing.xxl),
                 ],
@@ -780,6 +779,15 @@ class _QuickStatBadge extends StatelessWidget {
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+          boxShadow: [
+            BoxShadow(
+              color: isDark
+                  ? Colors.black26
+                  : Colors.black.withValues(alpha: 0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1007,28 +1015,34 @@ class _CommentSection extends ConsumerStatefulWidget {
     required this.placeId,
     required this.state,
     required this.onRetry,
-    required this.isAdmin,
   });
 
   final String placeId;
   final AsyncValue<List<PlaceComment>> state;
   final VoidCallback onRetry;
-  final bool isAdmin;
 
   @override
   ConsumerState<_CommentSection> createState() => _CommentSectionState();
 }
 
 class _CommentSectionState extends ConsumerState<_CommentSection> {
-  final Set<String> _approvingIds = {};
-  final Set<String> _rejectedIds = {};
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final secondaryColor = isDark
-        ? GBTColors.darkTextSecondary
-        : GBTColors.textSecondary;
+    final isAuthenticated = ref.watch(isAuthenticatedProvider);
+    final profile = isAuthenticated
+        ? ref.watch(userProfileControllerProvider).valueOrNull
+        : null;
+    final currentUserId = profile?.id ?? '';
+    final selectedProjectId = ref.watch(selectedProjectIdProvider);
+    final selection = ref.watch(projectSelectionControllerProvider);
+    final canModerate =
+        profile != null &&
+        (profile.canModerateCommunity ||
+            profile.canModerateProjectCommunity(
+              projectId: selectedProjectId,
+              projectCode: selection.projectKey,
+            ));
 
     return widget.state.when(
       loading: () => GBTShimmer(
@@ -1077,23 +1091,18 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
           separatorBuilder: (_, __) => const SizedBox(height: GBTSpacing.sm),
           itemBuilder: (context, index) {
             final comment = comments[index];
-            final isApproving = _approvingIds.contains(comment.id);
-            final isRejected = _rejectedIds.contains(comment.id);
-            final isFullyApproved =
-                comment.photoUploadIds.isNotEmpty &&
-                comment.photoUrls.length >= comment.photoUploadIds.length;
+            final canDelete =
+                profile != null &&
+                (canModerate ||
+                    (currentUserId.isNotEmpty &&
+                        comment.authorId == currentUserId));
 
             return _ReviewCard(
               comment: comment,
               isDark: isDark,
-              isAdmin: widget.isAdmin,
-              isApproving: isApproving,
-              isRejected: isRejected,
-              isFullyApproved: isFullyApproved,
               onPhotoTap: _showPhotoPreview,
-              onApprove: (approved) =>
-                  _approvePhotos(comment, isApproved: approved),
-              secondaryColor: secondaryColor,
+              canDelete: canDelete,
+              onDelete: () => _deleteComment(comment.id),
             );
           },
         );
@@ -1101,71 +1110,58 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
     );
   }
 
-  Future<void> _approvePhotos(
-    PlaceComment comment, {
-    required bool isApproved,
-  }) async {
-    if (comment.photoUploadIds.isEmpty) return;
-    final approvedMessage = context.l10n(
-      ko: '사진 승인 완료',
-      en: 'Photo approved',
-      ja: '写真を承認しました',
+  Future<void> _deleteComment(String commentId) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+            context.l10n(ko: '후기 삭제', en: 'Delete review', ja: 'レビュー削除'),
+          ),
+          content: Text(
+            context.l10n(
+              ko: '이 후기를 삭제할까요?',
+              en: 'Delete this review?',
+              ja: 'このレビューを削除しますか？',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(context.l10n(ko: '취소', en: 'Cancel', ja: 'キャンセル')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(context.l10n(ko: '삭제', en: 'Delete', ja: '削除')),
+            ),
+          ],
+        );
+      },
     );
-    final rejectedMessage = context.l10n(
-      ko: '사진 반려 완료',
-      en: 'Photo rejected',
-      ja: '写真を却下しました',
-    );
-    setState(() => _approvingIds.add(comment.id));
-
-    final uploadController = ref.read(uploadsControllerProvider.notifier);
-    for (final uploadId in comment.photoUploadIds) {
-      final result = await uploadController.approveUpload(
-        uploadId: uploadId,
-        isApproved: isApproved,
-      );
-      if (result case Err(:final failure)) {
-        _showMessage(failure.userMessage);
-        if (mounted) {
-          setState(() => _approvingIds.remove(comment.id));
-        }
-        return;
-      }
-      if (!isApproved) {
-        final deleteResult = await uploadController.deleteUpload(uploadId);
-        if (deleteResult case Err(:final failure)) {
-          _showMessage(failure.userMessage);
-          if (mounted) {
-            setState(() => _approvingIds.remove(comment.id));
-          }
-          return;
-        }
-      }
+    if (shouldDelete != true || !mounted) {
+      return;
     }
 
-    if (mounted) {
-      setState(() => _approvingIds.remove(comment.id));
-    }
-    await ref
+    final result = await ref
         .read(placeCommentsControllerProvider(widget.placeId).notifier)
-        .load(forceRefresh: true);
-    if (mounted) {
-      setState(() {
-        if (isApproved) {
-          _rejectedIds.remove(comment.id);
-        } else {
-          _rejectedIds.add(comment.id);
-        }
-      });
+        .deleteComment(commentId);
+    if (!mounted) {
+      return;
     }
-    _showMessage(isApproved ? approvedMessage : rejectedMessage);
-  }
 
-  void _showMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    final message = result is Success<void>
+        ? context.l10n(ko: '후기를 삭제했어요', en: 'Review deleted', ja: 'レビューを削除しました')
+        : result is Err<void>
+        ? result.failure.userMessage
+        : context.l10n(
+            ko: '후기 삭제에 실패했어요',
+            en: 'Failed to delete review',
+            ja: 'レビューの削除に失敗しました',
+          );
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showPhotoPreview(String url) {
@@ -1206,30 +1202,22 @@ class _CommentSectionState extends ConsumerState<_CommentSection> {
   }
 }
 
-/// EN: Review card — avatar initials + body + photo strip + admin controls.
-/// KO: 리뷰 카드 — 이니셜 아바타 + 본문 + 사진 스트립 + 어드민 컨트롤.
+/// EN: Review card — avatar initials + body + photo strip.
+/// KO: 리뷰 카드 — 이니셜 아바타 + 본문 + 사진 스트립.
 class _ReviewCard extends StatelessWidget {
   const _ReviewCard({
     required this.comment,
     required this.isDark,
-    required this.isAdmin,
-    required this.isApproving,
-    required this.isRejected,
-    required this.isFullyApproved,
     required this.onPhotoTap,
-    required this.onApprove,
-    required this.secondaryColor,
+    required this.canDelete,
+    required this.onDelete,
   });
 
   final PlaceComment comment;
   final bool isDark;
-  final bool isAdmin;
-  final bool isApproving;
-  final bool isRejected;
-  final bool isFullyApproved;
   final ValueChanged<String> onPhotoTap;
-  final ValueChanged<bool> onApprove;
-  final Color secondaryColor;
+  final bool canDelete;
+  final VoidCallback onDelete;
 
   // EN: Deterministic avatar color from authorId hashCode.
   // KO: authorId 해시코드로 결정적 아바타 색상.
@@ -1340,13 +1328,34 @@ class _ReviewCard extends StatelessWidget {
                     ),
                   ),
                 ),
+              if (canDelete)
+                PopupMenuButton<String>(
+                  icon: Icon(
+                    Icons.more_horiz_rounded,
+                    size: 18,
+                    color: tertiaryColor,
+                  ),
+                  onSelected: (value) {
+                    if (value == 'delete') {
+                      onDelete();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem<String>(
+                      value: 'delete',
+                      child: Text(
+                        context.l10n(ko: '삭제', en: 'Delete', ja: '削除'),
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
           // EN: Body text.
           // KO: 본문 텍스트.
           if (comment.body.isNotEmpty) ...[
             const SizedBox(height: GBTSpacing.sm),
-            Text(
+            GBTLinkifiedText(
               comment.body,
               style: GBTTypography.bodyMedium.copyWith(
                 color: isDark
@@ -1401,52 +1410,6 @@ class _ReviewCard extends StatelessWidget {
               ),
             ),
           ],
-          // EN: Admin photo approval controls.
-          // KO: 어드민 사진 승인 컨트롤.
-          if (isAdmin && comment.photoUploadIds.isNotEmpty) ...[
-            const SizedBox(height: GBTSpacing.sm),
-            if (isRejected)
-              Text(
-                context.l10n(ko: '반려됨', en: 'Rejected', ja: '却下済み'),
-                style: GBTTypography.labelSmall.copyWith(color: secondaryColor),
-              )
-            else if (isFullyApproved)
-              Text(
-                context.l10n(ko: '승인됨', en: 'Approved', ja: '承認済み'),
-                style: GBTTypography.labelSmall.copyWith(color: secondaryColor),
-              ),
-            Row(
-              children: [
-                OutlinedButton(
-                  onPressed: isApproving || isFullyApproved || isRejected
-                      ? null
-                      : () => onApprove(true),
-                  child: Text(
-                    isApproving
-                        ? context.l10n(
-                            ko: '처리 중...',
-                            en: 'Processing...',
-                            ja: '処理中...',
-                          )
-                        : context.l10n(
-                            ko: '사진 승인',
-                            en: 'Approve photo',
-                            ja: '写真承認',
-                          ),
-                  ),
-                ),
-                const SizedBox(width: GBTSpacing.sm),
-                OutlinedButton(
-                  onPressed: isApproving || isFullyApproved || isRejected
-                      ? null
-                      : () => onApprove(false),
-                  child: Text(
-                    context.l10n(ko: '사진 반려', en: 'Reject photo', ja: '写真却下'),
-                  ),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );
@@ -1487,13 +1450,6 @@ class _SectionMessage extends StatelessWidget {
 
 bool _isForbidden(Object error) {
   return error is AuthFailure && error.code == '403';
-}
-
-bool _isAdminRole({String? effectiveAccessLevel, String? accountRole}) {
-  return canModerateCommunity(
-    effectiveAccessLevel: effectiveAccessLevel,
-    accountRole: accountRole,
-  );
 }
 
 String _formatPlaceType(String type) {

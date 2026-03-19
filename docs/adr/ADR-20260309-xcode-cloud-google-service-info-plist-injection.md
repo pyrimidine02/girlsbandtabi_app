@@ -25,6 +25,10 @@ Accepted
   - require `CI_PRIMARY_REPOSITORY_PATH` explicitly,
   - quote repository path before `cd`,
   - use `pod install --repo-update` for better pod spec consistency.
+- Add runtime diagnostics/fallback in `ios/ci_scripts/ci_post_clone.sh`:
+  - auto-resolve repository root from script location/workspace defaults when
+    CI env variables are missing,
+  - emit `[ci_post_clone]` step logs to pinpoint failure stage quickly.
 
 ## Consequences
 - Xcode Cloud archive no longer fails due to missing plist input file.

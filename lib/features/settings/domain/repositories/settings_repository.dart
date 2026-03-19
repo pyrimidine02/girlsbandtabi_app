@@ -59,11 +59,30 @@ abstract class SettingsRepository {
     int size = 50,
   });
 
+  Future<Result<Map<String, dynamic>>> getMandatoryConsentStatus();
+
+  Future<Result<void>> submitMandatoryConsents({
+    required List<Map<String, dynamic>> consents,
+  });
+
   Future<Result<void>> deleteAccount();
 
   Future<Result<List<UserBlock>>> getUserBlocks({bool forceRefresh = false});
 
   Future<Result<void>> unblockUser({required String targetUserId});
+
+  Future<Result<List<ProjectRoleRequest>>> getProjectRoleRequests({
+    bool forceRefresh = false,
+    String? status,
+  });
+
+  Future<Result<ProjectRoleRequest>> createProjectRoleRequest({
+    required String projectId,
+    required String requestedRole,
+    required String justification,
+  });
+
+  Future<Result<void>> cancelProjectRoleRequest({required String requestId});
 
   Future<Result<List<VerificationAppeal>>> getVerificationAppeals({
     required String projectId,

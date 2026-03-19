@@ -76,6 +76,7 @@ class ErrorHandler {
         code: errorCode ?? '400',
         stackTrace: stackTrace,
         fieldErrors: _extractFieldErrors(data),
+        details: _extractErrorDetails(data),
       ),
       401 => AuthFailure(
         message ?? 'Unauthorized',
@@ -97,12 +98,14 @@ class ErrorHandler {
         code: errorCode ?? '409',
         stackTrace: stackTrace,
         fieldErrors: _extractFieldErrors(data),
+        details: _extractErrorDetails(data),
       ),
       422 => ValidationFailure(
         message ?? 'Validation error',
         code: errorCode ?? '422',
         stackTrace: stackTrace,
         fieldErrors: _extractFieldErrors(data),
+        details: _extractErrorDetails(data),
       ),
       429 => ServerFailure(
         message ?? 'Too many requests',
@@ -213,6 +216,37 @@ class ErrorHandler {
       }
       return MapEntry(key, <String>[]);
     });
+  }
+
+  /// EN: Extract structured error details payload when present.
+  /// KO: 구조화된 에러 상세(details) 페이로드가 있으면 추출합니다.
+  static Map<String, dynamic>? _extractErrorDetails(dynamic data) {
+    if (data is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final error = data['error'];
+    if (error is Map<String, dynamic>) {
+      final nestedDetails = error['details'];
+      if (nestedDetails is Map<String, dynamic>) {
+        return nestedDetails;
+      }
+      if (nestedDetails is Map) {
+        return nestedDetails.map(
+          (key, value) => MapEntry(key.toString(), value),
+        );
+      }
+    }
+
+    final directDetails = data['details'];
+    if (directDetails is Map<String, dynamic>) {
+      return directDetails;
+    }
+    if (directDetails is Map) {
+      return directDetails.map((key, value) => MapEntry(key.toString(), value));
+    }
+
+    return null;
   }
 
   /// EN: Extract rate-limit retry delay in milliseconds from body/headers.

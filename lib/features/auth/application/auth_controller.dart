@@ -265,8 +265,21 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
       }
       final remotePushService = _ref.read(remotePushServiceProvider);
       await remotePushService.initialize();
-      await remotePushService.setAuthenticated(true);
+      // EN: setAuthenticated(true) is intentionally omitted here.
+      //     It is called by remotePushBootstrapProvider's authStateProvider
+      //     listener, which fires immediately after login sets AuthState.authenticated.
+      //     Calling it again here would trigger a redundant syncRegistration().
+      // KO: setAuthenticated(true)는 여기서 호출하지 않습니다.
+      //     remotePushBootstrapProvider의 authStateProvider 리스너가
+      //     로그인 직후 AuthState.authenticated로 전환될 때 이미 호출합니다.
+      //     여기서 중복 호출하면 syncRegistration()이 불필요하게 추가 실행됩니다.
       await remotePushService.requestPermission();
+      // EN: syncRegistration() after requestPermission() is intentional:
+      //     on iOS, the APNs token may only become available AFTER the user
+      //     grants permission, so we need an explicit sync at this point.
+      // KO: requestPermission() 이후 syncRegistration() 호출은 의도적입니다.
+      //     iOS에서는 사용자가 권한을 승인한 후에야 APNs 토큰을 얻을 수 있으므로
+      //     이 시점에 명시적으로 동기화가 필요합니다.
       await remotePushService.syncRegistration();
 
       final localNotifier = _ref.read(localNotificationsServiceProvider);
@@ -382,7 +395,8 @@ enum _AuthAnalyticsType { login, signup }
 /// EN: Provider for AuthOAuthService.
 /// KO: AuthOAuthService 프로바이더.
 final authOAuthServiceProvider = Provider<AuthOAuthService>((ref) {
-  return AuthOAuthService();
+  final secureStorage = ref.watch(secureStorageProvider);
+  return AuthOAuthService(secureStorage: secureStorage);
 });
 
 /// EN: Provider for AuthRepository.

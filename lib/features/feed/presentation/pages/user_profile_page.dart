@@ -15,6 +15,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
+import '../../../../core/widgets/common/gbt_linkified_text.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../../settings/application/settings_controller.dart';
@@ -25,6 +26,8 @@ import '../../application/user_follow_list_controller.dart';
 import '../../application/user_activity_controller.dart';
 import '../../domain/entities/community_moderation.dart';
 import '../../domain/entities/feed_entities.dart';
+import '../../../titles/application/titles_controller.dart';
+import '../../../titles/presentation/widgets/active_title_badge.dart';
 
 /// EN: User profile page for community activity.
 /// KO: 커뮤니티 활동 사용자 프로필 페이지.
@@ -242,6 +245,22 @@ class UserProfilePage extends ConsumerWidget {
         ],
       );
     }
+    // EN: Fetch active title — own title from notifier, others' via FutureProvider.
+    // KO: 활성 칭호 조회 — 내 칭호는 notifier에서, 타인 칭호는 FutureProvider로.
+    final activeTitleItem = isMyProfile
+        ? ref.watch(activeTitleProvider).valueOrNull
+        : ref.watch(userActiveTitleProvider(userId)).valueOrNull;
+    final activeTitleBadge = activeTitleItem?.hasTitle == true
+        ? ActiveTitleBadge.fromActiveItem(activeTitleItem!)
+        : null;
+
+    // EN: Account info section — shown only on own profile.
+    // KO: 계정정보 섹션 — 내 프로필에서만 표시합니다.
+    Widget? accountInfoSection;
+    if (isMyProfile && myProfile != null) {
+      accountInfoSection = _AccountInfoSection(profile: myProfile);
+    }
+
     Widget buildProfileHeader() => _ProfileHeader(
       coverUrl: coverUrl,
       avatarUrl: avatarUrl,
@@ -253,6 +272,8 @@ class UserProfilePage extends ConsumerWidget {
       onOpenFollowers: () => context.goToUserFollowers(userId),
       onOpenFollowing: () => context.goToUserFollowing(userId),
       action: headerAction,
+      activeTitleBadge: activeTitleBadge,
+      accountInfoSection: accountInfoSection,
     );
 
     return DefaultTabController(
@@ -495,6 +516,8 @@ class _ProfileHeader extends StatelessWidget {
     this.followerCount,
     this.followingCount,
     this.action,
+    this.activeTitleBadge,
+    this.accountInfoSection,
   });
 
   final String? coverUrl;
@@ -507,6 +530,14 @@ class _ProfileHeader extends StatelessWidget {
   final VoidCallback onOpenFollowers;
   final VoidCallback onOpenFollowing;
   final Widget? action;
+
+  /// EN: Optional active title badge widget shown below the display name.
+  /// KO: 표시 이름 아래에 표시되는 선택적 활성 칭호 배지 위젯.
+  final Widget? activeTitleBadge;
+
+  /// EN: Optional account info section shown only on own profile.
+  /// KO: 내 프로필에서만 표시되는 선택적 계정정보 섹션.
+  final Widget? accountInfoSection;
 
   @override
   Widget build(BuildContext context) {
@@ -636,6 +667,10 @@ class _ProfileHeader extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (activeTitleBadge != null) ...[
+                      const SizedBox(height: 4),
+                      activeTitleBadge!,
+                    ],
                     if (summaryLabel != null &&
                         summaryLabel!.trim().isNotEmpty) ...[
                       const SizedBox(height: 4),
@@ -649,7 +684,7 @@ class _ProfileHeader extends StatelessWidget {
                       ),
                     ],
                     const SizedBox(height: GBTSpacing.sm),
-                    Text(
+                    GBTLinkifiedText(
                       bioLabel,
                       style: GBTTypography.bodySmall.copyWith(
                         color: secondaryColor,
@@ -694,6 +729,10 @@ class _ProfileHeader extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (accountInfoSection != null) ...[
+                      const SizedBox(height: GBTSpacing.md),
+                      accountInfoSection!,
+                    ],
                   ],
                 ),
               ),
@@ -851,7 +890,7 @@ class _PostsTab extends StatelessWidget {
                                 if (post.content != null &&
                                     post.content!.trim().isNotEmpty) ...[
                                   const SizedBox(height: 6),
-                                  Text(
+                                  GBTLinkifiedText(
                                     post.content!.trim(),
                                     style: GBTTypography.bodySmall.copyWith(
                                       color: tertiaryColor,
@@ -960,7 +999,7 @@ class _CommentsTab extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
+                                GBTLinkifiedText(
                                   comment.content,
                                   style: GBTTypography.bodyMedium,
                                   maxLines: 3,
@@ -991,4 +1030,96 @@ class _CommentsTab extends StatelessWidget {
 
 void _showSnackBar(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+}
+
+/// EN: Account info section displayed only on own profile.
+/// KO: 내 프로필에서만 표시되는 계정정보 섹션.
+class _AccountInfoSection extends StatelessWidget {
+  const _AccountInfoSection({required this.profile});
+
+  final UserProfile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
+    final surfaceVariant = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
+    final labelColor = isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final valueColor = isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+    final joinDate = '${profile.createdAt.toLocal()}'.split(' ').first;
+
+    final rows = [
+      (
+        label: context.l10n(ko: '이메일', en: 'Email', ja: 'メールアドレス'),
+        value: profile.email,
+      ),
+      (
+        label: context.l10n(ko: '가입일', en: 'Joined', ja: '登録日'),
+        value: joinDate,
+      ),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: surfaceVariant,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              GBTSpacing.md,
+              GBTSpacing.sm,
+              GBTSpacing.md,
+              GBTSpacing.xs,
+            ),
+            child: Text(
+              context.l10n(ko: '계정 정보', en: 'Account Info', ja: 'アカウント情報'),
+              style: GBTTypography.labelSmall.copyWith(
+                color: labelColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          for (int i = 0; i < rows.length; i++) ...[
+            if (i > 0) Divider(height: 1, color: borderColor),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: GBTSpacing.md,
+                vertical: GBTSpacing.xs,
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 60,
+                    child: Text(
+                      rows[i].label,
+                      style: GBTTypography.labelSmall.copyWith(
+                        color: labelColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: GBTSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      rows[i].value,
+                      style: GBTTypography.bodySmall.copyWith(
+                        color: valueColor,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: GBTSpacing.xs),
+        ],
+      ),
+    );
+  }
 }

@@ -404,46 +404,89 @@ class PostComposeDraftRecoveryBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final hour = savedAt.hour.toString().padLeft(2, '0');
     final minute = savedAt.minute.toString().padLeft(2, '0');
     final projectLabel = projectCode?.isNotEmpty == true
         ? ' · $projectCode'
         : '';
+        
+    final cardColor = isDark 
+        ? colorScheme.secondaryContainer.withValues(alpha: 0.15)
+        : colorScheme.secondaryContainer.withValues(alpha: 0.38);
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(GBTSpacing.sm),
+      margin: const EdgeInsets.only(bottom: GBTSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.md,
+        vertical: GBTSpacing.sm,
+      ),
       decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer.withValues(alpha: 0.38),
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
         border: Border.all(
-          color: colorScheme.secondary.withValues(alpha: 0.26),
+          color: colorScheme.secondary.withValues(alpha: isDark ? 0.1 : 0.2),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            '임시 저장된 글이 있어요',
-            style: GBTTypography.labelLarge.copyWith(
-              color: colorScheme.onSurface,
-              fontWeight: FontWeight.w700,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: colorScheme.secondary.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.restore,
+              color: colorScheme.secondary,
+              size: 20,
             ),
           ),
-          const SizedBox(height: GBTSpacing.xxs),
-          Text(
-            '저장 시각 $hour:$minute$projectLabel',
-            style: GBTTypography.bodySmall.copyWith(
-              color: colorScheme.onSurfaceVariant,
+          const SizedBox(width: GBTSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '임시 저장된 글이 있어요',
+                  style: GBTTypography.labelLarge.copyWith(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  '저장 시각 $hour:$minute$projectLabel',
+                  style: GBTTypography.labelSmall.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: GBTSpacing.xs),
-          Row(
-            children: [
-              FilledButton.tonal(onPressed: onRestore, child: const Text('복구')),
-              const SizedBox(width: GBTSpacing.xs),
-              TextButton(onPressed: onDiscard, child: const Text('삭제')),
-            ],
+          const SizedBox(width: GBTSpacing.sm),
+          TextButton(
+            onPressed: onDiscard,
+            style: TextButton.styleFrom(
+              foregroundColor: colorScheme.onSurfaceVariant,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: const Size(0, 32),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('삭제'),
+          ),
+          const SizedBox(width: 4),
+          FilledButton.tonal(
+            onPressed: onRestore,
+            style: FilledButton.styleFrom(
+              backgroundColor: colorScheme.secondaryContainer,
+              foregroundColor: colorScheme.onSecondaryContainer,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              minimumSize: const Size(0, 32),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('복구'),
           ),
         ],
       ),

@@ -48,6 +48,9 @@ app.*.map.json
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
 
+# Claude Code local settings
+.claude/settings.local.json
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile

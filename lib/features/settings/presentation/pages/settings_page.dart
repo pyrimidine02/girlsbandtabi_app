@@ -39,6 +39,7 @@ class SettingsPage extends ConsumerWidget {
     final canAccessAdminOps =
         profileState?.valueOrNull?.canAccessAdminOps ?? false;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final appVersionState = ref.watch(appVersionProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -125,6 +126,36 @@ class SettingsPage extends ConsumerWidget {
                     ),
                     onTap: () => context.push('/settings/profile'),
                   ),
+                  _SettingsRow(
+                    icon: Icons.palette_rounded,
+                    iconBgColor: const Color(0xFFEC4899),
+                    title: context.l10n(
+                      ko: '홈 배너 꾸미기',
+                      en: 'Customize home banner',
+                      ja: 'ホームバナーをカスタマイズ',
+                    ),
+                    subtitle: context.l10n(
+                      ko: '칭호·티어 달성으로 배너 해금',
+                      en: 'Unlock banners with titles & tiers',
+                      ja: '称号・ティア達成でバナー解放',
+                    ),
+                    onTap: () => context.push('/banner-picker'),
+                  ),
+                  _SettingsRow(
+                    icon: Icons.workspace_premium_rounded,
+                    iconBgColor: const Color(0xFF6366F1),
+                    title: context.l10n(
+                      ko: '칭호 관리',
+                      en: 'Manage titles',
+                      ja: '称号管理',
+                    ),
+                    subtitle: context.l10n(
+                      ko: '획득한 칭호 확인 및 활성 칭호 설정',
+                      en: 'View earned titles & set active title',
+                      ja: '取得した称号の確認と称号の設定',
+                    ),
+                    onTap: () => context.push('/title-picker'),
+                  ),
                   if (canAccessAdminOps)
                     _SettingsRow(
                       icon: Icons.admin_panel_settings_rounded,
@@ -183,6 +214,87 @@ class SettingsPage extends ConsumerWidget {
                 ],
               ),
             ],
+
+            // EN: Otaku features section
+            // KO: 덕질 모음 섹션
+            const SizedBox(height: GBTSpacing.lg),
+            _SettingsGroup(
+              title: context.l10n(ko: '덕질 모음', en: 'Fan Activities', ja: 'オタ活'),
+              children: [
+                _SettingsRow(
+                  icon: Icons.bolt_rounded,
+                  iconBgColor: const Color(0xFF7C3AED),
+                  title: context.l10n(ko: '나의 덕력', en: 'Fan Level', ja: 'ファンレベル'),
+                  subtitle: context.l10n(
+                    ko: 'XP·등급·출석 체크',
+                    en: 'XP, grade & daily check-in',
+                    ja: 'XP・グレード・出席チェック',
+                  ),
+                  onTap: () => context.push('/fan-level'),
+                ),
+                _SettingsRow(
+                  icon: Icons.calendar_month_rounded,
+                  iconBgColor: const Color(0xFF2563EB),
+                  title: context.l10n(
+                    ko: '이벤트 캘린더',
+                    en: 'Event Calendar',
+                    ja: 'イベントカレンダー',
+                  ),
+                  subtitle: context.l10n(
+                    ko: '생일·발매·라이브 일정',
+                    en: 'Birthdays, releases & live dates',
+                    ja: '誕生日・発売・ライブ日程',
+                  ),
+                  onTap: () => context.push('/calendar'),
+                ),
+                _SettingsRow(
+                  icon: Icons.photo_album_rounded,
+                  iconBgColor: const Color(0xFF059669),
+                  title: context.l10n(
+                    ko: '성지순례 도감',
+                    en: 'Place Collection',
+                    ja: '聖地巡礼図鑑',
+                  ),
+                  subtitle: context.l10n(
+                    ko: '장소 스탬프 수집',
+                    en: 'Collect place stamps',
+                    ja: '場所スタンプコレクション',
+                  ),
+                  onTap: () => context.push('/zukan'),
+                ),
+                _SettingsRow(
+                  icon: Icons.music_note_rounded,
+                  iconBgColor: const Color(0xFFD97706),
+                  title: context.l10n(
+                    ko: '응원 가이드',
+                    en: 'Cheer Guide',
+                    ja: '応援ガイド',
+                  ),
+                  subtitle: context.l10n(
+                    ko: '곡별 콜·펜라이트 가이드',
+                    en: 'Per-song call & penlight guide',
+                    ja: '曲別コール・ペンライトガイド',
+                  ),
+                  onTap: () => context.push('/cheer-guides'),
+                ),
+                _SettingsRow(
+                  icon: Icons.format_quote_rounded,
+                  iconBgColor: const Color(0xFFDB2777),
+                  title: context.l10n(
+                    ko: '명대사 카드',
+                    en: 'Quote Cards',
+                    ja: '名言カード',
+                  ),
+                  subtitle: context.l10n(
+                    ko: '좋아하는 명대사 저장·공유',
+                    en: 'Save & share favourite quotes',
+                    ja: 'お気に入り名言を保存・シェア',
+                  ),
+                  onTap: () => context.push('/quotes'),
+                  isLast: true,
+                ),
+              ],
+            ),
 
             // EN: Legal/privacy self-service section for authenticated users.
             // KO: 로그인 사용자를 위한 법률/개인정보 셀프서비스 섹션.
@@ -402,10 +514,22 @@ class SettingsPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: GBTSpacing.xxs),
                   Text(
-                    context.l10n(
-                      ko: '버전 1.0.0 (1)',
-                      en: 'Version 1.0.0 (1)',
-                      ja: 'バージョン 1.0.0 (1)',
+                    appVersionState.when(
+                      data: (version) => context.l10n(
+                        ko: '버전 $version',
+                        en: 'Version $version',
+                        ja: 'バージョン $version',
+                      ),
+                      loading: () => context.l10n(
+                        ko: '버전 확인 중',
+                        en: 'Loading version',
+                        ja: 'バージョン確認中',
+                      ),
+                      error: (_, _) => context.l10n(
+                        ko: '버전 정보 없음',
+                        en: 'Version unavailable',
+                        ja: 'バージョン情報なし',
+                      ),
                     ),
                     style: GBTTypography.labelSmall.copyWith(
                       color: isDark

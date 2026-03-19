@@ -6,6 +6,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/connectivity/connectivity_service.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
@@ -16,80 +17,91 @@ import '../data/datasources/live_events_remote_data_source.dart';
 import '../data/repositories/live_events_repository_impl.dart';
 import '../domain/entities/live_event_entities.dart';
 import '../domain/repositories/live_events_repository.dart';
+import 'pending_live_attendance_mutation.dart';
 
 // EN: Max number of additional retries on load failure (total attempts = 1 + _kMaxRetries).
 // KO: 로드 실패 시 최대 추가 재시도 횟수 (총 시도 = 1 + _kMaxRetries).
 const int _kMaxRetries = 2;
-const int _kLiveNavIndex = 2;
+// EN: Live events page is a sub-tab inside the Explore branch (index 1).
+// KO: 라이브 이벤트 페이지는 탐방 분기(인덱스 1) 내 서브탭입니다.
+const int _kLiveNavIndex = 1;
 const int _kAttendanceHistoryPageSize = 20;
+
+bool _shouldQueueLiveAttendanceMutationForRetry(Failure failure) {
+  return failure is NetworkFailure || failure is AuthFailure;
+}
 
 class LiveEventsListController
     extends StateNotifier<AsyncValue<List<LiveEventSummary>>> {
   LiveEventsListController(this._ref) : super(const AsyncLoading()) {
+    // EN: Reload when user switches project — different project = different dataset.
+    // KO: 프로젝트 변경 시 리로드 — 프로젝트마다 별도 데이터셋.
     _ref.listen<String?>(selectedProjectKeyProvider, (_, __) {
-      if (!_isLiveTabActive()) {
-        return;
-      }
+      if (!_isLiveTabActive()) return;
       load(forceRefresh: true);
     });
-    _ref.listen<List<String>>(selectedLiveBandIdsProvider, (_, __) {
-      if (!_isLiveTabActive()) {
-        return;
-      }
-      load(forceRefresh: true);
-    });
+    // EN: Reload when explore tab becomes active (deferred load while on other tabs).
+    // KO: 탐방 탭이 활성화되면 리로드 (다른 탭에 있는 동안 지연 로드).
     _ref.listen<int>(currentNavIndexProvider, (previous, next) {
-      if (next != _kLiveNavIndex || next == previous) {
-        return;
-      }
+      if (next != _kLiveNavIndex || next == previous) return;
       load(forceRefresh: true);
     });
   }
 
   final Ref _ref;
 
+  // EN: Guard flag preventing concurrent load() invocations.
+  // KO: 동시 load() 호출을 방지하는 가드 플래그.
+  bool _loading = false;
+
   bool _isLiveTabActive() {
     return _ref.read(currentNavIndexProvider) == _kLiveNavIndex;
   }
 
   Future<void> load({bool forceRefresh = false}) async {
-    final projectKey = _ref.read(selectedProjectKeyProvider);
-    if (projectKey == null || projectKey.isEmpty) {
-      // EN: Wait for project selection before loading.
-      // KO: 로드 전 프로젝트 선택을 기다립니다.
-      return;
-    }
-
-    state = const AsyncLoading();
-
-    final repository = await _ref.read(liveEventsRepositoryProvider.future);
-    final bandIds = _ref.read(selectedLiveBandIdsProvider);
-
-    // EN: Retry up to _kMaxRetries times on failure with exponential back-off.
-    // KO: 실패 시 지수 백오프로 최대 _kMaxRetries회 재시도합니다.
-    Result<List<LiveEventSummary>>? result;
-    for (var attempt = 0; attempt <= _kMaxRetries; attempt++) {
-      if (attempt > 0) {
-        await Future<void>.delayed(Duration(seconds: attempt));
-        if (!mounted) return;
-        AppLogger.info(
-          'Retrying live events load (attempt $attempt)',
-          tag: 'LiveEventsListController',
-        );
+    // EN: Skip if already loading — listeners can fire in parallel.
+    // KO: 이미 로드 중이면 건너뜁니다 — 리스너들이 동시에 실행될 수 있습니다.
+    if (_loading) return;
+    _loading = true;
+    try {
+      final projectKey = _ref.read(selectedProjectKeyProvider);
+      if (projectKey == null || projectKey.isEmpty) {
+        // EN: Wait for project selection before loading.
+        // KO: 로드 전 프로젝트 선택을 기다립니다.
+        return;
       }
-      result = await repository.getLiveEvents(
-        projectId: projectKey,
-        unitIds: bandIds,
-        forceRefresh: forceRefresh || attempt > 0,
-      );
-      if (result is Success<List<LiveEventSummary>>) break;
-    }
 
-    if (!mounted) return;
-    if (result is Success<List<LiveEventSummary>>) {
-      state = AsyncData(result.data);
-    } else if (result is Err<List<LiveEventSummary>>) {
-      state = AsyncError(result.failure, StackTrace.current);
+      state = const AsyncLoading();
+
+      final repository = await _ref.read(liveEventsRepositoryProvider.future);
+
+      // EN: Retry up to _kMaxRetries times on failure with exponential back-off.
+      // KO: 실패 시 지수 백오프로 최대 _kMaxRetries회 재시도합니다.
+      Result<List<LiveEventSummary>>? result;
+      for (var attempt = 0; attempt <= _kMaxRetries; attempt++) {
+        if (attempt > 0) {
+          await Future<void>.delayed(Duration(seconds: attempt));
+          if (!mounted) return;
+          AppLogger.info(
+            'Retrying live events load (attempt $attempt)',
+            tag: 'LiveEventsListController',
+          );
+        }
+        result = await repository.getLiveEvents(
+          projectId: projectKey,
+          forceRefresh: forceRefresh || attempt > 0,
+        );
+        if (result is Success<List<LiveEventSummary>>) break;
+      }
+
+      if (!mounted) return;
+      if (result is Success<List<LiveEventSummary>>) {
+        state = AsyncData(result.data);
+      } else if (result is Err<List<LiveEventSummary>>) {
+        state = AsyncError(result.failure, StackTrace.current);
+      }
+    } finally {
+      _loading = false;
     }
   }
 }
@@ -246,6 +258,161 @@ class LiveEventDetailController
   }
 }
 
+/// EN: Offline outbox controller for live attendance toggle mutations.
+/// KO: 라이브 출석 토글 오프라인 대기열(아웃박스) 컨트롤러입니다.
+class LiveAttendanceOutboxController {
+  LiveAttendanceOutboxController(this._ref) {
+    _ref.listen<AsyncValue<ConnectivityStatus>>(connectivityStatusProvider, (
+      _,
+      next,
+    ) {
+      if (next.valueOrNull == ConnectivityStatus.online) {
+        unawaited(syncPendingMutations());
+      }
+    });
+    _ref.listen<bool>(isAuthenticatedProvider, (previous, next) {
+      if (next && previous != true) {
+        unawaited(syncPendingMutations());
+      }
+    });
+    unawaited(syncPendingMutations());
+  }
+
+  final Ref _ref;
+  bool _isSyncing = false;
+  static const int _maxPendingMutations = 200;
+
+  Future<void> enqueue({
+    required String projectKey,
+    required String eventId,
+    required bool attended,
+  }) async {
+    final pending = await _readPendingMutations();
+    pending.removeWhere(
+      (mutation) =>
+          mutation.projectKey == projectKey && mutation.eventId == eventId,
+    );
+    pending.add(
+      PendingLiveAttendanceMutation(
+        projectKey: projectKey,
+        eventId: eventId,
+        attended: attended,
+        queuedAt: DateTime.now(),
+      ),
+    );
+    if (pending.length > _maxPendingMutations) {
+      pending.removeRange(0, pending.length - _maxPendingMutations);
+    }
+    await _writePendingMutations(pending);
+  }
+
+  Future<void> removePending({
+    required String projectKey,
+    required String eventId,
+  }) async {
+    final pending = await _readPendingMutations();
+    final before = pending.length;
+    pending.removeWhere(
+      (mutation) =>
+          mutation.projectKey == projectKey && mutation.eventId == eventId,
+    );
+    if (pending.length != before) {
+      await _writePendingMutations(pending);
+    }
+  }
+
+  Future<PendingLiveAttendanceMutation?> findPending({
+    required String projectKey,
+    required String eventId,
+  }) async {
+    final pending = await _readPendingMutations();
+    for (var i = pending.length - 1; i >= 0; i -= 1) {
+      final mutation = pending[i];
+      if (mutation.projectKey == projectKey && mutation.eventId == eventId) {
+        return mutation;
+      }
+    }
+    return null;
+  }
+
+  Future<void> syncPendingMutations() async {
+    if (_isSyncing) {
+      return;
+    }
+    if (!_ref.read(isAuthenticatedProvider)) {
+      return;
+    }
+
+    final isOnline = await _ref.read(connectivityServiceProvider).isOnline;
+    if (!isOnline) {
+      return;
+    }
+
+    _isSyncing = true;
+    try {
+      final pending = await _readPendingMutations();
+      if (pending.isEmpty) {
+        return;
+      }
+
+      final repository = await _ref.read(liveEventsRepositoryProvider.future);
+      final remaining = <PendingLiveAttendanceMutation>[];
+      var appliedCount = 0;
+
+      for (var i = 0; i < pending.length; i += 1) {
+        final mutation = pending[i];
+        final result = await repository.toggleLiveAttendance(
+          projectId: mutation.projectKey,
+          eventId: mutation.eventId,
+          attended: mutation.attended,
+        );
+        if (result is Success<LiveAttendanceState>) {
+          appliedCount += 1;
+          continue;
+        }
+        if (result is Err<LiveAttendanceState>) {
+          if (_shouldQueueLiveAttendanceMutationForRetry(result.failure)) {
+            remaining.add(mutation);
+            remaining.addAll(pending.skip(i + 1));
+            break;
+          }
+          // EN: Drop non-retriable mutation.
+          // KO: 재시도 불가능한 작업은 대기열에서 제거합니다.
+          continue;
+        }
+      }
+
+      await _writePendingMutations(remaining);
+      if (appliedCount > 0) {
+        _ref.invalidate(liveAttendanceHistoryControllerProvider);
+      }
+    } finally {
+      _isSyncing = false;
+    }
+  }
+
+  Future<List<PendingLiveAttendanceMutation>> _readPendingMutations() async {
+    final storage = await _ref.read(localStorageProvider.future);
+    final raw = storage.getPendingLiveAttendanceMutations();
+    return raw
+        .map(PendingLiveAttendanceMutation.fromJson)
+        .where(
+          (mutation) =>
+              mutation.projectKey.isNotEmpty && mutation.eventId.isNotEmpty,
+        )
+        .toList(growable: true);
+  }
+
+  Future<void> _writePendingMutations(
+    List<PendingLiveAttendanceMutation> pending,
+  ) async {
+    final storage = await _ref.read(localStorageProvider.future);
+    await storage.setPendingLiveAttendanceMutations(
+      pending.map((mutation) => mutation.toJson()).toList(growable: false),
+    );
+  }
+}
+
 class LiveAttendanceViewState {
   const LiveAttendanceViewState({
     required this.attendance,
@@ -308,21 +475,27 @@ class LiveAttendanceController extends StateNotifier<LiveAttendanceViewState> {
     }
 
     if (result case Success<LiveAttendanceState>(:final data)) {
+      final outbox = _ref.read(liveAttendanceOutboxControllerProvider);
+      final pending = await outbox.findPending(
+        projectKey: projectKey,
+        eventId: eventId,
+      );
+      final resolved = pending == null
+          ? data
+          : _optimisticState(data, pending.attended);
       state = state.copyWith(
-        attendance: data,
+        attendance: resolved,
         isSubmitting: false,
         isLoading: false,
       );
-      return result;
+      return Result.success(resolved);
     }
 
     state = state.copyWith(isLoading: false);
     return result;
   }
 
-  Future<Result<LiveAttendanceState>> toggle(
-    bool attended,
-  ) async {
+  Future<Result<LiveAttendanceState>> toggle(bool attended) async {
     final isAuthenticated = _ref.read(isAuthenticatedProvider);
     if (!isAuthenticated) {
       return const Result.failure(
@@ -359,6 +532,25 @@ class LiveAttendanceController extends StateNotifier<LiveAttendanceViewState> {
     final previous = current;
     final optimistic = _optimisticState(previous, attended);
     state = state.copyWith(attendance: optimistic, isSubmitting: true);
+    final outbox = _ref.read(liveAttendanceOutboxControllerProvider);
+    final isOnline = await _ref.read(connectivityServiceProvider).isOnline;
+    if (!isOnline) {
+      await outbox.enqueue(
+        projectKey: projectKey,
+        eventId: eventId,
+        attended: attended,
+      );
+      if (!mounted) {
+        return Result.success(optimistic);
+      }
+      state = state.copyWith(
+        attendance: optimistic,
+        isSubmitting: false,
+        isLoading: false,
+      );
+      _ref.invalidate(liveAttendanceHistoryControllerProvider);
+      return Result.success(optimistic);
+    }
 
     final repository = await _ref.read(liveEventsRepositoryProvider.future);
     final result = await repository.toggleLiveAttendance(
@@ -372,6 +564,7 @@ class LiveAttendanceController extends StateNotifier<LiveAttendanceViewState> {
     }
 
     if (result case Success<LiveAttendanceState>(:final data)) {
+      await outbox.removePending(projectKey: projectKey, eventId: eventId);
       state = state.copyWith(
         attendance: data,
         isSubmitting: false,
@@ -379,6 +572,28 @@ class LiveAttendanceController extends StateNotifier<LiveAttendanceViewState> {
       );
       _ref.invalidate(liveAttendanceHistoryControllerProvider);
       return result;
+    }
+
+    if (result case Err<LiveAttendanceState>(:final failure)) {
+      if (_shouldQueueLiveAttendanceMutationForRetry(failure)) {
+        await outbox.enqueue(
+          projectKey: projectKey,
+          eventId: eventId,
+          attended: attended,
+        );
+        if (!mounted) {
+          return Result.success(optimistic);
+        }
+        state = state.copyWith(
+          attendance: optimistic,
+          isSubmitting: false,
+          isLoading: false,
+        );
+        _ref.invalidate(liveAttendanceHistoryControllerProvider);
+        return Result.success(optimistic);
+      }
+      state = state.copyWith(attendance: previous, isSubmitting: false);
+      return Result.failure(failure);
     }
 
     state = state.copyWith(attendance: previous, isSubmitting: false);
@@ -598,9 +813,13 @@ class LiveAttendanceHistoryController
     final sorted = [...items];
     sorted.sort((a, b) {
       final aTime =
-          a.attendedAt ?? a.showStartTime ?? DateTime.fromMillisecondsSinceEpoch(0);
+          a.attendedAt ??
+          a.showStartTime ??
+          DateTime.fromMillisecondsSinceEpoch(0);
       final bTime =
-          b.attendedAt ?? b.showStartTime ?? DateTime.fromMillisecondsSinceEpoch(0);
+          b.attendedAt ??
+          b.showStartTime ??
+          DateTime.fromMillisecondsSinceEpoch(0);
       return bTime.compareTo(aTime);
     });
     return sorted;
@@ -651,6 +870,19 @@ final liveEventDetailControllerProvider = StateNotifierProvider.autoDispose
     ) {
       return LiveEventDetailController(ref, eventId)..load();
     });
+
+/// EN: Live attendance outbox controller provider.
+/// KO: 라이브 출석 오프라인 대기열 컨트롤러 프로바이더.
+final liveAttendanceOutboxControllerProvider =
+    Provider<LiveAttendanceOutboxController>((ref) {
+      return LiveAttendanceOutboxController(ref);
+    });
+
+/// EN: App-scope bootstrap provider for live attendance outbox auto-sync.
+/// KO: 라이브 출석 아웃박스 자동 동기화를 위한 앱 전역 부트스트랩 프로바이더.
+final liveAttendanceOutboxBootstrapProvider = Provider<void>((ref) {
+  ref.watch(liveAttendanceOutboxControllerProvider);
+});
 
 final liveAttendanceControllerProvider = StateNotifierProvider.autoDispose
     .family<LiveAttendanceController, LiveAttendanceViewState, String>((

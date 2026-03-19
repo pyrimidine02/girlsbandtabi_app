@@ -71,10 +71,17 @@ class GBTImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final resolvedUrl = resolveMediaUrl(imageUrl);
-    final cacheWidth = width != null && width!.isFinite ? width!.toInt() : null;
-    final cacheHeight = height != null && height!.isFinite
-        ? height!.toInt()
-        : null;
+
+    // EN: Skip memory cache resizing for GIF URLs to preserve animation frames.
+    // KO: GIF URL은 애니메이션 프레임 보존을 위해 메모리 캐시 리사이징을 건너뜁니다.
+    final isGif = resolvedUrl.toLowerCase().contains('.gif');
+    final cacheWidth =
+        (!isGif && width != null && width!.isFinite) ? width!.toInt() : null;
+    final cacheHeight =
+        (!isGif && height != null && height!.isFinite)
+            ? height!.toInt()
+            : null;
+
     final baseImage = CachedNetworkImage(
       imageUrl: resolvedUrl,
       width: width,
@@ -87,14 +94,20 @@ class GBTImage extends StatelessWidget {
         onError?.call();
         return _buildError(isDark: isDark);
       },
-      imageBuilder: (context, imageProvider) {
-        return Image(
-          image: imageProvider,
-          width: width,
-          height: height,
-          fit: fit,
-        );
-      },
+      // EN: Skip imageBuilder for GIFs so CachedNetworkImage renders animation
+      //     frames natively via Flutter's image codec pipeline.
+      // KO: GIF는 imageBuilder를 건너뛰어 Flutter 이미지 코덱 파이프라인을 통해
+      //     CachedNetworkImage가 애니메이션 프레임을 네이티브로 렌더링하게 합니다.
+      imageBuilder: isGif
+          ? null
+          : (context, imageProvider) {
+              return Image(
+                image: imageProvider,
+                width: width,
+                height: height,
+                fit: fit,
+              );
+            },
     );
 
     // EN: Wrap with semantics: label if provided, exclude if decorative

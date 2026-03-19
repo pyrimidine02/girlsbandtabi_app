@@ -1,6 +1,439 @@
 # Changelog
 
+## 2026-03-13 (2)
+- **PROFILE BANNER CUSTOMIZATION FEATURE**:
+  - 사용자가 프로필 배너(홈 헤더 배경 이미지)를 티어/칭호 달성 배너 카탈로그에서 선택·적용할 수 있는 기능을 추가했습니다.
+  - Clean Architecture 전 계층 신규 구현:
+    - domain entities: `BannerRarity`, `BannerUnlockType`, `BannerItem`, `ActiveBanner`
+    - data DTO: `BannerItemDto`, `ActiveBannerDto` (fromJson/toJson)
+    - remote data source: `BannerRemoteDataSource` (GET/PUT/DELETE `/api/v1/users/me/banner`, GET `/api/v1/banners`)
+    - repository interface: `BannerRepository`
+    - repository impl: `BannerRepositoryImpl` (CacheManager 통합, active=10min TTL, catalog=1h TTL)
+    - application: `ActiveBannerNotifier` / `BannerCatalogNotifier` (Riverpod StateNotifierProvider)
+    - presentation: `BannerPickerPage` (3열 그리드, 희귀도 테두리, 잠금 오버레이, 하단 적용 버튼)
+  - `GBTGreetingHeader`에 `userBannerUrl`, `onCustomizeTap` 파라미터 추가 (팔레트 아이콘 버튼)
+  - `HomePage`에 `activeBannerProvider` 연결 및 커스터마이징 버튼 노출
+  - `/banner-picker` 오버레이 라우트 추가 (`AppRoutes.bannerPicker`)
+  - `ApiEndpoints.userBanner`, `ApiEndpoints.banners` 상수 추가
+  - Added:
+    - `lib/features/profile_banner/domain/entities/banner_entities.dart`
+    - `lib/features/profile_banner/data/dto/banner_dto.dart`
+    - `lib/features/profile_banner/data/datasources/banner_remote_data_source.dart`
+    - `lib/features/profile_banner/domain/repositories/banner_repository.dart`
+    - `lib/features/profile_banner/data/repositories/banner_repository_impl.dart`
+    - `lib/features/profile_banner/application/banner_controller.dart`
+    - `lib/features/profile_banner/presentation/pages/banner_picker_page.dart`
+  - Updated:
+    - `lib/core/constants/api_constants.dart`
+    - `lib/core/widgets/layout/gbt_greeting_header.dart`
+    - `lib/features/home/presentation/pages/home_page.dart`
+    - `lib/core/router/app_router.dart`
+
+## 2026-03-13
+- **OFFLINE MODE PHASE 1 (READ FALLBACK + FAVORITES/POST-REACTION/LIVE-ATTENDANCE OUTBOX)**:
+  - Cache manager에 네트워크 가용성 프로브를 추가하고,
+    오프라인일 때 읽기 정책을 `cacheOnly`로 강제하도록 반영했습니다.
+    - 대상: `networkOnly/networkFirst/staleWhileRevalidate/cacheFirst`
+    - 오프라인 + 캐시 미스 시 `CacheFailure(code=offline_cache_miss)` 반환
+  - `CacheFailure` 사용자 메시지에 `offline_cache_miss` 분기를 추가했습니다.
+  - 즐겨찾기 토글 오프라인 큐(Outbox) 1차 구현:
+    - 오프라인 상태에서도 토글을 즉시 낙관적 반영
+    - 대기 작업을 로컬 저장소에 누적(최신 상태 dedupe)
+    - 온라인 복귀 시 자동 동기화
+  - 게시글 좋아요/북마크 오프라인 큐(Outbox) 추가:
+    - 오프라인 토글 시 즉시 낙관적 반영 후 대기열 저장
+    - 앱 전역 bootstrap으로 온라인 복귀 시 자동 동기화
+    - 기존 unlike 500(UUID 재시도) 우회 로직을 outbox 동기화에도 반영
+  - 라이브 출석 토글 오프라인 큐(Outbox) 추가:
+    - 오프라인 토글 시 즉시 낙관적 반영 후 대기열 저장
+    - 라이브 상세 재진입 시 대기열 상태를 현재 출석 상태 위에 overlay
+    - 앱 전역 bootstrap으로 온라인 복귀/로그인 복귀 시 자동 동기화
+  - Added:
+    - `lib/features/favorites/application/pending_favorite_mutation.dart`
+    - `lib/features/feed/application/pending_post_reaction_mutation.dart`
+    - `lib/features/live_events/application/pending_live_attendance_mutation.dart`
+  - Updated:
+    - `lib/core/cache/cache_manager.dart`
+    - `lib/core/providers/core_providers.dart`
+    - `lib/core/error/failure.dart`
+    - `lib/core/storage/local_storage.dart`
+    - `lib/features/favorites/application/favorites_controller.dart`
+    - `lib/features/feed/application/reaction_controller.dart`
+    - `lib/features/live_events/application/live_events_controller.dart`
+    - `lib/app.dart`
+    - `test/core/cache/cache_manager_test.dart`
+    - `test/features/feed/application/pending_post_reaction_mutation_test.dart`
+    - `test/features/live_events/application/pending_live_attendance_mutation_test.dart`
+  - Validation:
+    - `flutter analyze` ✅
+    - `flutter test test/core/cache/cache_manager_test.dart` ✅
+    - `flutter test test/features/feed/application/pending_post_reaction_mutation_test.dart` ✅
+    - `flutter test test/features/live_events/application/pending_live_attendance_mutation_test.dart` ✅
+
+## 2026-03-12
+- **BRAND LOGO CONCEPT V1 (APP ICON MARK DRAFT)**:
+  - 앱 성격(밴드 + 성지/이동)을 반영한 단일 로고 시안을 추가했습니다.
+  - 디자인 구성:
+    - 라운드 스퀘어 베이스(블루-핑크 그라데이션)
+    - 위치 핀 실루엣
+    - 핀 내부 기타 픽 + 음표 심볼
+    - 강조 스파클 포인트
+  - Added:
+    - `docs/design/logo/girlsbandtabi_logo_v1.svg`
+    - `docs/design/logo/girlsbandtabi_logo_v1.png`
+
+- **COMMUNITY REPORT REASON CATALOG EXPANSION (UI + API COMPAT FALLBACK)**:
+  - 신고 사유 선택지에 아래 항목을 추가했습니다.
+    - `거래 유도/판매글`
+    - `허위 신고/신고 악용`
+    - `조작/어뷰징`
+  - 도메인 enum 확장:
+    - `TRADE_INDUCEMENT`
+    - `FALSE_REPORT_ABUSE`
+    - `MANIPULATION_ABUSE`
+  - 서버 하위호환을 위해 신고 생성 시 확장 사유는
+    `reason=OTHER`로 전송하고, 실제 세부 사유는
+    `description`에 `[REASON_CODE]` 마커 형태로 인코딩해 전달하도록 반영했습니다.
+  - Updated:
+    - `lib/features/feed/domain/entities/community_moderation.dart`
+    - `lib/features/feed/data/repositories/community_repository_impl.dart`
+    - `test/features/feed/domain/community_moderation_reason_test.dart`
+    - `test/features/feed/data/community_repository_impl_test.dart`
+  - Validation:
+    - `flutter analyze lib/features/feed/domain/entities/community_moderation.dart lib/features/feed/data/repositories/community_repository_impl.dart lib/features/feed/presentation/widgets/community_report_sheet.dart test/features/feed/data/community_repository_impl_test.dart test/features/feed/domain/community_moderation_reason_test.dart` ✅
+    - `flutter test test/features/feed/domain/community_moderation_reason_test.dart test/features/feed/data/community_repository_impl_test.dart` ✅
+
+- **COMMUNITY RULES HARDENING (TRADE BAN + INTEGRITY + SAFETY)**:
+  - `docs/legal/커뮤니티이용규칙_v2026.03.12.md`를 보강했습니다.
+  - 내부 거래 금지 정책을 명시하고, 거래 유도 링크/오픈채팅 유도 금지를 추가했습니다.
+  - 대표 커뮤니티 운영 관행을 반영해 다음 항목을 확장했습니다:
+    - 신고 악용(허위/보복/대량 신고) 제재
+    - 다중 계정/제재 회피 금지
+    - 피싱/악성링크/자동화 어뷰징 금지
+    - 공개 저격/좌표 찍기/집단 공격 유도 금지
+    - 청소년 보호 무관용 기준(성착취물/유사 표현) 강화
+    - 민감 주제 사전 고지(스포일러/고강도 폭력 등) 운영 가능
+  - 운영 임시조치(댓글 잠금/쿨다운) 및 반복 위반 통합 제재 기준을 추가했습니다.
+
+- **MUSIC LYRICS MEMBER-PART COLOR MAP + TAP FILTER**:
+  - 악곡 상세의 가사 패널을 멤버 파트 중심 인터랙션으로 강화했습니다.
+  - 파트 배지 탭 시 해당 멤버가 선택되고, 가사 라인이 멤버 색상으로 강조되며
+    비선택 라인은 기본/보조 색상으로 감쇠 표시됩니다.
+  - `DUET`/`UNISON`/`HARMONY` 파트는 혼합색(그라데이션)으로 렌더링합니다.
+  - 파트-가사 매핑은 `lyricLineId -> lineId`를 우선 적용하고,
+    누락/불일치 시 `startMs/endMs` 시간 겹침 fallback으로 라인에 매핑합니다.
+  - 멤버 색상은 `memberId` 기반 해시 컬러맵으로 고정되며,
+    멤버/매핑 없는 라인은 기본색을 유지합니다.
+  - `eventId`가 있는 경우 `live-context` 응답의 `lyrics/parts/callGuide`를
+    우선 사용하고, 누락 시 기존 개별 상태를 fallback으로 사용합니다.
+  - Updated:
+    - `lib/features/music/presentation/pages/music_song_detail_page.dart`
+  - Validation:
+    - `flutter analyze lib/features/music/presentation/pages/music_song_detail_page.dart` ✅
+
+- **MUSIC TAB UNIT CLASSIFICATION (ALBUM + TRACK)**:
+  - 정보 > 악곡 탭에 유닛 분류 칩을 추가했습니다.
+  - 선택한 유닛 기준으로 앨범 컬렉션과 트랙 라인업이 함께 필터링됩니다.
+  - 트랙에서 유닛 키(`primaryUnitId` 우선, 없으면 `primaryUnitName`)를
+    추출해 분류 옵션을 구성하도록 반영했습니다.
+  - 유닛 데이터 변경으로 선택 옵션이 사라진 경우, 자동으로 전체(`All`)로
+    복귀하도록 상태 안정화 로직을 추가했습니다.
+  - Updated:
+    - `lib/features/feed/presentation/pages/info_page.dart`
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/info_page.dart` ✅
+
+- **ANDROID INTERNAL TEST VERSION BUMP + REBUILD**:
+  - 앱 버전을 `0.2.0+2060671857`로 상향했습니다.
+    - 이전: `0.1.0+2060671856`
+    - 현재: `0.2.0+2060671857` (major/minor 정책 반영 + build `+1`)
+  - 안드로이드 내부테스트용 릴리스 AAB를 재빌드했습니다.
+    - 산출물: `build/app/outputs/bundle/release/app-release.aab`
+
+- **MANDATORY CONSENT 3-TYPE ENFORCEMENT (TERMS/PRIVACY/LOCATION)**:
+  - 필수 동의 게이트를 3종 정책 기준으로 강화했습니다.
+    - `TERMS_OF_SERVICE`
+    - `PRIVACY_POLICY`
+    - `LOCATION_TERMS`
+  - 필수 동의 제출 시 3종 세트를 구성하지 못하면 클라이언트에서 제출을 차단하고 안내 메시지를 노출합니다.
+  - 로그인 상태에서 액세스 토큰 리프레시가 발생할 때마다
+    `GET /api/v1/users/me/consent-status` 재확인이 수행되도록 트리거를 추가했습니다.
+  - 필수 동의 오버레이 문구/라벨에 위치정보 이용약관 타입을 반영했습니다.
+  - 회원가입 동의 섹션에도 위치정보 이용약관 체크를 추가하고
+    가입 payload에 `LOCATION_TERMS`를 포함하도록 반영했습니다.
+  - 법률 정책 상수 버전을 `v2026.03.12`로 업데이트했습니다.
+  - Validation:
+    - `dart analyze lib/features/settings/application/mandatory_consent_controller.dart lib/app.dart lib/features/auth/presentation/pages/register_page.dart lib/core/constants/legal_policy_constants.dart test/features/settings/application/mandatory_consent_controller_test.dart` ✅
+    - `flutter test test/features/settings/application/mandatory_consent_controller_test.dart` ✅
+
+- **MUSIC INFORMATION + LIVE SETLIST FRONTEND INTEGRATION (FE-REQ-MUSIC-20260312)**:
+  - 신규 `music` feature 모듈을 추가하고 아래 엔드포인트를 앱에 연동했습니다.
+    - 앨범: cursor 목록/상세
+    - 곡: cursor 목록/상세
+    - 가사/파트/콜표
+    - 버전/크레딧/난이도/미디어/가용성
+    - 라이브 컨텍스트(eventId 필수)
+    - 라이브 세트리스트(`COMPLETED` 포함)
+  - Info 탭 `악곡` 페이지를 플레이스홀더에서 실데이터 UI로 교체했습니다.
+    - 앨범 수평 리스트 + 곡 리스트(무한 스크롤 커서 load-more)
+  - 곡 상세 페이지를 신규 추가했습니다.
+    - 가사 토글(`Romanized`, `Translated`) + 파트 + 콜표 + 크레딧 + 지표/가용성 + 미디어 링크 렌더
+  - 라우팅 추가:
+    - `/info/songs/:songId?projectId=...&eventId=...`
+    - `/overlay/music/songs/:songId?...`
+    - `context.goToSongDetail(...)`
+  - 라이브 상세 페이지에 세트리스트 섹션을 추가했습니다.
+    - `songId` 존재 항목만 곡 상세 딥링크 허용
+    - `songId=null`(legacy fallback) 항목은 비활성 처리
+  - Validation:
+    - `dart analyze` (변경 파일 범위) ✅
+    - `flutter analyze lib/features/music lib/features/feed/presentation/pages/info_page.dart lib/core/router/app_router.dart lib/features/live_events/presentation/pages/live_event_detail_page.dart` ✅
+    - `flutter test test/core/constants/api_endpoints_contract_test.dart` ✅
+
+- **LEGAL POLICY BASELINE DOCS (KOREA COMPLIANCE DRAFT v2026.03.12)**:
+  - 앱 공개용 법률 문서 초안을 신규 작성했습니다.
+  - 생성 문서:
+    - `docs/legal/이용약관_v2026.03.12.md`
+    - `docs/legal/개인정보처리방침_v2026.03.12.md`
+    - `docs/legal/위치정보이용약관_v2026.03.12.md`
+  - 포함 범위:
+    - 이용약관, 개인정보 처리방침, 위치정보 이용약관의 기본 조항 정리
+    - 대한민국 법령 준수 기준(개인정보보호법/위치정보법/약관규제법) 반영
+    - 게시 전 필수 입력값(사업자·책임자·연락처 등) 플레이스홀더 명시
+
+- **MUSIC INFO BACKEND REQUEST DOC (v1.0.0)**:
+  - 악곡 정보 기능 확장을 위한 백엔드 요청서를 신규 작성했습니다.
+  - 포함 범위:
+    - 앨범/곡/가사/멤버 파트/콜표 API 제안
+    - 버전/언어/타임라인(ms) 계약
+    - 에러코드 제안
+    - QA 체크리스트
+    - 실제 연동 검토용 더미데이터(JSON) 샘플
+    - 추가 제한사항(파라미터 범위, 타임라인 무결성, 필드 길이/개수,
+      캐시 리비전, 레이트 리밋, 상태코드 매핑)
+    - 확장 6항목 상세 계약화:
+      - 버전별 악곡 정보
+      - 라이브 세트리스트 연동
+      - 악곡 크레딧
+      - 난이도/콜 강도
+      - 오디오 프리뷰/외부 스트리밍 링크
+      - 콘텐츠 가용성 메타(국가/기간 제한)
+  - Added:
+    - `docs/api-spec/악곡정보_백엔드요청서_v1.0.0.md`
+
+## 2026-03-11
+- **HOME GREETING HEADER SMALL-DEVICE TEXT CLIPPING FIX**:
+  - 홈 인사말 헤더의 title/subtitle `maxLines`를 1줄 고정에서 2줄 허용으로 변경했습니다.
+  - 작은 기기 폭에서 멘트가 잘리는 문제를 줄이기 위해 텍스트 실제 렌더 높이를
+    측정(`TextPainter`)해 헤더 높이에 동적으로 반영하도록 보강했습니다.
+  - Updated:
+    - `lib/core/widgets/layout/gbt_greeting_header.dart`
+  - Validation:
+    - `flutter analyze lib/core/widgets/layout/gbt_greeting_header.dart` ✅
+
+- **SECURITY + BOOTSTRAP HARDENING (PHASE CONTINUATION)**:
+  - OAuth CSRF 방어를 위해 `state` nonce 생성/저장/검증/소모 흐름을 추가했습니다.
+    - authorize URL에 `state` 파라미터를 포함하고, 콜백에서 provider/state 불일치 시 로그인 완료를 차단합니다.
+  - SSE 연결 전에 `proactiveRefreshIfExpired()`를 실행하도록 연결 경로를 보강했습니다.
+  - Riverpod 초기화 assert 완화를 위해 사용자 권한 프로필 refresh를
+    provider build 즉시 실행에서 post-frame 큐잉으로 변경했습니다.
+  - 필수 동의 컨트롤러의 `ApiClient` 직접 호출을 제거하고
+    `SettingsRepository` 경유 계약으로 마이그레이션했습니다.
+    - `GET /users/me/consent-status`, `POST /users/me/consents` 래핑 메서드 추가
+  - 관리자 화면 서버 호출 하드닝:
+    - 권한 미충족 상태에서는 Admin API 호출을 컨트롤러 레벨에서 차단합니다.
+  - 장소 지도 페이지 성능/안정성 보강:
+    - `GoogleMapController.dispose()` 추가
+    - `addPostFrameCallback` 누적 방지를 위한 프레임당 1회 센터링 스케줄 가드 추가
+  - 방문기록 리포지토리의 강제 캐스트를 제거해 런타임 TypeError 위험을 제거했습니다.
+  - 검증:
+    - `flutter analyze` ✅
+    - `flutter test test/features/settings/application/settings_controller_test.dart` ✅
+    - `flutter test test/features/settings/application/mandatory_consent_controller_test.dart` ✅
+
+## 2026-03-10
+- **NOTIFICATION SETTINGS 409(CONFLICT) AUTO-RECOVERY**:
+  - `/api/v1/notifications/settings` 저장 시 `409 CONFLICT`가 반환되면
+    최신 설정을 강제 재조회한 뒤 사용자 의도값을 병합하여 1회 재시도하도록
+    복구 로직을 추가했습니다.
+  - `ValidationFailure(code=CONFLICT|409|NOTIFICATION_SETTINGS_VERSION_CONFLICT)`를
+    충돌 실패로 분류하고, `error.details.current` 스냅샷이 있으면
+    해당 스냅샷(`version`, `updatedAt`, `categories`)을 우선 사용해
+    복구 재시도 payload를 구성하도록 보강했습니다.
+  - 알림 설정 DTO 계약을 서버 변경분에 맞춰 확장했습니다:
+    - GET 응답 파싱: `version`, `updatedAt`
+    - PUT 요청 전송: `version` 포함, `updatedAt` 미전송
+    - 카테고리 역호환: `FOLLOWING_POSTS` -> `FOLLOWING_POST`
+  - 설정 UI에 `팔로잉 글(FOLLOWING_POST)` 토글을 추가하고
+    활성 배지 카운트에 반영했습니다.
+  - 소셜 알림 타입 정규화 경로를 푸시/SSE/알림함 공통으로 확장했습니다:
+    - `MY_POST_COMMENT_CREATED` -> `COMMENT_CREATED`
+    - `MY_COMMENT_REPLY_CREATED` -> `COMMENT_REPLY_CREATED`
+    - `FOLLOWING_POST_CREATED` -> `POST_CREATED`
+  - Updated:
+    - `lib/core/error/failure.dart`
+    - `lib/core/error/error_handler.dart`
+    - `lib/core/notifications/remote_push_service.dart`
+    - `lib/features/notifications/application/notifications_controller.dart`
+    - `lib/features/notifications/domain/entities/notification_entities.dart`
+    - `lib/features/notifications/domain/entities/notification_navigation.dart`
+    - `lib/features/settings/application/settings_controller.dart`
+    - `lib/features/settings/data/datasources/settings_remote_data_source.dart`
+    - `lib/features/settings/data/dto/notification_settings_dto.dart`
+    - `lib/features/settings/domain/entities/notification_settings.dart`
+    - `lib/features/settings/presentation/pages/notification_settings_page.dart`
+    - `test/features/notifications/domain/notification_navigation_test.dart`
+    - `test/features/settings/application/settings_controller_test.dart`
+    - `test/features/settings/data/notification_settings_dto_test.dart`
+  - Validation:
+    - `flutter analyze lib/core/error/failure.dart lib/core/error/error_handler.dart lib/features/settings/data/dto/notification_settings_dto.dart lib/features/settings/data/datasources/settings_remote_data_source.dart lib/features/settings/application/settings_controller.dart lib/features/settings/domain/entities/notification_settings.dart lib/features/settings/presentation/pages/notification_settings_page.dart lib/features/notifications/domain/entities/notification_navigation.dart lib/features/notifications/domain/entities/notification_entities.dart lib/features/notifications/application/notifications_controller.dart lib/core/notifications/remote_push_service.dart` ✅
+    - `flutter test test/features/settings/data/notification_settings_dto_test.dart test/features/settings/application/settings_controller_test.dart test/features/notifications/domain/notification_navigation_test.dart` ✅
+
+- **MANDATORY CONSENT GATE ENFORCEMENT HARDENING**:
+  - Added fail-closed loading gate: authenticated users are blocked until
+    consent-status has been resolved at least once.
+  - Added guard refresh trigger in app gate when auth is active but consent
+    status is unresolved.
+  - Expanded blocking rule to include `agreed=false` entries in addition to
+    `needsReconsent=true`.
+  - Added backward-compatible parsing for required flag aliases
+    (`required`, `isRequired`) in consent-status payload.
+  - Updated tests for blocking-consent resolution behavior.
+
+- **SETTINGS APP VERSION FOOTER ALIGNMENT**:
+  - Replaced hardcoded settings footer text (`1.0.0 (1)`) with runtime app
+    semantic version from `PackageInfo.version` and removed build-number display.
+  - Added fallback path when platform plugin lookup fails
+    (`APP_VERSION_FALLBACK`, default `0.0.4`) to avoid empty-version UI.
+
+- **MOBILE AUTHZ CAPABILITY REQUEST (FE-REQ-MOBILE-AUTHZ-CAPABILITY-20260310)**:
+  - Added `/api/v1/users/me/access-level` client contract wiring:
+    - endpoint constant + v3 endpoint catalog + contract test coverage.
+    - DTO/domain mapping for `accountRole`, `baselineAccessLevel`,
+      `effectiveAccessLevel`, and active `grants[]`.
+    - merged access-level payload into user profile model.
+  - Added app-scope authorization bootstrap behavior:
+    - profile/access-level refresh on app start,
+      auth state transitions, and token refresh success.
+    - moved initial profile load responsibility from provider-constructor
+      side effect to explicit app bootstrap.
+  - Enforced role-request request-body policy in client:
+    - `requestedRole` only `PLACE_EDITOR` or `COMMUNITY_MODERATOR`.
+    - `projectId` must be UUID for `POST /projects/role-requests`.
+  - Enforced translation request input policy in client:
+    - allowed languages: `ko`, `en`, `ja`.
+    - max `text` length: `5000`.
+  - Expanded community report target enum support:
+    - added `PLACE`, `GUIDE`, `PHOTO`.
+  - Hardened async controller lifecycle safety:
+    - added `mounted` guards in settings controllers to avoid
+      post-dispose state writes.
+  - Fixed Riverpod bootstrap init assertion on app start:
+    - deferred profile refresh from provider-build phase to queued task
+      to avoid mutating `userProfileControllerProvider` during
+      `userAuthorizationBootstrapProvider` initialization.
+  - Updated post-compose autosave integration tests:
+    - initialized `AppConfig` in test harness to avoid
+      `LateInitializationError(_baseUrl)` from `ApiClient` bootstrap.
+    - flushed debounce timers to avoid pending-timer test failures.
+  - Validation:
+    - `flutter analyze` ✅
+    - `flutter test --reporter compact` ✅
+
+- **UNIT/MEMBER/VOICE-ACTOR ENDPOINT INTEGRATION (FE-REQ-UNIT-MEMBER-VOICE-ACTOR-20260310)**:
+  - Added unit/member/voice-actor read contract integration based on
+    `docs/frontend/unit-member-voice-actor-endpoints-request-20260310.md`.
+  - Migrated voice-actor endpoints to v1.4.0 project-scoped paths:
+    - `GET /api/v1/projects/{projectId}/units/voice-actors`
+    - `GET /api/v1/projects/{projectId}/units/voice-actors/{voiceActorId}`
+    - `GET /api/v1/projects/{projectId}/units/voice-actors/{voiceActorId}/members`
+    - `GET /api/v1/projects/{projectId}/units/voice-actors/{voiceActorId}/credits`
+  - Enforced `projectId` in voice-actor routing/provider/cache keys to
+    prevent cross-project data bleed on project switch.
+  - Updated unit/member navigation and fetch to `unitIdentifier`(slug/UUID)
+    semantics for detail/member detail flows.
+  - Added place review delete flow for owner/moderator only:
+    - `DELETE /api/v1/places/{placeId}/comments/{commentId}`
+    - UI shows delete action only for 작성자/모더레이터,
+      then refreshes list immediately after success.
+  - Added/updated tests:
+    - `test/core/constants/api_endpoints_contract_test.dart`
+  - Validation:
+    - `flutter analyze` ✅
+    - `flutter test test/core/constants/api_endpoints_contract_test.dart` ✅
+
+- **IMAGE PROCESSING POLICY UPDATE (FE-POLICY-IMAGE-PROCESSING-20260310)**:
+  - Removed deprecated upload approval/pending contracts from app code:
+    - removed `/uploads/pending` and `/uploads/{uploadId}/approve` constants
+      and v3 contract checks.
+    - removed upload approve DTO/data-source/repository/controller methods.
+  - Removed place review-photo admin approval workflow from place detail page:
+    - deleted approve/reject action UI and related local state/handlers.
+    - place review images now render without frontend approval branching.
+  - Added admin media-deletion operations in Admin Ops:
+    - endpoint constants:
+      - `GET /api/v1/admin/media-deletions`
+      - `POST /api/v1/admin/media-deletions/{requestId}/approve`
+      - `POST /api/v1/admin/media-deletions/{requestId}/reject`
+    - new DTO/domain/repository/controller wiring for media deletion requests.
+    - added `미디어 삭제` tab in Admin Ops UI with actions:
+      - approve (media only, `deleteLinkedContents=false`)
+      - approve (linked contents included, `deleteLinkedContents=true`)
+      - reject
+  - Added/updated tests:
+    - `test/core/constants/api_endpoints_contract_test.dart`
+    - `test/features/admin_ops/data/admin_ops_dto_test.dart`
+    - `test/features/admin_ops/domain/admin_ops_entities_test.dart`
+  - Validation:
+    - `dart analyze lib/core/constants/api_constants.dart lib/core/constants/api_v3_endpoints_catalog.dart lib/features/uploads/data/dto/upload_dto.dart lib/features/uploads/data/datasources/uploads_remote_data_source.dart lib/features/uploads/domain/repositories/uploads_repository.dart lib/features/uploads/data/repositories/uploads_repository_impl.dart lib/features/uploads/application/uploads_controller.dart lib/features/places/presentation/pages/place_detail_page.dart lib/features/admin_ops/domain/entities/admin_ops_entities.dart lib/features/admin_ops/data/dto/admin_ops_dto.dart lib/features/admin_ops/data/datasources/admin_ops_remote_data_source.dart lib/features/admin_ops/domain/repositories/admin_ops_repository.dart lib/features/admin_ops/data/repositories/admin_ops_repository_impl.dart lib/features/admin_ops/application/admin_ops_controller.dart lib/features/admin_ops/presentation/pages/admin_ops_page.dart test/core/constants/api_endpoints_contract_test.dart test/features/admin_ops/data/admin_ops_dto_test.dart test/features/admin_ops/domain/admin_ops_entities_test.dart` ✅
+    - `flutter test test/core/constants/api_endpoints_contract_test.dart test/features/admin_ops/data/admin_ops_dto_test.dart test/features/admin_ops/domain/admin_ops_entities_test.dart` ✅
+
+- **MANDATORY CONSENT FLOW: SERVER-DYNAMIC CONSENT STATUS INTEGRATION (v1.0.0)**:
+  - 필수 동의 게이트를 기존 하드코딩 버전/URL + 로컬 이력 판정 방식에서
+    서버 상태 기반(`GET /api/v1/users/me/consent-status`)으로 전환.
+  - `canUseService=false` 또는 `requiredConsents[].needsReconsent=true` 항목 존재 시
+    서비스 진입 차단 유지.
+  - 동의 제출을 실제 API(`POST /api/v1/users/me/consents`) 호출로 전환하고
+    제출 성공 후 상태 재조회로 차단 해제 여부를 확정.
+  - 동의 오버레이 UI를 동적 항목 렌더링으로 변경:
+    - 문서 링크: `requiredConsents[].policyUrl`
+    - 버전 표기: `requiredConsents[].requiredVersion`
+    - 타입 라벨 매핑: `TERMS_OF_SERVICE`, `PRIVACY_POLICY`
+    - 상태 조회 실패 시 차단 화면 내 `재시도` 버튼 제공
+    - 제출 실패 시 스낵바(토스트) 노출 + 재시도 가능
+    - `error.code`/가능한 경우 `requestId` 노출
+  - 엔드포인트 상수 추가:
+    - `ApiEndpoints.userConsentStatus`
+  - 업데이트 파일:
+    - `lib/features/settings/application/mandatory_consent_controller.dart`
+    - `lib/app.dart`
+    - `lib/core/constants/api_constants.dart`
+    - `test/features/settings/application/mandatory_consent_controller_test.dart`
+  - Validation:
+    - `dart analyze lib/app.dart lib/features/settings/application/mandatory_consent_controller.dart lib/core/constants/api_constants.dart test/features/settings/application/mandatory_consent_controller_test.dart` ✅
+    - `flutter test test/features/settings/application/mandatory_consent_controller_test.dart` ✅
+    - `flutter analyze` ⚠️ (프로젝트 기존 이슈: projects repository 인터페이스 시그니처 불일치)
+
 ## 2026-03-09
+- **ADMIN AUTHZ DOC (10/11) ROLE-REQUEST FLOW INTEGRATION**:
+  - Added endpoint constants + v3 contract coverage for role-request APIs:
+    - `/projects/role-requests` (GET/POST)
+    - `/projects/role-requests/{requestId}` (GET/DELETE)
+    - `/admin/projects/role-requests` (GET)
+    - `/admin/projects/role-requests/{requestId}` (GET)
+    - `/admin/projects/role-requests/{requestId}/review` (PATCH)
+  - Replaced account-tools permission-request clipboard template flow with
+    actual API-backed create/list/cancel flow.
+  - Added admin-ops role-request moderation tab:
+    - request list filters (전체/대기/승인/거절)
+    - approve/reject actions with optional admin memo.
+  - Added DTO/domain/controller/repository wiring + tests:
+    - `account_tools_dto_test`
+    - `admin_ops_dto_test`
+    - `api_endpoints_contract_test`
+  - Added ADR:
+    - `docs/adr/ADR-20260309-admin-role-request-flow-integration.md`
+
 - **CODE AUDIT REMEDIATION BATCH (P1/P2 CORE)**:
   - Settings 아키텍처 경계 정리:
     - `privacy_rights_page`/`consent_history_page`의 직접 `ApiClient` 호출 제거.
@@ -211,6 +644,11 @@
     - enforce `CI_PRIMARY_REPOSITORY_PATH` presence with explicit failure,
     - quote repository path before `cd`,
     - use `pod install --repo-update` to reduce stale-spec failures.
+  - Added extra runtime hardening/logging in `ios/ci_scripts/ci_post_clone.sh`:
+    - repository root auto-resolution fallback when `CI_PRIMARY_REPOSITORY_PATH`
+      is unavailable,
+    - step-by-step `[ci_post_clone]` logs for faster root-cause triage in
+      Xcode Cloud build logs.
   - Added clearer decode-failure hint message for secret regeneration.
   - Validation:
     - `bash -n ci_post_clone.sh`
@@ -1900,3 +2338,87 @@
     so iOS builds consistently bundle Firebase config.
 - Validation:
   - `flutter analyze lib/features/settings/application/settings_controller.dart lib/core/notifications/remote_push_service.dart lib/core/notifications/local_notifications_service.dart`
+
+## 2026-03-09 (continued)
+- Android feed thumbnail compatibility hardening:
+  - Strengthened media URL normalization for feed/board preview images:
+    - supports scheme-less URLs (`r2.pyrimidines.org/...`)
+    - resolves relative upload object keys (`uploads/...`,
+      `uploads%2F...`) to public CDN URL
+    - resolves non-upload relative media paths against API origin.
+  - Expanded content image extractor compatibility:
+    - markdown/html image parsing now accepts relative and scheme-less URLs
+      (not only `http(s)`),
+    - image-likelihood check now validates after media URL normalization.
+  - Extended upload DTO compatibility for backend payload variance:
+    - upload id key fallback (`uploadId`, `upload_id`, `id`, `fileId`,
+      `file_id`)
+    - URL key fallback (`url`, `fileUrl`, `publicUrl`, `cdnUrl`, `path`)
+    - approval state key fallback (`isApproved`, `approved`).
+  - Added regression tests:
+    - `test/core/utils/media_url_test.dart`
+    - `test/core/utils/image_url_extractor_test.dart`
+    - `test/features/uploads/data/upload_dto_test.dart`
+- Validation:
+  - `flutter test test/core/utils/media_url_test.dart test/core/utils/image_url_extractor_test.dart test/features/uploads/data/upload_dto_test.dart`
+  - `flutter analyze lib/core/utils/media_url.dart lib/core/utils/image_url_extractor.dart lib/features/uploads/data/dto/upload_dto.dart`
+- Home project-switch instant apply improvement:
+  - Home controller now listens to both `selectedProjectKey` and
+    `selectedProjectId`, then coalesces updates in microtask to avoid
+    key/id race during project selection.
+  - Added in-memory per-project summary cache from by-project payloads so
+    switching projects on Home applies cached summary immediately.
+  - Added latest-request-only guard (`request serial`) to prevent stale,
+    slower responses from overriding newer selected-project state.
+  - Improved project identifier resolution by mapping selected key against
+    loaded project list first (fallback to selected id/key).
+- Validation:
+  - `flutter analyze lib/features/home/application/home_controller.dart`
+  - `flutter test test/features/home/data/home_summary_dto_test.dart test/features/home/domain/home_summary_test.dart`
+- Samsung/real-device upload URL hydration hardening:
+  - Post create/edit now retries resolving uploaded image URLs from
+    `/uploads/my` cache path when direct upload response has empty `url`.
+  - This keeps `content` markdown image URLs and feed preview fallback
+    candidates populated even on delayed/partial upload responses seen on
+    some physical Android devices.
+  - Added warning logs when URLs remain unresolved after retry budget.
+- Validation:
+  - `flutter analyze lib/features/feed/presentation/pages/post_create_page.dart lib/features/feed/presentation/pages/post_edit_page.dart`
+  - `flutter test test/features/feed/presentation/post_compose_components_test.dart test/features/feed/data/post_comment_dto_test.dart`
+- Admin permission-resolution hardening:
+  - Expanded access-level parser alias support for mixed payload formats:
+    - access/account tokens now normalize separators and legacy prefixes
+      (e.g. `ROLE_ADMIN`, `super-admin`, `community_moderator`).
+    - resolver now maps admin/moderator/editor aliases consistently before
+      fallbacking to `unknown`.
+  - Hardened user profile DTO contract compatibility:
+    - supports snake_case user/profile fields and access-level keys,
+    - derives `accountRole` from legacy `role/roles/authorities` when
+      `accountRole` is missing,
+    - normalizes `effectiveAccessLevel`/`baselineAccessLevel` aliases.
+  - Prevented transient `/users/me` failures from clearing already-resolved
+    admin UI state by keeping previous profile data during refresh errors.
+- Validation:
+  - `flutter analyze lib/core/security/user_access_level.dart lib/features/settings/data/dto/user_profile_dto.dart lib/features/settings/application/settings_controller.dart`
+  - `flutter test test/core/security/user_access_level_test.dart test/features/settings/data/user_profile_dto_test.dart`
+
+## 2026-03-09 (continued)
+- Admin/Authz model alignment with backend request FE-REQ-ADMIN-AUTHZ-MODEL-20260309:
+  - Updated account-role fallback policy to match server baseline rule:
+    - `accountRole=ADMIN` now resolves to `PLATFORM_SUPER_ADMIN`
+    - `accountRole=USER` resolves to `USER_BASE`.
+  - Tightened ops-center gate semantics:
+    - core `hasAdminOpsAccess` now requires `ADMIN_NON_SENSITIVE` or higher.
+  - Added project-scope authorization helpers:
+    - `canEditProjectContent(...)`
+    - `canModerateProjectCommunity(...)`
+    using global access level + per-project `ProjectRole` combination.
+  - Extended user profile DTO/domain model with project-role map support
+    (`projectRolesByProject`) and parser compatibility for map/list payload
+    variants.
+  - Applied project-scope moderation checks in feed/board/place detail UIs so
+    project role holders can access moderation actions without requiring global
+    moderator level.
+- Validation:
+  - `flutter analyze lib/core/security/user_access_level.dart lib/features/settings/data/dto/user_profile_dto.dart lib/features/settings/domain/entities/user_profile.dart lib/features/feed/presentation/pages/board_page.dart lib/features/feed/presentation/pages/post_detail_page.dart lib/features/places/presentation/pages/place_detail_page.dart`
+  - `flutter test test/core/security/user_access_level_test.dart test/features/settings/data/user_profile_dto_test.dart test/features/admin_ops/domain/admin_ops_entities_test.dart`

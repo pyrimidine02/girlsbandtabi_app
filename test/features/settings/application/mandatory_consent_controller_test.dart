@@ -2,86 +2,180 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:girlsbandtabi_app/features/settings/application/mandatory_consent_controller.dart';
 
 void main() {
-  group('resolveMissingRequiredConsents', () {
-    test('returns both required items when history is empty', () {
-      final missing = resolveMissingRequiredConsents(records: const []);
-
-      expect(missing, {
-        RequiredConsentType.termsOfService,
-        RequiredConsentType.privacyPolicy,
+  group('parseMandatoryConsentStatusPayload', () {
+    test('parses canUseService and required consent list', () {
+      final payload = parseMandatoryConsentStatusPayload({
+        'canUseService': false,
+        'requiredConsents': [
+          {
+            'type': 'TERMS_OF_SERVICE',
+            'requiredVersion': 'v2026.03.10',
+            'policyUrl': 'https://example.com/policies/terms/v2026.03.10',
+            'agreed': false,
+            'agreedVersion': null,
+            'agreedAt': null,
+            'needsReconsent': true,
+          },
+          {
+            'type': 'PRIVACY_POLICY',
+            'requiredVersion': 'v2026.03.10',
+            'policyUrl': 'https://example.com/policies/privacy/v2026.03.10',
+            'agreed': true,
+            'agreedVersion': 'v2026.03.01',
+            'agreedAt': '2026-03-01T03:10:00Z',
+            'needsReconsent': true,
+          },
+          {
+            'type': 'LOCATION_TERMS',
+            'requiredVersion': 'v2026.03.10',
+            'policyUrl': 'https://example.com/policies/location/v2026.03.10',
+            'agreed': false,
+            'agreedVersion': null,
+            'agreedAt': null,
+            'needsReconsent': true,
+          },
+        ],
       });
+
+      expect(payload.canUseService, isFalse);
+      expect(payload.requiredConsents, hasLength(3));
+      expect(payload.requiredConsents.first.type, 'TERMS_OF_SERVICE');
+      expect(payload.requiredConsents.first.requiredVersion, 'v2026.03.10');
+    });
+
+    test('falls back to blocking payload on invalid response shape', () {
+      final payload = parseMandatoryConsentStatusPayload('invalid');
+
+      expect(payload.canUseService, isFalse);
+      expect(payload.requiredConsents, isEmpty);
+    });
+  });
+
+  group('resolveBlockingRequiredConsents', () {
+    test('returns needsReconsent entries', () {
+      final blocking = resolveBlockingRequiredConsents(
+        consents: const [
+          RequiredConsentStatusItem(
+            type: 'TERMS_OF_SERVICE',
+            requiredVersion: 'v2026.03.10',
+            policyUrl: 'https://example.com/terms',
+            agreed: true,
+            agreedVersion: 'v2026.03.10',
+            agreedAt: '2026-03-10T10:30:00Z',
+            needsReconsent: false,
+          ),
+          RequiredConsentStatusItem(
+            type: 'PRIVACY_POLICY',
+            requiredVersion: 'v2026.03.10',
+            policyUrl: 'https://example.com/privacy',
+            agreed: true,
+            agreedVersion: 'v2026.03.01',
+            agreedAt: '2026-03-01T03:10:00Z',
+            needsReconsent: true,
+          ),
+        ],
+      );
+
+      expect(blocking, hasLength(1));
+      expect(blocking.first.type, 'PRIVACY_POLICY');
     });
 
     test(
-      'returns empty when both required consents are agreed with current versions',
+      'treats not-agreed entries as blocking even if needsReconsent=false',
       () {
-        final missing = resolveMissingRequiredConsents(
-          records: [
-            ConsentHistoryRecord(
-              type: RequiredConsentType.termsOfService.apiType,
-              version: RequiredConsentType.termsOfService.currentVersion,
-              agreed: true,
-              agreedAt: '2026-03-08T01:00:00Z',
-            ),
-            ConsentHistoryRecord(
-              type: RequiredConsentType.privacyPolicy.apiType,
-              version: RequiredConsentType.privacyPolicy.currentVersion,
-              agreed: true,
-              agreedAt: '2026-03-08T01:01:00Z',
+        final blocking = resolveBlockingRequiredConsents(
+          consents: const [
+            RequiredConsentStatusItem(
+              type: 'TERMS_OF_SERVICE',
+              requiredVersion: 'v2026.03.10',
+              policyUrl: 'https://example.com/terms',
+              agreed: false,
+              agreedVersion: null,
+              agreedAt: null,
+              needsReconsent: false,
             ),
           ],
         );
 
-        expect(missing, isEmpty);
+        expect(blocking, hasLength(1));
+        expect(blocking.first.type, 'TERMS_OF_SERVICE');
       },
     );
+  });
 
-    test('returns missing type when latest consent version is outdated', () {
-      final missing = resolveMissingRequiredConsents(
-        records: [
-          ConsentHistoryRecord(
-            type: RequiredConsentType.termsOfService.apiType,
-            version: 'v2025.12.31',
-            agreed: true,
-            agreedAt: '2026-03-08T01:00:00Z',
-          ),
-          ConsentHistoryRecord(
-            type: RequiredConsentType.privacyPolicy.apiType,
-            version: RequiredConsentType.privacyPolicy.currentVersion,
-            agreed: true,
-            agreedAt: '2026-03-08T01:01:00Z',
-          ),
-        ],
+  group('mandatory consent type set', () {
+    test('extracts and validates required 3 consent types only', () {
+      const source = [
+        RequiredConsentStatusItem(
+          type: 'TERMS_OF_SERVICE',
+          requiredVersion: 'v2026.03.12',
+          policyUrl: 'https://example.com/terms',
+          agreed: true,
+          agreedVersion: 'v2026.03.12',
+          agreedAt: '2026-03-12T10:00:00Z',
+          needsReconsent: false,
+        ),
+        RequiredConsentStatusItem(
+          type: 'PRIVACY_POLICY',
+          requiredVersion: 'v2026.03.12',
+          policyUrl: 'https://example.com/privacy',
+          agreed: true,
+          agreedVersion: 'v2026.03.12',
+          agreedAt: '2026-03-12T10:00:00Z',
+          needsReconsent: false,
+        ),
+        RequiredConsentStatusItem(
+          type: 'LOCATION_TERMS',
+          requiredVersion: 'v2026.03.12',
+          policyUrl: 'https://example.com/location',
+          agreed: false,
+          agreedVersion: null,
+          agreedAt: null,
+          needsReconsent: true,
+        ),
+        RequiredConsentStatusItem(
+          type: 'AGE_OVER_14',
+          requiredVersion: 'v2026.03.12',
+          policyUrl: 'https://example.com/age',
+          agreed: true,
+          agreedVersion: 'v2026.03.12',
+          agreedAt: '2026-03-12T10:00:00Z',
+          needsReconsent: false,
+        ),
+      ];
+
+      final mandatory = extractMandatoryConsentItems(consents: source);
+      expect(mandatory, hasLength(3));
+      expect(
+        mandatory.map((item) => item.type).toSet(),
+        equals({'TERMS_OF_SERVICE', 'PRIVACY_POLICY', 'LOCATION_TERMS'}),
       );
-
-      expect(missing, {RequiredConsentType.termsOfService});
+      expect(containsAllMandatoryConsentTypes(consents: mandatory), isTrue);
     });
 
-    test('uses latest timestamp record for each consent type', () {
-      final missing = resolveMissingRequiredConsents(
-        records: [
-          ConsentHistoryRecord(
-            type: RequiredConsentType.termsOfService.apiType,
-            version: RequiredConsentType.termsOfService.currentVersion,
-            agreed: false,
-            agreedAt: '2026-03-08T01:00:00Z',
-          ),
-          ConsentHistoryRecord(
-            type: RequiredConsentType.termsOfService.apiType,
-            version: RequiredConsentType.termsOfService.currentVersion,
-            agreed: true,
-            agreedAt: '2026-03-08T01:02:00Z',
-          ),
-          ConsentHistoryRecord(
-            type: RequiredConsentType.privacyPolicy.apiType,
-            version: RequiredConsentType.privacyPolicy.currentVersion,
-            agreed: true,
-            agreedAt: '2026-03-08T01:01:00Z',
-          ),
-        ],
-      );
+    test('returns false when one of required 3 consent types is missing', () {
+      const source = [
+        RequiredConsentStatusItem(
+          type: 'TERMS_OF_SERVICE',
+          requiredVersion: 'v2026.03.12',
+          policyUrl: 'https://example.com/terms',
+          agreed: true,
+          agreedVersion: 'v2026.03.12',
+          agreedAt: '2026-03-12T10:00:00Z',
+          needsReconsent: false,
+        ),
+        RequiredConsentStatusItem(
+          type: 'PRIVACY_POLICY',
+          requiredVersion: 'v2026.03.12',
+          policyUrl: 'https://example.com/privacy',
+          agreed: true,
+          agreedVersion: 'v2026.03.12',
+          agreedAt: '2026-03-12T10:00:00Z',
+          needsReconsent: false,
+        ),
+      ];
 
-      expect(missing, isEmpty);
+      expect(containsAllMandatoryConsentTypes(consents: source), isFalse);
     });
   });
 }

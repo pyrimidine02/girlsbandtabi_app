@@ -125,8 +125,8 @@ class _NotificationSettingsView extends StatelessWidget {
         ),
         const SizedBox(height: GBTSpacing.lg),
 
-        // EN: Content group — live/favorites/comments
-        // KO: 콘텐츠 그룹 — 라이브/즐겨찾기/댓글
+        // EN: Content group — live/favorites/comments/following posts
+        // KO: 콘텐츠 그룹 — 라이브/즐겨찾기/댓글/팔로잉 글
         _NotifGroupCard(
           title: '콘텐츠 알림',
           isDark: isDark,
@@ -167,6 +167,19 @@ class _NotificationSettingsView extends StatelessWidget {
               onChanged: (v) =>
                   onChanged(settings.copyWith(commentsEnabled: v)),
               isDark: isDark,
+              enabled: settings.pushEnabled,
+            ),
+            _NotifToggleRow(
+              icon: Icons.people_alt_rounded,
+              iconColor: const Color(0xFF10B981),
+              title: '팔로잉 글',
+              subtitle: '팔로우한 사용자의 새 글 알림',
+              value: settings.followingPostsEnabled,
+              semanticLabel:
+                  '팔로잉 글 알림 ${settings.followingPostsEnabled ? "켜짐" : "꺼짐"}',
+              onChanged: (v) =>
+                  onChanged(settings.copyWith(followingPostsEnabled: v)),
+              isDark: isDark,
               isLast: true,
               enabled: settings.pushEnabled,
             ),
@@ -196,6 +209,7 @@ class _SummaryHeader extends StatelessWidget {
             settings.liveEventsEnabled,
             settings.favoritesEnabled,
             settings.commentsEnabled,
+            settings.followingPostsEnabled,
           ].where((value) => value).length
         : 0;
     final enabledCount =

@@ -65,4 +65,62 @@ void main() {
       expect(dtos.first.status, 'IN_REVIEW');
     });
   });
+
+  group('AdminProjectRoleRequestDto', () {
+    test('parses role request payload list', () {
+      final dtos = AdminProjectRoleRequestDto.listFromAny({
+        'items': [
+          {
+            'requestId': 'role-req-1',
+            'projectId': 'project-1',
+            'projectName': '걸즈 밴드 크라이',
+            'requesterName': '운영지원자',
+            'requestedRole': 'PLACE_EDITOR',
+            'status': 'PENDING',
+            'justification': '콘텐츠 정합성 개선 작업을 수행하려고 합니다.',
+            'createdAt': '2026-03-09T03:00:00Z',
+          },
+        ],
+      });
+
+      expect(dtos, hasLength(1));
+      expect(dtos.first.id, 'role-req-1');
+      expect(dtos.first.projectName, '걸즈 밴드 크라이');
+      expect(dtos.first.requestedRole, 'PLACE_EDITOR');
+      expect(dtos.first.status, 'PENDING');
+    });
+  });
+
+  group('AdminMediaDeletionRequestDto', () {
+    test('parses pageable payload into media deletion requests', () {
+      final dtos = AdminMediaDeletionRequestDto.listFromAny({
+        'content': [
+          {
+            'id': '1b6cb78d-d12d-4d52-b6cf-4562f7f64740',
+            'entityType': 'PLACE',
+            'linkId': '34db0f86-dce0-4fc8-a3f2-c1a8a525f2af',
+            'uploadId': 'f6f76461-f6f1-4812-a580-1bb3077d9dbb',
+            'requestedBy': 'moderator@pyrimidines.org',
+            'status': 'PENDING',
+            'createdAt': '2026-03-10T06:00:00Z',
+          },
+        ],
+      });
+
+      expect(dtos, hasLength(1));
+      expect(dtos.first.id, '1b6cb78d-d12d-4d52-b6cf-4562f7f64740');
+      expect(dtos.first.entityType, 'PLACE');
+      expect(dtos.first.status, 'PENDING');
+    });
+  });
+
+  group('AdminMediaDeletionActionResponseDto', () {
+    test('parses success payload', () {
+      final dto = AdminMediaDeletionActionResponseDto.fromJson({
+        'success': true,
+      });
+
+      expect(dto.success, isTrue);
+    });
+  });
 }

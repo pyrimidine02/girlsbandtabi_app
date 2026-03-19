@@ -40,6 +40,23 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
+    target.build_configurations.each do |config|
+      # Fix: ensure dSYM is generated for all pod targets (including objective_c.framework)
+      # so Xcode archive validation does not fail with "missing dSYM" errors.
+      config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
+
+      # Fix: Xcode 26+ requires arm64 for simulator builds on Apple Silicon Macs.
+      # Remove any existing arm64 exclusion from simulator builds imposed by pods
+      # (e.g. apple_maps_flutter, connectivity_plus, etc. exclude arm64 in their podspecs).
+      excluded = config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'].to_s
+      updated = excluded.split.reject { |arch| arch == 'arm64' }.join(' ')
+      if updated.empty?
+        config.build_settings.delete('EXCLUDED_ARCHS[sdk=iphonesimulator*]')
+      else
+        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = updated
+      end
+    end
   end
 
   # Patch apple_maps_flutter: fix [unowned self] crash (AppleMapController.swift:62)

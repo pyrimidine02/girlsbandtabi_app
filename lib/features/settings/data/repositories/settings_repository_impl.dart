@@ -6,6 +6,7 @@ import '../../../../core/cache/cache_manager.dart';
 import '../../../../core/cache/cache_profiles.dart';
 import '../../../../core/error/error_handler.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/logging/app_logger.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/account_tools.dart';
 import '../../domain/entities/consent_history.dart';
@@ -19,6 +20,7 @@ import '../dto/consent_history_dto.dart';
 import '../dto/notification_device_dto.dart';
 import '../dto/notification_settings_dto.dart';
 import '../dto/privacy_rights_dto.dart';
+import '../dto/user_access_level_dto.dart';
 import '../dto/user_profile_dto.dart';
 
 class SettingsRepositoryImpl implements SettingsRepository {
@@ -152,6 +154,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
         pushEnabled: settings.pushEnabled,
         emailEnabled: settings.emailEnabled,
         categories: settings.categories,
+        version: settings.version,
       );
       final result = await _remoteDataSource.updateNotificationSettings(
         settings: dto,
@@ -388,6 +391,53 @@ class SettingsRepositoryImpl implements SettingsRepository {
   }
 
   @override
+  Future<Result<Map<String, dynamic>>> getMandatoryConsentStatus() async {
+    try {
+      final result = await _remoteDataSource.fetchMandatoryConsentStatus();
+      if (result is Success<Map<String, dynamic>>) {
+        return Result.success(result.data);
+      }
+      if (result is Err<Map<String, dynamic>>) {
+        return Result.failure(result.failure);
+      }
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown mandatory consent status result',
+          code: 'unknown_mandatory_consent_status',
+        ),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<void>> submitMandatoryConsents({
+    required List<Map<String, dynamic>> consents,
+  }) async {
+    try {
+      final result = await _remoteDataSource.submitMandatoryConsents(
+        consents: consents,
+      );
+      if (result is Success<void>) {
+        await _cacheManager.removeByPrefix('consent_history:');
+        return const Result.success(null);
+      }
+      if (result is Err<void>) {
+        return Result.failure(result.failure);
+      }
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown mandatory consent submit result',
+          code: 'unknown_mandatory_consent_submit',
+        ),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
   Future<Result<void>> deleteAccount() async {
     try {
       final result = await _remoteDataSource.deleteAccount();
@@ -449,6 +499,106 @@ class SettingsRepositoryImpl implements SettingsRepository {
       );
       if (result is Success<void>) {
         await _cacheManager.remove(_userBlocksCacheKey);
+      }
+      return result;
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<List<ProjectRoleRequest>>> getProjectRoleRequests({
+    bool forceRefresh = false,
+    String? status,
+  }) async {
+    final profile = CacheProfiles.settingsProjectRoleRequests;
+    final policy = profile.policyFor(forceRefresh: forceRefresh);
+    final cacheKey = _projectRoleRequestsCacheKey(status);
+    try {
+      final cacheResult = await _cacheManager
+          .resolve<List<ProjectRoleRequestDto>>(
+            key: cacheKey,
+            policy: policy,
+            ttl: profile.ttl,
+            revalidateAfter: profile.revalidateAfter,
+            fetcher: () => _fetchProjectRoleRequests(status: status),
+            toJson: (dtos) => {
+              'items': dtos.map(_projectRoleRequestToJson).toList(),
+            },
+            fromJson: (json) {
+              final items = json['items'];
+              if (items is List) {
+                return items
+                    .whereType<Map<String, dynamic>>()
+                    .map(ProjectRoleRequestDto.fromJson)
+                    .toList(growable: false);
+              }
+              return const <ProjectRoleRequestDto>[];
+            },
+          );
+      return Result.success(
+        cacheResult.data
+            .map(ProjectRoleRequest.fromDto)
+            .toList(growable: false),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<ProjectRoleRequest>> createProjectRoleRequest({
+    required String projectId,
+    required String requestedRole,
+    required String justification,
+  }) async {
+    final normalizedRole = requestedRole.trim().toUpperCase();
+    if (normalizedRole != 'PLACE_EDITOR' &&
+        normalizedRole != 'COMMUNITY_MODERATOR') {
+      return const Result.failure(
+        ValidationFailure(
+          'Requested role must be PLACE_EDITOR or COMMUNITY_MODERATOR',
+          code: 'invalid_requested_role',
+        ),
+      );
+    }
+
+    try {
+      final result = await _remoteDataSource.createProjectRoleRequest(
+        request: ProjectRoleRequestCreateRequestDto(
+          projectId: projectId,
+          requestedRole: normalizedRole,
+          justification: justification,
+        ),
+      );
+      if (result is Success<ProjectRoleRequestDto>) {
+        await _cacheManager.removeByPrefix('project_role_requests:');
+        return Result.success(ProjectRoleRequest.fromDto(result.data));
+      }
+      if (result is Err<ProjectRoleRequestDto>) {
+        return Result.failure(result.failure);
+      }
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown project role request create result',
+          code: 'unknown_project_role_request_create',
+        ),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<void>> cancelProjectRoleRequest({
+    required String requestId,
+  }) async {
+    try {
+      final result = await _remoteDataSource.cancelProjectRoleRequest(
+        requestId: requestId,
+      );
+      if (result is Success<void>) {
+        await _cacheManager.removeByPrefix('project_role_requests:');
       }
       return result;
     } catch (e, stackTrace) {
@@ -535,19 +685,38 @@ class SettingsRepositoryImpl implements SettingsRepository {
   }
 
   Future<UserProfileDto> _fetchUserProfile() async {
-    final result = await _remoteDataSource.fetchUserProfile();
+    final profileFuture = _remoteDataSource.fetchUserProfile();
+    final accessLevelFuture = _remoteDataSource.fetchUserAccessLevel();
 
-    if (result is Success<UserProfileDto>) {
-      return result.data;
-    }
-    if (result is Err<UserProfileDto>) {
-      throw result.failure;
+    final profileResult = await profileFuture;
+    if (profileResult is! Success<UserProfileDto>) {
+      if (profileResult is Err<UserProfileDto>) {
+        throw profileResult.failure;
+      }
+      throw const UnknownFailure(
+        'Unknown user profile result',
+        code: 'unknown_profile',
+      );
     }
 
-    throw const UnknownFailure(
-      'Unknown user profile result',
-      code: 'unknown_profile',
-    );
+    final profileDto = profileResult.data;
+    final accessLevelResult = await accessLevelFuture;
+    if (accessLevelResult is Success<UserAccessLevelDto>) {
+      return profileDto.mergeAccessLevel(accessLevelResult.data);
+    }
+    if (accessLevelResult is Err<UserAccessLevelDto>) {
+      if (accessLevelResult.failure is AuthFailure) {
+        throw accessLevelResult.failure;
+      }
+      AppLogger.warning(
+        'Failed to fetch /users/me/access-level; fallback to /users/me payload',
+        data: accessLevelResult.failure,
+        tag: 'SettingsRepository',
+      );
+      return profileDto;
+    }
+
+    return profileDto;
   }
 
   Future<UserProfileDto> _fetchUserProfileById(String userId) async {
@@ -650,6 +819,24 @@ class SettingsRepositoryImpl implements SettingsRepository {
     );
   }
 
+  Future<List<ProjectRoleRequestDto>> _fetchProjectRoleRequests({
+    String? status,
+  }) async {
+    final result = await _remoteDataSource.fetchProjectRoleRequests(
+      status: status,
+    );
+    if (result is Success<List<ProjectRoleRequestDto>>) {
+      return result.data;
+    }
+    if (result is Err<List<ProjectRoleRequestDto>>) {
+      throw result.failure;
+    }
+    throw const UnknownFailure(
+      'Unknown project role requests result',
+      code: 'unknown_project_role_requests',
+    );
+  }
+
   Future<List<VerificationAppealDto>> _fetchVerificationAppeals(
     String projectId,
   ) async {
@@ -672,6 +859,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
   static const String _notificationCacheKey = 'notification_settings';
   static const String _privacySettingsCacheKey = 'privacy_settings';
   static const String _userBlocksCacheKey = 'user_blocks';
+  static const String _projectRoleRequestsCacheKeyPrefix =
+      'project_role_requests';
 
   String _userProfileCacheKey(String userId) {
     return 'user_profile:$userId';
@@ -679,6 +868,13 @@ class SettingsRepositoryImpl implements SettingsRepository {
 
   String _verificationAppealsCacheKey(String projectId) {
     return 'verification_appeals:$projectId';
+  }
+
+  String _projectRoleRequestsCacheKey(String? status) {
+    final normalized = status == null || status.trim().isEmpty
+        ? 'ALL'
+        : status.trim().toUpperCase();
+    return '$_projectRoleRequestsCacheKeyPrefix:$normalized';
   }
 
   String _privacyRequestsCacheKey(int page, int size) {
@@ -704,6 +900,23 @@ Map<String, dynamic> _userBlockToJson(UserBlockDto dto) {
     'blockedUser': _blockedUserToJson(dto.blockedUser),
     if (dto.reason != null) 'reason': dto.reason,
     'createdAt': dto.createdAt.toIso8601String(),
+  };
+}
+
+Map<String, dynamic> _projectRoleRequestToJson(ProjectRoleRequestDto dto) {
+  return {
+    'id': dto.id,
+    'projectId': dto.projectId,
+    if (dto.projectCode != null) 'projectCode': dto.projectCode,
+    if (dto.projectName != null) 'projectName': dto.projectName,
+    'requestedRole': dto.requestedRole,
+    'status': dto.status,
+    'justification': dto.justification,
+    'createdAt': dto.createdAt.toIso8601String(),
+    if (dto.adminMemo != null) 'adminMemo': dto.adminMemo,
+    if (dto.reviewedAt != null) 'reviewedAt': dto.reviewedAt!.toIso8601String(),
+    if (dto.reviewerId != null) 'reviewerId': dto.reviewerId,
+    if (dto.reviewerName != null) 'reviewerName': dto.reviewerName,
   };
 }
 

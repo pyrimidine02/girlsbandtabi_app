@@ -27,8 +27,8 @@ class CommunityRepositoryImpl implements CommunityRepository {
       final request = ReportCreateRequestDto(
         targetType: targetType.apiValue,
         targetId: targetId,
-        reason: reason.apiValue,
-        description: description,
+        reason: reason.requestApiValue,
+        description: reason.buildRequestDescription(description),
       );
       final result = await _remoteDataSource.createReport(request: request);
 

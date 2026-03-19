@@ -36,6 +36,12 @@ class CommunityTranslationPanel extends ConsumerWidget {
     final targetLanguage = normalizeTranslationLanguageCode(
       locale.languageCode,
     );
+    final sourceLanguage = detectLikelyTranslationLanguage(normalizedText);
+    final shouldShowTranslateAction =
+        sourceLanguage == null || sourceLanguage != targetLanguage;
+    if (!shouldShowTranslateAction) {
+      return const SizedBox.shrink();
+    }
     final key = CommunityTranslationCacheKey(
       contentId: contentId,
       targetLanguage: targetLanguage,
@@ -76,6 +82,7 @@ class CommunityTranslationPanel extends ConsumerWidget {
             contentId: contentId,
             text: normalizedText,
             targetLanguage: targetLanguage,
+            sourceLanguage: sourceLanguage,
           );
     }
 

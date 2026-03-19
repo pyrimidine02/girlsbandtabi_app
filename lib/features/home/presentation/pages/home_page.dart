@@ -3,6 +3,7 @@
 library;
 
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,6 +28,7 @@ import '../../../../core/widgets/layout/gbt_greeting_header.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../ads/domain/entities/ad_slot_entities.dart';
+import '../../../profile_banner/application/banner_controller.dart';
 import '../../../ads/presentation/widgets/hybrid_sponsored_slot.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
@@ -45,6 +47,27 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
+  final ScrollController _scrollController = ScrollController();
+  bool _isScrolled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(() {
+      if (!mounted) return;
+      final isScrolled = _scrollController.hasClients && _scrollController.offset > 50;
+      if (isScrolled != _isScrolled) {
+        setState(() => _isScrolled = isScrolled);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     // EN: Eagerly initialize project selection — prevents deadlock where
@@ -54,23 +77,39 @@ class _HomePageState extends ConsumerState<HomePage> {
     // 기다리지만 ProjectSelector가 콘텐츠 로드 후에만 렌더링되는 데드락 방지.
     ref.watch(projectSelectionControllerProvider);
     final selectedProjectKey = ref.watch(selectedProjectKeyProvider);
+    final isProjectSelected = selectedProjectKey?.isNotEmpty == true;
     final projectsState = ref.watch(projectsControllerProvider);
     final state = ref.watch(homeControllerProvider);
-    final avatarUrl = ref
-        .watch(userProfileControllerProvider)
-        .valueOrNull
-        ?.avatarUrl;
-    final isProjectSelected =
-        selectedProjectKey != null && selectedProjectKey.isNotEmpty;
+    final userProfile = ref.watch(userProfileControllerProvider).valueOrNull;
+    final avatarUrl = userProfile?.avatarUrl;
+    final nickname = userProfile?.displayName;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isAuthenticated = ref.watch(isAuthenticatedProvider);
+    final activeBanner = ref.watch(activeBannerProvider).valueOrNull;
+
+    final appBarBgColor = _isScrolled
+        ? (isDark ? GBTColors.darkSurface : Colors.white).withValues(alpha: 0.8)
+        : Colors.transparent;
+    final appBarFgColor = _isScrolled
+        ? (isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary)
+        : Colors.white;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text('Girls Band Tabi'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: appBarBgColor,
         elevation: 0,
         scrolledUnderElevation: 0,
-        foregroundColor: Colors.white,
+        foregroundColor: appBarFgColor,
+        flexibleSpace: _isScrolled
+            ? ClipRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: const SizedBox.expand(),
+                ),
+              )
+            : null,
         actions: [
           GBTAppBarIconButton(
             icon: Icons.search,
@@ -82,7 +121,13 @@ class _HomePageState extends ConsumerState<HomePage> {
             onPressed: () => context.push('/notifications'),
             tooltip: context.l10n(ko: '알림', en: 'Notifications', ja: '通知'),
           ),
-          GBTProfileAction(avatarUrl: avatarUrl),
+          if (!_isScrolled)
+            GBTProfileAction(avatarUrl: avatarUrl)
+          else
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: GBTProfileAction(avatarUrl: avatarUrl),
+            ),
         ],
       ),
       body: RefreshIndicator(
@@ -94,7 +139,12 @@ class _HomePageState extends ConsumerState<HomePage> {
             : state.when(
                 loading: () => _buildLoading(),
                 error: (error, _) => _buildError(error),
-                data: (summary) => _buildContent(summary),
+                data: (summary) => _buildContent(
+                  summary,
+                  nickname,
+                  userBannerUrl: activeBanner?.imageUrl,
+                  isAuthenticated: isAuthenticated,
+                ),
               ),
       ),
     );
@@ -146,6 +196,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return CustomScrollView(
+      controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         // EN: Spacer for SliverAppBar overlap
@@ -241,6 +292,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             ja: 'ホーム情報を読み込めませんでした',
           );
     return CustomScrollView(
+      controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverToBoxAdapter(
@@ -263,17 +315,26 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildContent(HomeSummary summary) {
+  Widget _buildContent(
+    HomeSummary summary,
+    String? nickname, {
+    String? userBannerUrl,
+    bool isAuthenticated = false,
+  }) {
     final featuredLive = _pickFeaturedLive(summary.trendingLiveEvents);
     final headerImageUrl = _pickHeaderImage(summary, featuredLive);
 
     return CustomScrollView(
+      controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
-        // 1. GBTGreetingHeader (includes SafeArea + AppBar space)
+        // 1. GBTGreetingHeader — greeting area
+        // KO: GBTGreetingHeader — 인사말 영역
         SliverToBoxAdapter(
           child: GBTGreetingHeader(
+            userName: nickname,
             backgroundImageUrl: headerImageUrl,
+            userBannerUrl: userBannerUrl,
             featuredTitle: featuredLive?.title,
             featuredDate: featuredLive?.dateLabel,
             featuredPosterUrl: featuredLive?.posterUrl,
@@ -288,6 +349,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                     );
                     context.goToLiveDetail(featuredLive.id);
                   },
+            onCustomizeTap: isAuthenticated
+                ? () => context.push('/banner-picker')
+                : null,
           ),
         ),
 
@@ -305,7 +369,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           child: Padding(
             padding: const EdgeInsets.only(top: GBTSpacing.md),
             child: _HomeSponsoredSlot(
-              onTap: () => context.goNamed(AppRoutes.places),
+              onTap: () => context.go('/explore'),
             ),
           ),
         ),

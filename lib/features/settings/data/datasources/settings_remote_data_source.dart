@@ -10,6 +10,7 @@ import '../dto/consent_history_dto.dart';
 import '../dto/notification_device_dto.dart';
 import '../dto/notification_settings_dto.dart';
 import '../dto/privacy_rights_dto.dart';
+import '../dto/user_access_level_dto.dart';
 import '../dto/user_profile_dto.dart';
 
 class SettingsRemoteDataSource {
@@ -21,6 +22,14 @@ class SettingsRemoteDataSource {
     return _apiClient.get<UserProfileDto>(
       ApiEndpoints.userMe,
       fromJson: (json) => UserProfileDto.fromJson(json as Map<String, dynamic>),
+    );
+  }
+
+  Future<Result<UserAccessLevelDto>> fetchUserAccessLevel() {
+    return _apiClient.get<UserAccessLevelDto>(
+      ApiEndpoints.userMeAccessLevel,
+      fromJson: (json) =>
+          UserAccessLevelDto.fromJson(json as Map<String, dynamic>),
     );
   }
 
@@ -69,7 +78,7 @@ class SettingsRemoteDataSource {
   }) {
     return _apiClient.put<NotificationSettingsDto>(
       ApiEndpoints.notificationSettings,
-      data: settings.toJson(),
+      data: settings.toRequestJson(),
       fromJson: (json) {
         if (json is Map<String, dynamic>) {
           return NotificationSettingsDto.fromJson(json);
@@ -167,6 +176,23 @@ class SettingsRemoteDataSource {
     );
   }
 
+  Future<Result<Map<String, dynamic>>> fetchMandatoryConsentStatus() {
+    return _apiClient.get<Map<String, dynamic>>(
+      ApiEndpoints.userConsentStatus,
+      fromJson: (json) => _extractMap(json),
+    );
+  }
+
+  Future<Result<void>> submitMandatoryConsents({
+    required List<Map<String, dynamic>> consents,
+  }) {
+    return _apiClient.post<void>(
+      ApiEndpoints.userConsents,
+      data: {'consents': consents},
+      fromJson: (_) {},
+    );
+  }
+
   Future<Result<void>> deleteAccount() {
     return _apiClient.delete<void>(ApiEndpoints.userMe, fromJson: (_) {});
   }
@@ -188,6 +214,60 @@ class SettingsRemoteDataSource {
   Future<Result<void>> unblockUser({required String targetUserId}) {
     return _apiClient.delete<void>(
       ApiEndpoints.userBlock(targetUserId),
+      fromJson: (_) {},
+    );
+  }
+
+  Future<Result<List<ProjectRoleRequestDto>>> fetchProjectRoleRequests({
+    int page = ApiPagination.defaultPage,
+    int size = ApiPagination.defaultSize,
+    String? status,
+  }) {
+    return _apiClient.get<List<ProjectRoleRequestDto>>(
+      ApiEndpoints.projectRoleRequests,
+      queryParameters: {
+        'page': page,
+        'size': size,
+        'pageable': '$page,$size',
+        if (status != null && status.isNotEmpty) 'status': status,
+        'sort': 'createdAt,desc',
+      },
+      fromJson: (json) => ProjectRoleRequestDto.listFromAny(json),
+    );
+  }
+
+  Future<Result<ProjectRoleRequestDto>> fetchProjectRoleRequestDetail({
+    required String requestId,
+  }) {
+    return _apiClient.get<ProjectRoleRequestDto>(
+      ApiEndpoints.projectRoleRequest(requestId),
+      fromJson: (json) {
+        final payload = json is Map<String, dynamic>
+            ? json
+            : const <String, dynamic>{};
+        return ProjectRoleRequestDto.fromJson(payload);
+      },
+    );
+  }
+
+  Future<Result<ProjectRoleRequestDto>> createProjectRoleRequest({
+    required ProjectRoleRequestCreateRequestDto request,
+  }) {
+    return _apiClient.post<ProjectRoleRequestDto>(
+      ApiEndpoints.projectRoleRequests,
+      data: request.toJson(),
+      fromJson: (json) {
+        final payload = json is Map<String, dynamic>
+            ? json
+            : const <String, dynamic>{};
+        return ProjectRoleRequestDto.fromJson(payload);
+      },
+    );
+  }
+
+  Future<Result<void>> cancelProjectRoleRequest({required String requestId}) {
+    return _apiClient.delete<void>(
+      ApiEndpoints.projectRoleRequest(requestId),
       fromJson: (_) {},
     );
   }
@@ -233,4 +313,11 @@ List<Map<String, dynamic>> _extractList(dynamic json) {
     }
   }
   return const <Map<String, dynamic>>[];
+}
+
+Map<String, dynamic> _extractMap(dynamic json) {
+  if (json is Map<String, dynamic>) {
+    return json;
+  }
+  return const <String, dynamic>{};
 }

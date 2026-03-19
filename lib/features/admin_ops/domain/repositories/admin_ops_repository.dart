@@ -42,4 +42,58 @@ abstract class AdminOpsRepository {
     required AdminReportStatus status,
     String? note,
   });
+
+  Future<Result<List<AdminProjectRoleRequest>>> getProjectRoleRequests({
+    String? status,
+    int page = 0,
+    int size = 30,
+    bool forceRefresh = false,
+  });
+
+  Future<Result<void>> reviewProjectRoleRequest({
+    required String requestId,
+    required AdminRoleRequestDecision decision,
+    String? adminMemo,
+  });
+
+  Future<Result<void>> grantProjectRole({
+    required String projectId,
+    required String userId,
+    required String role,
+    String? reason,
+  });
+
+  Future<Result<void>> revokeProjectRole({
+    required String projectId,
+    required String userId,
+    required String role,
+    String? reason,
+  });
+
+  Future<Result<void>> grantUserAccess({
+    required String userId,
+    required String accessLevel,
+    String? expiresAt,
+    String? reason,
+  });
+
+  Future<Result<void>> revokeUserAccessGrant({
+    required String userId,
+    required String grantId,
+    String? reason,
+  });
+
+  Future<Result<List<AdminMediaDeletionRequest>>> getMediaDeletionRequests({
+    String status = 'PENDING',
+    int page = 0,
+    int size = 20,
+    bool forceRefresh = false,
+  });
+
+  Future<Result<void>> approveMediaDeletion({
+    required String requestId,
+    required bool deleteLinkedContents,
+  });
+
+  Future<Result<void>> rejectMediaDeletion({required String requestId});
 }
