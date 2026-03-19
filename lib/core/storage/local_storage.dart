@@ -35,6 +35,7 @@ class LocalStorageKeys {
       'pending_post_reaction_mutations';
   static const String pendingLiveAttendanceMutations =
       'pending_live_attendance_mutations';
+  static const String localPostBookmarks = 'local_post_bookmarks';
 
   // EN: Cache Keys
   // KO: 캐시 키
@@ -221,6 +222,18 @@ class LocalStorage {
     List<Map<String, dynamic>> value,
   ) {
     return setJsonList(LocalStorageKeys.pendingPostReactionMutations, value);
+  }
+
+  /// EN: Get locally cached bookmarked posts.
+  /// KO: 로컬 캐시에 저장된 북마크 게시글을 조회합니다.
+  List<Map<String, dynamic>> getLocalPostBookmarks() {
+    return getJsonList(LocalStorageKeys.localPostBookmarks) ?? const [];
+  }
+
+  /// EN: Persist locally cached bookmarked posts.
+  /// KO: 북마크 게시글을 로컬 캐시에 저장합니다.
+  Future<bool> setLocalPostBookmarks(List<Map<String, dynamic>> value) {
+    return setJsonList(LocalStorageKeys.localPostBookmarks, value);
   }
 
   /// EN: Get pending offline live attendance mutations.

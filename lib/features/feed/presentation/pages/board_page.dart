@@ -25,7 +25,6 @@ import '../../../../core/widgets/common/gbt_action_icons.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/dialogs/gbt_adaptive_dialog.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
-import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../../core/widgets/sheets/gbt_bottom_sheet.dart';
 import '../../../ads/domain/entities/ad_slot_entities.dart';
 import '../../../ads/presentation/widgets/hybrid_sponsored_slot.dart';
@@ -36,6 +35,7 @@ import '../../../settings/application/settings_controller.dart';
 import '../../application/community_ban_view_helper.dart';
 import '../../application/community_moderation_controller.dart';
 import '../../application/feed_controller.dart';
+import '../../application/local_post_bookmarks_controller.dart';
 import '../../application/report_rate_limiter.dart';
 import '../../application/user_follow_list_controller.dart';
 import '../../domain/entities/community_moderation.dart';
@@ -124,8 +124,6 @@ class _BoardPageState extends ConsumerState<BoardPage> {
       ),
       orElse: () => false,
     );
-    final avatarUrl = profileState.valueOrNull?.avatarUrl;
-
     // EN: Section index determines which content to show (controlled by sub bottom nav).
     // KO: 섹션 인덱스가 표시할 콘텐츠를 결정합니다 (서브 하단바로 제어).
     final sectionIndex = widget.initialTabIndex.clamp(0, 2);
@@ -196,7 +194,15 @@ class _BoardPageState extends ConsumerState<BoardPage> {
                     tooltip: context.l10n(ko: '검색', en: 'Search', ja: '検索'),
                     onPressed: () => _openSearchSheet(context),
                   ),
-                GBTProfileAction(avatarUrl: avatarUrl),
+                GBTAppBarIconButton(
+                  icon: Icons.menu_rounded,
+                  tooltip: context.l10n(
+                    ko: '커뮤니티 설정',
+                    en: 'Community settings',
+                    ja: 'コミュニティ設定',
+                  ),
+                  onPressed: context.goToCommunitySettings,
+                ),
               ],
             ),
       body: switch (sectionIndex) {
@@ -2049,7 +2055,7 @@ class _FeedSponsoredCampaign {
             en: 'GirlsBandTabi Sponsored',
             ja: 'GirlsBandTabi スポンサー',
           ),
-          onTap: () => context.goNamed(AppRoutes.places),
+          onTap: () => context.go('/explore'),
         );
       case 2:
         return SponsoredFallbackContent(
@@ -2103,7 +2109,7 @@ class _FeedSponsoredCampaign {
             en: 'GirlsBandTabi Sponsored',
             ja: 'GirlsBandTabi スポンサー',
           ),
-          onTap: () => context.goNamed(AppRoutes.live),
+          onTap: () => context.go('/explore?tab=1'),
         );
     }
   }
@@ -2818,6 +2824,28 @@ class _CommunityPostCard extends ConsumerWidget {
         .read(postBookmarkControllerProvider(_reactionTarget).notifier)
         .toggleBookmark();
     if (!context.mounted) return;
+    if (result is Success<PostBookmarkStatus>) {
+      final bookmarksNotifier = ref.read(
+        localPostBookmarksControllerProvider.notifier,
+      );
+      if (result.data.isBookmarked) {
+        unawaited(
+          bookmarksNotifier.addBookmark(
+            LocalBookmarkedPost(
+              postId: post.id,
+              projectCode: post.projectId,
+              title: post.title,
+              thumbnailUrl:
+                  post.thumbnailUrl ??
+                  (post.imageUrls.isNotEmpty ? post.imageUrls.first : null),
+              bookmarkedAt: result.data.bookmarkedAt ?? DateTime.now(),
+            ),
+          ),
+        );
+      } else {
+        unawaited(bookmarksNotifier.removeBookmark(post.id));
+      }
+    }
     if (result is Err<PostBookmarkStatus>) {
       _showSnackBar(
         context,

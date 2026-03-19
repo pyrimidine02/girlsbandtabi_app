@@ -369,7 +369,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           child: Padding(
             padding: const EdgeInsets.only(top: GBTSpacing.md),
             child: _HomeSponsoredSlot(
-              onTap: () => context.goNamed(AppRoutes.places),
+              onTap: () => context.go('/explore'),
             ),
           ),
         ),

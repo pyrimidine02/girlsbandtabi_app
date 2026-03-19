@@ -5,6 +5,7 @@ library;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -17,15 +18,14 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/cards/gbt_event_card.dart';
+import '../../../../core/widgets/common/themed_builder.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
-import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
 import '../../application/live_events_controller.dart';
 import '../../domain/entities/live_event_entities.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
-import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../../settings/application/settings_controller.dart';
 
 /// EN: Live events page widget
@@ -78,7 +78,7 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
     final projectKey = ref.watch(selectedProjectKeyProvider);
     final projectId = ref.watch(selectedProjectIdProvider);
     final currentNavIndex = ref.watch(currentNavIndexProvider);
-    final isTabActive = currentNavIndex == NavIndex.live;
+    final isTabActive = currentNavIndex == NavIndex.explore;
     final resolvedProjectKey = projectKey?.isNotEmpty == true
         ? projectKey!
         : (projectId ?? '');
@@ -99,53 +99,11 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
 
     return Scaffold(
       appBar: AppBar(
-        // EN: titleSpacing 0 — spacing is controlled inline in the Row.
-        // KO: titleSpacing 0 — 간격은 Row 안에서 직접 제어.
-        titleSpacing: 0,
-        title: Row(
-          children: [
-            const SizedBox(width: GBTSpacing.md),
-            Text(
-              context.l10n(ko: '라이브', en: 'Live', ja: 'ライブ'),
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.sm),
-              child: Container(
-                width: 1,
-                height: 16,
-                color: isDark ? GBTColors.darkBorder : GBTColors.border,
-              ),
-            ),
-            // EN: Project selector fills remaining AppBar title space.
-            // KO: 프로젝트 선택기가 남은 AppBar 타이틀 공간을 채움.
-            const Expanded(child: ProjectSelectorCompact()),
-          ],
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(44),
-          child: GBTSegmentedTabBar(
-            controller: _tabController,
-            height: 44,
-            margin: const EdgeInsets.symmetric(horizontal: GBTSpacing.md2),
-            padding: const EdgeInsets.all(2),
-            borderRadius: GBTSpacing.radiusSm,
-            indicatorBorderRadius: GBTSpacing.radiusSm,
-            indicatorShadow: false,
-            labelStyle: GBTTypography.tabLabel,
-            unselectedLabelStyle: GBTTypography.labelMedium,
-            labelPadding: const EdgeInsets.symmetric(horizontal: GBTSpacing.sm),
-            tabs: [
-              Tab(
-                text: context.l10n(ko: '예정', en: 'Upcoming', ja: '予定'),
-              ),
-              Tab(
-                text: context.l10n(ko: '완료', en: 'Done', ja: '完了'),
-              ),
-            ],
-          ),
+        title: Text(
+          context.l10n(ko: '라이브', en: 'Live', ja: 'ライブ'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
         actions: [
           GBTAppBarIconButton(
@@ -170,7 +128,8 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                 state: eventsState,
                 attendedEventIds: attendedEventIds,
                 selectedYear: null,
-                topPadding: 44.0, // Only band filters
+                selectedBandIds: selectedBandIds,
+                topPadding: 44.0,
                 onRefresh: () => ref
                     .read(liveEventsListControllerProvider.notifier)
                     .load(forceRefresh: true),
@@ -183,9 +142,8 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                 state: eventsState,
                 attendedEventIds: attendedEventIds,
                 selectedYear: effectiveSelectedYear,
-                topPadding: showYearFilter
-                    ? 88.0
-                    : 44.0, // Band filters + Year filters
+                selectedBandIds: selectedBandIds,
+                topPadding: showYearFilter ? 88.0 : 44.0,
                 onRefresh: () => ref
                     .read(liveEventsListControllerProvider.notifier)
                     .load(forceRefresh: true),
@@ -208,32 +166,13 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // EN: Inline band chip filter — replaces the two-row (ProjectSelector + BandFilterBar) layout.
-                      // KO: 인라인 밴드 칩 필터 — 기존 두 줄(ProjectSelector + BandFilterBar) 레이아웃을 대체.
-                      _BandChipFilterRow(
+                      // EN: Single chip filter row: project → unit → upcoming/done.
+                      // KO: 단일 칩 필터 행: 프로젝트 → 유닛 → 예정/완료.
+                      _LiveChipFilterRow(
+                        tabController: _tabController,
                         unitsState: unitsState,
                         selectedBandIds: selectedBandIds,
-                        onSelectAll: () {
-                          ref.read(selectedLiveBandIdsProvider.notifier).state =
-                              [];
-                        },
-                        onToggleBand: (id) {
-                          final current = ref.read(selectedLiveBandIdsProvider);
-                          if (current.contains(id)) {
-                            ref
-                                .read(selectedLiveBandIdsProvider.notifier)
-                                .state = current
-                                .where((e) => e != id)
-                                .toList();
-                          } else {
-                            ref
-                                .read(selectedLiveBandIdsProvider.notifier)
-                                .state = [
-                              ...current,
-                              id,
-                            ];
-                          }
-                        },
+                        isDark: isDark,
                       ),
                       if (showYearFilter)
                         _YearChipFilterRow(
@@ -491,6 +430,7 @@ class _EventList extends StatelessWidget {
     required this.state,
     required this.attendedEventIds,
     required this.selectedYear,
+    required this.selectedBandIds,
     required this.topPadding,
     required this.onRefresh,
     required this.onRetry,
@@ -500,6 +440,9 @@ class _EventList extends StatelessWidget {
   final AsyncValue<List<LiveEventSummary>> state;
   final Set<String> attendedEventIds;
   final int? selectedYear;
+  // EN: Unit/band IDs to filter client-side — empty means show all.
+  // KO: 클라이언트 사이드 필터링용 유닛/밴드 ID 목록 — 비어있으면 전체 표시.
+  final List<String> selectedBandIds;
   final double topPadding;
   final Future<void> Function() onRefresh;
   final VoidCallback onRetry;
@@ -548,11 +491,17 @@ class _EventList extends StatelessWidget {
         data: (events) {
           final filtered =
               events.where((event) {
-                if (event.isUpcoming != isUpcoming) {
-                  return false;
-                }
+                if (event.isUpcoming != isUpcoming) return false;
                 if (selectedYear != null &&
                     event.showStartTime.toLocal().year != selectedYear) {
+                  return false;
+                }
+                // EN: Client-side unit filter — check if event belongs to any
+                //     selected band. Empty = show all.
+                // KO: 클라이언트 사이드 유닛 필터 — 선택된 밴드에 해당하는 이벤트만
+                //     표시. 비어있으면 전체 표시.
+                if (selectedBandIds.isNotEmpty &&
+                    !event.unitIds.any(selectedBandIds.contains)) {
                   return false;
                 }
                 return true;
@@ -734,34 +683,36 @@ class _EventList extends StatelessWidget {
 }
 
 // ========================================
-// EN: Inline band chip filter row
-// KO: 인라인 밴드 칩 필터 행
+// EN: Live chip filter row — project → unit → upcoming/done (single row)
+// KO: 라이브 칩 필터 행 — 프로젝트 → 유닛 → 예정/완료 (단일 행)
 // ========================================
 
-/// EN: Horizontal scrollable band filter chips — "전체" + one chip per unit.
-/// KO: 가로 스크롤 밴드 필터 칩 — "전체" + 유닛별 칩.
-class _BandChipFilterRow extends StatelessWidget {
-  const _BandChipFilterRow({
+/// EN: Single scrollable chip row: project pill → unit pill → 예정/완료 toggle chips.
+/// KO: 단일 스크롤 칩 행: 프로젝트 필 → 유닛 필 → 예정/완료 토글 칩.
+class _LiveChipFilterRow extends StatelessWidget {
+  const _LiveChipFilterRow({
+    required this.tabController,
     required this.unitsState,
     required this.selectedBandIds,
-    required this.onSelectAll,
-    required this.onToggleBand,
+    required this.isDark,
   });
 
+  final TabController tabController;
   final AsyncValue<List<Unit>> unitsState;
   final List<String> selectedBandIds;
-  final VoidCallback onSelectAll;
-  final ValueChanged<String> onToggleBand;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    return unitsState.when(
-      // EN: Skip filter row while loading — no height penalty.
-      // KO: 로딩 중에는 필터 행 표시 안 함 — 레이아웃 높이 페널티 없음.
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (units) {
-        if (units.isEmpty) return const SizedBox.shrink();
+    return AnimatedBuilder(
+      animation: tabController,
+      builder: (context, _) {
+        final units = unitsState.maybeWhen(
+          data: (u) => u,
+          orElse: () => const <Unit>[],
+        );
+        final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
+
         return SizedBox(
           height: 44,
           child: ListView(
@@ -771,24 +722,50 @@ class _BandChipFilterRow extends StatelessWidget {
               vertical: GBTSpacing.xs2,
             ),
             children: [
-              _BandChip(
-                label: context.l10n(ko: '전체', en: 'All', ja: '全体'),
-                isSelected: selectedBandIds.isEmpty,
-                onTap: onSelectAll,
+              // EN: Project selector pill.
+              // KO: 프로젝트 선택기 필 칩.
+              _LiveProjectChip(isDark: isDark),
+              if (units.isNotEmpty) ...[
+                const SizedBox(width: GBTSpacing.xs2),
+                // EN: Unit selector pill.
+                // KO: 유닛 선택기 필 칩.
+                _LiveUnitChip(
+                  isDark: isDark,
+                  units: units,
+                  selectedBandIds: selectedBandIds,
+                ),
+              ],
+              const SizedBox(width: 6),
+              // EN: Thin divider separating pills from tab chips.
+              // KO: 필 칩과 탭 칩을 분리하는 얇은 세로 구분선.
+              Container(
+                height: 20,
+                width: 1,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                color: borderColor,
               ),
-              ...units.map((unit) {
-                final label = unit.displayName.isNotEmpty
-                    ? unit.displayName
-                    : unit.code;
-                return Padding(
-                  padding: const EdgeInsets.only(left: GBTSpacing.xs2),
-                  child: _BandChip(
-                    label: label,
-                    isSelected: selectedBandIds.contains(unit.id),
-                    onTap: () => onToggleBand(unit.id),
-                  ),
-                );
-              }),
+              const SizedBox(width: 6),
+              // EN: 예정 (upcoming) tab chip.
+              // KO: 예정 탭 칩.
+              _BandChip(
+                label: context.l10n(ko: '예정', en: 'Upcoming', ja: '予定'),
+                isSelected: tabController.index == 0,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  tabController.animateTo(0);
+                },
+              ),
+              const SizedBox(width: GBTSpacing.xs2),
+              // EN: 완료 (done) tab chip.
+              // KO: 완료 탭 칩.
+              _BandChip(
+                label: context.l10n(ko: '완료', en: 'Done', ja: '完了'),
+                isSelected: tabController.index == 1,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  tabController.animateTo(1);
+                },
+              ),
             ],
           ),
         );
@@ -796,6 +773,438 @@ class _BandChipFilterRow extends StatelessWidget {
     );
   }
 }
+
+// ========================================
+// EN: Live unit selector chip
+// KO: 라이브 유닛 선택 칩
+// ========================================
+
+/// EN: Solid primary pill chip showing the selected unit(s); opens a multi-select
+/// bottom sheet picker on tap — same visual style as _LiveProjectChip.
+/// KO: 선택된 유닛을 표시하는 solid primary 필 칩. 탭 시 멀티셀렉트 바텀시트를 엽니다.
+/// _LiveProjectChip과 동일한 시각 스타일을 사용합니다.
+class _LiveUnitChip extends StatelessWidget {
+  const _LiveUnitChip({
+    required this.isDark,
+    required this.units,
+    required this.selectedBandIds,
+  });
+
+  final bool isDark;
+  final List<Unit> units;
+  final List<String> selectedBandIds;
+
+  String _label(BuildContext context) {
+    if (selectedBandIds.isEmpty) {
+      return context.l10n(ko: '전체', en: 'All', ja: '全体');
+    }
+    if (selectedBandIds.length == 1) {
+      final unit = units.cast<Unit?>().firstWhere(
+        (u) => u?.id == selectedBandIds.first,
+        orElse: () => null,
+      );
+      if (unit != null) {
+        return unit.displayName.isNotEmpty ? unit.displayName : unit.code;
+      }
+    }
+    return context.l10n(
+      ko: '유닛 ${selectedBandIds.length}개',
+      en: '${selectedBandIds.length} units',
+      ja: '${selectedBandIds.length}ユニット',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final textColor = isDark ? GBTColors.darkBackground : Colors.white;
+
+    return GestureDetector(
+      onTap: () => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => _LiveUnitPickerSheet(units: units),
+      ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: primaryColor,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+          boxShadow: [
+            BoxShadow(
+              color: primaryColor.withValues(alpha: isDark ? 0.35 : 0.30),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _label(context),
+              style: GBTTypography.labelSmall.copyWith(
+                color: textColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 15,
+              color: textColor.withValues(alpha: 0.8),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ========================================
+// EN: Live project selector chip
+// KO: 라이브 프로젝트 선택 칩
+// ========================================
+
+/// EN: Solid primary pill chip that shows the currently selected project name
+/// and opens a bottom sheet picker on tap.
+/// KO: 현재 선택된 프로젝트 이름을 표시하고 탭 시 바텀시트 선택기를 여는
+/// solid primary 필 칩.
+class _LiveProjectChip extends ConsumerWidget {
+  const _LiveProjectChip({required this.isDark});
+
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final projectsState = ref.watch(projectsControllerProvider);
+    final selection = ref.watch(projectSelectionControllerProvider);
+
+    final label = projectsState.maybeWhen(
+      data: (projects) {
+        if (projects.isEmpty) {
+          return context.l10n(ko: '프로젝트', en: 'Project', ja: 'プロジェクト');
+        }
+        final selected = projects.cast<Project?>().firstWhere(
+          (p) =>
+              p?.code == selection.projectKey || p?.id == selection.projectKey,
+          orElse: () => projects.first,
+        );
+        return selected?.name ??
+            context.l10n(ko: '프로젝트', en: 'Project', ja: 'プロジェクト');
+      },
+      orElse: () => context.l10n(ko: '프로젝트', en: 'Project', ja: 'プロジェクト'),
+    );
+
+    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final textColor = isDark ? GBTColors.darkBackground : Colors.white;
+
+    return GestureDetector(
+      onTap: () => _showLiveProjectPicker(context),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: primaryColor,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+          boxShadow: [
+            BoxShadow(
+              color: primaryColor.withValues(alpha: isDark ? 0.35 : 0.30),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: GBTTypography.labelSmall.copyWith(
+                color: textColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 15,
+              color: textColor.withValues(alpha: 0.8),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLiveProjectPicker(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => const _LiveProjectPickerSheet(),
+    );
+  }
+}
+
+// ============================================================
+// EN: Live project picker sheet — selects the active project
+// KO: 라이브 프로젝트 선택 시트 — 활성 프로젝트를 선택합니다
+// ============================================================
+
+class _LiveProjectPickerSheet extends ConsumerWidget {
+  const _LiveProjectPickerSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final projectsState = ref.watch(projectsControllerProvider);
+    final selection = ref.watch(projectSelectionControllerProvider);
+
+    final title = context.l10n(
+      ko: '프로젝트 선택',
+      en: 'Select project',
+      ja: 'プロジェクト選択',
+    );
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(GBTSpacing.md),
+        child: projectsState.when(
+          loading: () => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _LiveSheetTitleRow(title: title),
+              const SizedBox(height: GBTSpacing.md),
+              GBTLoading(
+                message: context.l10n(
+                  ko: '프로젝트를 불러오는 중...',
+                  en: 'Loading projects...',
+                  ja: 'プロジェクトを読み込み中...',
+                ),
+              ),
+              const SizedBox(height: GBTSpacing.md),
+            ],
+          ),
+          error: (error, _) {
+            final message = error is Failure
+                ? error.userMessage
+                : context.l10n(
+                    ko: '프로젝트를 불러오지 못했어요',
+                    en: 'Failed to load projects',
+                    ja: 'プロジェクトを読み込めませんでした',
+                  );
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _LiveSheetTitleRow(title: title),
+                const SizedBox(height: GBTSpacing.md),
+                Text(
+                  message,
+                  style: GBTTypography.bodySmall.copyWith(
+                    color: context.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: GBTSpacing.sm),
+                TextButton(
+                  onPressed: () => ref
+                      .read(projectsControllerProvider.notifier)
+                      .load(forceRefresh: true),
+                  child: Text(
+                    context.l10n(ko: '다시 시도', en: 'Retry', ja: '再試行'),
+                  ),
+                ),
+              ],
+            );
+          },
+          data: (projects) {
+            if (projects.isEmpty) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _LiveSheetTitleRow(title: title),
+                  const SizedBox(height: GBTSpacing.lg),
+                  Text(
+                    context.l10n(
+                      ko: '등록된 프로젝트가 없습니다',
+                      en: 'No projects available',
+                      ja: '登録されたプロジェクトがありません',
+                    ),
+                    style: GBTTypography.bodyMedium.copyWith(
+                      color: context.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: GBTSpacing.md),
+                ],
+              );
+            }
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _LiveSheetTitleRow(title: title),
+                const SizedBox(height: GBTSpacing.md),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: projects.length,
+                    itemBuilder: (context, index) {
+                      final project = projects[index];
+                      final key = project.code.isNotEmpty
+                          ? project.code
+                          : project.id;
+                      final isSelected =
+                          selection.projectKey == key ||
+                          selection.projectKey == project.id;
+                      final primaryColor =
+                          Theme.of(context).colorScheme.primary;
+                      return ListTile(
+                        leading: Icon(
+                          isSelected
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          color: isSelected ? primaryColor : null,
+                        ),
+                        title: Text(project.name),
+                        onTap: () {
+                          ref
+                              .read(projectSelectionControllerProvider.notifier)
+                              .selectProject(key, projectId: project.id);
+                          Navigator.of(context).pop();
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// EN: Live unit picker sheet — multi-select unit filter
+// KO: 라이브 유닛 선택 시트 — 멀티셀렉트 유닛 필터
+// ============================================================
+
+class _LiveUnitPickerSheet extends ConsumerWidget {
+  const _LiveUnitPickerSheet({required this.units});
+
+  final List<Unit> units;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedIds = ref.watch(selectedLiveBandIdsProvider);
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(GBTSpacing.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _LiveSheetTitleRow(
+              title: context.l10n(
+                ko: '유닛 선택',
+                en: 'Select unit',
+                ja: 'ユニット選択',
+              ),
+            ),
+            const SizedBox(height: GBTSpacing.sm),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                selectedIds.isEmpty
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: selectedIds.isEmpty ? primaryColor : null,
+              ),
+              title: Text(context.l10n(ko: '전체', en: 'All', ja: '全体')),
+              onTap: () =>
+                  ref.read(selectedLiveBandIdsProvider.notifier).state = [],
+            ),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: units.length,
+                itemBuilder: (context, index) {
+                  final unit = units[index];
+                  final label = unit.displayName.isNotEmpty
+                      ? unit.displayName
+                      : unit.code;
+                  final isSelected = selectedIds.contains(unit.id);
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      isSelected
+                          ? Icons.check_box_rounded
+                          : Icons.check_box_outline_blank_rounded,
+                      color: isSelected ? primaryColor : null,
+                    ),
+                    title: Text(label),
+                    onTap: () {
+                      final current =
+                          ref.read(selectedLiveBandIdsProvider);
+                      ref.read(selectedLiveBandIdsProvider.notifier).state =
+                          isSelected
+                          ? current.where((id) => id != unit.id).toList()
+                          : [...current, unit.id];
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// EN: Sheet title row — title + close button for live bottom sheets
+// KO: 시트 제목 행 — 라이브 바텀시트에 공통으로 사용하는 제목 + 닫기 버튼
+// ============================================================
+
+class _LiveSheetTitleRow extends StatelessWidget {
+  const _LiveSheetTitleRow({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          title,
+          style: GBTTypography.titleMedium.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const Spacer(),
+        IconButton(
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(
+            minWidth: GBTSpacing.minTouchTarget,
+            minHeight: GBTSpacing.minTouchTarget,
+          ),
+          tooltip: context.l10n(ko: '닫기', en: 'Close', ja: '閉じる'),
+        ),
+      ],
+    );
+  }
+}
+
+// ========================================
+// EN: Inline band chip filter row (legacy — kept for _YearChipFilterRow sibling)
+// KO: 인라인 밴드 칩 필터 행 (레거시 — _YearChipFilterRow 형제를 위해 유지)
+// ========================================
 
 /// EN: Horizontal row for selecting event year.
 /// KO: 이벤트 연도 선택을 위한 가로 필터 행입니다.

@@ -19,6 +19,7 @@ import '../../../favorites/application/favorites_controller.dart';
 import '../../../favorites/domain/entities/favorite_entities.dart';
 import '../../../music/application/music_controller.dart';
 import '../../../music/domain/entities/music_entities.dart';
+import '../../../../core/widgets/common/registrant_credit_widget.dart';
 import '../../application/live_events_controller.dart';
 import '../../domain/entities/live_event_entities.dart';
 
@@ -523,6 +524,13 @@ class LiveEventDetailPage extends ConsumerWidget {
                         ),
                       ),
                     ),
+                  const SizedBox(height: GBTSpacing.lg),
+                  // EN: Contributors credit — who registered and edited this live event.
+                  // KO: 기여자 크레딧 — 이 라이브 이벤트를 등록하고 수정한 사람을 표시합니다.
+                  ContributorsCreditWidget(
+                    entityType: 'lives',
+                    entityId: event.id,
+                  ),
                   const SizedBox(height: GBTSpacing.xxl),
                 ],
               ),

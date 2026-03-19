@@ -10,6 +10,16 @@ pluginManagement {
 
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id.startsWith("org.jetbrains.kotlin") ||
+                requested.id.id == "kotlin-android"
+            ) {
+                useVersion("2.3.10")
+            }
+        }
+    }
+
     repositories {
         google()
         mavenCentral()
@@ -20,7 +30,7 @@ pluginManagement {
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.9.1" apply false
-    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+    id("org.jetbrains.kotlin.android") version "2.3.10" apply false
     id("com.google.gms.google-services") version "4.4.2" apply false
 }
 

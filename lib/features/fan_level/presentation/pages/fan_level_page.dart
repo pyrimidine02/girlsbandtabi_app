@@ -124,34 +124,6 @@ class _FanLevelContent extends ConsumerStatefulWidget {
 }
 
 class _FanLevelContentState extends ConsumerState<_FanLevelContent> {
-  bool _isCheckingIn = false;
-
-  Future<void> _doCheckIn() async {
-    if (_isCheckingIn) return;
-    setState(() => _isCheckingIn = true);
-    try {
-      final result =
-          await ref.read(fanLevelControllerProvider.notifier).checkIn();
-      if (!mounted) return;
-      if (result != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              context.l10n(
-                ko: '출석 체크! +${result.xpEarned} XP 획득',
-                en: 'Checked in! +${result.xpEarned} XP earned',
-                ja: '出席チェック! +${result.xpEarned} XP獲得',
-              ),
-            ),
-            backgroundColor: GBTColors.primary,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isCheckingIn = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -164,12 +136,6 @@ class _FanLevelContentState extends ConsumerState<_FanLevelContent> {
         padding: const EdgeInsets.all(GBTSpacing.pageHorizontal),
         children: [
           _GradeCard(profile: profile),
-          const SizedBox(height: GBTSpacing.md),
-          _CheckInButton(
-            hasCheckedInToday: profile.hasCheckedInToday,
-            isLoading: _isCheckingIn,
-            onCheckIn: _doCheckIn,
-          ),
           if (profile.recentActivities.isNotEmpty) ...[
             const SizedBox(height: GBTSpacing.lg),
             Text(
@@ -348,93 +314,6 @@ class _GradeCard extends StatelessWidget {
                 ),
               ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// EN: Daily check-in button.
-// KO: 일일 출석 체크 버튼.
-// =============================================================================
-
-class _CheckInButton extends StatelessWidget {
-  const _CheckInButton({
-    required this.hasCheckedInToday,
-    required this.isLoading,
-    required this.onCheckIn,
-  });
-
-  final bool hasCheckedInToday;
-  final bool isLoading;
-  final VoidCallback onCheckIn;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isDisabled = hasCheckedInToday || isLoading;
-
-    return Semantics(
-      button: true,
-      enabled: !isDisabled,
-      label: hasCheckedInToday
-          ? context.l10n(
-              ko: '오늘 출석 완료',
-              en: 'Already checked in today',
-              ja: '今日は出席済み',
-            )
-          : context.l10n(
-              ko: '오늘 출석 체크 +10 XP',
-              en: 'Check in today, plus 10 XP',
-              ja: '今日の出席チェック プラス10 XP',
-            ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: ElevatedButton.icon(
-          onPressed: isDisabled ? null : onCheckIn,
-          icon: isLoading
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Icon(
-                  hasCheckedInToday
-                      ? Icons.check_circle_outline
-                      : Icons.calendar_today_outlined,
-                ),
-          label: Text(
-            hasCheckedInToday
-                ? context.l10n(
-                    ko: '오늘 출석 완료',
-                    en: 'Already Checked In',
-                    ja: '今日は出席済み',
-                  )
-                : context.l10n(
-                    ko: '오늘 출석 체크 (+10 XP)',
-                    en: 'Check In Today (+10 XP)',
-                    ja: '今日の出席チェック (+10 XP)',
-                  ),
-            style: GBTTypography.labelLarge,
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: hasCheckedInToday
-                ? (isDark
-                    ? GBTColors.darkSurfaceVariant
-                    : GBTColors.surfaceVariant)
-                : GBTColors.primary,
-            foregroundColor: hasCheckedInToday
-                ? (isDark
-                    ? GBTColors.darkTextSecondary
-                    : GBTColors.textSecondary)
-                : Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius:
-                  BorderRadius.circular(GBTSpacing.radiusSm),
-            ),
-          ),
         ),
       ),
     );

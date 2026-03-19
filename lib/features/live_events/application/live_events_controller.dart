@@ -22,7 +22,9 @@ import 'pending_live_attendance_mutation.dart';
 // EN: Max number of additional retries on load failure (total attempts = 1 + _kMaxRetries).
 // KO: 로드 실패 시 최대 추가 재시도 횟수 (총 시도 = 1 + _kMaxRetries).
 const int _kMaxRetries = 2;
-const int _kLiveNavIndex = 2;
+// EN: Live events page is a sub-tab inside the Explore branch (index 1).
+// KO: 라이브 이벤트 페이지는 탐방 분기(인덱스 1) 내 서브탭입니다.
+const int _kLiveNavIndex = 1;
 const int _kAttendanceHistoryPageSize = 20;
 
 bool _shouldQueueLiveAttendanceMutationForRetry(Failure failure) {
@@ -32,70 +34,74 @@ bool _shouldQueueLiveAttendanceMutationForRetry(Failure failure) {
 class LiveEventsListController
     extends StateNotifier<AsyncValue<List<LiveEventSummary>>> {
   LiveEventsListController(this._ref) : super(const AsyncLoading()) {
+    // EN: Reload when user switches project — different project = different dataset.
+    // KO: 프로젝트 변경 시 리로드 — 프로젝트마다 별도 데이터셋.
     _ref.listen<String?>(selectedProjectKeyProvider, (_, __) {
-      if (!_isLiveTabActive()) {
-        return;
-      }
+      if (!_isLiveTabActive()) return;
       load(forceRefresh: true);
     });
-    _ref.listen<List<String>>(selectedLiveBandIdsProvider, (_, __) {
-      if (!_isLiveTabActive()) {
-        return;
-      }
-      load(forceRefresh: true);
-    });
+    // EN: Reload when explore tab becomes active (deferred load while on other tabs).
+    // KO: 탐방 탭이 활성화되면 리로드 (다른 탭에 있는 동안 지연 로드).
     _ref.listen<int>(currentNavIndexProvider, (previous, next) {
-      if (next != _kLiveNavIndex || next == previous) {
-        return;
-      }
+      if (next != _kLiveNavIndex || next == previous) return;
       load(forceRefresh: true);
     });
   }
 
   final Ref _ref;
 
+  // EN: Guard flag preventing concurrent load() invocations.
+  // KO: 동시 load() 호출을 방지하는 가드 플래그.
+  bool _loading = false;
+
   bool _isLiveTabActive() {
     return _ref.read(currentNavIndexProvider) == _kLiveNavIndex;
   }
 
   Future<void> load({bool forceRefresh = false}) async {
-    final projectKey = _ref.read(selectedProjectKeyProvider);
-    if (projectKey == null || projectKey.isEmpty) {
-      // EN: Wait for project selection before loading.
-      // KO: 로드 전 프로젝트 선택을 기다립니다.
-      return;
-    }
-
-    state = const AsyncLoading();
-
-    final repository = await _ref.read(liveEventsRepositoryProvider.future);
-    final bandIds = _ref.read(selectedLiveBandIdsProvider);
-
-    // EN: Retry up to _kMaxRetries times on failure with exponential back-off.
-    // KO: 실패 시 지수 백오프로 최대 _kMaxRetries회 재시도합니다.
-    Result<List<LiveEventSummary>>? result;
-    for (var attempt = 0; attempt <= _kMaxRetries; attempt++) {
-      if (attempt > 0) {
-        await Future<void>.delayed(Duration(seconds: attempt));
-        if (!mounted) return;
-        AppLogger.info(
-          'Retrying live events load (attempt $attempt)',
-          tag: 'LiveEventsListController',
-        );
+    // EN: Skip if already loading — listeners can fire in parallel.
+    // KO: 이미 로드 중이면 건너뜁니다 — 리스너들이 동시에 실행될 수 있습니다.
+    if (_loading) return;
+    _loading = true;
+    try {
+      final projectKey = _ref.read(selectedProjectKeyProvider);
+      if (projectKey == null || projectKey.isEmpty) {
+        // EN: Wait for project selection before loading.
+        // KO: 로드 전 프로젝트 선택을 기다립니다.
+        return;
       }
-      result = await repository.getLiveEvents(
-        projectId: projectKey,
-        unitIds: bandIds,
-        forceRefresh: forceRefresh || attempt > 0,
-      );
-      if (result is Success<List<LiveEventSummary>>) break;
-    }
 
-    if (!mounted) return;
-    if (result is Success<List<LiveEventSummary>>) {
-      state = AsyncData(result.data);
-    } else if (result is Err<List<LiveEventSummary>>) {
-      state = AsyncError(result.failure, StackTrace.current);
+      state = const AsyncLoading();
+
+      final repository = await _ref.read(liveEventsRepositoryProvider.future);
+
+      // EN: Retry up to _kMaxRetries times on failure with exponential back-off.
+      // KO: 실패 시 지수 백오프로 최대 _kMaxRetries회 재시도합니다.
+      Result<List<LiveEventSummary>>? result;
+      for (var attempt = 0; attempt <= _kMaxRetries; attempt++) {
+        if (attempt > 0) {
+          await Future<void>.delayed(Duration(seconds: attempt));
+          if (!mounted) return;
+          AppLogger.info(
+            'Retrying live events load (attempt $attempt)',
+            tag: 'LiveEventsListController',
+          );
+        }
+        result = await repository.getLiveEvents(
+          projectId: projectKey,
+          forceRefresh: forceRefresh || attempt > 0,
+        );
+        if (result is Success<List<LiveEventSummary>>) break;
+      }
+
+      if (!mounted) return;
+      if (result is Success<List<LiveEventSummary>>) {
+        state = AsyncData(result.data);
+      } else if (result is Err<List<LiveEventSummary>>) {
+        state = AsyncError(result.failure, StackTrace.current);
+      }
+    } finally {
+      _loading = false;
     }
   }
 }

@@ -6,13 +6,12 @@ import '../../../../core/utils/result.dart';
 import '../entities/live_event_entities.dart';
 
 abstract class LiveEventsRepository {
-  /// EN: Get paginated live events for a project.
-  /// KO: 프로젝트의 페이지네이션된 라이브 이벤트를 가져옵니다.
+  /// EN: Get all live events for a project (full dataset, client-side filtered).
+  /// KO: 프로젝트의 전체 라이브 이벤트를 가져옵니다 (클라이언트 사이드 필터링).
   Future<Result<List<LiveEventSummary>>> getLiveEvents({
     required String projectId,
-    List<String> unitIds = const [],
     int page = 0,
-    int size = 20,
+    int size = 500,
     bool forceRefresh = false,
   });
 

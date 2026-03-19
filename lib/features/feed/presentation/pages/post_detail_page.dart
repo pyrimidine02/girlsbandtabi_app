@@ -31,6 +31,7 @@ import '../../../../core/widgets/sheets/gbt_bottom_sheet.dart';
 import '../../../settings/application/settings_controller.dart';
 import '../../application/community_moderation_controller.dart';
 import '../../application/feed_controller.dart';
+import '../../application/local_post_bookmarks_controller.dart';
 import '../../application/report_rate_limiter.dart';
 import '../../application/user_follow_controller.dart';
 import '../../domain/entities/community_moderation.dart';
@@ -352,6 +353,29 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
             final result = await ref
                 .read(postBookmarkControllerProvider(reactionTarget).notifier)
                 .toggleBookmark();
+            if (result is Success<PostBookmarkStatus>) {
+              final bookmarksNotifier = ref.read(
+                localPostBookmarksControllerProvider.notifier,
+              );
+              if (result.data.isBookmarked) {
+                unawaited(
+                  bookmarksNotifier.addBookmark(
+                    LocalBookmarkedPost(
+                      postId: post.id,
+                      projectCode: post.projectId,
+                      title: post.title,
+                      thumbnailUrl: post.imageUrls.isNotEmpty
+                          ? post.imageUrls.first
+                          : null,
+                      bookmarkedAt:
+                          result.data.bookmarkedAt ?? DateTime.now(),
+                    ),
+                  ),
+                );
+              } else {
+                unawaited(bookmarksNotifier.removeBookmark(post.id));
+              }
+            }
             if (result is Err<PostBookmarkStatus> && context.mounted) {
               _showSnackBar(context, '북마크 상태를 반영하지 못했어요');
             }
@@ -512,7 +536,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
         if (context.canPop()) {
           context.pop();
         } else {
-          context.goNamed(AppRoutes.board);
+          context.goNamed(AppRoutes.community);
         }
       }
     } else if (result is Err<void> && context.mounted) {
@@ -1436,11 +1460,22 @@ class _PostCommentsSection extends StatefulWidget {
 class _PostCommentsSectionState extends State<_PostCommentsSection> {
   _CommentSort _sort = _CommentSort.latest;
 
+  // EN: Memoization fields to avoid rebuilding the thread tree on every repaint.
+  // KO: 매 리페인트 시 스레드 트리 재구성을 방지하는 메모이제이션 필드.
+  List<PostComment>? _cachedComments;
+  _CommentSort? _cachedSort;
+  List<_CommentThread> _cachedThreads = const [];
+
   bool _isDeletedRootComment(PostComment comment) {
     return _isDeletedCommentPlaceholder(comment.content);
   }
 
   List<_CommentThread> _buildThreads(List<PostComment> comments) {
+    // EN: Return cached result if inputs are unchanged.
+    // KO: 입력값이 동일하면 캐시된 결과를 반환합니다.
+    if (identical(comments, _cachedComments) && _sort == _cachedSort) {
+      return _cachedThreads;
+    }
     // EN: Build id→comment lookup for ancestor traversal.
     // KO: 조상 탐색을 위한 id→댓글 조회 맵 구성.
     final lookup = <String, PostComment>{for (final c in comments) c.id: c};
@@ -1521,6 +1556,12 @@ class _PostCommentsSectionState extends State<_PostCommentsSection> {
       }
       return a.sortAnchor.compareTo(b.sortAnchor);
     });
+
+    // EN: Store computed result for memoization.
+    // KO: 메모이제이션을 위해 계산된 결과를 저장합니다.
+    _cachedComments = comments;
+    _cachedSort = _sort;
+    _cachedThreads = threads;
 
     return threads;
   }

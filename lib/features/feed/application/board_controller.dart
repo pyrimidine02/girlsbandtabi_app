@@ -245,6 +245,9 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
   static const int _pageSize = 20;
   bool _isBackgroundSyncing = false;
   DateTime? _lastBackgroundSyncAt;
+  // EN: Guard flag preventing concurrent reload() calls from listeners/FocusDetector.
+  // KO: 리스너/FocusDetector의 동시 reload() 호출을 방지하는 가드 플래그.
+  bool _isReloading = false;
   SseConnection? _realtimeConnection;
   StreamSubscription<SseEvent>? _realtimeSubscription;
   Timer? _realtimeReconnectTimer;
@@ -590,10 +593,15 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
   }
 
   Future<void> reload({bool forceRefresh = false}) async {
+    // EN: Skip concurrent reloads — listeners and FocusDetector can fire together.
+    // KO: 동시 리로드를 건너뜁니다 — 리스너와 FocusDetector가 동시에 실행될 수 있습니다.
+    if (_isReloading) return;
     if (!_isBoardTabActive(_ref)) {
       return;
     }
-    final projectKey = _ref.read(selectedProjectKeyProvider);
+    _isReloading = true;
+    try {
+      final projectKey = _ref.read(selectedProjectKeyProvider);
     final isSearching = state.isSearching;
     final requiresProjectSelection =
         isSearching ||
@@ -781,6 +789,9 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
             failure: result.failure,
           );
         }
+    }
+    } finally {
+      _isReloading = false;
     }
   }
 

@@ -490,9 +490,13 @@ class _CommunityListState extends ConsumerState<_CommunityList> {
                   duration: const Duration(milliseconds: 200),
                   child: IgnorePointer(
                     ignoring: !indicatorState.visible,
-                    child: _NewPostsPill(
-                      posts: indicatorState.buffered,
-                      onTap: _onPillTap,
+                    // EN: RepaintBoundary isolates the pill from list scroll repaints.
+                    // KO: RepaintBoundary로 필을 리스트 스크롤 리페인트에서 격리합니다.
+                    child: RepaintBoundary(
+                      child: _NewPostsPill(
+                        posts: indicatorState.buffered,
+                        onTap: _onPillTap,
+                      ),
                     ),
                   ),
                 ),
@@ -538,7 +542,9 @@ class _NewPostsPill extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _StackedAvatars(posts: avatarPosts),
+            // EN: RepaintBoundary isolates avatar stack from pill text updates.
+            // KO: RepaintBoundary로 아바타 스택을 필 텍스트 업데이트에서 격리합니다.
+            RepaintBoundary(child: _StackedAvatars(posts: avatarPosts)),
             const SizedBox(width: GBTSpacing.sm),
             Text(
               '새 글 $count개',

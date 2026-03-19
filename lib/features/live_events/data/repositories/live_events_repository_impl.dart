@@ -25,14 +25,15 @@ class LiveEventsRepositoryImpl implements LiveEventsRepository {
   @override
   Future<Result<List<LiveEventSummary>>> getLiveEvents({
     required String projectId,
-    List<String> unitIds = const [],
     int page = 0,
-    int size = 20,
+    int size = 500,
     bool forceRefresh = false,
   }) async {
-    final cacheKey = _listCacheKey(projectId, unitIds, page, size);
-    // EN: Use staleWhileRevalidate — show cache instantly, refresh in background.
-    // KO: staleWhileRevalidate 사용 — 캐시 즉시 표시, 백그라운드 갱신.
+    // EN: Cache key includes only projectId — unit filtering is done client-side
+    //     so the same cached dataset is reused across all filter states.
+    // KO: 캐시 키는 projectId만 포함합니다 — 유닛 필터링은 클라이언트에서 처리하므로
+    //     동일한 캐시 데이터를 모든 필터 상태에서 재사용합니다.
+    final cacheKey = _listCacheKey(projectId, page, size);
     final profile = CacheProfiles.liveEventsList;
     final policy = profile.policyFor(forceRefresh: forceRefresh);
 
@@ -43,7 +44,7 @@ class LiveEventsRepositoryImpl implements LiveEventsRepository {
             policy: policy,
             ttl: profile.ttl,
             revalidateAfter: profile.revalidateAfter,
-            fetcher: () => _fetchLiveEvents(projectId, unitIds, page, size),
+            fetcher: () => _fetchLiveEvents(projectId, page, size),
             toJson: (dtos) => {'items': dtos.map((e) => e.toJson()).toList()},
             fromJson: (json) {
               final items = json['items'];
@@ -181,13 +182,11 @@ class LiveEventsRepositoryImpl implements LiveEventsRepository {
 
   Future<List<LiveEventSummaryDto>> _fetchLiveEvents(
     String projectId,
-    List<String> unitIds,
     int page,
     int size,
   ) async {
     final result = await _remoteDataSource.fetchLiveEvents(
       projectId: projectId,
-      unitIds: unitIds,
       page: page,
       size: size,
     );
@@ -259,14 +258,8 @@ class LiveEventsRepositoryImpl implements LiveEventsRepository {
     }
   }
 
-  String _listCacheKey(
-    String projectId,
-    List<String> unitIds,
-    int page,
-    int size,
-  ) {
-    final units = unitIds.isEmpty ? 'all' : unitIds.join(',');
-    return 'live_events:$projectId:$units:p$page:s$size';
+  String _listCacheKey(String projectId, int page, int size) {
+    return 'live_events:$projectId:p$page:s$size';
   }
 
   String _detailCacheKey(String projectId, String eventId) {

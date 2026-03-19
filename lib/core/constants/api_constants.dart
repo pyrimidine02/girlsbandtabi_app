@@ -687,6 +687,21 @@ class ApiEndpoints {
   static String quoteLike(String quoteId) => '$quotes/$quoteId/like';
 
   // ============================================================
+  // EN: Contributors endpoint — public, no auth required.
+  // KO: 기여자 목록 엔드포인트 — 공개, 인증 불필요.
+  // ============================================================
+
+  /// EN: Deduplicated contributor list for any entity type (GET, public).
+  ///     Sorted by lastModifiedAt DESC; `isRegistrant: true` marks the original creator.
+  /// KO: 모든 엔티티 타입의 중복 제거된 기여자 목록 (GET, 공개).
+  ///     lastModifiedAt 내림차순 정렬; `isRegistrant: true`가 최초 등록자.
+  ///
+  /// `entityType`: `places` | `lives` | `units` | `characters`
+  ///               | `projects` | `songs` | `albums`
+  static String contributors(String entityType, String entityId) =>
+      '$apiVersion/$entityType/$entityId/contributors';
+
+  // ============================================================
   // EN: Zukan / pilgrimage stamp collection endpoints
   // KO: 도감 / 성지순례 스탬프 컬렉션 엔드포인트
   // ============================================================

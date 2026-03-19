@@ -28,6 +28,7 @@ import '../../domain/entities/place_entities.dart';
 import '../../domain/entities/place_guide_entities.dart';
 import '../../domain/utils/place_type_search.dart';
 import '../utils/place_directions_launcher.dart';
+import '../../../../core/widgets/common/registrant_credit_widget.dart';
 import '../widgets/place_review_sheet.dart';
 
 /// EN: Place detail page widget
@@ -226,7 +227,7 @@ class PlaceDetailPage extends ConsumerWidget {
         // KO: 오버레이 아이콘 버튼 — 어떤 사진에서도 가독성을 위한 어두운 배경.
         actions: [
           _OverlayIconButton(
-            icon: isFavorite ? Icons.favorite : Icons.favorite_border,
+            icon: isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
             tooltip: isFavorite
                 ? context.l10n(
                     ko: '즐겨찾기 해제',
@@ -327,7 +328,7 @@ class PlaceDetailPage extends ConsumerWidget {
                       ),
                       const SizedBox(width: GBTSpacing.sm),
                       _QuickStatBadge(
-                        icon: Icons.favorite_outline_rounded,
+                        icon: Icons.star_outline_rounded,
                         label: context.l10n(
                           ko: '${place.favoriteCount ?? 0}명 관심',
                           en: '${place.favoriteCount ?? 0} interested',
@@ -538,6 +539,13 @@ class PlaceDetailPage extends ConsumerWidget {
                           placeCommentsControllerProvider(place.id).notifier,
                         )
                         .load(forceRefresh: true),
+                  ),
+                  const SizedBox(height: GBTSpacing.lg),
+                  // EN: Contributors credit — who registered and edited this place.
+                  // KO: 기여자 크레딧 — 이 장소를 등록하고 수정한 사람을 표시합니다.
+                  ContributorsCreditWidget(
+                    entityType: 'places',
+                    entityId: place.id,
                   ),
                   const SizedBox(height: GBTSpacing.xxl),
                 ],

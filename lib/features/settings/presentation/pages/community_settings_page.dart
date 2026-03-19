@@ -39,7 +39,7 @@ class CommunitySettingsPage extends ConsumerWidget {
         leading: GBTAppBarIconButton(
           icon: Icons.arrow_back,
           tooltip: context.l10n(ko: '뒤로 가기', en: 'Back', ja: '戻る'),
-          onPressed: () => context.go('/board'),
+          onPressed: () => context.go('/community'),
         ),
         title: Text(
           context.l10n(ko: '커뮤니티 설정', en: 'Community Settings', ja: 'コミュニティ設定'),

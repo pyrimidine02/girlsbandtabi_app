@@ -5,7 +5,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/error/failure.dart';
 import '../../../../core/localization/locale_text.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
@@ -14,17 +13,16 @@ import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
-import '../../../favorites/application/favorites_controller.dart';
-import '../../../favorites/domain/entities/favorite_entities.dart';
+import '../../application/local_post_bookmarks_controller.dart';
 
-/// EN: Page showing all community posts the user has bookmarked.
-/// KO: 사용자가 북마크한 커뮤니티 게시글 목록 페이지.
+/// EN: Page showing all community posts the user has bookmarked locally.
+/// KO: 사용자가 북마크한 커뮤니티 게시글 목록 페이지 (로컬 저장).
 class PostBookmarksPage extends ConsumerWidget {
   const PostBookmarksPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(favoritesControllerProvider);
+    final posts = ref.watch(localPostBookmarksControllerProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -35,77 +33,27 @@ class PostBookmarksPage extends ConsumerWidget {
           GBTAppBarIconButton(
             icon: Icons.refresh,
             tooltip: context.l10n(ko: '새로고침', en: 'Refresh', ja: '更新'),
-            onPressed: () => ref
-                .read(favoritesControllerProvider.notifier)
-                .load(forceRefresh: true),
+            onPressed: () {},
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () => ref
-            .read(favoritesControllerProvider.notifier)
-            .load(forceRefresh: true),
-        child: state.when(
-          loading: () => ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: GBTSpacing.paddingPage,
-            children: [
-              const SizedBox(height: GBTSpacing.sm),
-              GBTLoading(
-                message: context.l10n(
-                  ko: '북마크를 불러오는 중...',
-                  en: 'Loading bookmarks...',
-                  ja: 'ブックマークを読み込み中...',
-                ),
-              ),
-            ],
-          ),
-          error: (error, _) {
-            final message = error is Failure
-                ? error.userMessage
-                : context.l10n(
-                    ko: '북마크를 불러오지 못했어요',
-                    en: 'Failed to load bookmarks',
-                    ja: 'ブックマークを読み込めませんでした',
-                  );
-            return ListView(
+      body: posts.isEmpty
+          ? ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: GBTSpacing.paddingPage,
               children: [
                 const SizedBox(height: GBTSpacing.sm),
-                GBTErrorState(
-                  message: message,
-                  onRetry: () => ref
-                      .read(favoritesControllerProvider.notifier)
-                      .load(forceRefresh: true),
+                GBTEmptyState(
+                  icon: Icons.bookmark_border_rounded,
+                  message: context.l10n(
+                    ko: '북마크한 글이 없습니다.\n게시글 하단 북마크 버튼을 눌러 저장하세요.',
+                    en: 'No bookmarked posts.\nTap the bookmark button on a post to save it.',
+                    ja: 'ブックマークした投稿がありません。\n投稿下部のブックマークボタンで保存できます。',
+                  ),
                 ),
               ],
-            );
-          },
-          data: (items) {
-            final posts = items
-                .where((item) => item.type == FavoriteType.post)
-                .toList();
-
-            if (posts.isEmpty) {
-              return ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: GBTSpacing.paddingPage,
-                children: [
-                  const SizedBox(height: GBTSpacing.sm),
-                  GBTEmptyState(
-                    icon: Icons.bookmark_border_rounded,
-                    message: context.l10n(
-                      ko: '북마크한 글이 없습니다.\n마음에 드는 게시글을 북마크해보세요.',
-                      en: 'No bookmarked posts.\nBookmark posts you like.',
-                      ja: 'ブックマークした投稿がありません。\n気に入った投稿をブックマークしてください。',
-                    ),
-                  ),
-                ],
-              );
-            }
-
-            return ListView.builder(
+            )
+          : ListView.builder(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(
                 GBTSpacing.pageHorizontal,
@@ -115,25 +63,22 @@ class PostBookmarksPage extends ConsumerWidget {
               ),
               itemCount: posts.length,
               itemBuilder: (context, index) {
+                final item = posts[index];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: GBTSpacing.sm),
                   child: _BookmarkedPostCard(
-                    item: posts[index],
+                    item: item,
                     onTap: () {
-                      final entityId = posts[index].entityId.trim();
-                      if (entityId.isEmpty) return;
+                      if (item.postId.isEmpty) return;
                       context.goToPostDetail(
-                        entityId,
-                        projectCode: posts[index].projectCode,
+                        item.postId,
+                        projectCode: item.projectCode,
                       );
                     },
                   ),
                 );
               },
-            );
-          },
-        ),
-      ),
+            ),
     );
   }
 }
@@ -141,7 +86,7 @@ class PostBookmarksPage extends ConsumerWidget {
 class _BookmarkedPostCard extends StatelessWidget {
   const _BookmarkedPostCard({required this.item, required this.onTap});
 
-  final FavoriteItem item;
+  final LocalBookmarkedPost item;
   final VoidCallback onTap;
 
   @override
@@ -156,7 +101,7 @@ class _BookmarkedPostCard extends StatelessWidget {
 
     return Semantics(
       label:
-          '${context.l10n(ko: "북마크", en: "Bookmark", ja: "ブックマーク")}: ${item.title ?? context.l10n(ko: "게시글", en: "Post", ja: "投稿")}',
+          '${context.l10n(ko: "북마크", en: "Bookmark", ja: "ブックマーク")}: ${item.title.isNotEmpty ? item.title : context.l10n(ko: "게시글", en: "Post", ja: "投稿")}',
       button: true,
       child: Material(
         color: surfaceColor,
@@ -212,8 +157,9 @@ class _BookmarkedPostCard extends StatelessWidget {
                       vertical: GBTSpacing.md,
                     ),
                     child: Text(
-                      item.title ??
-                          context.l10n(ko: '게시글', en: 'Post', ja: '投稿'),
+                      item.title.isNotEmpty
+                          ? item.title
+                          : context.l10n(ko: '게시글', en: 'Post', ja: '投稿'),
                       style: GBTTypography.bodyMedium.copyWith(
                         fontWeight: FontWeight.w600,
                         color: textPrimary,

@@ -46,10 +46,16 @@ post_install do |installer|
       # so Xcode archive validation does not fail with "missing dSYM" errors.
       config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
 
-      # Fix: exclude arm64 simulator slice from simulator SDK builds.
-      # Prevents App Store rejection: "unsupported platform in the arm64 slice"
-      # caused by objective_c.framework (gRPC pod) including a simulator-tagged arm64 binary.
-      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+      # Fix: Xcode 26+ requires arm64 for simulator builds on Apple Silicon Macs.
+      # Remove any existing arm64 exclusion from simulator builds imposed by pods
+      # (e.g. apple_maps_flutter, connectivity_plus, etc. exclude arm64 in their podspecs).
+      excluded = config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'].to_s
+      updated = excluded.split.reject { |arch| arch == 'arm64' }.join(' ')
+      if updated.empty?
+        config.build_settings.delete('EXCLUDED_ARCHS[sdk=iphonesimulator*]')
+      else
+        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = updated
+      end
     end
   end
 

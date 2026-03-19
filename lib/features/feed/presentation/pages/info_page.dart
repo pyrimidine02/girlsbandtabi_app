@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/localization/locale_text.dart';
@@ -21,7 +22,6 @@ import '../../../music/application/music_controller.dart';
 import '../../../music/presentation/widgets/music_catalog_tab.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
-import '../../../projects/presentation/widgets/project_selector.dart';
 import '../../../settings/application/settings_controller.dart';
 import '../../application/feed_controller.dart';
 import '../../domain/entities/feed_entities.dart';
@@ -45,12 +45,13 @@ class _InfoPageState extends ConsumerState<InfoPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
-  static const _tabCount = 4;
+  static const _tabCount = 5;
   static const _tabIcons = [
     Icons.newspaper_outlined,
     Icons.groups_outlined,
     Icons.mic_external_on_outlined,
     Icons.music_note_outlined,
+    Icons.apps_outlined,
   ];
 
   @override
@@ -111,7 +112,7 @@ class _InfoPageState extends ConsumerState<InfoPage>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentNavIndex = ref.watch(currentNavIndexProvider);
-    final isInfoTabActive = currentNavIndex == NavIndex.info;
+    final isInfoTabActive = currentNavIndex == NavIndex.idol;
     final projectSelection = ref.watch(projectSelectionControllerProvider);
     final selectedProjectId = projectSelection.projectKey ?? '';
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
@@ -125,6 +126,7 @@ class _InfoPageState extends ConsumerState<InfoPage>
       context.l10n(ko: '유닛', en: 'Units', ja: 'ユニット'),
       context.l10n(ko: '성우', en: 'Voice actors', ja: '声優'),
       context.l10n(ko: '악곡', en: 'Songs', ja: '楽曲'),
+      context.l10n(ko: '더보기', en: 'More', ja: 'もっと'),
     ];
 
     return Scaffold(
@@ -147,11 +149,8 @@ class _InfoPageState extends ConsumerState<InfoPage>
                     : GBTColors.textPrimary,
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.sm),
-              child: Container(width: 1, height: 16, color: borderColor),
-            ),
-            const Expanded(child: ProjectSelectorCompact()),
+            const SizedBox(width: GBTSpacing.sm),
+            _InfoProjectChip(isDark: isDark),
           ],
         ),
         actions: [GBTProfileAction(avatarUrl: avatarUrl)],
@@ -245,6 +244,7 @@ class _InfoPageState extends ConsumerState<InfoPage>
               projectId: selectedProjectId,
             ),
             const MusicCatalogTab(),
+            const _MoreTab(),
           ],
         ),
       ),
@@ -423,32 +423,36 @@ class _NewsHeroCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          // EN: NEW badge overlay.
-                          // KO: NEW 배지 오버레이.
-                          Positioned(
-                            top: GBTSpacing.sm,
-                            left: GBTSpacing.sm,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: GBTSpacing.sm,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: GBTColors.primary,
-                                borderRadius: BorderRadius.circular(
-                                  GBTSpacing.radiusFull,
+                          // EN: NEW badge — only shown if published within 72 hours.
+                          // KO: NEW 배지 — 72시간 이내 게시된 경우에만 표시합니다.
+                          if (DateTime.now()
+                                  .difference(news.publishedAt)
+                                  .inHours <
+                              72)
+                            Positioned(
+                              top: GBTSpacing.sm,
+                              left: GBTSpacing.sm,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: GBTSpacing.sm,
+                                  vertical: 3,
                                 ),
-                              ),
-                              child: Text(
-                                'NEW',
-                                style: GBTTypography.labelSmall.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
+                                decoration: BoxDecoration(
+                                  color: GBTColors.primary,
+                                  borderRadius: BorderRadius.circular(
+                                    GBTSpacing.radiusFull,
+                                  ),
+                                ),
+                                child: Text(
+                                  'NEW',
+                                  style: GBTTypography.labelSmall.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
                         ],
                       )
                     : ColoredBox(
@@ -876,7 +880,7 @@ class _UnitsTab extends ConsumerWidget {
               (unit) => _UnitAccordionCard(
                 unit: unit,
                 projectId: projectKey,
-                paletteColor: paletteColorFromSeed(unit.displayName),
+                paletteColor: _unitPaletteColor(unit),
               ),
             ),
           ],
@@ -1007,26 +1011,38 @@ class _UnitAccordionCardState extends ConsumerState<_UnitAccordionCard>
                         padding: const EdgeInsets.all(GBTSpacing.md),
                         child: Row(
                           children: [
-                            // EN: Avatar circle with initial or palette color.
-                            // KO: 이니셜 또는 팔레트 색상 아바타 원.
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: widget.paletteColor,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  initial,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 20,
+                            // EN: Unit logo image if available, else palette initial circle.
+                            // KO: 유닛 로고가 있으면 이미지, 없으면 팔레트 이니셜 원.
+                            widget.unit.logoUrl != null &&
+                                    widget.unit.logoUrl!.isNotEmpty
+                                ? GBTImage(
+                                    imageUrl: widget.unit.logoUrl!,
+                                    width: 48,
+                                    height: 48,
+                                    borderRadius: BorderRadius.circular(
+                                      GBTSpacing.radiusMd,
+                                    ),
+                                    fit: BoxFit.cover,
+                                    semanticLabel: widget.unit.displayName,
+                                  )
+                                : Container(
+                                    width: 48,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: widget.paletteColor,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        initial,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 20,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                            ),
                             const SizedBox(width: GBTSpacing.md),
                             Expanded(
                               child: Column(
@@ -1599,4 +1615,348 @@ class _SectionHeaderWithCount extends StatelessWidget {
       ],
     );
   }
+}
+
+// ===========================================================================
+// EN: More tab — entry cards for cheer guides, quotes, and zukan.
+// KO: 더보기 탭 — 응원가이드, 명언, 도감 진입 카드.
+// ===========================================================================
+
+class _MoreTab extends StatelessWidget {
+  const _MoreTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary =
+        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
+    final textSecondary =
+        isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary;
+
+    final entries = [
+      (
+        icon: Icons.celebration_outlined,
+        // EN: Pink — matches the celebratory / live cheer theme.
+        // KO: 핑크 — 라이브 응원 테마와 어울리는 색상.
+        color: isDark ? GBTColors.darkSecondary : GBTColors.secondary,
+        label: context.l10n(
+          ko: '응원가이드',
+          en: 'Cheer Guides',
+          ja: '応援ガイド',
+        ),
+        subtitle: context.l10n(
+          ko: '라이브에서 응원하는 법을 알아보세요',
+          en: 'Learn how to cheer at lives',
+          ja: 'ライブの応援方法を確認',
+        ),
+        routeName: AppRoutes.cheerGuides,
+      ),
+      (
+        icon: Icons.format_quote_outlined,
+        // EN: Amber — warm tone for memorable quotes.
+        // KO: 앰버 — 명대사에 어울리는 따뜻한 색상.
+        color: isDark ? GBTColors.darkAccent : GBTColors.accent,
+        label: context.l10n(
+          ko: '명대사',
+          en: 'Quotes',
+          ja: '名言・名台詞',
+        ),
+        subtitle: context.l10n(
+          ko: '캐릭터들의 인상적인 대사 모음',
+          en: 'Memorable lines from characters',
+          ja: 'キャラクターの印象的なセリフ',
+        ),
+        routeName: AppRoutes.quotes,
+      ),
+      (
+        icon: Icons.collections_outlined,
+        // EN: Teal — collection / completionist feel.
+        // KO: 틸 — 컬렉션/도감 완성 느낌의 색상.
+        color: isDark ? const Color(0xFF2DD4BF) : GBTColors.accentTeal,
+        label: context.l10n(ko: '도감', en: 'Zukan', ja: '図鑑'),
+        subtitle: context.l10n(
+          ko: '캐릭터 & 아이템 컬렉션을 확인하세요',
+          en: 'Browse your character & item collection',
+          ja: 'キャラクター＆アイテムコレクションを確認',
+        ),
+        routeName: AppRoutes.zukan,
+      ),
+    ];
+
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.pageHorizontal,
+        vertical: GBTSpacing.md,
+      ),
+      itemCount: entries.length,
+      separatorBuilder: (_, __) => const SizedBox(height: GBTSpacing.sm),
+      itemBuilder: (context, i) {
+        final entry = entries[i];
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => context.pushNamed(entry.routeName),
+            borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: GBTSpacing.md,
+                vertical: GBTSpacing.sm2,
+              ),
+              decoration: GBTDecorations.card(isDark: isDark),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: entry.color.withValues(alpha: 0.12),
+                      borderRadius:
+                          BorderRadius.circular(GBTSpacing.radiusSm),
+                    ),
+                    child: Icon(entry.icon, color: entry.color, size: 22),
+                  ),
+                  const SizedBox(width: GBTSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          entry.label,
+                          style: GBTTypography.bodyMedium.copyWith(
+                            color: textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          entry.subtitle,
+                          style: GBTTypography.bodySmall.copyWith(
+                            color: textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: textSecondary,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ============================================================
+// EN: Info page project selector — solid primary pill chip (same style as
+//     explore/live pages).
+// KO: 정보 페이지 프로젝트 선택기 — 탐방/라이브 페이지와 동일한 solid primary 필 칩.
+// ============================================================
+
+class _InfoProjectChip extends ConsumerWidget {
+  const _InfoProjectChip({required this.isDark});
+
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final projectsState = ref.watch(projectsControllerProvider);
+    final selection = ref.watch(projectSelectionControllerProvider);
+
+    final label = projectsState.maybeWhen(
+      data: (projects) {
+        if (projects.isEmpty) {
+          return context.l10n(ko: '프로젝트', en: 'Project', ja: 'プロジェクト');
+        }
+        // EN: Auto-select first project when none is stored.
+        // KO: 저장된 프로젝트가 없으면 첫 번째 프로젝트를 자동 선택합니다.
+        if (selection.projectKey == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final first = projects.first;
+            final key = first.code.isNotEmpty ? first.code : first.id;
+            ref
+                .read(projectSelectionControllerProvider.notifier)
+                .selectProject(key, projectId: first.id);
+          });
+        }
+        final selected = projects.cast<Project?>().firstWhere(
+          (p) =>
+              p?.code == selection.projectKey ||
+              p?.id == selection.projectKey,
+          orElse: () => projects.first,
+        );
+        return selected?.name ??
+            context.l10n(ko: '프로젝트', en: 'Project', ja: 'プロジェクト');
+      },
+      orElse: () => context.l10n(ko: '프로젝트', en: 'Project', ja: 'プロジェクト'),
+    );
+
+    final primaryColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
+    final textColor = isDark ? GBTColors.darkBackground : Colors.white;
+
+    return GestureDetector(
+      onTap: () => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (_) => const _InfoProjectPickerSheet(),
+      ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: primaryColor,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+          boxShadow: [
+            BoxShadow(
+              color: primaryColor.withValues(alpha: isDark ? 0.35 : 0.30),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: GBTTypography.labelSmall.copyWith(
+                color: textColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 15,
+              color: textColor.withValues(alpha: 0.8),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoProjectPickerSheet extends ConsumerWidget {
+  const _InfoProjectPickerSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final projectsState = ref.watch(projectsControllerProvider);
+    final selection = ref.watch(projectSelectionControllerProvider);
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          GBTSpacing.md,
+          0,
+          GBTSpacing.md,
+          GBTSpacing.md,
+        ),
+        child: projectsState.when(
+          loading: () => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                context.l10n(
+                  ko: '프로젝트 선택',
+                  en: 'Select project',
+                  ja: 'プロジェクト選択',
+                ),
+                style: GBTTypography.titleMedium.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: GBTSpacing.md),
+              GBTLoading(
+                message: context.l10n(
+                  ko: '프로젝트를 불러오는 중...',
+                  en: 'Loading projects...',
+                  ja: 'プロジェクトを読み込み中...',
+                ),
+              ),
+              const SizedBox(height: GBTSpacing.md),
+            ],
+          ),
+          error: (_, __) => const SizedBox.shrink(),
+          data: (projects) {
+            if (projects.isEmpty) return const SizedBox.shrink();
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  context.l10n(
+                    ko: '프로젝트 선택',
+                    en: 'Select project',
+                    ja: 'プロジェクト選択',
+                  ),
+                  style: GBTTypography.titleMedium.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: GBTSpacing.sm),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: projects.length,
+                    itemBuilder: (context, index) {
+                      final project = projects[index];
+                      final key = project.code.isNotEmpty
+                          ? project.code
+                          : project.id;
+                      final isSelected =
+                          selection.projectKey == key ||
+                          selection.projectKey == project.id;
+                      final primaryColor =
+                          Theme.of(context).colorScheme.primary;
+                      return ListTile(
+                        leading: Icon(
+                          isSelected
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          color: isSelected ? primaryColor : null,
+                        ),
+                        title: Text(project.name),
+                        onTap: () {
+                          ref
+                              .read(projectSelectionControllerProvider.notifier)
+                              .selectProject(key, projectId: project.id);
+                          Navigator.of(context).pop();
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// EN: Resolves unit palette color — uses colorHex if available, else seeds from display name.
+/// KO: 유닛 팔레트 색상 결정 — colorHex가 있으면 사용, 없으면 displayName에서 시드 생성.
+Color _unitPaletteColor(Unit unit) {
+  final hex = unit.colorHex;
+  if (hex != null && hex.isNotEmpty) {
+    final cleaned = hex.startsWith('#') ? hex.substring(1) : hex;
+    if (cleaned.length == 6) {
+      return Color(int.parse('FF$cleaned', radix: 16));
+    }
+    if (cleaned.length == 8) {
+      return Color(int.parse(cleaned, radix: 16));
+    }
+  }
+  return paletteColorFromSeed(unit.displayName);
 }

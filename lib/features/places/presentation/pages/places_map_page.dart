@@ -10,7 +10,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import '../../../../core/error/failure.dart';
 import '../../../../core/localization/locale_text.dart';
@@ -120,10 +119,7 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
     final selectedBandIds = ref.watch(selectedPlaceBandIdsProvider);
     final listMode = ref.watch(placeListModeProvider);
     final currentNavIndex = ref.watch(currentNavIndexProvider);
-    final currentPath = GoRouterState.of(context).uri.path;
-    final isPlacesRoute =
-        currentPath == '/places' || currentPath.startsWith('/places/');
-    final isTabActive = currentNavIndex == NavIndex.places || isPlacesRoute;
+    final isTabActive = currentNavIndex == NavIndex.explore;
     final projectKey = ref.watch(selectedProjectKeyProvider);
     final projectId = ref.watch(selectedProjectIdProvider);
     final resolvedProjectKey = projectKey?.isNotEmpty == true

@@ -14,12 +14,12 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/oauth_callback_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
-import '../../features/places/presentation/pages/places_map_page.dart';
+import '../../features/explore/presentation/pages/explore_page.dart';
 import '../../features/places/presentation/pages/place_detail_page.dart';
-import '../../features/live_events/presentation/pages/live_events_page.dart';
 import '../../features/live_events/presentation/pages/live_event_detail_page.dart';
 import '../../features/feed/presentation/pages/board_page.dart';
 import '../../features/feed/presentation/pages/info_page.dart';
+import '../../features/my/presentation/pages/my_page.dart';
 import '../../features/feed/presentation/pages/member_detail_page.dart';
 import '../../features/feed/presentation/pages/news_detail_page.dart';
 import '../../features/feed/presentation/pages/post_create_page.dart';
@@ -109,16 +109,32 @@ class AppRoutes {
   // EN: Main tab routes
   // KO: 메인 탭 라우트
   static const String home = 'home';
+
+  // EN: Explore branch (places + live + visits)
+  // KO: 탐방 분기 (장소 + 라이브 + 방문기록)
+  static const String explore = 'explore';
+  static const String placeDetail = 'place-detail';
+  static const String overlayPlaceDetail = 'overlay-place-detail';
+  static const String liveDetail = 'live-detail';
+  static const String overlayLiveDetail = 'overlay-live-detail';
+
+  // EN: Idol branch (info + cheer guides + quotes + zukan)
+  // KO: 아이돌 분기 (정보 + 응원가이드 + 명언 + 도감)
+  static const String idol = 'idol';
+
+  // EN: Community branch (board)
+  // KO: 커뮤니티 분기 (게시판)
+  static const String community = 'community';
   static const String feed = 'feed';
   static const String discover = 'discover';
   static const String travelReviewTab = 'travel-review-tab';
-  static const String places = 'places';
-  static const String placeDetail = 'place-detail';
-  static const String overlayPlaceDetail = 'overlay-place-detail';
-  static const String live = 'live';
-  static const String liveDetail = 'live-detail';
-  static const String overlayLiveDetail = 'overlay-live-detail';
-  static const String board = 'board';
+
+  // EN: My branch
+  // KO: 나 분기
+  static const String my = 'my';
+
+  // EN: Info/idol sub-routes
+  // KO: 정보/아이돌 서브 라우트
   static const String info = 'info';
   static const String newsDetail = 'news-detail';
   static const String overlayNewsDetail = 'overlay-news-detail';
@@ -183,10 +199,23 @@ class NavIndex {
   NavIndex._();
 
   static const int home = 0;
-  static const int places = 1;
-  static const int live = 2;
-  static const int info = 3;
-  static const int board = 4;
+
+  /// EN: Explore branch — places map, live events, visit history.
+  /// KO: 탐방 분기 — 장소 지도, 라이브, 방문기록.
+  static const int explore = 1;
+
+  /// EN: Idol branch — info, cheer guides, quotes, zukan.
+  /// KO: 아이돌 분기 — 정보, 응원가이드, 명언, 도감.
+  static const int idol = 2;
+
+  /// EN: My branch — fan level, calendar, collection, settings.
+  /// KO: 나 분기 — 팬레벨, 달력, 컬렉션, 설정.
+  static const int my = 3;
+
+  /// EN: Community branch — board / feed.
+  /// KO: 커뮤니티 분기 — 게시판.
+  static const int community = 4;
+
 }
 
 /// EN: GoRouter provider with authentication redirect
@@ -206,7 +235,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       final isAuthRoute =
           loc == '/login' || loc == '/register' || loc.startsWith('/auth/');
-      final isPublicRoute = loc == '/home' || loc.startsWith('/info');
+      final isPublicRoute =
+          loc == '/home' ||
+          loc.startsWith('/idol');
 
       // EN: If logged in and on auth pages, redirect to home.
       // KO: 로그인했고 인증 페이지면 홈으로 리다이렉트.
@@ -272,17 +303,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // EN: Places Branch (Index 1)
-          // KO: 장소 분기 (인덱스 1)
+          // EN: Explore Branch (Index 1) — map + live + visits sub-tabs.
+          // KO: 탐방 분기 (인덱스 1) — 지도 + 라이브 + 방문기록 서브탭.
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/places',
-                name: AppRoutes.places,
-                builder: (context, state) => const PlacesMapPage(),
+                path: '/explore',
+                name: AppRoutes.explore,
+                pageBuilder: (context, state) {
+                  final tabParam = state.uri.queryParameters['tab'];
+                  final tabIndex =
+                      tabParam != null ? (int.tryParse(tabParam) ?? 0) : 0;
+                  return NoTransitionPage(
+                    key: state.pageKey,
+                    child: ExplorePage(initialTabIndex: tabIndex),
+                  );
+                },
                 routes: [
                   GoRoute(
-                    path: ':placeId',
+                    path: 'places/:placeId',
                     name: AppRoutes.placeDetail,
                     pageBuilder: (context, state) {
                       final placeId = state.pathParameters['placeId']!;
@@ -292,22 +331,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       );
                     },
                   ),
-                ],
-              ),
-            ],
-          ),
-
-          // EN: Live Events Branch (Index 2)
-          // KO: 라이브 이벤트 분기 (인덱스 2)
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/live',
-                name: AppRoutes.live,
-                builder: (context, state) => const LiveEventsPage(),
-                routes: [
                   GoRoute(
-                    path: ':eventId',
+                    path: 'live/:eventId',
                     name: AppRoutes.liveDetail,
                     pageBuilder: (context, state) {
                       final eventId = state.pathParameters['eventId']!;
@@ -322,13 +347,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // EN: Info Branch (Index 3)
-          // KO: 정보 분기 (인덱스 3)
+          // EN: Idol Branch (Index 2) — info, cheer guides, quotes, zukan.
+          // KO: 아이돌 분기 (인덱스 2) — 정보, 응원가이드, 명언, 도감.
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/info',
-                name: AppRoutes.info,
+                path: '/idol',
+                name: AppRoutes.idol,
                 builder: (context, state) => const InfoPage(),
                 routes: [
                   GoRoute(
@@ -472,13 +497,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // EN: Board Branch (Index 4)
-          // KO: 게시판 분기 (인덱스 4)
+          // EN: My Branch (Index 3) — fan level, calendar, collection, settings.
+          // KO: 나 분기 (인덱스 3) — 팬레벨, 달력, 컬렉션, 설정.
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/board',
-                name: AppRoutes.board,
+                path: '/my',
+                name: AppRoutes.my,
+                builder: (context, state) => const MyPage(),
+              ),
+            ],
+          ),
+
+          // EN: Community Branch (Index 4) — board / feed.
+          // KO: 커뮤니티 분기 (인덱스 4) — 게시판.
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/community',
+                name: AppRoutes.community,
                 pageBuilder: (context, state) => NoTransitionPage(
                   key: state.pageKey,
                   child: const BoardPage(initialTabIndex: 0),
@@ -551,47 +588,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // EN: Legacy route redirects
-      // KO: 레거시 라우트 리다이렉트
-      GoRoute(path: '/feed', redirect: (context, state) => '/board'),
-      GoRoute(
-        path: '/discover',
-        redirect: (context, state) => '/board/discover',
-      ),
-      GoRoute(
-        path: '/travel-reviews-tab',
-        redirect: (context, state) => '/board/travel-reviews-tab',
-      ),
-      GoRoute(
-        path: '/posts/new',
-        redirect: (context, state) => '/board/posts/new',
-      ),
-      GoRoute(
-        path: '/travel-reviews/create',
-        redirect: (context, state) => '/board/travel-review-create',
-      ),
-      GoRoute(
-        path: '/travel-reviews/:reviewId',
-        redirect: (context, state) {
-          final reviewId = state.pathParameters['reviewId']!;
-          return '/board/travel-reviews/$reviewId';
-        },
-      ),
-      GoRoute(
-        path: '/posts/:postId',
-        redirect: (context, state) {
-          final postId = state.pathParameters['postId']!;
-          return '/board/posts/$postId';
-        },
-      ),
-      GoRoute(
-        path: '/posts/:postId/edit',
-        redirect: (context, state) {
-          final postId = state.pathParameters['postId']!;
-          return '/board/posts/$postId/edit';
-        },
-      ),
-
       // EN: Settings routes (overlay, outside shell)
       // KO: 설정 라우트 (오버레이, 쉘 외부)
       GoRoute(
@@ -607,32 +603,50 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'profile',
             name: AppRoutes.profileEdit,
-            builder: (context, state) => const ProfileEditPage(),
+            pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+              key: state.pageKey,
+              child: const ProfileEditPage(),
+            ),
           ),
           GoRoute(
             path: 'notifications',
             name: AppRoutes.notificationSettings,
-            builder: (context, state) => const NotificationSettingsPage(),
+            pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+              key: state.pageKey,
+              child: const NotificationSettingsPage(),
+            ),
           ),
           GoRoute(
             path: 'account-tools',
             name: AppRoutes.accountTools,
-            builder: (context, state) => const AccountToolsPage(),
+            pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+              key: state.pageKey,
+              child: const AccountToolsPage(),
+            ),
           ),
           GoRoute(
             path: 'privacy-rights',
             name: AppRoutes.privacyRights,
-            builder: (context, state) => const PrivacyRightsPage(),
+            pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+              key: state.pageKey,
+              child: const PrivacyRightsPage(),
+            ),
           ),
           GoRoute(
             path: 'consents',
             name: AppRoutes.consentHistory,
-            builder: (context, state) => const ConsentHistoryPage(),
+            pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+              key: state.pageKey,
+              child: const ConsentHistoryPage(),
+            ),
           ),
           GoRoute(
             path: 'admin',
             name: AppRoutes.adminOps,
-            builder: (context, state) => const AdminOpsPage(),
+            pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+              key: state.pageKey,
+              child: const AdminOpsPage(),
+            ),
           ),
         ],
       ),
