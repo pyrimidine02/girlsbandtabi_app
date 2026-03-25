@@ -92,6 +92,41 @@
 			</array>
 		</dict>
 	</dict>
+	<!-- EN: Google Sign-In client ID (iOS). The SDK reads this key automatically. -->
+	<!-- KO: Google Sign-In 클라이언트 ID (iOS). SDK가 이 키를 자동으로 읽습니다. -->
+	<key>GIDClientID</key>
+	<string>413403814343-oajha5te1pv9h2dpe0ba7h8te3j578kc.apps.googleusercontent.com</string>
+	<!-- EN: Custom URL schemes: deep-link + Google Sign-In reverse client ID -->
+	<!-- KO: 커스텀 URL 스킴: 딥링크 + Google Sign-In REVERSED_CLIENT_ID -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<!-- EN: App deep-link scheme (girlsbandtabi://...) -->
+		<!-- KO: 앱 딥링크 스킴 (girlsbandtabi://...) -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>girlsbandtabi</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>girlsbandtabi</string>
+			</array>
+		</dict>
+		<!-- EN: Google Sign-In callback scheme (REVERSED_CLIENT_ID).
+		         This is the client ID reversed: com.googleusercontent.apps.<client-id>. -->
+		<!-- KO: Google Sign-In 콜백 스킴 (REVERSED_CLIENT_ID).
+		         클라이언트 ID를 뒤집은 형태: com.googleusercontent.apps.<client-id>. -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>google-sign-in</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.413403814343-oajha5te1pv9h2dpe0ba7h8te3j578kc</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
