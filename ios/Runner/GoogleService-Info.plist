@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>413403814343-qt973n3utfh7rm1akd044rat43s1kkbh.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyBTEBPv3bl_bDlVHFymqytsWTUnx53sDNc</string>
+	<key>GCM_SENDER_ID</key>
+	<string>413403814343</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>cc.noraneko.girlsbandtabi</string>
+	<key>PROJECT_ID</key>
+	<string>girlsbandtabi-5aa61</string>
+	<key>STORAGE_BUCKET</key>
+	<string>girlsbandtabi-5aa61.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:413403814343:ios:6b8de93073239cf83b61e2</string>
+</dict>
+</plist>
