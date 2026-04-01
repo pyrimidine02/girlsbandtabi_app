@@ -67,6 +67,10 @@ abstract class SettingsRepository {
 
   Future<Result<void>> deleteAccount();
 
+  /// EN: Restore a deactivated account within the 30-day grace period.
+  /// KO: 비활성화 후 30일 유예기간 내에 계정을 복구합니다.
+  Future<Result<RestoreAccountResult>> restoreAccount();
+
   Future<Result<List<UserBlock>>> getUserBlocks({bool forceRefresh = false});
 
   Future<Result<void>> unblockUser({required String targetUserId});

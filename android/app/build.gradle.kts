@@ -15,7 +15,7 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "org.pyrimidines.girlsbandtabi_app"
+    namespace = "cc.noraneko.girlsbandtabi_app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -35,7 +35,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "org.pyrimidines.girlsbandtabi_app"
+        applicationId = "cc.noraneko.girlsbandtabi_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -87,8 +87,9 @@ flutter {
     source = "../.."
 }
 
-// EN: Apply Google Services plugin only when firebase config file exists.
-// KO: Firebase 설정 파일이 있을 때만 Google Services 플러그인을 적용합니다.
+// EN: Apply Google Services and Firebase Crashlytics plugins only when firebase config file exists.
+// KO: Firebase 설정 파일이 있을 때만 Google Services / Crashlytics 플러그인을 적용합니다.
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
 }

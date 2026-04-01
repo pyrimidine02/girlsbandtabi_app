@@ -16,6 +16,7 @@ import '../data/dto/upload_dto.dart';
 import '../data/repositories/uploads_repository_impl.dart';
 import '../domain/entities/upload_entity.dart';
 import '../domain/repositories/uploads_repository.dart';
+import 'upload_routing_policy.dart';
 import '../utils/presigned_upload_helper.dart';
 
 /// EN: Controller for managing user uploads.
@@ -47,10 +48,21 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
     required String contentType,
     required int size,
   }) async {
+    final normalizedFilename = filename.trim();
+    final normalizedContentType = contentType.trim().toLowerCase();
+    final validationFailure = _validateUploadRequest(
+      filename: normalizedFilename,
+      contentType: normalizedContentType,
+      size: size,
+    );
+    if (validationFailure != null) {
+      return Result.failure(validationFailure);
+    }
+
     final repository = await _ref.read(uploadsRepositoryProvider.future);
     return repository.requestPresignedUrl(
-      filename: filename,
-      contentType: contentType,
+      filename: normalizedFilename,
+      contentType: normalizedContentType,
       size: size,
     );
   }
@@ -58,38 +70,36 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
   /// EN: Upload bytes and return upload info.
   /// KO: 바이트 업로드 후 업로드 정보를 반환합니다.
   ///
-  /// EN: GIF files are routed through the presigned URL flow because the
-  /// direct upload endpoint converts files to WebP (which would destroy
-  /// animation). The server's presigned-url endpoint explicitly allows
-  /// image/gif. All other image/* types use the direct upload endpoint
-  /// which performs server-side WebP conversion.
-  /// KO: GIF 파일은 presigned URL 경로를 사용합니다. direct 업로드 엔드포인트는
-  /// 파일을 WebP로 변환하므로 애니메이션이 손실됩니다. 서버의 presigned-url
-  /// 엔드포인트는 image/gif를 명시적으로 허용합니다. 그 외 image/* 타입은
-  /// 서버 측 WebP 변환을 수행하는 direct 업로드 엔드포인트를 사용합니다.
+  /// EN: Image files (including GIF) always use direct multipart upload.
+  /// KO: 이미지 파일(GIF 포함)은 항상 direct multipart 업로드를 사용합니다.
   Future<Result<UploadInfo>> uploadImageBytes({
     required Uint8List bytes,
     required String filename,
     required String contentType,
   }) async {
+    final normalizedFilename = filename.trim();
+    final normalizedContentType = contentType.trim().toLowerCase();
+    final validationFailure = _validateUploadRequest(
+      filename: normalizedFilename,
+      contentType: normalizedContentType,
+      size: bytes.length,
+    );
+    if (validationFailure != null) {
+      return Result.failure(validationFailure);
+    }
+
     final repository = await _ref.read(uploadsRepositoryProvider.future);
 
-    // EN: GIF must go through presigned URL (server converts direct-upload
-    // images to WebP, which breaks animation). Presigned URL stores the
-    // file as-is in R2.
-    // KO: GIF는 presigned URL을 통해 업로드해야 합니다. direct 업로드는
-    // 이미지를 WebP로 변환하여 애니메이션이 손실됩니다. Presigned URL은
-    // 파일을 R2에 그대로 저장합니다.
-    if (contentType != 'image/gif' && contentType.startsWith('image/')) {
+    if (shouldUseDirectUploadForContentType(normalizedContentType)) {
       AppLogger.debug(
-        'Image content type detected ($contentType), '
+        'Image content type detected ($normalizedContentType), '
         'using direct upload',
         tag: 'UploadsController',
       );
       final directResult = await repository.directUpload(
         bytes: bytes,
-        filename: filename,
-        contentType: contentType,
+        filename: normalizedFilename,
+        contentType: normalizedContentType,
       );
       if (directResult is Success<UploadInfo>) {
         _upsertUpload(directResult.data);
@@ -97,13 +107,13 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
       return directResult;
     }
 
-    // EN: GIF and non-image files: presigned URL first, fallback to direct.
-    // KO: GIF 및 이미지 외 파일: presigned URL 우선, direct로 폴백.
+    // EN: Non-image files: presigned URL first, fallback to direct.
+    // KO: 이미지 외 파일: presigned URL 우선, direct로 폴백.
     final presignedResult = await _uploadViaPresigned(
       repository: repository,
       bytes: bytes,
-      filename: filename,
-      contentType: contentType,
+      filename: normalizedFilename,
+      contentType: normalizedContentType,
     );
 
     if (presignedResult is Success<UploadInfo>) {
@@ -120,8 +130,8 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
         );
         final directResult = await repository.directUpload(
           bytes: bytes,
-          filename: filename,
-          contentType: contentType,
+          filename: normalizedFilename,
+          contentType: normalizedContentType,
         );
         if (directResult is Success<UploadInfo>) {
           _upsertUpload(directResult.data);
@@ -251,6 +261,35 @@ class UploadsController extends StateNotifier<AsyncValue<List<UploadInfo>>> {
       return rawUrl;
     }
     return uri.replace(query: null, fragment: null).toString();
+  }
+
+  Failure? _validateUploadRequest({
+    required String filename,
+    required String contentType,
+    required int size,
+  }) {
+    if (filename.isEmpty) {
+      return const ValidationFailure(
+        'Upload filename is required',
+        code: 'upload_filename_required',
+      );
+    }
+    if (size <= 0) {
+      return const ValidationFailure(
+        'Upload payload must not be empty',
+        code: 'upload_payload_empty',
+      );
+    }
+    final contentTypePattern = RegExp(
+      r'^[a-z0-9!#$&^_.+\-]+/[a-z0-9!#$&^_.+\-]+$',
+    );
+    if (!contentTypePattern.hasMatch(contentType)) {
+      return const ValidationFailure(
+        'Invalid upload content type',
+        code: 'upload_content_type_invalid',
+      );
+    }
+    return null;
   }
 }
 

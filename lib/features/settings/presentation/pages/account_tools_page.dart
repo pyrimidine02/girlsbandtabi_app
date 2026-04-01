@@ -971,7 +971,7 @@ class _AppealsTab extends StatelessWidget {
         : GBTColors.textSecondary;
     const targetTypeOptions = <_SelectionOption>[
       _SelectionOption(value: 'PLACE_VISIT', label: '장소 방문 인증'),
-      _SelectionOption(value: 'LIVE_EVENT', label: '라이브 출석 인증'),
+      _SelectionOption(value: 'LIVE_EVENT', label: '이벤트 출석 인증'),
     ];
     const reasonOptions = <_SelectionOption>[
       _SelectionOption(value: 'FALSE_REJECTION', label: '오탐 거절'),
@@ -1458,7 +1458,7 @@ class _SelectionPickerSheet extends StatelessWidget {
 
 String _appealTargetTypeLabel(String value) => switch (value.toUpperCase()) {
   'PLACE_VISIT' => '장소 방문 인증',
-  'LIVE_EVENT' => '라이브 출석 인증',
+  'LIVE_EVENT' => '이벤트 출석 인증',
   _ => value,
 };
 

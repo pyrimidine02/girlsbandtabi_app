@@ -2,13 +2,18 @@
 /// KO: 프로필 편집 페이지 — SettingsPage와 동일한 iOS 설정 스타일.
 library;
 
+import 'dart:io';
+
+import 'package:crop_your_image/crop_your_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_cropper/image_cropper.dart';
+import 'package:image_cropper/image_cropper.dart' as native_cropper;
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../../core/constants/profile_media_constants.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/theme/gbt_colors.dart';
@@ -47,6 +52,8 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
   bool _isSaving = false;
   bool _isUploadingAvatar = false;
   bool _isUploadingCover = false;
+  bool _isChangingAvatar = false;
+  bool _isChangingCover = false;
 
   String? _initialDisplayName;
   String? _initialBio;
@@ -56,7 +63,12 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
   String? _pendingAvatarUrl;
   String? _pendingCoverUrl;
 
-  bool get _isBusy => _isSaving || _isUploadingAvatar || _isUploadingCover;
+  bool get _isBusy =>
+      _isSaving ||
+      _isUploadingAvatar ||
+      _isUploadingCover ||
+      _isChangingAvatar ||
+      _isChangingCover;
 
   bool get _hasPendingChanges {
     if (!_didSetInitial) return false;
@@ -222,6 +234,10 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
             isLoading: _isBusy,
             message: _isSaving
                 ? '프로필 저장 중...'
+                : _isChangingAvatar
+                ? '프로필 사진 선택 중...'
+                : _isChangingCover
+                ? '배경 이미지 선택 중...'
                 : _isUploadingAvatar
                 ? '프로필 사진 업로드 중...'
                 : _isUploadingCover
@@ -251,8 +267,8 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
                   maxBioLength: _maxBioLength,
                   hasPendingAvatar: _pendingAvatarUrl != null,
                   hasPendingCover: _pendingCoverUrl != null,
-                  isUploadingAvatar: _isUploadingAvatar,
-                  isUploadingCover: _isUploadingCover,
+                  isUploadingAvatar: _isUploadingAvatar || _isChangingAvatar,
+                  isUploadingCover: _isUploadingCover || _isChangingCover,
                   onChangeAvatar: _changeAvatar,
                   onChangeCover: _changeCover,
                   onRefresh: () => ref
@@ -267,139 +283,246 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     );
   }
 
-  Future<void> _changeAvatar() async {
-    final picked = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      imageQuality: 90,
+  Future<String?> _cropImageForUpload({
+    required String sourcePath,
+    required String title,
+    required double ratioX,
+    required double ratioY,
+    int? maxWidth,
+    int? maxHeight,
+  }) async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return _cropImageInAppOnAndroid(
+        sourcePath: sourcePath,
+        title: title,
+        aspectRatio: ratioX / ratioY,
+      );
+    }
+    return _cropImageWithNativeCropper(
+      sourcePath: sourcePath,
+      title: title,
+      ratioX: ratioX,
+      ratioY: ratioY,
+      maxWidth: maxWidth,
+      maxHeight: maxHeight,
     );
-    if (picked == null) return;
+  }
 
-    // EN: Show 1:1 crop UI before uploading the avatar.
-    // KO: 아바타 업로드 전에 1:1 비율 자르기 UI를 표시합니다.
-    final cropped = await ImageCropper().cropImage(
-      sourcePath: picked.path,
-      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: '프로필 사진 자르기',
-          lockAspectRatio: true,
-        ),
-        IOSUiSettings(
-          title: '프로필 사진 자르기',
-          aspectRatioLockEnabled: true,
-          resetAspectRatioEnabled: false,
-        ),
-      ],
-    );
-    if (cropped == null) return;
-
-    setState(() => _isUploadingAvatar = true);
+  Future<String?> _cropImageInAppOnAndroid({
+    required String sourcePath,
+    required String title,
+    required double aspectRatio,
+  }) async {
     try {
-      final payload = await convertToWebp(
-        path: cropped.path,
-        originalFilename: p.basename(cropped.path),
+      final sourceBytes = await File(sourcePath).readAsBytes();
+      if (sourceBytes.isEmpty) {
+        _showMessage('사진을 불러오지 못했습니다.');
+        return null;
+      }
+      if (!mounted) return null;
+
+      final croppedBytes = await showDialog<Uint8List?>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => _AndroidInAppCropDialog(
+          title: title,
+          imageBytes: sourceBytes,
+          aspectRatio: aspectRatio,
+        ),
+      );
+      if (croppedBytes == null) return null;
+      if (croppedBytes.isEmpty) {
+        _showMessage('사진 편집에 실패했습니다.');
+        return null;
+      }
+
+      final ext = p.extension(sourcePath).toLowerCase();
+      final outputExt = ext == '.png' ? '.png' : '.jpg';
+      final dir = await Directory.systemTemp.createTemp('gbt_profile_crop_');
+      final file = File(p.join(dir.path, 'cropped$outputExt'));
+      await file.writeAsBytes(croppedBytes, flush: true);
+      return file.path;
+    } catch (_) {
+      _showMessage('사진 편집에 실패했습니다.');
+      return null;
+    }
+  }
+
+  Future<String?> _cropImageWithNativeCropper({
+    required String sourcePath,
+    required String title,
+    required double ratioX,
+    required double ratioY,
+    int? maxWidth,
+    int? maxHeight,
+  }) async {
+    try {
+      final cropped = await native_cropper.ImageCropper().cropImage(
+        sourcePath: sourcePath,
+        aspectRatio: native_cropper.CropAspectRatio(
+          ratioX: ratioX,
+          ratioY: ratioY,
+        ),
+        maxWidth: maxWidth,
+        maxHeight: maxHeight,
+        uiSettings: [
+          native_cropper.AndroidUiSettings(
+            toolbarTitle: title,
+            lockAspectRatio: true,
+          ),
+          native_cropper.IOSUiSettings(
+            title: title,
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+          ),
+        ],
+      );
+      return cropped?.path;
+    } catch (_) {
+      _showMessage('사진 편집에 실패했습니다.');
+      return null;
+    }
+  }
+
+  Future<void> _changeAvatar() async {
+    if (_isBusy) return;
+    setState(() => _isChangingAvatar = true);
+    try {
+      XFile? picked;
+      try {
+        picked = await _imagePicker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 90,
+        );
+      } catch (_) {
+        return;
+      }
+      if (picked == null) return;
+
+      final uploadSourcePath = await _cropImageForUpload(
+        sourcePath: picked.path,
+        title: '프로필 사진 자르기',
+        ratioX: 1,
+        ratioY: 1,
         maxWidth: 1024,
         maxHeight: 1024,
-        quality: 85,
       );
-      final uploadResult = await ref
-          .read(uploadsControllerProvider.notifier)
-          .uploadImageBytes(
-            bytes: payload.bytes,
-            filename: payload.filename,
-            contentType: payload.contentType,
-          );
-      if (uploadResult case Err(:final failure)) {
-        _handleUploadFailure(failure);
-        return;
-      }
-      final upload = switch (uploadResult) {
-        Success(:final data) => data,
-        Err(:final failure) => throw failure,
-      };
-      if (upload.url.isEmpty) {
-        _showMessage('업로드 정보를 가져오지 못했습니다.');
-        return;
-      }
+      if (uploadSourcePath == null) return;
       if (!mounted) return;
-      setState(() => _pendingAvatarUrl = upload.url);
-      _showMessage('사진이 업로드되었습니다. 저장을 눌러 반영하세요.');
-    } on Failure catch (failure) {
-      _handleUploadFailure(failure);
-    } catch (_) {
-      _showMessage('사진 업로드에 실패했습니다.');
+
+      setState(() => _isUploadingAvatar = true);
+      try {
+        final payload = await convertToWebp(
+          path: uploadSourcePath,
+          originalFilename: p.basename(uploadSourcePath),
+          maxWidth: 1024,
+          maxHeight: 1024,
+          quality: 85,
+        );
+        final uploadResult = await ref
+            .read(uploadsControllerProvider.notifier)
+            .uploadImageBytes(
+              bytes: payload.bytes,
+              filename: payload.filename,
+              contentType: payload.contentType,
+            );
+        if (uploadResult case Err(:final failure)) {
+          _handleUploadFailure(failure);
+          return;
+        }
+        final upload = switch (uploadResult) {
+          Success(:final data) => data,
+          Err(:final failure) => throw failure,
+        };
+        if (upload.url.isEmpty) {
+          _showMessage('업로드 정보를 가져오지 못했습니다.');
+          return;
+        }
+        if (!mounted) return;
+        setState(() => _pendingAvatarUrl = upload.url);
+        _showMessage('사진이 업로드되었습니다. 저장을 눌러 반영하세요.');
+      } on Failure catch (failure) {
+        _handleUploadFailure(failure);
+      } catch (_) {
+        _showMessage('사진 업로드에 실패했습니다.');
+      } finally {
+        if (mounted) setState(() => _isUploadingAvatar = false);
+      }
     } finally {
-      if (mounted) setState(() => _isUploadingAvatar = false);
+      if (mounted) setState(() => _isChangingAvatar = false);
     }
   }
 
   Future<void> _changeCover() async {
-    final picked = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1920,
-      maxHeight: 1080,
-      imageQuality: 90,
-    );
-    if (picked == null) return;
-
-    // EN: Show 16:9 crop UI before uploading the cover image.
-    // KO: 배경 이미지 업로드 전에 16:9 비율 자르기 UI를 표시합니다.
-    final cropped = await ImageCropper().cropImage(
-      sourcePath: picked.path,
-      aspectRatio: const CropAspectRatio(ratioX: 16, ratioY: 9),
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: '배경 이미지 자르기',
-          lockAspectRatio: true,
-        ),
-        IOSUiSettings(
-          title: '배경 이미지 자르기',
-          aspectRatioLockEnabled: true,
-          resetAspectRatioEnabled: false,
-        ),
-      ],
-    );
-    if (cropped == null) return;
-
-    setState(() => _isUploadingCover = true);
+    if (_isBusy) return;
+    setState(() => _isChangingCover = true);
     try {
-      final payload = await convertToWebp(
-        path: cropped.path,
-        originalFilename: p.basename(cropped.path),
-        maxWidth: 1920,
-        maxHeight: 1080,
-        quality: 80,
+      XFile? picked;
+      try {
+        picked = await _imagePicker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: profileCoverMaxWidth.toDouble(),
+          maxHeight: profileCoverMaxHeight.toDouble(),
+          imageQuality: 90,
+        );
+      } catch (_) {
+        return;
+      }
+      if (picked == null) return;
+
+      final uploadSourcePath = await _cropImageForUpload(
+        sourcePath: picked.path,
+        title: '배경 이미지 자르기',
+        ratioX: profileCoverCropRatioX,
+        ratioY: profileCoverCropRatioY,
+        maxWidth: profileCoverMaxWidth,
+        maxHeight: profileCoverMaxHeight,
       );
-      final uploadResult = await ref
-          .read(uploadsControllerProvider.notifier)
-          .uploadImageBytes(
-            bytes: payload.bytes,
-            filename: payload.filename,
-            contentType: payload.contentType,
-          );
-      if (uploadResult case Err(:final failure)) {
-        _handleUploadFailure(failure);
-        return;
-      }
-      final upload = switch (uploadResult) {
-        Success(:final data) => data,
-        Err(:final failure) => throw failure,
-      };
-      if (upload.url.isEmpty) {
-        _showMessage('업로드 정보를 가져오지 못했습니다.');
-        return;
-      }
+      if (uploadSourcePath == null) return;
       if (!mounted) return;
-      setState(() => _pendingCoverUrl = upload.url);
-      _showMessage('배경 이미지가 업로드되었습니다. 저장을 눌러 반영하세요.');
-    } on Failure catch (failure) {
-      _handleUploadFailure(failure);
-    } catch (_) {
-      _showMessage('배경 이미지 업로드에 실패했습니다.');
+
+      setState(() => _isUploadingCover = true);
+      try {
+        final payload = await convertToWebp(
+          path: uploadSourcePath,
+          originalFilename: p.basename(uploadSourcePath),
+          maxWidth: profileCoverMaxWidth,
+          maxHeight: profileCoverMaxHeight,
+          quality: 80,
+        );
+        final uploadResult = await ref
+            .read(uploadsControllerProvider.notifier)
+            .uploadImageBytes(
+              bytes: payload.bytes,
+              filename: payload.filename,
+              contentType: payload.contentType,
+            );
+        if (uploadResult case Err(:final failure)) {
+          _handleUploadFailure(failure);
+          return;
+        }
+        final upload = switch (uploadResult) {
+          Success(:final data) => data,
+          Err(:final failure) => throw failure,
+        };
+        if (upload.url.isEmpty) {
+          _showMessage('업로드 정보를 가져오지 못했습니다.');
+          return;
+        }
+        if (!mounted) return;
+        setState(() => _pendingCoverUrl = upload.url);
+        _showMessage('배경 이미지가 업로드되었습니다. 저장을 눌러 반영하세요.');
+      } on Failure catch (failure) {
+        _handleUploadFailure(failure);
+      } catch (_) {
+        _showMessage('배경 이미지 업로드에 실패했습니다.');
+      } finally {
+        if (mounted) setState(() => _isUploadingCover = false);
+      }
     } finally {
-      if (mounted) setState(() => _isUploadingCover = false);
+      if (mounted) setState(() => _isChangingCover = false);
     }
   }
 
@@ -666,9 +789,8 @@ class _CoverTile extends StatelessWidget {
       onTap: onTap,
       child: ClipRRect(
         borderRadius: topRadius,
-        child: SizedBox(
-          height: 120,
-          width: double.infinity,
+        child: AspectRatio(
+          aspectRatio: profileCoverAspectRatio,
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -678,7 +800,7 @@ class _CoverTile extends StatelessWidget {
                 GBTImage(
                   imageUrl: coverUrl!,
                   width: double.infinity,
-                  height: 120,
+                  height: double.infinity,
                   fit: BoxFit.cover,
                   semanticLabel: '배경 이미지',
                 )
@@ -1169,6 +1291,139 @@ class _AccountInfoRow extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ========================================
+// EN: Android in-app crop dialog — avoids native activity crashes while
+//     preserving interactive crop UX.
+// KO: Android 인앱 크롭 다이얼로그 — 네이티브 Activity 크래시를 피하면서
+//     상호작용 크롭 UX를 유지합니다.
+// ========================================
+class _AndroidInAppCropDialog extends StatefulWidget {
+  const _AndroidInAppCropDialog({
+    required this.title,
+    required this.imageBytes,
+    required this.aspectRatio,
+  });
+
+  final String title;
+  final Uint8List imageBytes;
+  final double aspectRatio;
+
+  @override
+  State<_AndroidInAppCropDialog> createState() =>
+      _AndroidInAppCropDialogState();
+}
+
+class _AndroidInAppCropDialogState extends State<_AndroidInAppCropDialog> {
+  final CropController _cropController = CropController();
+  bool _isCropping = false;
+
+  void _startCrop() {
+    if (_isCropping) return;
+    setState(() => _isCropping = true);
+    _cropController.crop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? GBTColors.darkSurface : GBTColors.surface;
+    final border = isDark ? GBTColors.darkBorderSubtle : GBTColors.border;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+
+    return Dialog(
+      backgroundColor: surface,
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: GBTSpacing.md,
+        vertical: GBTSpacing.lg,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusLg),
+      ),
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.76,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                GBTSpacing.sm,
+                GBTSpacing.sm,
+                GBTSpacing.sm,
+                GBTSpacing.xs,
+              ),
+              child: Row(
+                children: [
+                  TextButton(
+                    onPressed: _isCropping
+                        ? null
+                        : () => Navigator.of(context).pop(),
+                    child: const Text('취소'),
+                  ),
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      textAlign: TextAlign.center,
+                      style: GBTTypography.titleSmall.copyWith(
+                        color: textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _isCropping ? null : _startCrop,
+                    child: _isCropping
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('적용'),
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, color: border),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(GBTSpacing.sm),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
+                  child: Crop(
+                    image: widget.imageBytes,
+                    controller: _cropController,
+                    aspectRatio: widget.aspectRatio,
+                    interactive: true,
+                    fixCropRect: true,
+                    radius: GBTSpacing.radiusSm,
+                    baseColor: Colors.black,
+                    maskColor: Colors.black.withValues(alpha: 0.55),
+                    onStatusChanged: (status) {
+                      if (!mounted) return;
+                      if (status != CropStatus.cropping && _isCropping) {
+                        setState(() => _isCropping = false);
+                      }
+                    },
+                    onCropped: (result) {
+                      if (!mounted) return;
+                      switch (result) {
+                        case CropSuccess(:final croppedImage):
+                          Navigator.of(context).pop(croppedImage);
+                        case CropFailure():
+                          Navigator.of(context).pop(Uint8List(0));
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

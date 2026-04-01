@@ -12,9 +12,12 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/widgets/buttons/gbt_button.dart';
+import '../../../../core/widgets/common/gbt_page_reveal.dart';
 import '../../../../core/widgets/inputs/gbt_text_field.dart';
+import '../../../../core/router/app_router.dart';
 import '../../application/auth_controller.dart';
 import '../widgets/oauth_buttons.dart';
+import 'email_verification_args.dart';
 
 /// EN: Login page widget
 /// KO: 로그인 페이지 위젯
@@ -46,6 +49,26 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       if (!mounted) return;
       next.whenOrNull(
         error: (error, _) {
+          // EN: EMAIL_NOT_VERIFIED is handled in _handleLogin; suppress generic snackbar.
+          // KO: EMAIL_NOT_VERIFIED는 _handleLogin에서 처리하므로 일반 스낵바를 억제합니다.
+          if (error is AuthFailure && error.code == 'EMAIL_NOT_VERIFIED') return;
+
+          // EN: EMAIL_ACCOUNT_CONFLICT — navigate to conflict resolution page.
+          //     The idToken/identityToken is stored in the controller.
+          // KO: EMAIL_ACCOUNT_CONFLICT — 충돌 해결 페이지로 이동합니다.
+          //     idToken/identityToken은 컨트롤러에 저장됩니다.
+          if (error is Failure && error.code == 'EMAIL_ACCOUNT_CONFLICT') {
+            final email =
+                ref.read(authControllerProvider.notifier).pendingConflictEmail ??
+                '';
+            context.push('/oauth/conflict', extra: email);
+            return;
+          }
+
+          // EN: User cancelled OAuth sign-in picker — no snackbar needed.
+          // KO: 사용자가 OAuth 로그인 선택기를 닫은 경우 — 스낵바 불필요.
+          if (error is Failure && error.code == 'sign_in_cancelled') return;
+
           final message = _buildSafeLoginErrorMessage(context, error);
           ScaffoldMessenger.of(
             context,
@@ -63,7 +86,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           padding: GBTSpacing.paddingPage,
           child: Form(
             key: _formKey,
-            child: Column(
+            child: GBTPageReveal(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: GBTSpacing.xxxl),
@@ -208,7 +231,42 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   onSubmitted: (_) => isLoading ? null : _handleLogin(),
                 ),
 
-                const SizedBox(height: GBTSpacing.lg),
+                const SizedBox(height: GBTSpacing.sm),
+
+                // EN: Forgot password link
+                // KO: 비밀번호 찾기 링크
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Semantics(
+                    button: true,
+                    label: context.l10n(
+                      ko: '비밀번호 찾기',
+                      en: 'Forgot password',
+                      ja: 'パスワードを忘れた場合',
+                    ),
+                    child: TextButton(
+                      onPressed: () => context.push('/forgot-password'),
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(
+                          GBTSpacing.touchTarget,
+                          GBTSpacing.touchTarget,
+                        ),
+                      ),
+                      child: Text(
+                        context.l10n(
+                          ko: '비밀번호를 잊으셨나요?',
+                          en: 'Forgot password?',
+                          ja: 'パスワードをお忘れですか？',
+                        ),
+                        style: GBTTypography.bodySmall.copyWith(
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: GBTSpacing.sm),
 
                 // EN: Login button
                 // KO: 로그인 버튼
@@ -332,6 +390,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       if (!mounted) return;
       if (result is Success<void>) {
         context.go('/home');
+      } else if (result is Err<void>) {
+        // EN: Redirect to email verification pending when account is unverified.
+        // KO: 이메일 인증이 완료되지 않은 계정은 인증 대기 화면으로 이동합니다.
+        if (result.failure.code == 'EMAIL_NOT_VERIFIED') {
+          context.pushNamed(
+            AppRoutes.emailVerificationPending,
+            extra: EmailVerificationArgs(
+              email: _usernameController.text.trim(),
+            ),
+          );
+        }
       }
     } finally {
       if (mounted) {

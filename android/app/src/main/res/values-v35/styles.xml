@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- EN: Opt out edge-to-edge enforcement for uCrop on Android 15+. -->
+    <!-- KO: Android 15+에서 uCrop의 edge-to-edge 강제 적용을 비활성화합니다. -->
+    <style name="Ucrop.CropTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+</resources>

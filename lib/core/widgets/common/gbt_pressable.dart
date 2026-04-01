@@ -114,13 +114,28 @@ class _GBTPressableState extends State<GBTPressable>
       );
     }
 
+    final platform = Theme.of(context).platform;
+    final isApple = platform == TargetPlatform.iOS || platform == TargetPlatform.macOS;
+
+    Widget animatedChild = ScaleTransition(
+      scale: _scaleAnimation,
+      child: widget.child,
+    );
+
+    if (isApple) {
+      final opacityAnimation = Tween<double>(begin: 1.0, end: 0.5).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      );
+      animatedChild = FadeTransition(opacity: opacityAnimation, child: animatedChild);
+    }
+
     return GestureDetector(
       onTapDown: _onTapDown,
       onTapUp: _onTapUp,
       onTapCancel: _onTapCancel,
       onTap: _onTap,
       behavior: HitTestBehavior.opaque,
-      child: ScaleTransition(scale: _scaleAnimation, child: widget.child),
+      child: animatedChild,
     );
   }
 }

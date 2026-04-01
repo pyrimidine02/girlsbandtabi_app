@@ -100,7 +100,7 @@ void main() {
             'entityType': 'PLACE',
             'linkId': '34db0f86-dce0-4fc8-a3f2-c1a8a525f2af',
             'uploadId': 'f6f76461-f6f1-4812-a580-1bb3077d9dbb',
-            'requestedBy': 'moderator@pyrimidines.org',
+            'requestedBy': 'moderator@noraneko.cc',
             'status': 'PENDING',
             'createdAt': '2026-03-10T06:00:00Z',
           },

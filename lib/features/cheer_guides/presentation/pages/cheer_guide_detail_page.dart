@@ -11,6 +11,7 @@ import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/navigation/gbt_standard_app_bar.dart';
 import '../../application/cheer_guides_controller.dart';
 import '../../domain/entities/cheer_guide.dart';
 
@@ -25,35 +26,18 @@ class CheerGuideDetailPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final guideAsync = ref.watch(cheerGuideDetailProvider(guideId));
+    final appBarTitle = guideAsync.maybeWhen(
+      data: (guide) => guide.songTitle,
+      orElse: () => null,
+    );
 
     return Scaffold(
-      backgroundColor:
-          isDark ? GBTColors.darkBackground : GBTColors.background,
-      appBar: AppBar(
-        backgroundColor: isDark ? GBTColors.darkSurface : GBTColors.surface,
-        title: guideAsync.maybeWhen(
-          data: (guide) => Text(
-            guide.songTitle,
-            style: GBTTypography.titleLarge.copyWith(
-              color: isDark
-                  ? GBTColors.darkTextPrimary
-                  : GBTColors.textPrimary,
-            ),
-          ),
-          orElse: () => Text(
-            context.l10n(
-              ko: '응원 가이드',
-              en: 'Cheer Guide',
-              ja: '応援ガイド',
-            ),
-            style: GBTTypography.titleLarge.copyWith(
-              color: isDark
-                  ? GBTColors.darkTextPrimary
-                  : GBTColors.textPrimary,
-            ),
-          ),
-        ),
-        elevation: 0,
+      backgroundColor: isDark ? GBTColors.darkBackground : GBTColors.background,
+      appBar: gbtStandardAppBar(
+        context,
+        title: appBarTitle?.isNotEmpty == true
+            ? appBarTitle!
+            : context.l10n(ko: '응원 가이드', en: 'Cheer Guide', ja: '応援ガイド'),
       ),
       body: guideAsync.when(
         loading: () => _CheerGuideDetailShimmer(),
@@ -167,9 +151,7 @@ class _GuideContent extends StatelessWidget {
           ),
           const SizedBox(height: GBTSpacing.md),
         ],
-        ...guide.sections.map(
-          (section) => _SectionCard(section: section),
-        ),
+        ...guide.sections.map((section) => _SectionCard(section: section)),
         const SizedBox(height: GBTSpacing.xl),
       ],
     );
@@ -188,34 +170,25 @@ class _SectionCard extends StatelessWidget {
   // KO: 응원 유형별 시맨틱 색상 (라이트 / 다크).
   Color _typeColor(CheerType type, bool isDark) {
     return switch (type) {
-      CheerType.call => isDark
-          ? const Color(0xFF60A5FA)
-          : const Color(0xFF2563EB),
-      CheerType.response => isDark
-          ? const Color(0xFFA78BFA)
-          : const Color(0xFF7C3AED),
-      CheerType.silence => isDark
-          ? const Color(0xFF9CA3AF)
-          : const Color(0xFF6B7280),
-      CheerType.unified => isDark
-          ? const Color(0xFFFBBF24)
-          : const Color(0xFFD97706),
-      CheerType.none => isDark
-          ? GBTColors.darkTextTertiary
-          : GBTColors.textTertiary,
+      CheerType.call =>
+        isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
+      CheerType.response =>
+        isDark ? const Color(0xFFA78BFA) : const Color(0xFF7C3AED),
+      CheerType.silence =>
+        isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+      CheerType.unified =>
+        isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706),
+      CheerType.none =>
+        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary,
     };
   }
 
   String _typeLabel(CheerType type, BuildContext context) {
     return switch (type) {
-      CheerType.call =>
-        context.l10n(ko: '콜', en: 'Call', ja: 'コール'),
-      CheerType.response =>
-        context.l10n(ko: '응답', en: 'Response', ja: 'レスポンス'),
-      CheerType.silence =>
-        context.l10n(ko: '조용히', en: 'Silence', ja: '静かに'),
-      CheerType.unified =>
-        context.l10n(ko: '합창', en: 'Unified', ja: 'ユニゾン'),
+      CheerType.call => context.l10n(ko: '콜', en: 'Call', ja: 'コール'),
+      CheerType.response => context.l10n(ko: '응답', en: 'Response', ja: 'レスポンス'),
+      CheerType.silence => context.l10n(ko: '조용히', en: 'Silence', ja: '静かに'),
+      CheerType.unified => context.l10n(ko: '합창', en: 'Unified', ja: 'ユニゾン'),
       CheerType.none => '',
     };
   }

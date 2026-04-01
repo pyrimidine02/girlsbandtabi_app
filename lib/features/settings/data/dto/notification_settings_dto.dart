@@ -82,29 +82,26 @@ bool _bool(Map<String, dynamic> json, List<String> keys, bool fallback) {
 }
 
 List<String> _normalizeCategories(List<String> categories) {
-  const allowed = <String>{
-    'LIVE_EVENT',
-    'FAVORITE',
-    'COMMENT',
-    'FOLLOWING_POST',
-  };
   final normalized = <String>[];
   for (final raw in categories) {
-    final upper = raw.toUpperCase();
-    if (upper == 'LIVE_EVENTS') {
-      if (!normalized.contains('LIVE_EVENT')) {
-        normalized.add('LIVE_EVENT');
-      }
+    final upper = raw.trim().toUpperCase();
+    if (upper.isEmpty) {
       continue;
     }
-    if (upper == 'FOLLOWING_POSTS') {
-      if (!normalized.contains('FOLLOWING_POST')) {
-        normalized.add('FOLLOWING_POST');
-      }
-      continue;
-    }
-    if (allowed.contains(upper) && !normalized.contains(upper)) {
-      normalized.add(upper);
+    final canonical = switch (upper) {
+      'LIVE_EVENTS' => 'LIVE_EVENT',
+      'FOLLOWING_POSTS' ||
+      'FOLLOWING_POST_CREATED' ||
+      'FOLLOWING_POST_NOTIFICATION' => 'FOLLOWING_POST',
+      'COMMENTS' ||
+      'COMMENT_CREATED' ||
+      'COMMENT_REPLY_CREATED' ||
+      'MY_POST_COMMENT_CREATED' ||
+      'MY_COMMENT_REPLY_CREATED' => 'COMMENT',
+      _ => upper,
+    };
+    if (!normalized.contains(canonical)) {
+      normalized.add(canonical);
     }
   }
   return normalized;

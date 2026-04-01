@@ -3,6 +3,7 @@
 library;
 
 import 'dart:async';
+import 'dart:collection';
 
 import '../error/failure.dart';
 import '../logging/app_logger.dart';
@@ -65,9 +66,11 @@ class CacheManager {
     DateTime Function()? now,
     Duration cacheFirstRevalidateInterval = const Duration(minutes: 10),
     Future<bool> Function()? isOnline,
+    int memoryCacheCapacity = 300,
   }) : _now = now ?? DateTime.now,
        _cacheFirstRevalidateInterval = cacheFirstRevalidateInterval,
-       _isOnline = isOnline;
+       _isOnline = isOnline,
+       _memoryCacheCapacity = memoryCacheCapacity < 1 ? 1 : memoryCacheCapacity;
 
   final LocalStorage _localStorage;
   final DateTime Function() _now;
@@ -77,7 +80,10 @@ class CacheManager {
   // EN: Optional runtime network availability probe.
   // KO: 런타임 네트워크 가용성 확인(선택).
   final Future<bool> Function()? _isOnline;
+  final int _memoryCacheCapacity;
   final Map<String, Future<void>> _refreshTasks = {};
+  final LinkedHashMap<String, _MemoryCacheEntry> _memoryCache =
+      LinkedHashMap<String, _MemoryCacheEntry>();
 
   static const String _namespace = 'gbt_cache';
 
@@ -213,6 +219,7 @@ class CacheManager {
       'data': value,
     };
 
+    _setMemoryPayload(_wrapKey(key), payload);
     await _localStorage.setJson(_wrapKey(key), payload);
   }
 
@@ -222,7 +229,9 @@ class CacheManager {
     String key, {
     required T Function(Map<String, dynamic> json) fromJson,
   }) {
-    final payload = _localStorage.getJson(_wrapKey(key));
+    final wrappedKey = _wrapKey(key);
+    final payload =
+        _memoryPayload(wrappedKey) ?? _localStorage.getJson(wrappedKey);
     if (payload == null) return null;
 
     final cachedAtRaw = payload['cachedAt'];
@@ -237,11 +246,15 @@ class CacheManager {
         'Invalid cache payload, removing entry',
         tag: 'CacheManager',
       );
-      _localStorage.remove(_wrapKey(key));
+      _evictMemoryPayload(wrappedKey);
+      _localStorage.remove(wrappedKey);
       return null;
     }
 
     final ttl = ttlSeconds is int ? Duration(seconds: ttlSeconds) : null;
+    if (!_memoryCache.containsKey(wrappedKey)) {
+      _setMemoryPayload(wrappedKey, payload);
+    }
 
     return CacheEntry<T>(data: fromJson(dataRaw), cachedAt: cachedAt, ttl: ttl);
   }
@@ -249,19 +262,22 @@ class CacheManager {
   /// EN: Remove cached entry.
   /// KO: 캐시 엔트리를 삭제합니다.
   Future<void> remove(String key) async {
-    await _localStorage.remove(_wrapKey(key));
+    final wrappedKey = _wrapKey(key);
+    _evictMemoryPayload(wrappedKey);
+    await _localStorage.remove(wrappedKey);
   }
 
   /// EN: Remove cached entries by logical key prefix.
   /// KO: 논리 키 prefix 기준으로 캐시 엔트리를 삭제합니다.
   Future<int> removeByPrefix(String keyPrefix) async {
     final wrappedPrefix = _wrapKey(keyPrefix);
-    final keys = _localStorage
-        .getKeys()
-        .where((key) => key.startsWith(wrappedPrefix))
-        .toList(growable: false);
+    final keys = <String>{
+      ..._localStorage.getKeys().where((key) => key.startsWith(wrappedPrefix)),
+      ..._memoryCache.keys.where((key) => key.startsWith(wrappedPrefix)),
+    }.toList(growable: false);
 
     for (final key in keys) {
+      _evictMemoryPayload(key);
       await _localStorage.remove(key);
     }
     return keys.length;
@@ -271,11 +287,12 @@ class CacheManager {
   /// KO: 캐시 네임스페이스의 모든 엔트리를 삭제합니다.
   Future<void> clearAll() async {
     final prefix = '$_namespace:';
-    final keys = _localStorage
-        .getKeys()
-        .where((key) => key.startsWith(prefix))
-        .toList(growable: false);
+    final keys = <String>{
+      ..._localStorage.getKeys().where((key) => key.startsWith(prefix)),
+      ..._memoryCache.keys.where((key) => key.startsWith(prefix)),
+    }.toList(growable: false);
     for (final key in keys) {
+      _evictMemoryPayload(key);
       await _localStorage.remove(key);
     }
     AppLogger.info(
@@ -340,4 +357,49 @@ class CacheManager {
   }
 
   String _wrapKey(String key) => '$_namespace:$key';
+
+  Map<String, dynamic>? _memoryPayload(String wrappedKey) {
+    final entry = _memoryCache.remove(wrappedKey);
+    if (entry == null) {
+      return null;
+    }
+    _memoryCache[wrappedKey] = entry;
+    return _clonePayload(entry.payload);
+  }
+
+  void _setMemoryPayload(String wrappedKey, Map<String, dynamic> payload) {
+    _memoryCache.remove(wrappedKey);
+    _memoryCache[wrappedKey] = _MemoryCacheEntry(_clonePayload(payload));
+    _trimMemoryCache();
+  }
+
+  void _evictMemoryPayload(String wrappedKey) {
+    _memoryCache.remove(wrappedKey);
+  }
+
+  void _trimMemoryCache() {
+    while (_memoryCache.length > _memoryCacheCapacity) {
+      _memoryCache.remove(_memoryCache.keys.first);
+    }
+  }
+
+  Map<String, dynamic> _clonePayload(Map<String, dynamic> payload) {
+    return payload.map((key, value) => MapEntry(key, _cloneValue(value)));
+  }
+
+  dynamic _cloneValue(dynamic value) {
+    if (value is Map<String, dynamic>) {
+      return _clonePayload(value);
+    }
+    if (value is List) {
+      return value.map(_cloneValue).toList(growable: false);
+    }
+    return value;
+  }
+}
+
+class _MemoryCacheEntry {
+  const _MemoryCacheEntry(this.payload);
+
+  final Map<String, dynamic> payload;
 }

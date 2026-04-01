@@ -12,10 +12,18 @@ import '../../router/app_router.dart';
 /// EN: AppBar action that shows the user's profile avatar or a fallback icon.
 /// KO: 사용자 프로필 아바타 또는 대체 아이콘을 표시하는 AppBar 액션.
 class GBTProfileAction extends StatelessWidget {
-  const GBTProfileAction({super.key, this.avatarUrl, this.onTap});
+  const GBTProfileAction({
+    super.key,
+    this.avatarUrl,
+    this.onTap,
+    this.placeholderBackgroundColor,
+    this.placeholderIconColor,
+  });
 
   final String? avatarUrl;
   final VoidCallback? onTap;
+  final Color? placeholderBackgroundColor;
+  final Color? placeholderIconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -24,12 +32,12 @@ class GBTProfileAction extends StatelessWidget {
     // EN: Use theme-aware placeholder colors.
     // KO: 테마 인식 플레이스홀더 색상을 사용합니다.
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark
-        ? GBTColors.darkSurfaceVariant
-        : GBTColors.surfaceVariant;
-    final iconColor = isDark
-        ? GBTColors.darkTextTertiary
-        : GBTColors.textTertiary;
+    final bgColor =
+        placeholderBackgroundColor ??
+        (isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant);
+    final iconColor =
+        placeholderIconColor ??
+        (isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary);
 
     return Semantics(
       button: true,

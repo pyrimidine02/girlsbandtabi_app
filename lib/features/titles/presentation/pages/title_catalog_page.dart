@@ -11,6 +11,7 @@ import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/navigation/gbt_standard_app_bar.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../application/titles_controller.dart';
 import '../../domain/entities/title_entities.dart';
@@ -207,7 +208,9 @@ class _TitleCatalogPageState extends ConsumerState<TitleCatalogPage> {
     // EN: Derive the currently active title id from the notifier.
     // KO: 노티파이어에서 현재 활성 칭호 ID를 도출합니다.
     final activeTitle = activeTitleAsync.valueOrNull;
-    final activeId = activeTitle?.hasTitle == true ? activeTitle!.titleId : null;
+    final activeId = activeTitle?.hasTitle == true
+        ? activeTitle!.titleId
+        : null;
     final hasActiveTitle = activeTitle?.hasTitle == true;
 
     // EN: The apply button is disabled when:
@@ -219,31 +222,20 @@ class _TitleCatalogPageState extends ConsumerState<TitleCatalogPage> {
     //   2. 선택된 항목이 이미 활성 칭호인 경우.
     //   3. 적용 변이가 진행 중인 경우.
     final isApplyDisabled =
-        _selectedId == null ||
-        _selectedId == activeId ||
-        _isApplying;
+        _selectedId == null || _selectedId == activeId || _isApplying;
 
-    final scaffoldBg =
-        isDark ? GBTColors.darkBackground : GBTColors.background;
+    final scaffoldBg = isDark ? GBTColors.darkBackground : GBTColors.background;
 
     return Scaffold(
       backgroundColor: scaffoldBg,
-      appBar: AppBar(
-        backgroundColor: isDark ? GBTColors.darkSurface : GBTColors.surface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
+      appBar: gbtStandardAppBar(
+        context,
+        title: '칭호 관리',
         leading: IconButton(
           icon: const Icon(Icons.close),
           tooltip: '닫기',
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(
-          '칭호 관리',
-          style: GBTTypography.headlineMedium.copyWith(
-            color: isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
-          ),
-        ),
-        centerTitle: false,
         // EN: Show the clear-active action in the app bar when a title is active.
         // KO: 활성 칭호가 있을 때 앱 바에 해제 액션을 표시합니다.
         actions: [
@@ -392,10 +384,9 @@ class _TitleCatalogList extends ConsumerWidget {
       // KO: 각 프로젝트 버킷 내에서 카테고리별로 그룹화합니다.
       final grouped = <TitleCategory, List<TitleCatalogItem>>{};
       for (final category in TitleCategory.values) {
-        final categoryItems = projectItems
-            .where((i) => i.category == category)
-            .toList()
-          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+        final categoryItems =
+            projectItems.where((i) => i.category == category).toList()
+              ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
         if (categoryItems.isNotEmpty) {
           grouped[category] = categoryItems;
         }
@@ -435,9 +426,7 @@ class _TitleCatalogList extends ConsumerWidget {
       // EN: Thicker divider between project sections (not after the last).
       // KO: 프로젝트 섹션 사이 구분선 (마지막 뒤에는 추가하지 않음).
       if (pi < orderedKeys.length - 1) {
-        listChildren.add(
-          const Divider(height: GBTSpacing.lg, thickness: 1),
-        );
+        listChildren.add(const Divider(height: GBTSpacing.lg, thickness: 1));
       }
     }
 
@@ -724,8 +713,9 @@ class _TitleListShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final shimmerColor =
-        isDark ? GBTColors.darkSurfaceVariant : GBTColors.surfaceVariant;
+    final shimmerColor = isDark
+        ? GBTColors.darkSurfaceVariant
+        : GBTColors.surfaceVariant;
 
     return Semantics(
       label: '칭호 목록 로딩 중',
@@ -790,10 +780,7 @@ class _TitleErrorState extends StatelessWidget {
             ),
           ),
           const SizedBox(height: GBTSpacing.lg),
-          TextButton(
-            onPressed: onRetry,
-            child: const Text('다시 시도'),
-          ),
+          TextButton(onPressed: onRetry, child: const Text('다시 시도')),
         ],
       ),
     );
@@ -845,7 +832,9 @@ class _ApplyBar extends StatelessWidget {
           child: ElevatedButton(
             onPressed: isDisabled ? null : onApply,
             style: ElevatedButton.styleFrom(
-              backgroundColor: isDark ? GBTColors.darkPrimary : GBTColors.primary,
+              backgroundColor: isDark
+                  ? GBTColors.darkPrimary
+                  : GBTColors.primary,
               foregroundColor: Colors.white,
               disabledBackgroundColor: isDark
                   ? GBTColors.darkSurfaceVariant

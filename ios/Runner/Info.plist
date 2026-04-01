@@ -48,7 +48,7 @@
 				<key>NSIncludesSubdomains</key>
 				<true/>
 			</dict>
-			<key>r2.pyrimidines.org</key>
+			<key>r2.noraneko.cc</key>
 			<dict>
 				<key>NSExceptionAllowsInsecureHTTPLoads</key>
 				<true/>

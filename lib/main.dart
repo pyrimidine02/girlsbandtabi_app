@@ -4,15 +4,19 @@ library;
 
 import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'app.dart';
 import 'core/config/app_config.dart';
 import 'core/logging/app_logger.dart';
+import 'core/notifications/firebase_runtime_options.dart';
 import 'core/notifications/remote_push_service.dart';
 import 'core/providers/core_providers.dart';
 
@@ -21,16 +25,47 @@ Future<void> main() async {
   // KO: Flutter 바인딩 초기화 확인
   WidgetsFlutterBinding.ensureInitialized();
 
+  // EN: Initialize Firebase (required before Crashlytics / Messaging).
+  // KO: Crashlytics / Messaging 사용 전에 Firebase를 초기화합니다.
+  final firebaseOptions = FirebaseRuntimeOptions.resolveForCurrentPlatform();
+  if (firebaseOptions != null) {
+    await Firebase.initializeApp(options: firebaseOptions);
+  } else {
+    try {
+      await Firebase.initializeApp();
+    } catch (_) {
+      // EN: No google-services.json / GoogleService-Info.plist — skip Firebase.
+      // KO: google-services.json / GoogleService-Info.plist 없음 — Firebase 초기화 건너뜁니다.
+    }
+  }
+
+  // EN: Route Flutter framework errors to Crashlytics.
+  // KO: Flutter 프레임워크 에러를 Crashlytics로 라우팅합니다.
+  if (!kIsWeb) {
+    try {
+      // EN: Disable Crashlytics collection in debug/dev builds.
+      // KO: 디버그/개발 빌드에서 Crashlytics 수집을 비활성화합니다.
+      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
+        kReleaseMode,
+      );
+      FlutterError.onError =
+          FirebaseCrashlytics.instance.recordFlutterFatalError;
+      PlatformDispatcher.instance.onError = (error, stack) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        return true;
+      };
+    } catch (_) {
+      // EN: Crashlytics not available (e.g. no Firebase config) — skip gracefully.
+      // KO: Crashlytics 사용 불가(Firebase 설정 없음 등) — 무시합니다.
+    }
+  }
+
   // EN: Initialize app configuration
   // KO: 앱 구성 초기화
   final environment = kReleaseMode
       ? Environment.production
       : Environment.development;
-  AppConfig.instance.init(
-    environment: environment,
-    // EN: Override with actual values for production.
-    // KO: 프로덕션에서는 실제 값으로 오버라이드.
-  );
+  AppConfig.instance.init(environment: environment);
 
   AppLogger.info('App starting', tag: 'Main');
   AppLogger.info('Environment: ${AppConfig.instance.environment.name}');
@@ -69,15 +104,36 @@ Future<void> main() async {
   // KO: runApp 이전에 Firebase Messaging 백그라운드 핸들러를 등록합니다.
   registerRemotePushBackgroundHandler();
 
-  // EN: Run the app with Riverpod
-  // KO: Riverpod과 함께 앱 실행
-  runApp(
-    UncontrolledProviderScope(container: container, child: const GBTApp()),
-  );
+  // EN: Initialize Sentry and run the app inside its error zone.
+  //     DSN is injected at build time via --dart-define=SENTRY_DSN=<value>.
+  // KO: Sentry를 초기화하고 에러 존 내에서 앱을 실행합니다.
+  //     DSN은 빌드 시 --dart-define=SENTRY_DSN=<value>로 주입합니다.
+  await SentryFlutter.init(
+    (options) {
+      options.dsn = const String.fromEnvironment('SENTRY_DSN');
+      options.environment = const String.fromEnvironment(
+        'ENV',
+        defaultValue: kReleaseMode ? 'prod' : 'dev',
+      );
+      // EN: Sample 20% of transactions for performance tracing.
+      // KO: 성능 트레이싱을 위해 트랜잭션의 20%를 샘플링합니다.
+      options.tracesSampleRate = 0.2;
+      // EN: Do not send PII (user IP, name) to Sentry.
+      // KO: 개인정보(사용자 IP, 이름)를 Sentry로 전송하지 않습니다.
+      options.sendDefaultPii = false;
+    },
+    appRunner: () {
+      // EN: Run the app with Riverpod
+      // KO: Riverpod과 함께 앱 실행
+      runApp(
+        UncontrolledProviderScope(container: container, child: const GBTApp()),
+      );
 
-  // EN: Bootstrap critical services without blocking the first frame.
-  // KO: 첫 프레임을 막지 않도록 핵심 서비스를 부트스트랩합니다.
-  unawaited(_bootstrap(container));
+      // EN: Bootstrap critical services without blocking the first frame.
+      // KO: 첫 프레임을 막지 않도록 핵심 서비스를 부트스트랩합니다.
+      unawaited(_bootstrap(container));
+    },
+  );
 }
 
 /// EN: Non-blocking bootstrap for storage + auth checks.
@@ -97,6 +153,10 @@ Future<void> _bootstrap(ProviderContainer container) async {
     // EN: Check authentication status.
     // KO: 인증 상태 확인.
     await container.read(authStateProvider.notifier).checkAuthStatus();
+
+    // EN: Bootstrap telemetry — restore device-banned flag from SharedPreferences.
+    // KO: 텔레메트리 부트스트랩 — SharedPreferences에서 기기 차단 플래그를 복원합니다.
+    container.read(telemetryBootstrapProvider);
 
     AppLogger.info('App initialization complete', tag: 'Main');
   } catch (error, stackTrace) {

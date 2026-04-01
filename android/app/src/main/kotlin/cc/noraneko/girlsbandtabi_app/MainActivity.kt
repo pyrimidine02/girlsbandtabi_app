@@ -1,4 +1,4 @@
-package org.pyrimidines.girlsbandtabi_app
+package cc.noraneko.girlsbandtabi_app
 
 import io.flutter.embedding.android.FlutterActivity
 

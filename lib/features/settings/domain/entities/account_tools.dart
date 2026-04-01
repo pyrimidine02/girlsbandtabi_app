@@ -4,6 +4,28 @@ library;
 
 import '../../data/dto/account_tools_dto.dart';
 
+/// EN: Result of the account restoration request.
+/// KO: 계정 복구 요청 결과.
+class RestoreAccountResult {
+  const RestoreAccountResult({
+    required this.result,
+    required this.restoredAt,
+    this.retentionUntil,
+  });
+
+  final String result;
+  final DateTime restoredAt;
+  final DateTime? retentionUntil;
+
+  factory RestoreAccountResult.fromDto(RestoreAccountResultDto dto) {
+    return RestoreAccountResult(
+      result: dto.result,
+      restoredAt: dto.restoredAt,
+      retentionUntil: dto.retentionUntil,
+    );
+  }
+}
+
 class BlockedUser {
   const BlockedUser({
     required this.id,

@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/error/failure.dart';
@@ -39,6 +40,13 @@ class _NotificationNavigationHint {
 
 class NotificationsController
     extends StateNotifier<AsyncValue<List<NotificationItem>>> {
+  // EN: SSE realtime reconnect timing constants.
+  // KO: SSE 실시간 재연결 타이밍 상수들.
+  static const Duration _kMinReconnectDelay = Duration(seconds: 2);
+  static const Duration _kMaxReconnectDelay = Duration(seconds: 120);
+  static const Duration _kAuthCooldown = Duration(minutes: 5);
+  static const Duration _kClientErrorCooldown = Duration(minutes: 10);
+
   NotificationsController(this._ref) : super(const AsyncLoading()) {
     _ref.listen<bool>(isAuthenticatedProvider, (_, isAuthenticated) {
       if (!isAuthenticated) {
@@ -48,7 +56,7 @@ class NotificationsController
         return;
       }
       if (_isRealtimeActive) {
-        unawaited(_connectRealtime());
+        unawaited(_connectRealtimeSafely(origin: 'auth_state_change'));
       }
     });
     load();
@@ -80,7 +88,7 @@ class NotificationsController
   Future<void> startRealtimeSync() async {
     if (_isRealtimeActive) return;
     _isRealtimeActive = true;
-    await _connectRealtime();
+    await _connectRealtimeSafely(origin: 'start_realtime_sync');
   }
 
   /// EN: Stop realtime SSE sync and keep polling fallback only.
@@ -121,7 +129,24 @@ class NotificationsController
     // KO: 스트림 엔드포인트 401 후 발생하는 5분 재연결 대기와
     // KO: 불필요한 연결 시도를 방지합니다.
     final apiClient = _ref.read(apiClientProvider);
-    final tokenReady = await apiClient.proactiveRefreshIfExpired();
+    bool tokenReady;
+    try {
+      tokenReady = await apiClient.proactiveRefreshIfExpired();
+    } catch (error, stackTrace) {
+      AppLogger.warning(
+        '[Notifications] SSE token refresh threw; retry later',
+        tag: 'NotificationsController',
+        data: error,
+      );
+      AppLogger.debug(
+        '[Notifications] SSE token refresh stack',
+        tag: 'NotificationsController',
+        data: stackTrace,
+      );
+      _isRealtimeConnected = false;
+      _scheduleRealtimeReconnect();
+      return;
+    }
     if (!tokenReady) {
       // EN: Refresh token is invalid; wait for auth state to change.
       // KO: 리프레시 토큰이 무효합니다; 인증 상태 변경을 기다립니다.
@@ -146,14 +171,28 @@ class NotificationsController
       _realtimeSubscription = connection.events.listen(
         _handleRealtimeEvent,
         onError: (Object error, StackTrace stackTrace) {
-          AppLogger.warning(
-            '[Notifications] SSE error; fallback to polling',
-            tag: 'NotificationsController',
+          if (_isExpectedStreamDisconnectError(error)) {
+            AppLogger.debug(
+              '[Notifications] SSE disconnected while receiving data',
+              tag: 'NotificationsController',
+            );
+          } else {
+            AppLogger.warning(
+              '[Notifications] SSE error; fallback to polling',
+              tag: 'NotificationsController',
+              data: error,
+            );
+          }
+          unawaited(
+            _handleRealtimeDisconnectSafely(
+              origin: 'stream_on_error',
+              sourceError: error,
+              sourceStackTrace: stackTrace,
+            ),
           );
-          unawaited(_handleRealtimeDisconnect());
         },
         onDone: () {
-          unawaited(_handleRealtimeDisconnect());
+          unawaited(_handleRealtimeDisconnectSafely(origin: 'stream_on_done'));
         },
         cancelOnError: true,
       );
@@ -213,9 +252,18 @@ class NotificationsController
       return true;
     }
     final normalized = rawType.toLowerCase();
+    // EN: Some servers emit domain event names directly (for example
+    //     FOLLOWING_POST_CREATED / MY_POST_COMMENT_CREATED). Treat them as
+    //     notification events so delta refresh/local alerts are not skipped.
+    // KO: 일부 서버는 알림 이벤트를 도메인 이벤트명으로 직접 보냅니다
+    //     (예: FOLLOWING_POST_CREATED / MY_POST_COMMENT_CREATED).
+    //     이 경우도 알림 이벤트로 간주해 증분 동기화/로컬 알림 누락을 막습니다.
     return normalized.contains('notification') ||
         normalized.contains('notice') ||
-        normalized.contains('unread');
+        normalized.contains('unread') ||
+        normalized.contains('following_post') ||
+        normalized.contains('post_comment') ||
+        normalized.contains('comment_reply');
   }
 
   Future<void> _handleRealtimeDisconnect() async {
@@ -240,10 +288,13 @@ class NotificationsController
     final jitterMs = _random.nextInt(jitterUpperBound + 1);
     final delay = baseDelay + Duration(milliseconds: jitterMs);
     _realtimeReconnectTimer = Timer(delay, () {
-      unawaited(_connectRealtime());
+      unawaited(_connectRealtimeSafely(origin: 'reconnect_timer'));
     });
     if (delayOverride == null && !freezeBackoff) {
-      final nextSeconds = (_reconnectDelay.inSeconds * 2).clamp(2, 120);
+      final nextSeconds = (_reconnectDelay.inSeconds * 2).clamp(
+        _kMinReconnectDelay.inSeconds,
+        _kMaxReconnectDelay.inSeconds,
+      );
       _reconnectDelay = Duration(seconds: nextSeconds);
     }
   }
@@ -267,20 +318,20 @@ class NotificationsController
   _ReconnectErrorClassification _classifyReconnectError(Object error) {
     final raw = error.toString().toLowerCase();
     if (raw.contains('http 401') || raw.contains('http 403')) {
-      return const _ReconnectErrorClassification(
-        retryCooldown: Duration(minutes: 5),
+      return _ReconnectErrorClassification(
+        retryCooldown: _kAuthCooldown,
         signature: 'auth_unauthorized',
       );
     }
     if (raw.contains('http 400')) {
-      return const _ReconnectErrorClassification(
-        retryCooldown: Duration(minutes: 10),
+      return _ReconnectErrorClassification(
+        retryCooldown: _kClientErrorCooldown,
         signature: 'client_bad_request',
       );
     }
     if (raw.contains('http 404')) {
-      return const _ReconnectErrorClassification(
-        retryCooldown: Duration(minutes: 10),
+      return _ReconnectErrorClassification(
+        retryCooldown: _kClientErrorCooldown,
         signature: 'stream_not_found',
       );
     }
@@ -296,6 +347,12 @@ class NotificationsController
         signature: 'connection_closed_early',
       );
     }
+    if (raw.contains('connection closed while receiving data')) {
+      return const _ReconnectErrorClassification(
+        retryCooldown: null,
+        signature: 'connection_closed_while_receiving',
+      );
+    }
     if (raw.contains('socketexception')) {
       return const _ReconnectErrorClassification(
         retryCooldown: null,
@@ -309,12 +366,112 @@ class NotificationsController
   }
 
   Future<void> _disposeRealtimeConnection() async {
-    await _realtimeSubscription?.cancel();
+    final subscription = _realtimeSubscription;
     _realtimeSubscription = null;
-    if (_realtimeConnection != null) {
-      await _realtimeConnection!.close();
-      _realtimeConnection = null;
+    final connection = _realtimeConnection;
+    _realtimeConnection = null;
+
+    if (subscription != null) {
+      try {
+        await subscription.cancel();
+      } catch (error, stackTrace) {
+        _logRealtimeDisposeFailure(
+          operation: 'subscription.cancel',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
     }
+
+    if (connection != null) {
+      try {
+        await connection.close();
+      } catch (error, stackTrace) {
+        _logRealtimeDisposeFailure(
+          operation: 'connection.close',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+    }
+  }
+
+  Future<void> _connectRealtimeSafely({required String origin}) async {
+    try {
+      await _connectRealtime();
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        '[Notifications] Unexpected realtime connect failure ($origin)',
+        tag: 'NotificationsController',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _isRealtimeConnected = false;
+      _scheduleRealtimeReconnect();
+    }
+  }
+
+  Future<void> _handleRealtimeDisconnectSafely({
+    required String origin,
+    Object? sourceError,
+    StackTrace? sourceStackTrace,
+  }) async {
+    try {
+      await _handleRealtimeDisconnect();
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        '[Notifications] Realtime disconnect handler failed ($origin)',
+        tag: 'NotificationsController',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (sourceError != null) {
+        AppLogger.debug(
+          '[Notifications] Realtime disconnect source error',
+          tag: 'NotificationsController',
+          data: sourceError,
+        );
+      }
+      if (sourceStackTrace != null) {
+        AppLogger.debug(
+          '[Notifications] Realtime disconnect source stack',
+          tag: 'NotificationsController',
+          data: sourceStackTrace,
+        );
+      }
+    }
+  }
+
+  bool _isExpectedStreamDisconnectError(Object error) {
+    if (error is http.ClientException) {
+      final message = error.message.toLowerCase();
+      return message.contains('connection closed while receiving data') ||
+          message.contains('connection closed before full header was received');
+    }
+    final raw = error.toString().toLowerCase();
+    return raw.contains('connection closed while receiving data') ||
+        raw.contains('connection closed before full header was received');
+  }
+
+  void _logRealtimeDisposeFailure({
+    required String operation,
+    required Object error,
+    required StackTrace stackTrace,
+  }) {
+    if (_isExpectedStreamDisconnectError(error)) {
+      AppLogger.debug(
+        '[Notifications] Ignored realtime dispose failure: $operation',
+        tag: 'NotificationsController',
+        data: error,
+      );
+      return;
+    }
+    AppLogger.error(
+      '[Notifications] Realtime dispose failed: $operation',
+      tag: 'NotificationsController',
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
   Future<void> load({bool forceRefresh = false}) async {
@@ -335,6 +492,7 @@ class NotificationsController
       await _captureNotificationDelta(enrichedItems, allowLocalAlert: false);
       state = AsyncData(enrichedItems);
     } else if (result is Err<List<NotificationItem>>) {
+      _handleUnauthorizedFailure(result.failure);
       state = AsyncError(result.failure, StackTrace.current);
     }
   }
@@ -368,7 +526,10 @@ class NotificationsController
         state = AsyncData(enrichedItems);
       } else if (result is Err<List<NotificationItem>> &&
           state.valueOrNull == null) {
+        _handleUnauthorizedFailure(result.failure);
         state = AsyncError(result.failure, StackTrace.current);
+      } else if (result is Err<List<NotificationItem>>) {
+        _handleUnauthorizedFailure(result.failure);
       }
     } finally {
       _lastBackgroundSyncAt = DateTime.now();
@@ -389,6 +550,9 @@ class NotificationsController
 
     final repository = await _ref.read(notificationsRepositoryProvider.future);
     final result = await repository.markAsRead(notificationId);
+    if (result case Err<void>(:final failure)) {
+      _handleUnauthorizedFailure(failure);
+    }
     if (result is Success<void> && refresh) {
       await load(forceRefresh: true);
     }
@@ -420,7 +584,10 @@ class NotificationsController
     }
 
     final repository = await _ref.read(notificationsRepositoryProvider.future);
-    await repository.deleteNotification(notificationId);
+    final result = await repository.deleteNotification(notificationId);
+    if (result case Err<void>(:final failure)) {
+      _handleUnauthorizedFailure(failure);
+    }
   }
 
   /// EN: Optimistically clear all notifications then call the delete-all API.
@@ -435,7 +602,10 @@ class NotificationsController
     _knownNotificationIds.clear();
 
     final repository = await _ref.read(notificationsRepositoryProvider.future);
-    await repository.deleteAllNotifications();
+    final result = await repository.deleteAllNotifications();
+    if (result case Err<void>(:final failure)) {
+      _handleUnauthorizedFailure(failure);
+    }
   }
 
   /// EN: Detect newly arrived unread notifications and raise local alerts.
@@ -471,24 +641,26 @@ class NotificationsController
     // EN: Push following-post and comment notifications as in-app banners.
     // KO: 팔로잉 새글·댓글 알림을 인앱 배너로 표시합니다.
     final inAppBannerTypes = {
-      notificationTypePostCreated,   // POST_CREATED  (팔로잉 새글)
-      'COMMENT_CREATED',             // 댓글
-      'COMMENT_REPLY_CREATED',       // 대댓글
+      notificationTypePostCreated, // POST_CREATED  (팔로잉 새글)
+      'COMMENT_CREATED', // 댓글
+      'COMMENT_REPLY_CREATED', // 대댓글
     };
     final inAppQueue = _ref.read(inAppNotificationQueueProvider.notifier);
     for (final item in newlyArrivedUnread.take(3)) {
       final type = normalizeNotificationType(item.type);
       if (inAppBannerTypes.contains(type)) {
-        inAppQueue.push(InAppNotificationEntry(
-          id: item.id,
-          title: item.title,
-          body: item.body,
-          type: type,
-          entityId: item.entityId,
-          deeplink: item.deeplink,
-          actionUrl: item.actionUrl,
-          projectCode: item.projectCode,
-        ));
+        inAppQueue.push(
+          InAppNotificationEntry(
+            id: item.id,
+            title: item.title,
+            body: item.body,
+            type: type,
+            entityId: item.entityId,
+            deeplink: item.deeplink,
+            actionUrl: item.actionUrl,
+            projectCode: item.projectCode,
+          ),
+        );
       }
     }
 
@@ -553,7 +725,9 @@ class NotificationsController
 
     _navigationHintsById[notificationId] = _NotificationNavigationHint(
       type: normalizeNotificationType(
-        payload['notificationType']?.toString() ?? payload['type']?.toString(),
+        payload['notificationType']?.toString() ??
+            payload['type']?.toString() ??
+            payload['eventType']?.toString(),
       ),
       actionUrl: payload['actionUrl']?.toString(),
       deeplink:
@@ -592,6 +766,24 @@ class NotificationsController
     _realtimeReconnectTimer?.cancel();
     unawaited(_disposeRealtimeConnection());
     super.dispose();
+  }
+
+  bool _isUnauthorizedFailure(Failure failure) {
+    if (failure is! AuthFailure) {
+      return false;
+    }
+    final code = failure.code?.trim().toLowerCase();
+    return code == '401' || code == 'auth_required';
+  }
+
+  void _handleUnauthorizedFailure(Failure failure) {
+    if (!_isUnauthorizedFailure(failure)) {
+      return;
+    }
+    _ref.read(authStateProvider.notifier).setUnauthenticated();
+    unawaited(stopRealtimeSync());
+    _resetNotificationSnapshot();
+    state = const AsyncData([]);
   }
 }
 

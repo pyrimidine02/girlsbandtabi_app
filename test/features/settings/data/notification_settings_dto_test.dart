@@ -39,6 +39,27 @@ void main() {
         'LIVE_EVENT',
         'COMMENT',
         'FOLLOWING_POST',
+        'NEWS',
+      ]);
+    },
+  );
+
+  test(
+    'NotificationSettingsDto normalizes social alias categories to COMMENT/FOLLOWING_POST',
+    () {
+      final dto = NotificationSettingsDto(
+        pushEnabled: true,
+        emailEnabled: true,
+        categories: const [
+          'FOLLOWING_POST_CREATED',
+          'MY_POST_COMMENT_CREATED',
+          'MY_COMMENT_REPLY_CREATED',
+        ],
+      );
+
+      expect(dto.toRequestJson()['categories'], const [
+        'FOLLOWING_POST',
+        'COMMENT',
       ]);
     },
   );

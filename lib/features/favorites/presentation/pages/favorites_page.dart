@@ -15,6 +15,7 @@ import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../../../../core/widgets/navigation/gbt_segmented_tab_bar.dart';
+import '../../../../core/widgets/navigation/gbt_standard_app_bar.dart';
 import '../../application/favorites_controller.dart';
 import '../../domain/entities/favorite_entities.dart';
 
@@ -28,8 +29,9 @@ class FavoritesPage extends ConsumerWidget {
     final state = ref.watch(favoritesControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n(ko: '즐겨찾기', en: 'Favorites', ja: 'お気に入り')),
+      appBar: gbtStandardAppBar(
+        context,
+        title: context.l10n(ko: '즐겨찾기', en: 'Favorites', ja: 'お気に入り'),
         actions: [
           GBTAppBarIconButton(
             icon: Icons.refresh,
@@ -439,7 +441,7 @@ void _openItem(BuildContext context, FavoriteItem item) {
       context.goToPlaceDetail(entityId);
       break;
     case FavoriteType.liveEvent:
-      context.goToLiveDetail(entityId);
+      context.goToEventDetail(entityId);
       break;
     case FavoriteType.news:
       context.goToNewsDetail(entityId);

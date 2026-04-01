@@ -9,8 +9,10 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/localization/locale_text.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/gbt_colors.dart';
+import '../../../../core/theme/gbt_decorations.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/widgets/common/gbt_pressable.dart';
 import '../../../../core/widgets/navigation/gbt_profile_action.dart';
 import '../../../fan_level/application/fan_level_controller.dart';
 import '../../../settings/application/settings_controller.dart';
@@ -92,48 +94,94 @@ class MyPage extends ConsumerWidget {
               isDark: isDark,
             ),
             const SizedBox(height: GBTSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: ActionCell(
-                    icon: Icons.calendar_month_outlined,
-                    label: context.l10n(
-                      ko: '이벤트 달력',
-                      en: 'Calendar',
-                      ja: 'カレンダー',
-                    ),
-                    subtitle: context.l10n(
-                      ko: '라이브 & 이벤트 일정',
-                      en: 'Lives & events',
-                      ja: 'ライブ・イベント',
-                    ),
-                    color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
-                    isDark: isDark,
-                    onTap: () => context.pushNamed(AppRoutes.calendar),
+
+            // EN: Wide calendar banner card for quick event access.
+            // KO: 빠른 이벤트 접근을 위한 와이드 달력 배너 카드.
+            Semantics(
+              button: true,
+              label: context.l10n(
+                ko: '이벤트 달력, 라이브 & 이벤트 일정 확인',
+                en: 'Event Calendar, check live & event schedule',
+                ja: 'イベントカレンダー、ライブ・イベントスケジュールを確認',
+              ),
+              child: GBTPressable(
+                onTap: () => context.pushNamed(AppRoutes.calendar),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(GBTSpacing.md),
+                  decoration: GBTDecorations.card(isDark: isDark),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_month_rounded,
+                        color: isDark
+                            ? GBTColors.darkPrimary
+                            : GBTColors.primary,
+                        size: 28,
+                      ),
+                      const SizedBox(width: GBTSpacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              context.l10n(
+                                ko: '이벤트 달력',
+                                en: 'Event Calendar',
+                                ja: 'イベントカレンダー',
+                              ),
+                              style: GBTTypography.labelLarge.copyWith(
+                                color: isDark
+                                    ? GBTColors.darkTextPrimary
+                                    : GBTColors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              context.l10n(
+                                ko: '라이브 & 이벤트 일정 확인',
+                                en: 'Check live & event schedule',
+                                ja: 'ライブ・イベントスケジュール',
+                              ),
+                              style: GBTTypography.bodySmall.copyWith(
+                                color: isDark
+                                    ? GBTColors.darkTextSecondary
+                                    : GBTColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right,
+                        color: isDark
+                            ? GBTColors.darkTextTertiary
+                            : GBTColors.textTertiary,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: GBTSpacing.sm),
-                Expanded(
-                  child: ActionCell(
-                    icon: Icons.pin_drop_outlined,
-                    label: context.l10n(
-                      ko: '방문 기록',
-                      en: 'Visit Log',
-                      ja: '訪問記録',
-                    ),
-                    subtitle: context.l10n(
-                      ko: '성지순례 기록',
-                      en: 'Pilgrimage log',
-                      ja: '巡礼記録',
-                    ),
-                    color: isDark
-                        ? const Color(0xFF2DD4BF)
-                        : GBTColors.accentTeal,
-                    isDark: isDark,
-                    onTap: () => context.goToVisitHistory(),
-                  ),
-                ),
-              ],
+              ),
+            ),
+            const SizedBox(height: GBTSpacing.sm),
+
+            // EN: Visit log action cell — full width after calendar banner split.
+            // KO: 달력 배너 분리 후 전체 너비로 표시되는 방문기록 셀.
+            ActionCell(
+              icon: Icons.pin_drop_outlined,
+              label: context.l10n(
+                ko: '방문 기록',
+                en: 'Visit Log',
+                ja: '訪問記録',
+              ),
+              subtitle: context.l10n(
+                ko: '성지순례 기록',
+                en: 'Pilgrimage log',
+                ja: '巡礼記録',
+              ),
+              color: isDark ? const Color(0xFF2DD4BF) : GBTColors.accentTeal,
+              isDark: isDark,
+              onTap: () => context.goToVisitHistory(),
             ),
             const SizedBox(height: GBTSpacing.lg),
 
@@ -187,6 +235,102 @@ class MyPage extends ConsumerWidget {
                         : GBTColors.secondary,
                     isDark: isDark,
                     onTap: () => context.goToPostBookmarks(),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: GBTSpacing.lg),
+
+            // EN: Section: Fan Activity Collection
+            // KO: 덕질 컬렉션 섹션
+            _SectionLabel(
+              label: context.l10n(
+                ko: '덕질 컬렉션',
+                en: 'Fan Collection',
+                ja: 'ファン活動',
+              ),
+              isDark: isDark,
+            ),
+            const SizedBox(height: GBTSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: ActionCell(
+                    icon: Icons.photo_album_rounded,
+                    label: context.l10n(
+                      ko: '성지순례 도감',
+                      en: 'Place Guide',
+                      ja: '聖地図鑑',
+                    ),
+                    subtitle: context.l10n(
+                      ko: '성지 & 관련 장소',
+                      en: 'Sacred & related places',
+                      ja: '聖地 & 関連スポット',
+                    ),
+                    color: const Color(0xFF059669),
+                    isDark: isDark,
+                    onTap: () => context.pushNamed(AppRoutes.zukan),
+                  ),
+                ),
+                const SizedBox(width: GBTSpacing.sm),
+                Expanded(
+                  child: ActionCell(
+                    icon: Icons.music_note_rounded,
+                    label: context.l10n(
+                      ko: '응원 가이드',
+                      en: 'Cheer Guide',
+                      ja: '応援ガイド',
+                    ),
+                    subtitle: context.l10n(
+                      ko: '공연 응원법',
+                      en: 'Concert cheer guide',
+                      ja: 'ライブ応援ガイド',
+                    ),
+                    color: const Color(0xFFD97706),
+                    isDark: isDark,
+                    onTap: () => context.pushNamed(AppRoutes.cheerGuides),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: GBTSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: ActionCell(
+                    icon: Icons.format_quote_rounded,
+                    label: context.l10n(
+                      ko: '명대사 카드',
+                      en: 'Quote Cards',
+                      ja: '名言カード',
+                    ),
+                    subtitle: context.l10n(
+                      ko: '인상 깊은 명대사',
+                      en: 'Memorable quotes',
+                      ja: '名言コレクション',
+                    ),
+                    color: const Color(0xFFDB2777),
+                    isDark: isDark,
+                    onTap: () => context.pushNamed(AppRoutes.quotes),
+                  ),
+                ),
+                const SizedBox(width: GBTSpacing.sm),
+                Expanded(
+                  child: ActionCell(
+                    icon: Icons.workspace_premium_rounded,
+                    label: context.l10n(
+                      ko: '칭호 관리',
+                      en: 'Titles',
+                      ja: '称号管理',
+                    ),
+                    subtitle: context.l10n(
+                      ko: '획득 칭호 확인·설정',
+                      en: 'View & set your title',
+                      ja: '称号の確認と設定',
+                    ),
+                    color: const Color(0xFF7C3AED),
+                    isDark: isDark,
+                    onTap: () => context.pushNamed(AppRoutes.titlePicker),
                   ),
                 ),
               ],

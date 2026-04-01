@@ -1,5 +1,5 @@
-/// EN: Settings page with gradient profile hero, quick actions grid, and grouped sections.
-/// KO: 그래디언트 프로필 히어로, 퀵 액션 그리드, 그룹 섹션이 있는 설정 페이지.
+/// EN: Settings page with profile hero and grouped sections (4 sections).
+/// KO: 프로필 히어로와 4섹션 그룹 레이아웃으로 정리된 설정 페이지.
 library;
 
 import 'package:flutter/material.dart';
@@ -77,13 +77,12 @@ class SettingsPage extends ConsumerWidget {
             vertical: GBTSpacing.sm,
           ),
           children: [
-            // EN: Profile hero card
-            // KO: 프로필 히어로 카드
+            // EN: Profile hero card (tap to navigate to profile)
+            // KO: 프로필 히어로 카드 (탭 시 프로필로 이동)
             _ProfileCard(
               isAuthenticated: isAuthenticated,
               profileState: profileState,
               onLoginTap: () => context.push('/login'),
-              onEditTap: () => context.push('/settings/profile'),
               onProfileTap: () {
                 final profile = profileState?.valueOrNull;
                 if (profile == null) return;
@@ -92,16 +91,6 @@ class SettingsPage extends ConsumerWidget {
               onRetry: () => ref
                   .read(userProfileControllerProvider.notifier)
                   .load(forceRefresh: true),
-            ),
-            const SizedBox(height: GBTSpacing.lg),
-
-            // EN: Quick actions grid — activity shortcuts
-            // KO: 퀵 액션 그리드 — 활동 바로가기
-            _QuickActionsGrid(
-              onFavoritesTap: () => context.push('/favorites'),
-              onVisitsTap: () => context.push('/visits'),
-              onStatsTap: () => context.push('/visit-stats'),
-              isDark: isDark,
             ),
 
             // EN: Account section — only shown when authenticated
@@ -156,6 +145,37 @@ class SettingsPage extends ConsumerWidget {
                     ),
                     onTap: () => context.push('/title-picker'),
                   ),
+                  _SettingsRow(
+                    icon: Icons.lock_outlined,
+                    iconBgColor: const Color(0xFF0EA5E9),
+                    title: context.l10n(
+                      ko: '비밀번호 변경',
+                      en: 'Change password',
+                      ja: 'パスワード変更',
+                    ),
+                    subtitle: context.l10n(
+                      ko: '계정 비밀번호 변경',
+                      en: 'Update your account password',
+                      ja: 'アカウントパスワードを変更',
+                    ),
+                    onTap: () => context.push('/settings/change-password'),
+                  ),
+                  _SettingsRow(
+                    icon: Icons.link_rounded,
+                    iconBgColor: const Color(0xFF10B981),
+                    title: context.l10n(
+                      ko: '소셜 계정 연결',
+                      en: 'Linked social accounts',
+                      ja: 'ソーシャルアカウント連携',
+                    ),
+                    subtitle: context.l10n(
+                      ko: 'Google·Apple 로그인 연결/해제',
+                      en: 'Connect or disconnect Google · Apple login',
+                      ja: 'Google・Appleログインの連携・解除',
+                    ),
+                    onTap: () => context.push('/settings/linked-accounts'),
+                    isLast: !canAccessAdminOps,
+                  ),
                   if (canAccessAdminOps)
                     _SettingsRow(
                       icon: Icons.admin_panel_settings_rounded,
@@ -171,137 +191,22 @@ class SettingsPage extends ConsumerWidget {
                         ja: '通報・運営指標管理',
                       ),
                       onTap: () => context.push('/settings/admin'),
+                      isLast: true,
                     ),
-                  _SettingsRow(
-                    icon: Icons.build_circle_rounded,
-                    iconBgColor: const Color(0xFF6366F1),
-                    title: context.l10n(
-                      ko: '계정 도구',
-                      en: 'Account tools',
-                      ja: 'アカウントツール',
-                    ),
-                    subtitle: context.l10n(
-                      ko: '차단/권한요청/이의제기 관리',
-                      en: 'Manage blocks/role requests/appeals',
-                      ja: 'ブロック・権限申請・異議申立て管理',
-                    ),
-                    onTap: () => context.push('/settings/account-tools'),
-                  ),
-                  _SettingsRow(
-                    icon: Icons.logout_rounded,
-                    iconBgColor: const Color(0xFFEF4444),
-                    title: context.l10n(ko: '로그아웃', en: 'Log out', ja: 'ログアウト'),
-                    onTap: () async {
-                      final confirm = await _showLogoutConfirm(context);
-                      if (confirm != true) return;
-                      await ref.read(authControllerProvider.notifier).logout();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              context.l10n(
-                                ko: '로그아웃되었습니다',
-                                en: 'Logged out',
-                                ja: 'ログアウトしました',
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                    isLast: true,
-                  ),
                 ],
               ),
             ],
 
-            // EN: Otaku features section
-            // KO: 덕질 모음 섹션
-            const SizedBox(height: GBTSpacing.lg),
-            _SettingsGroup(
-              title: context.l10n(ko: '덕질 모음', en: 'Fan Activities', ja: 'オタ活'),
-              children: [
-                _SettingsRow(
-                  icon: Icons.bolt_rounded,
-                  iconBgColor: const Color(0xFF7C3AED),
-                  title: context.l10n(ko: '나의 덕력', en: 'Fan Level', ja: 'ファンレベル'),
-                  subtitle: context.l10n(
-                    ko: 'XP·등급·출석 체크',
-                    en: 'XP, grade & daily check-in',
-                    ja: 'XP・グレード・出席チェック',
-                  ),
-                  onTap: () => context.push('/fan-level'),
-                ),
-                _SettingsRow(
-                  icon: Icons.calendar_month_rounded,
-                  iconBgColor: const Color(0xFF2563EB),
-                  title: context.l10n(
-                    ko: '이벤트 캘린더',
-                    en: 'Event Calendar',
-                    ja: 'イベントカレンダー',
-                  ),
-                  subtitle: context.l10n(
-                    ko: '생일·발매·라이브 일정',
-                    en: 'Birthdays, releases & live dates',
-                    ja: '誕生日・発売・ライブ日程',
-                  ),
-                  onTap: () => context.push('/calendar'),
-                ),
-                _SettingsRow(
-                  icon: Icons.photo_album_rounded,
-                  iconBgColor: const Color(0xFF059669),
-                  title: context.l10n(
-                    ko: '성지순례 도감',
-                    en: 'Place Collection',
-                    ja: '聖地巡礼図鑑',
-                  ),
-                  subtitle: context.l10n(
-                    ko: '장소 스탬프 수집',
-                    en: 'Collect place stamps',
-                    ja: '場所スタンプコレクション',
-                  ),
-                  onTap: () => context.push('/zukan'),
-                ),
-                _SettingsRow(
-                  icon: Icons.music_note_rounded,
-                  iconBgColor: const Color(0xFFD97706),
-                  title: context.l10n(
-                    ko: '응원 가이드',
-                    en: 'Cheer Guide',
-                    ja: '応援ガイド',
-                  ),
-                  subtitle: context.l10n(
-                    ko: '곡별 콜·펜라이트 가이드',
-                    en: 'Per-song call & penlight guide',
-                    ja: '曲別コール・ペンライトガイド',
-                  ),
-                  onTap: () => context.push('/cheer-guides'),
-                ),
-                _SettingsRow(
-                  icon: Icons.format_quote_rounded,
-                  iconBgColor: const Color(0xFFDB2777),
-                  title: context.l10n(
-                    ko: '명대사 카드',
-                    en: 'Quote Cards',
-                    ja: '名言カード',
-                  ),
-                  subtitle: context.l10n(
-                    ko: '좋아하는 명대사 저장·공유',
-                    en: 'Save & share favourite quotes',
-                    ja: 'お気に入り名言を保存・シェア',
-                  ),
-                  onTap: () => context.push('/quotes'),
-                  isLast: true,
-                ),
-              ],
-            ),
-
-            // EN: Legal/privacy self-service section for authenticated users.
-            // KO: 로그인 사용자를 위한 법률/개인정보 셀프서비스 섹션.
+            // EN: Privacy & Legal section — self-service and policy links
+            // KO: 개인정보 & 법적 섹션 — 셀프서비스 및 정책 링크
             if (isAuthenticated) ...[
               const SizedBox(height: GBTSpacing.lg),
               _SettingsGroup(
-                title: context.l10n(ko: '개인정보', en: 'Privacy', ja: 'プライバシー'),
+                title: context.l10n(
+                  ko: '개인정보 & 법적',
+                  en: 'Privacy & Legal',
+                  ja: 'プライバシー＆法的事項',
+                ),
                 children: [
                   _SettingsRow(
                     icon: Icons.gpp_good_rounded,
@@ -332,47 +237,73 @@ class SettingsPage extends ConsumerWidget {
                       ja: '規約・同意履歴の確認',
                     ),
                     onTap: () => context.push('/settings/consents'),
-                    isLast: true,
                   ),
-                ],
-              ),
-            ],
-
-            // EN: Notifications — only shown when authenticated
-            // KO: 알림 — 로그인 상태에서만 표시
-            if (isAuthenticated) ...[
-              const SizedBox(height: GBTSpacing.lg),
-              _SettingsGroup(
-                title: context.l10n(ko: '알림', en: 'Notifications', ja: '通知'),
-                children: [
+                  // EN: Legal policy links moved from support section
+                  // KO: 지원 섹션에서 이동한 법적 정책 링크
                   _SettingsRow(
-                    icon: Icons.notifications_rounded,
-                    iconBgColor: const Color(0xFFF59E0B),
+                    icon: Icons.description_rounded,
                     title: context.l10n(
-                      ko: '알림 설정',
-                      en: 'Notification settings',
-                      ja: '通知設定',
+                      ko: '이용약관',
+                      en: 'Terms of service',
+                      ja: '利用規約',
                     ),
-                    subtitle: context.l10n(
-                      ko: '푸시/이메일 알림 관리',
-                      en: 'Manage push/email notifications',
-                      ja: 'プッシュ・メール通知管理',
+                    subtitle: LegalPolicyConstants.byType(
+                      LegalPolicyType.termsOfService,
+                    ).version,
+                    onTap: () => _openPolicy(
+                      context,
+                      LegalPolicyConstants.byType(
+                        LegalPolicyType.termsOfService,
+                      ).url,
                     ),
-                    onTap: () => context.push('/settings/notifications'),
+                  ),
+                  _SettingsRow(
+                    icon: Icons.privacy_tip_rounded,
+                    title: context.l10n(
+                      ko: '개인정보 처리방침',
+                      en: 'Privacy policy',
+                      ja: 'プライバシーポリシー',
+                    ),
+                    subtitle: LegalPolicyConstants.byType(
+                      LegalPolicyType.privacyPolicy,
+                    ).version,
+                    onTap: () => _openPolicy(
+                      context,
+                      LegalPolicyConstants.byType(
+                        LegalPolicyType.privacyPolicy,
+                      ).url,
+                    ),
+                  ),
+                  _SettingsRow(
+                    icon: Icons.location_on_rounded,
+                    title: context.l10n(
+                      ko: '위치정보 이용약관',
+                      en: 'Location terms',
+                      ja: '位置情報利用規約',
+                    ),
+                    subtitle: LegalPolicyConstants.byType(
+                      LegalPolicyType.locationTerms,
+                    ).version,
+                    onTap: () => _openPolicy(
+                      context,
+                      LegalPolicyConstants.byType(
+                        LegalPolicyType.locationTerms,
+                      ).url,
+                    ),
                     isLast: true,
                   ),
                 ],
               ),
             ],
 
-            // EN: App environment section
-            // KO: 앱 환경 섹션
+            // EN: App settings section — theme, language, and notifications
+            // KO: 앱 설정 섹션 — 테마, 언어, 알림
             const SizedBox(height: GBTSpacing.lg),
             _SettingsGroup(
               title: context.l10n(
-                ko: '앱 환경',
-                en: 'App preferences',
-                ja: 'アプリ環境',
+                ko: '앱 설정',
+                en: 'App Settings',
+                ja: 'アプリ設定',
               ),
               children: [
                 _SettingsRow(
@@ -402,8 +333,25 @@ class SettingsPage extends ConsumerWidget {
                     ),
                   ),
                   onTap: () => _showLanguagePicker(context, ref, appLocale),
-                  isLast: true,
+                  isLast: !isAuthenticated,
                 ),
+                if (isAuthenticated)
+                  _SettingsRow(
+                    icon: Icons.notifications_rounded,
+                    iconBgColor: const Color(0xFFF59E0B),
+                    title: context.l10n(
+                      ko: '알림 설정',
+                      en: 'Notification settings',
+                      ja: '通知設定',
+                    ),
+                    subtitle: context.l10n(
+                      ko: '푸시/이메일 알림 관리',
+                      en: 'Manage push/email notifications',
+                      ja: 'プッシュ・メール通知管理',
+                    ),
+                    onTap: () => context.push('/settings/notifications'),
+                    isLast: true,
+                  ),
               ],
             ),
 
@@ -442,61 +390,64 @@ class SettingsPage extends ConsumerWidget {
                       ja: 'フィードバック機能は準備中です。',
                     ),
                   ),
-                ),
-                _SettingsRow(
-                  icon: Icons.description_rounded,
-                  title: context.l10n(
-                    ko: '이용약관',
-                    en: 'Terms of service',
-                    ja: '利用規約',
-                  ),
-                  subtitle: LegalPolicyConstants.byType(
-                    LegalPolicyType.termsOfService,
-                  ).version,
-                  onTap: () => _openPolicy(
-                    context,
-                    LegalPolicyConstants.byType(
-                      LegalPolicyType.termsOfService,
-                    ).url,
-                  ),
-                ),
-                _SettingsRow(
-                  icon: Icons.privacy_tip_rounded,
-                  title: context.l10n(
-                    ko: '개인정보 처리방침',
-                    en: 'Privacy policy',
-                    ja: 'プライバシーポリシー',
-                  ),
-                  subtitle: LegalPolicyConstants.byType(
-                    LegalPolicyType.privacyPolicy,
-                  ).version,
-                  onTap: () => _openPolicy(
-                    context,
-                    LegalPolicyConstants.byType(
-                      LegalPolicyType.privacyPolicy,
-                    ).url,
-                  ),
-                ),
-                _SettingsRow(
-                  icon: Icons.location_on_rounded,
-                  title: context.l10n(
-                    ko: '위치정보 이용약관',
-                    en: 'Location terms',
-                    ja: '位置情報利用規約',
-                  ),
-                  subtitle: LegalPolicyConstants.byType(
-                    LegalPolicyType.locationTerms,
-                  ).version,
-                  onTap: () => _openPolicy(
-                    context,
-                    LegalPolicyConstants.byType(
-                      LegalPolicyType.locationTerms,
-                    ).url,
-                  ),
                   isLast: true,
                 ),
               ],
             ),
+
+            // EN: Logout button — standalone, only shown when authenticated
+            // KO: 로그아웃 버튼 — 단독 배치, 로그인 상태에서만 표시
+            if (isAuthenticated) ...[
+              const SizedBox(height: GBTSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: Semantics(
+                  button: true,
+                  label: context.l10n(
+                    ko: '로그아웃',
+                    en: 'Log out',
+                    ja: 'ログアウト',
+                  ),
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFEF4444),
+                      side: const BorderSide(color: Color(0xFFEF4444)),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: GBTSpacing.sm + 4,
+                      ),
+                    ),
+                    icon: const Icon(Icons.logout_rounded, size: 20),
+                    label: Text(
+                      context.l10n(
+                        ko: '로그아웃',
+                        en: 'Log out',
+                        ja: 'ログアウト',
+                      ),
+                    ),
+                    onPressed: () async {
+                      final confirm = await _showLogoutConfirm(context);
+                      if (confirm != true) return;
+                      await ref
+                          .read(authControllerProvider.notifier)
+                          .logout();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              context.l10n(
+                                ko: '로그아웃되었습니다',
+                                en: 'Logged out',
+                                ja: 'ログアウトしました',
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
 
             // EN: App version footer
             // KO: 앱 버전 푸터
@@ -578,7 +529,6 @@ class _ProfileCard extends StatelessWidget {
     required this.isAuthenticated,
     required this.profileState,
     required this.onLoginTap,
-    required this.onEditTap,
     required this.onProfileTap,
     required this.onRetry,
   });
@@ -586,7 +536,6 @@ class _ProfileCard extends StatelessWidget {
   final bool isAuthenticated;
   final AsyncValue<UserProfile?>? profileState;
   final VoidCallback onLoginTap;
-  final VoidCallback onEditTap;
   final VoidCallback onProfileTap;
   final VoidCallback onRetry;
 
@@ -763,9 +712,6 @@ class _ProfileCard extends StatelessWidget {
           data: (profile) {
             if (profile == null) return const SizedBox.shrink();
 
-            final primaryColor = isDark
-                ? GBTColors.darkPrimary
-                : GBTColors.primary;
             final textPrimary = isDark
                 ? GBTColors.darkTextPrimary
                 : GBTColors.textPrimary;
@@ -775,9 +721,6 @@ class _ProfileCard extends StatelessWidget {
             final textTertiary = isDark
                 ? GBTColors.darkTextTertiary
                 : GBTColors.textTertiary;
-            final dividerColor = isDark
-                ? GBTColors.darkBorderSubtle
-                : GBTColors.divider;
 
             return Container(
               decoration: BoxDecoration(
@@ -850,57 +793,6 @@ class _ProfileCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // EN: Edit shortcut button — subtle tinted footer, no harsh divider
-                  // KO: 수정 바로가기 버튼 — 딱딱한 구분선 대신 미묘한 하단 틴트
-                  ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(GBTSpacing.radiusMd),
-                      bottomRight: Radius.circular(GBTSpacing.radiusMd),
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border(
-                          top: BorderSide(color: dividerColor, width: 0.5),
-                        ),
-                        color: isDark
-                            ? GBTColors.darkSurfaceVariant.withValues(
-                                alpha: 0.4,
-                              )
-                            : GBTColors.surfaceVariant.withValues(alpha: 0.6),
-                      ),
-                      child: InkWell(
-                        onTap: onEditTap,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: GBTSpacing.sm + 2,
-                            horizontal: GBTSpacing.md,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.edit_rounded,
-                                size: 14,
-                                color: primaryColor,
-                              ),
-                              const SizedBox(width: GBTSpacing.xs),
-                              Text(
-                                context.l10n(
-                                  ko: '프로필 수정',
-                                  en: 'Edit profile',
-                                  ja: 'プロフィール編集',
-                                ),
-                                style: GBTTypography.labelMedium.copyWith(
-                                  color: primaryColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             );
@@ -948,126 +840,6 @@ class _ProfileAvatar extends StatelessWidget {
           ko: '프로필 이미지',
           en: 'Profile image',
           ja: 'プロフィール画像',
-        ),
-      ),
-    );
-  }
-}
-
-// ========================================
-// EN: Quick Actions Grid — activity shortcuts (3-tile)
-// KO: 퀵 액션 그리드 — 활동 바로가기 (3타일)
-// ========================================
-
-class _QuickActionsGrid extends StatelessWidget {
-  const _QuickActionsGrid({
-    required this.onFavoritesTap,
-    required this.onVisitsTap,
-    required this.onStatsTap,
-    required this.isDark,
-  });
-
-  final VoidCallback onFavoritesTap;
-  final VoidCallback onVisitsTap;
-  final VoidCallback onStatsTap;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _QuickTile(
-          icon: Icons.favorite_rounded,
-          color: const Color(0xFFEF4444),
-          label: context.l10n(ko: '즐겨찾기', en: 'Favorites', ja: 'お気に入り'),
-          onTap: onFavoritesTap,
-          isDark: isDark,
-        ),
-        const SizedBox(width: GBTSpacing.sm),
-        _QuickTile(
-          icon: Icons.check_circle_rounded,
-          color: const Color(0xFF10B981),
-          label: context.l10n(ko: '방문 기록', en: 'Visit history', ja: '訪問履歴'),
-          onTap: onVisitsTap,
-          isDark: isDark,
-        ),
-        const SizedBox(width: GBTSpacing.sm),
-        _QuickTile(
-          icon: Icons.bar_chart_rounded,
-          color: const Color(0xFF3B82F6),
-          label: context.l10n(ko: '통계', en: 'Stats', ja: '統計'),
-          onTap: onStatsTap,
-          isDark: isDark,
-        ),
-      ],
-    );
-  }
-}
-
-class _QuickTile extends StatelessWidget {
-  const _QuickTile({
-    required this.icon,
-    required this.color,
-    required this.label,
-    required this.onTap,
-    required this.isDark,
-  });
-
-  final IconData icon;
-  final Color color;
-  final String label;
-  final VoidCallback onTap;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    final surfaceColor = isDark
-        ? GBTColors.darkSurfaceElevated
-        : GBTColors.surface;
-    final borderColor = isDark ? GBTColors.darkBorderSubtle : GBTColors.border;
-    final textPrimary = isDark
-        ? GBTColors.darkTextPrimary
-        : GBTColors.textPrimary;
-
-    return Expanded(
-      child: Material(
-        color: surfaceColor,
-        borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              vertical: GBTSpacing.md,
-              horizontal: GBTSpacing.xs,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-              border: Border.all(color: borderColor, width: 0.5),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: color, size: 22),
-                ),
-                const SizedBox(height: GBTSpacing.xs),
-                Text(
-                  label,
-                  style: GBTTypography.labelSmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: textPrimary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );

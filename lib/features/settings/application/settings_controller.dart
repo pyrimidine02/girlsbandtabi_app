@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../../core/providers/core_providers.dart';
+import '../../../core/security/secure_storage.dart';
 import '../../../core/storage/local_storage.dart';
 import '../../../core/utils/result.dart';
 import '../data/dto/notification_settings_dto.dart';
@@ -19,6 +20,21 @@ import '../domain/entities/account_tools.dart';
 import '../domain/entities/notification_settings.dart';
 import '../domain/entities/user_profile.dart';
 import '../domain/repositories/settings_repository.dart';
+
+bool _isUnauthorizedFailure(Failure failure) {
+  if (failure is! AuthFailure) {
+    return false;
+  }
+  final code = failure.code?.trim().toLowerCase();
+  return code == '401' || code == 'auth_required';
+}
+
+void _syncAuthOnUnauthorized(Ref ref, Failure failure) {
+  if (!_isUnauthorizedFailure(failure)) {
+    return;
+  }
+  ref.read(authStateProvider.notifier).setUnauthenticated();
+}
 
 class UserProfileController extends StateNotifier<AsyncValue<UserProfile?>> {
   UserProfileController(this._ref) : super(const AsyncLoading());
@@ -51,6 +67,11 @@ class UserProfileController extends StateNotifier<AsyncValue<UserProfile?>> {
     if (result is Success<UserProfile>) {
       state = AsyncData(result.data);
     } else if (result is Err<UserProfile>) {
+      _syncAuthOnUnauthorized(_ref, result.failure);
+      if (_isUnauthorizedFailure(result.failure)) {
+        state = const AsyncData(null);
+        return;
+      }
       if (previousProfile != null) {
         AppLogger.warning(
           'Failed to refresh user profile; keeping previous profile cache',
@@ -91,6 +112,7 @@ class UserProfileController extends StateNotifier<AsyncValue<UserProfile?>> {
     if (result is Success<UserProfile>) {
       state = AsyncData(result.data);
     } else if (result is Err<UserProfile>) {
+      _syncAuthOnUnauthorized(_ref, result.failure);
       state = AsyncError(result.failure, StackTrace.current);
     }
 
@@ -128,6 +150,7 @@ class UserProfileByIdController
     if (result is Success<UserProfile>) {
       state = AsyncData(result.data);
     } else if (result is Err<UserProfile>) {
+      _syncAuthOnUnauthorized(_ref, result.failure);
       state = AsyncError(result.failure, StackTrace.current);
     }
   }
@@ -164,6 +187,7 @@ class NotificationSettingsController
       }
       state = AsyncData(result.data);
     } else if (result is Err<NotificationSettings>) {
+      _syncAuthOnUnauthorized(_ref, result.failure);
       state = AsyncError(result.failure, StackTrace.current);
     }
   }
@@ -385,7 +409,11 @@ class NotificationSettingsController
   /// KO: 푸시 OFF 전환 시 저장된 알림 디바이스 등록을 비활성화합니다.
   Future<Result<void>> _deactivateDeviceRegistration() async {
     final storage = await _ref.read(localStorageProvider.future);
-    final deviceId = _resolveStoredNotificationDeviceId(storage);
+    final secureStorage = _ref.read(secureStorageProvider);
+    final deviceId = await _resolveStoredNotificationDeviceId(
+      storage: storage,
+      secureStorage: secureStorage,
+    );
     if (deviceId == null || deviceId.isEmpty) {
       return const Result.success(null);
     }
@@ -395,11 +423,10 @@ class NotificationSettingsController
       deviceId: deviceId,
     );
     if (result is Success<void>) {
-      await Future.wait([
-        storage.remove(LocalStorageKeys.notificationDeviceId),
-        storage.remove(LocalStorageKeys.notificationDeviceIdLegacy),
-        storage.remove(LocalStorageKeys.notificationPushToken),
-      ]);
+      await _clearNotificationRegistration(
+        storage: storage,
+        secureStorage: secureStorage,
+      );
       return const Result.success(null);
     }
     return result;
@@ -432,7 +459,16 @@ class NotificationSettingsController
     }
   }
 
-  String? _resolveStoredNotificationDeviceId(LocalStorage storage) {
+  Future<String?> _resolveStoredNotificationDeviceId({
+    required LocalStorage storage,
+    required SecureStorage secureStorage,
+  }) async {
+    final secureDeviceId = (await secureStorage.getNotificationDeviceId())
+        ?.trim();
+    if (secureDeviceId != null && secureDeviceId.isNotEmpty) {
+      return secureDeviceId;
+    }
+
     final primary = storage.getString(LocalStorageKeys.notificationDeviceId);
     if (primary != null && primary.trim().isNotEmpty) {
       return primary.trim();
@@ -444,6 +480,18 @@ class NotificationSettingsController
       return legacy.trim();
     }
     return null;
+  }
+
+  Future<void> _clearNotificationRegistration({
+    required LocalStorage storage,
+    required SecureStorage secureStorage,
+  }) async {
+    await Future.wait([
+      secureStorage.clearNotificationRegistration(),
+      storage.remove(LocalStorageKeys.notificationDeviceId),
+      storage.remove(LocalStorageKeys.notificationDeviceIdLegacy),
+      storage.remove(LocalStorageKeys.notificationPushToken),
+    ]);
   }
 }
 

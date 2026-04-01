@@ -197,6 +197,17 @@ class SettingsRemoteDataSource {
     return _apiClient.delete<void>(ApiEndpoints.userMe, fromJson: (_) {});
   }
 
+  /// EN: Restore a deactivated account within the 30-day grace period.
+  /// KO: 비활성화 후 30일 유예기간 내에 계정을 복구합니다.
+  Future<Result<RestoreAccountResultDto>> restoreAccount() {
+    return _apiClient.post<RestoreAccountResultDto>(
+      ApiEndpoints.userMeRestore,
+      fromJson: (json) => RestoreAccountResultDto.fromJson(
+        json is Map<String, dynamic> ? json : const <String, dynamic>{},
+      ),
+    );
+  }
+
   Future<Result<List<UserBlockDto>>> fetchUserBlocks({
     int page = ApiPagination.defaultPage,
     int size = ApiPagination.defaultSize,

@@ -4,6 +4,7 @@ library;
 
 import 'dart:async';
 
+import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,6 +18,8 @@ import 'core/connectivity/connectivity_service.dart';
 import 'core/localization/locale_text.dart';
 import 'core/notifications/local_notifications_service.dart';
 import 'core/providers/core_providers.dart';
+import 'core/telemetry/telemetry_event_types.dart';
+import 'core/telemetry/telemetry_service.dart';
 import 'core/notifications/in_app_notification_queue.dart';
 import 'core/widgets/overlays/in_app_notification_banner.dart';
 import 'core/router/app_router.dart';
@@ -34,6 +37,8 @@ import 'features/settings/application/mandatory_consent_controller.dart';
 import 'features/settings/application/settings_controller.dart';
 
 String? _lastTrackedScreenPath;
+
+enum _NotificationTapSource { localNotification, remotePush }
 
 /// EN: Main application widget
 /// KO: 메인 앱 위젯
@@ -71,6 +76,7 @@ class GBTApp extends ConsumerWidget {
             ref: ref,
             router: router,
             tapEvent: tapEvent,
+            source: _NotificationTapSource.localNotification,
           ),
         );
       },
@@ -83,6 +89,7 @@ class GBTApp extends ConsumerWidget {
             ref: ref,
             router: router,
             tapEvent: tapEvent,
+            source: _NotificationTapSource.remotePush,
           ),
         );
       },
@@ -95,24 +102,26 @@ class GBTApp extends ConsumerWidget {
       (_, next) {
         next.whenData((item) {
           const inAppTypes = {
-            notificationTypePostCreated,  // POST_CREATED
+            notificationTypePostCreated, // POST_CREATED
             'COMMENT_CREATED',
             'COMMENT_REPLY_CREATED',
           };
           final type = normalizeNotificationType(item.type);
           if (inAppTypes.contains(type)) {
-            ref.read(inAppNotificationQueueProvider.notifier).push(
-              InAppNotificationEntry(
-                id: item.id,
-                title: item.title,
-                body: item.body,
-                type: type,
-                entityId: item.entityId,
-                deeplink: item.deeplink,
-                actionUrl: item.actionUrl,
-                projectCode: item.projectCode,
-              ),
-            );
+            ref
+                .read(inAppNotificationQueueProvider.notifier)
+                .push(
+                  InAppNotificationEntry(
+                    id: item.id,
+                    title: item.title,
+                    body: item.body,
+                    type: type,
+                    entityId: item.entityId,
+                    deeplink: item.deeplink,
+                    actionUrl: item.actionUrl,
+                    projectCode: item.projectCode,
+                  ),
+                );
           }
           // EN: Invalidate title caches immediately when a TITLE_EARNED
           //     notification arrives so the title picker always shows
@@ -202,11 +211,16 @@ class GBTApp extends ConsumerWidget {
               onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
               child: DecoratedBox(
                 decoration: BoxDecoration(gradient: backgroundGradient),
-                child: InAppNotificationBannerOverlay(
-                  child: _MandatoryConsentGate(
-                    child: _NotificationsLifecycleBridge(
-                      child: _ConnectivityWrapper(
-                        child: child ?? const SizedBox.shrink(),
+                child: _DeeplinkBridge(
+                  router: router,
+                  child: InAppNotificationBannerOverlay(
+                    child: _MandatoryConsentGate(
+                      child: _TelemetryLifecycleBridge(
+                        child: _NotificationsLifecycleBridge(
+                          child: _ConnectivityWrapper(
+                            child: child ?? const SizedBox.shrink(),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -240,6 +254,14 @@ class GBTApp extends ConsumerWidget {
     _lastTrackedScreenPath = path;
     final screenName = _normalizeScreenName(path);
     unawaited(ref.read(analyticsServiceProvider).logScreenView(screenName));
+    // EN: Enqueue SCREEN_VIEW telemetry event for server-side tracking.
+    // KO: 서버 측 추적을 위해 SCREEN_VIEW 텔레메트리 이벤트를 큐에 추가합니다.
+    ref
+        .read(telemetryServiceProvider)
+        .enqueue(
+          TelemetryEventTypes.screenView,
+          payload: {'screenName': screenName},
+        );
   }
 
   String _normalizeScreenName(String path) {
@@ -276,10 +298,18 @@ class GBTApp extends ConsumerWidget {
     required WidgetRef ref,
     required GoRouter router,
     required LocalNotificationTapEvent tapEvent,
+    required _NotificationTapSource source,
   }) {
     final notifier = ref.read(notificationsControllerProvider.notifier);
     if (tapEvent.notificationId.isNotEmpty) {
       unawaited(notifier.markAsRead(tapEvent.notificationId, refresh: false));
+      if (source == _NotificationTapSource.localNotification) {
+        unawaited(
+          ref
+              .read(remotePushServiceProvider)
+              .trackNotificationOpen(tapEvent.notificationId),
+        );
+      }
     }
 
     final normalizedType = normalizeNotificationType(tapEvent.type);
@@ -680,6 +710,98 @@ class _MandatoryConsentCheckTile extends StatelessWidget {
   }
 }
 
+// ────────────────────────────────────────────────────────────
+// EN: Telemetry lifecycle bridge — APP_FOREGROUND / APP_BACKGROUND events.
+// KO: 텔레메트리 라이프사이클 브리지 — APP_FOREGROUND / APP_BACKGROUND 이벤트.
+// ────────────────────────────────────────────────────────────
+
+class _TelemetryLifecycleBridge extends ConsumerStatefulWidget {
+  const _TelemetryLifecycleBridge({required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<_TelemetryLifecycleBridge> createState() =>
+      _TelemetryLifecycleBridgeState();
+}
+
+class _TelemetryLifecycleBridgeState
+    extends ConsumerState<_TelemetryLifecycleBridge>
+    with WidgetsBindingObserver {
+  DateTime? _foregroundEnteredAt;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _foregroundEnteredAt = DateTime.now();
+    // EN: Record initial foreground entry when app first launches.
+    // KO: 앱 최초 실행 시 포그라운드 진입을 기록합니다.
+    _enqueueAppForeground();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final telemetry = ref.read(telemetryServiceProvider);
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _foregroundEnteredAt = DateTime.now();
+        _enqueueAppForeground();
+        break;
+      case AppLifecycleState.paused:
+        final sessionSec = _foregroundEnteredAt != null
+            ? DateTime.now().difference(_foregroundEnteredAt!).inSeconds
+            : 0;
+        telemetry.enqueue(
+          TelemetryEventTypes.appBackground,
+          payload: {'sessionDurationSec': sessionSec},
+        );
+        // EN: Flush queue immediately on background transition.
+        //     Auth token is read directly from SecureStorage to avoid
+        //     a Riverpod dependency on async futures inside a sync callback.
+        // KO: 백그라운드 전환 즉시 큐를 플러시합니다.
+        //     동기 콜백 내에서 비동기 Riverpod 의존을 피하기 위해
+        //     SecureStorage에서 직접 액세스 토큰을 읽습니다.
+        unawaited(_flushWithToken(telemetry));
+        break;
+      case AppLifecycleState.detached:
+        unawaited(_flushWithToken(telemetry));
+        break;
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.inactive:
+        break;
+    }
+  }
+
+  void _enqueueAppForeground() {
+    ref
+        .read(telemetryServiceProvider)
+        .enqueue(
+          TelemetryEventTypes.appForeground,
+          payload: {
+            'locale':
+                ref.read(localeProvider)?.toLanguageTag() ??
+                WidgetsBinding.instance.platformDispatcher.locale
+                    .toLanguageTag(),
+          },
+        );
+  }
+
+  Future<void> _flushWithToken(TelemetryService telemetry) async {
+    final token = await ref.read(secureStorageProvider).getAccessToken();
+    await telemetry.flush(authToken: token);
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
 /// EN: Lifecycle bridge to enforce SSE single-connection policy per app session.
 /// KO: 앱 세션 단일 SSE 연결 정책을 강제하는 라이프사이클 브리지입니다.
 class _NotificationsLifecycleBridge extends ConsumerStatefulWidget {
@@ -790,6 +912,97 @@ class _ConnectivityWrapperState extends ConsumerState<_ConnectivityWrapper> {
       ],
     );
   }
+}
+
+// ────────────────────────────────────────────────────────────
+// EN: Deeplink bridge — handles custom URL scheme girlsbandtabi://.
+// KO: 딥링크 브리지 — 커스텀 URL 스킴 girlsbandtabi://를 처리합니다.
+// ────────────────────────────────────────────────────────────
+
+class _DeeplinkBridge extends StatefulWidget {
+  const _DeeplinkBridge({required this.router, required this.child});
+
+  final GoRouter router;
+  final Widget child;
+
+  @override
+  State<_DeeplinkBridge> createState() => _DeeplinkBridgeState();
+}
+
+class _DeeplinkBridgeState extends State<_DeeplinkBridge> {
+  AppLinks? _appLinks;
+  StreamSubscription<Uri>? _linkSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _initDeeplinks();
+  }
+
+  @override
+  void dispose() {
+    _linkSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initDeeplinks() async {
+    _appLinks = AppLinks();
+
+    // EN: Handle cold-start deeplink (app launched by tapping the link).
+    // KO: 콜드 스타트 딥링크 처리 (링크를 탭하여 앱이 실행된 경우).
+    try {
+      final initialUri = await _appLinks!.getInitialLink();
+      if (initialUri != null && mounted) {
+        _handleDeeplink(initialUri);
+      }
+    } catch (_) {
+      // EN: Ignore initial link errors (e.g., no link on normal launch).
+      // KO: 초기 링크 오류 무시 (예: 일반 실행 시 링크 없음).
+    }
+
+    // EN: Handle foreground deeplinks while the app is running.
+    // KO: 앱 실행 중 포그라운드 딥링크 처리.
+    _linkSub = _appLinks!.uriLinkStream.listen((uri) {
+      if (mounted) _handleDeeplink(uri);
+    }, onError: (_) {});
+  }
+
+  void _handleDeeplink(Uri uri) {
+    // EN: X (Twitter) PKCE OAuth callback — received as a Universal Link / App Link.
+    //     iOS: Associated Domains (applinks:api.noraneko.cc) intercepts
+    //          https://api.noraneko.cc/oauth/x/callback and delivers it here.
+    //     Android: App Links (android:autoVerify="true") does the same.
+    //     Routes to /auth/callback so OAuthCallbackPage can call completeTwitterLogin().
+    // KO: X (Twitter) PKCE OAuth 콜백 — Universal Link / App Link로 수신됩니다.
+    //     iOS: Associated Domains(applinks:api.noraneko.cc)이
+    //          https://api.noraneko.cc/oauth/x/callback을 가로채 여기로 전달합니다.
+    //     Android: App Links(android:autoVerify="true")가 동일하게 처리합니다.
+    //     OAuthCallbackPage가 completeTwitterLogin()을 호출하도록 /auth/callback으로 라우팅합니다.
+    if (uri.scheme == 'https' &&
+        uri.host == 'api.noraneko.cc' &&
+        uri.path == '/oauth/x/callback') {
+      final code = uri.queryParameters['code'] ?? '';
+      final stateParam = uri.queryParameters['state'];
+      final query = StringBuffer(
+        '?provider=twitter&code=${Uri.encodeComponent(code)}',
+      );
+      if (stateParam != null && stateParam.isNotEmpty) {
+        query.write('&state=${Uri.encodeComponent(stateParam)}');
+      }
+      widget.router.go('/auth/callback$query');
+      return;
+    }
+
+    if (uri.scheme != 'girlsbandtabi') return;
+
+    if (uri.host == 'email-verified') {
+      widget.router.go('/email-verified');
+      return;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// EN: Offline status banner widget

@@ -64,31 +64,42 @@ class _OAuthCallbackPageState extends ConsumerState<OAuthCallbackPage> {
       return;
     }
 
-    final oauthService = ref.read(authOAuthServiceProvider);
-    final stateValidation = await oauthService.validateAndConsumeState(
-      provider: provider,
-      callbackState: widget.stateParam,
-    );
-    if (!mounted) return;
-    if (stateValidation is Err<void>) {
-      setState(() {
-        _failure = stateValidation.failure;
-      });
-      return;
-    }
-
     final controller = ref.read(authControllerProvider.notifier);
-    final result = await controller.completeOAuthLogin(
-      provider: provider,
-      code: widget.code,
-      stateParam: widget.stateParam,
-    );
+
+    // EN: Twitter uses PKCE (POST endpoint with codeVerifier) — different from
+    //     other providers that use the generic GET callback exchange.
+    // KO: Twitter는 PKCE 방식 (codeVerifier와 함께 POST) —
+    //     다른 제공자의 일반 GET 콜백 교환 방식과 다릅니다.
+    final Result<void> result;
+    if (provider == OAuthProvider.twitter) {
+      result = await controller.completeTwitterLogin(
+        code: widget.code,
+        stateParam: widget.stateParam,
+      );
+    } else {
+      final oauthService = ref.read(authOAuthServiceProvider);
+      final stateValidation = await oauthService.validateAndConsumeState(
+        provider: provider,
+        callbackState: widget.stateParam,
+      );
+      if (!mounted) return;
+      if (stateValidation is Err<void>) {
+        setState(() => _failure = stateValidation.failure);
+        return;
+      }
+      result = await controller.completeOAuthLogin(
+        provider: provider,
+        code: widget.code,
+        stateParam: widget.stateParam,
+      );
+    }
 
     if (!mounted) return;
 
     if (result is Err<void>) {
+      final failure = result.failure;
       setState(() {
-        _failure = result.failure;
+        _failure = failure;
       });
       return;
     }

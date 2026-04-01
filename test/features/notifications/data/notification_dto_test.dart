@@ -73,4 +73,21 @@ void main() {
       expect(dto.entityId, 'target-priority');
     },
   );
+
+  test(
+    'NotificationItemDto falls back to eventType when type keys are absent',
+    () {
+      final json = {
+        'id': 'noti-4',
+        'title': '댓글 알림',
+        'body': '댓글이 달렸어요',
+        'createdAt': '2026-03-30T00:00:00Z',
+        'read': false,
+        'eventType': 'MY_POST_COMMENT_CREATED',
+      };
+
+      final dto = NotificationItemDto.fromJson(json);
+      expect(dto.type, 'MY_POST_COMMENT_CREATED');
+    },
+  );
 }

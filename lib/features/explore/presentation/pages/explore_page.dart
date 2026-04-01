@@ -68,61 +68,53 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     final mq = MediaQuery.of(context);
 
     return Scaffold(
-      backgroundColor:
-          isDark ? GBTColors.darkBackground : GBTColors.background,
-      body: SafeArea(
-        // EN: Only handle top safe area here; bottom is handled by main scaffold.
-        // KO: 여기서는 상단 안전 영역만 처리; 하단은 메인 스캐폴드가 담당.
-        bottom: false,
-        child: Stack(
-          children: [
-            // EN: TabBarView occupies the full stack area. We inject adjusted
-            //     MediaQuery padding so inner Scaffolds don't double-add the
-            //     status bar inset (top=0) and are aware of the pill height
-            //     at the bottom so their own scroll/safe-area logic accounts
-            //     for it.
-            // KO: TabBarView가 스택 전체 영역을 차지합니다. 상단 패딩을 0으로
-            //     설정해 내부 Scaffold가 상태 바 여백을 중복 추가하지 않도록
-            //     하고, 하단에 pill 높이를 추가해 스크롤/안전영역 로직이 이를
-            //     인식하도록 MediaQuery를 재구성합니다.
-            MediaQuery(
-              data: mq.copyWith(
-                padding: mq.padding.copyWith(
-                  top: 0,
-                  bottom: mq.padding.bottom + _modeBarHeight,
-                ),
-              ),
-              child: TabBarView(
-                controller: _tabController,
-                // EN: Disable swipe to prevent conflicts with the map's
-                //     pan gesture.
-                // KO: 지도 팬 제스처와의 충돌을 방지하기 위해 스와이프를
-                //     비활성화합니다.
-                physics: const NeverScrollableScrollPhysics(),
-                children: const [
-                  PlacesMapPage(),
-                  LiveEventsPage(),
-                  VisitHistoryPage(),
-                  ZukanPage(),
-                ],
+      backgroundColor: isDark ? GBTColors.darkBackground : GBTColors.background,
+      body: Stack(
+        children: [
+          // EN: TabBarView occupies the full viewport so the map tab can
+          //     render edge-to-edge up to the status bar area.
+          // KO: 지도 탭이 상태 바 영역까지 꽉 차게 렌더되도록 TabBarView가
+          //     전체 뷰포트를 사용합니다.
+          //
+          // EN: Only reserve additional bottom padding for the floating mode
+          //     pill so inner pages can account for the overlay.
+          // KO: 플로팅 모드 pill 오버레이를 고려할 수 있도록 하단 패딩만
+          //     추가로 예약합니다.
+          MediaQuery(
+            data: mq.copyWith(
+              padding: mq.padding.copyWith(
+                bottom: mq.padding.bottom + _modeBarHeight,
               ),
             ),
+            child: TabBarView(
+              controller: _tabController,
+              // EN: Disable swipe to prevent conflicts with the map's
+              //     pan gesture.
+              // KO: 지도 팬 제스처와의 충돌을 방지하기 위해 스와이프를
+              //     비활성화합니다.
+              physics: const NeverScrollableScrollPhysics(),
+              children: const [
+                PlacesMapPage(),
+                LiveEventsPage(),
+                VisitHistoryPage(),
+                ZukanPage(),
+              ],
+            ),
+          ),
 
-            // EN: Floating mode-selection pill anchored to the bottom of the
-            //     explore content area.
-            // KO: 탐방 콘텐츠 영역 하단에 고정된 플로팅 모드 선택 pill.
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: _modeBarHeight,
-              child: _ExploreModePill(
-                controller: _tabController,
-                isDark: isDark,
-              ),
-            ),
-          ],
-        ),
+          // EN: Floating mode-selection pill anchored above the system
+          //     bottom inset so it is never obscured by the home indicator
+          //     or gesture navigation bar.
+          // KO: 홈 인디케이터 또는 제스처 내비게이션 바에 가리지 않도록
+          //     시스템 하단 여백 위에 고정된 플로팅 모드 선택 pill.
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: mq.padding.bottom + 8,
+            height: _modeBarHeight,
+            child: _ExploreModePill(controller: _tabController, isDark: isDark),
+          ),
+        ],
       ),
     );
   }
@@ -134,18 +126,16 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
 // ---------------------------------------------------------------------------
 
 class _ExploreModePill extends StatelessWidget {
-  const _ExploreModePill({
-    required this.controller,
-    required this.isDark,
-  });
+  const _ExploreModePill({required this.controller, required this.isDark});
 
   final TabController controller;
   final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    final pillRadius =
-        Theme.of(context).platform == TargetPlatform.iOS ? 36.0 : 24.0;
+    final pillRadius = Theme.of(context).platform == TargetPlatform.iOS
+        ? 36.0
+        : 24.0;
 
     final selectedColor = isDark ? GBTColors.darkPrimary : GBTColors.primary;
     final unselectedColor = isDark
@@ -166,7 +156,7 @@ class _ExploreModePill extends StatelessWidget {
 
     final labels = [
       context.l10n(ko: '지도', en: 'Map', ja: 'マップ'),
-      context.l10n(ko: '라이브', en: 'Live', ja: 'ライブ'),
+      context.l10n(ko: '이벤트', en: 'Events', ja: 'イベント'),
       context.l10n(ko: '방문기록', en: 'Visits', ja: '訪問'),
       context.l10n(ko: '성지도감', en: 'Collection', ja: '聖地図鑑'),
     ];
@@ -185,8 +175,9 @@ class _ExploreModePill extends StatelessWidget {
                   borderRadius: BorderRadius.circular(pillRadius),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black
-                          .withValues(alpha: isDark ? 0.32 : 0.12),
+                      color: Colors.black.withValues(
+                        alpha: isDark ? 0.32 : 0.12,
+                      ),
                       blurRadius: 18,
                       offset: const Offset(0, 6),
                       spreadRadius: -4,
@@ -212,22 +203,25 @@ class _ExploreModePill extends StatelessWidget {
                           end: Alignment.bottomCenter,
                           colors: gradientColors,
                         ),
-                        border: Border.all(
-                          color: borderColor,
-                          width: 0.8,
-                        ),
+                        border: Border.all(color: borderColor, width: 0.8),
                         borderRadius: BorderRadius.circular(pillRadius),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: List.generate(labels.length, (i) {
                           final isSelected = controller.index == i;
-                          final primary =
-                              isDark ? GBTColors.darkPrimary : GBTColors.primary;
+                          final primary = isDark
+                              ? GBTColors.darkPrimary
+                              : GBTColors.primary;
+                          // EN: Announce mode label with selection state for
+                          //     screen-reader users.
+                          // KO: 스크린 리더 사용자를 위해 모드 레이블과
+                          //     선택 상태를 함께 안내합니다.
                           return Semantics(
                             button: true,
                             selected: isSelected,
-                            label: '${labels[i]} tab',
+                            label:
+                                '${labels[i]} 탭${isSelected ? ', 현재 선택됨' : ''}',
                             child: GestureDetector(
                               behavior: HitTestBehavior.opaque,
                               onTap: () {
@@ -244,8 +238,9 @@ class _ExploreModePill extends StatelessWidget {
                                   color: isSelected
                                       ? primary.withValues(alpha: 0.14)
                                       : Colors.transparent,
-                                  borderRadius:
-                                      BorderRadius.circular(pillRadius),
+                                  borderRadius: BorderRadius.circular(
+                                    pillRadius,
+                                  ),
                                 ),
                                 child: Text(
                                   labels[i],

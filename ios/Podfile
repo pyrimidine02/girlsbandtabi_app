@@ -49,12 +49,17 @@ post_install do |installer|
       # Fix: Xcode 26+ requires arm64 for simulator builds on Apple Silicon Macs.
       # Remove any existing arm64 exclusion from simulator builds imposed by pods
       # (e.g. apple_maps_flutter, connectivity_plus, etc. exclude arm64 in their podspecs).
-      excluded = config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'].to_s
-      updated = excluded.split.reject { |arch| arch == 'arm64' }.join(' ')
-      if updated.empty?
-        config.build_settings.delete('EXCLUDED_ARCHS[sdk=iphonesimulator*]')
-      else
-        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = updated
+      # IMPORTANT: Only apply to Debug builds — Release/Profile builds are archive-only (no simulator),
+      # so keeping the arm64 exclusion prevents simulator slices from ending up in the archive,
+      # which would cause "unsupported platform in arm64 slice" App Store validation errors.
+      if config.name == 'Debug'
+        excluded = config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'].to_s
+        updated = excluded.split.reject { |arch| arch == 'arm64' }.join(' ')
+        if updated.empty?
+          config.build_settings.delete('EXCLUDED_ARCHS[sdk=iphonesimulator*]')
+        else
+          config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = updated
+        end
       end
     end
   end

@@ -563,8 +563,8 @@ class _ProjectPill extends StatelessWidget {
         onTap: onTap,
         hapticType: GBTHapticType.selection,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCirc,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutBack,
           height: 36,
           padding: const EdgeInsets.symmetric(horizontal: GBTSpacing.md),
           decoration: BoxDecoration(

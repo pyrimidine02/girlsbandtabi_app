@@ -2,6 +2,7 @@
 /// KO: 방문 상세 페이지 — 히어로 이미지, 통계, 지도가 있는 프리미엄 디자인.
 library;
 
+import 'dart:math' show log;
 import 'dart:ui';
 
 import 'package:apple_maps_flutter/apple_maps_flutter.dart' as amaps;
@@ -32,15 +33,11 @@ class VisitDetailPage extends ConsumerWidget {
     required this.visitId,
     required this.placeId,
     this.visitedAt,
-    this.latitude,
-    this.longitude,
   });
 
   final String visitId;
   final String placeId;
   final String? visitedAt;
-  final double? latitude;
-  final double? longitude;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -51,13 +48,12 @@ class VisitDetailPage extends ConsumerWidget {
     final place = placesMapState.valueOrNull?[placeId];
     final detail = detailState.valueOrNull;
 
-    final detailLat = detail?.latitude;
-    final detailLng = detail?.longitude;
-    final hasVerificationCoords =
-        (detailLat != null && detailLng != null) ||
-        (latitude != null && longitude != null);
-    final mapLat = detailLat ?? latitude ?? place?.latitude;
-    final mapLng = detailLng ?? longitude ?? place?.longitude;
+    // EN: GPS verified if distanceM is present in the detail response.
+    // KO: 상세 응답에 distanceM이 있으면 GPS 인증 완료로 판단합니다.
+    final hasVerificationCoords = detail?.hasGpsVerification ?? false;
+    final distanceM = detail?.distanceM;
+    final mapLat = place?.latitude;
+    final mapLng = place?.longitude;
     final hasMapCoords = mapLat != null && mapLng != null;
 
     final visitedAtFormatted = _formatVisitedAt(
@@ -84,6 +80,7 @@ class VisitDetailPage extends ConsumerWidget {
             child: _VisitInfoCards(
               visitedAt: visitedAtFormatted,
               hasCoordinates: hasVerificationCoords,
+              distanceM: distanceM,
               isDark: isDark,
             ),
           ),
@@ -107,6 +104,7 @@ class VisitDetailPage extends ConsumerWidget {
                     latitude: mapLat,
                     longitude: mapLng,
                     isVerificationLocation: hasVerificationCoords,
+                    distanceM: distanceM,
                     isDark: isDark,
                   )
                 : const SizedBox.shrink(),
@@ -281,14 +279,30 @@ class _VisitInfoCards extends StatelessWidget {
     required this.visitedAt,
     required this.hasCoordinates,
     required this.isDark,
+    this.distanceM,
   });
 
   final String visitedAt;
   final bool hasCoordinates;
+  final double? distanceM;
   final bool isDark;
 
   @override
   Widget build(BuildContext context) {
+    // EN: Format distance label: show meters or kilometers as appropriate.
+    // KO: 거리 레이블 포맷: 적절하게 미터 또는 킬로미터로 표시합니다.
+    String gpsValue;
+    if (!hasCoordinates) {
+      gpsValue = context.l10n(ko: '미인증', en: 'Not verified', ja: '未認証');
+    } else if (distanceM != null) {
+      final d = distanceM!;
+      gpsValue = d < 1000
+          ? '${d.toStringAsFixed(1)}m'
+          : '${(d / 1000).toStringAsFixed(2)}km';
+    } else {
+      gpsValue = context.l10n(ko: '인증됨', en: 'Verified', ja: '認証済み');
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         GBTSpacing.pageHorizontal,
@@ -313,9 +327,7 @@ class _VisitInfoCards extends StatelessWidget {
                   ? Icons.gps_fixed_rounded
                   : Icons.gps_off_rounded,
               label: context.l10n(ko: 'GPS 인증', en: 'GPS verify', ja: 'GPS認証'),
-              value: hasCoordinates
-                  ? context.l10n(ko: '인증됨', en: 'Verified', ja: '認証済み')
-                  : context.l10n(ko: '미인증', en: 'Not verified', ja: '未認証'),
+              value: gpsValue,
               isDark: isDark,
               highlight: hasCoordinates,
             ),
@@ -637,11 +649,13 @@ class _MapSection extends StatelessWidget {
     required this.longitude,
     required this.isVerificationLocation,
     required this.isDark,
+    this.distanceM,
   });
 
   final double latitude;
   final double longitude;
   final bool isVerificationLocation;
+  final double? distanceM;
   final bool isDark;
 
   @override
@@ -717,11 +731,15 @@ class _MapSection extends StatelessWidget {
         ? context.l10n(ko: '인증 위치', en: 'Verified location', ja: '認証位置')
         : context.l10n(ko: '장소 위치', en: 'Place location', ja: '場所位置');
 
+    // EN: Adjust zoom so the verification radius circle fits in view.
+    // KO: 인증 반경 원이 화면에 맞도록 줌 레벨을 조정합니다.
+    final zoom = _zoomForRadius(distanceM);
+
     if (isApple) {
       final appleMap = amaps.AppleMap(
         initialCameraPosition: amaps.CameraPosition(
           target: amaps.LatLng(latitude, longitude),
-          zoom: 16,
+          zoom: zoom,
         ),
         scrollGesturesEnabled: false,
         zoomGesturesEnabled: false,
@@ -734,6 +752,17 @@ class _MapSection extends StatelessWidget {
             position: amaps.LatLng(latitude, longitude),
             infoWindow: amaps.InfoWindow(title: pinLabel),
           ),
+        },
+        circles: {
+          if (distanceM != null)
+            amaps.Circle(
+              circleId: amaps.CircleId('verification_radius'),
+              center: amaps.LatLng(latitude, longitude),
+              radius: distanceM!,
+              strokeColor: GBTColors.primary.withValues(alpha: 0.8),
+              strokeWidth: 2,
+              fillColor: GBTColors.primary.withValues(alpha: 0.15),
+            ),
         },
       );
       return Stack(
@@ -752,7 +781,7 @@ class _MapSection extends StatelessWidget {
     return gmaps.GoogleMap(
       initialCameraPosition: gmaps.CameraPosition(
         target: gmaps.LatLng(latitude, longitude),
-        zoom: 16,
+        zoom: zoom,
       ),
       scrollGesturesEnabled: false,
       zoomGesturesEnabled: false,
@@ -773,7 +802,32 @@ class _MapSection extends StatelessWidget {
               : gmaps.BitmapDescriptor.defaultMarker,
         ),
       },
+      circles: {
+        if (distanceM != null)
+          gmaps.Circle(
+            circleId: const gmaps.CircleId('verification_radius'),
+            center: gmaps.LatLng(latitude, longitude),
+            radius: distanceM!,
+            strokeColor: GBTColors.primary.withValues(alpha: 0.8),
+            strokeWidth: 2,
+            fillColor: GBTColors.primary.withValues(alpha: 0.15),
+          ),
+      },
     );
+  }
+
+  /// EN: Compute an approximate zoom level so the circle radius is visible.
+  /// KO: 원형 반경이 화면에 보이도록 적절한 줌 레벨을 계산합니다.
+  double _zoomForRadius(double? radius) {
+    if (radius == null || radius <= 0) return 16;
+    // EN: Each zoom step halves the visible area (~156km at zoom 0).
+    // KO: 줌 0에서 약 156km, 한 단계마다 절반씩 축소됩니다.
+    // EN: Add extra padding so the circle has breathing room.
+    // KO: 원이 여유 있게 보이도록 패딩을 추가합니다.
+    const paddingFactor = 3.0;
+    final diameter = radius * 2 * paddingFactor;
+    final zoom = 16 - (log(diameter / 500) / log(2));
+    return zoom.clamp(10.0, 18.0);
   }
 
   Widget _mapPlaceholder(BuildContext context) {

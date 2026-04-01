@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -87,6 +88,63 @@ void main() {
         equals('Bearer access-token'),
       );
       expect(capturedRequest.headers['Accept'], equals('text/event-stream'));
+    });
+
+    test('surfaces stream disconnect errors to onError handler', () async {
+      final responseStreamController = StreamController<List<int>>();
+      final streamClient = _FakeStreamClient((_) async {
+        scheduleMicrotask(() {
+          responseStreamController.add(utf8.encode('data: {"ok":true}\n\n'));
+          responseStreamController.addError(
+            http.ClientException(
+              'Connection closed while receiving data',
+              Uri.parse('https://api.example.com/api/v1/notifications/stream'),
+            ),
+          );
+        });
+        return http.StreamedResponse(
+          responseStreamController.stream,
+          200,
+          headers: const {'content-type': 'text/event-stream'},
+        );
+      });
+
+      final client = SseClient(
+        secureStorage: _FakeSecureStorage(null),
+        baseUrl: 'https://api.example.com',
+        clientFactory: () => streamClient,
+      );
+
+      final connection = await client.connect(
+        path: '/api/v1/notifications/stream',
+      );
+      final done = Completer<void>();
+      final events = <SseEvent>[];
+      Object? receivedError;
+
+      final subscription = connection.events.listen(
+        events.add,
+        onError: (Object error, StackTrace stackTrace) {
+          receivedError = error;
+          if (!done.isCompleted) {
+            done.complete();
+          }
+        },
+        onDone: () {
+          if (!done.isCompleted) {
+            done.complete();
+          }
+        },
+        cancelOnError: true,
+      );
+
+      await done.future.timeout(const Duration(seconds: 2));
+      await subscription.cancel();
+      await connection.close();
+      await responseStreamController.close();
+
+      expect(events, hasLength(1));
+      expect(receivedError, isA<http.ClientException>());
     });
   });
 }

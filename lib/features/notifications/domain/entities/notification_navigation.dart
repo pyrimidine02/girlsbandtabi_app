@@ -14,9 +14,23 @@ const String notificationTypeTitleEarned = 'TITLE_EARNED';
 String normalizeNotificationType(String? rawType) {
   final upper = rawType?.trim().toUpperCase() ?? '';
   return switch (upper) {
-    'FOLLOWING_POST' || 'FOLLOWING_POST_CREATED' => notificationTypePostCreated,
-    'MY_POST_COMMENT_CREATED' || 'COMMUNITY_COMMENT' => 'COMMENT_CREATED',
-    'MY_COMMENT_REPLY_CREATED' || 'COMMUNITY_REPLY' => 'COMMENT_REPLY_CREATED',
+    'FOLLOWING_POST' ||
+    'FOLLOWING_POSTS' ||
+    'FOLLOWING_POST_CREATED' ||
+    'FOLLOWED_POST_CREATED' ||
+    'FOLLOWED_USER_POST_CREATED' ||
+    'FOLLOWER_POST_CREATED' => notificationTypePostCreated,
+    'MY_POST_COMMENT_CREATED' ||
+    'POST_COMMENT_CREATED' ||
+    'COMMUNITY_COMMENT' ||
+    'COMMENT_ADDED' => 'COMMENT_CREATED',
+    'MY_COMMENT_REPLY_CREATED' ||
+    'POST_COMMENT_REPLY_CREATED' ||
+    'COMMUNITY_REPLY' ||
+    'COMMENT_REPLIED' ||
+    'REPLY_CREATED' => 'COMMENT_REPLY_CREATED',
+    'COMMUNITY_LIKE' => 'POST_LIKED',
+    'TITLE_GRANTED' => notificationTypeTitleEarned,
     'SYSTEM_BROADCAST' || 'SYSTEM' => notificationTypeSystemNotice,
     _ => upper,
   };
@@ -49,11 +63,11 @@ String? resolveNotificationNavigationPath({
   if (_isPostScopedType(normalizedType) &&
       postId != null &&
       postId.isNotEmpty) {
-    return '/board/posts/$postId';
+    return '/overlay/board/posts/$postId';
   }
 
   if (_isPostScopedType(normalizedType)) {
-    return '/board';
+    return '/community';
   }
 
   if (normalizedType == notificationTypeSystemNotice) {
@@ -71,6 +85,23 @@ String? resolveNotificationNavigationPath({
       return '/title-picker?titleId=$titleId';
     }
     return '/title-picker';
+  }
+
+  // EN: Live event notifications — navigate to event detail if entityId provided,
+  //     otherwise fall back to the live events tab.
+  // KO: 라이브이벤트 알림 — entityId가 있으면 이벤트 상세로, 없으면 라이브이벤트 탭으로 이동.
+  if (_isLiveEventType(normalizedType)) {
+    final eventId = entityId?.trim();
+    if (eventId != null && eventId.isNotEmpty) {
+      return '/overlay/events/$eventId';
+    }
+    return '/visits?tab=live';
+  }
+
+  // EN: Moderation notifications — stay within the notification center.
+  // KO: 제재 알림 — 알림 센터에 머뭅니다.
+  if (normalizedType == 'MODERATION') {
+    return '/notifications';
   }
 
   return null;
@@ -120,14 +151,14 @@ String? _normalizePath(String rawPath, {String? query}) {
     if (postMatch != null) {
       final postId = postMatch.group(1);
       if (postId != null && postId.isNotEmpty) {
-        return '/board/posts/$postId';
+        return '/overlay/board/posts/$postId';
       }
     }
   }
   if (path.startsWith('/community/posts/')) {
     final postId = _extractPostId(path);
     if (postId != null && postId.isNotEmpty) {
-      return _appendQuery('/board/posts/$postId', query);
+      return _appendQuery('/overlay/board/posts/$postId', query);
     }
   }
 
@@ -135,24 +166,46 @@ String? _normalizePath(String rawPath, {String? query}) {
     return '/notifications';
   }
   if (path.startsWith('/board/posts/')) {
+    return _appendQuery('/overlay$path', query);
+  }
+  if (path.startsWith('/overlay/board/posts/')) {
     return _appendQuery(path, query);
   }
   if (path.startsWith('/info/news/')) {
+    final newsId = path.split('/').where((s) => s.isNotEmpty).lastOrNull;
+    if (newsId != null && newsId.isNotEmpty) {
+      return _appendQuery('/overlay/info/news/$newsId', query);
+    }
+  }
+  if (path.startsWith('/overlay/info/news/')) {
     return _appendQuery(path, query);
   }
   if (path.startsWith('/users/')) {
     return _appendQuery(path, query);
   }
   if (path.startsWith('/live/')) {
+    final eventId = path.split('/').where((s) => s.isNotEmpty).lastOrNull;
+    if (eventId != null && eventId.isNotEmpty) {
+      return _appendQuery('/overlay/events/$eventId', query);
+    }
+  }
+  if (path.startsWith('/overlay/events/')) {
     return _appendQuery(path, query);
   }
   if (path.startsWith('/places/')) {
+    final placeId = path.split('/').where((s) => s.isNotEmpty).lastOrNull;
+    if (placeId != null && placeId.isNotEmpty) {
+      return _appendQuery('/overlay/places/$placeId', query);
+    }
+  }
+  if (path.startsWith('/overlay/places/')) {
     return _appendQuery(path, query);
   }
   if (path.startsWith('/notifications')) {
     return _appendQuery(path, query);
   }
-  if (path == '/title-picker' || path.startsWith('/title-picker') ||
+  if (path == '/title-picker' ||
+      path.startsWith('/title-picker') ||
       path.startsWith('/titles')) {
     return _appendQuery('/title-picker', query);
   }
@@ -190,6 +243,12 @@ String? _firstNonEmpty(String? first, String? second) {
     return second.trim();
   }
   return null;
+}
+
+bool _isLiveEventType(String normalizedType) {
+  return normalizedType == 'LIVE_EVENT_UPDATED' ||
+      normalizedType == 'LIVE_EVENT_CANCELLED' ||
+      normalizedType == 'LIVE_EVENT_ATTENDANCE_VERIFIED';
 }
 
 bool _isPostScopedType(String normalizedType) {

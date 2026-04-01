@@ -79,14 +79,15 @@ class AppConfig {
     }
     // EN: Allow local HTTP only for debug/runtime development.
     // KO: 로컬 HTTP는 디버그/개발 실행에서만 허용합니다.
-    if (kDebugMode) {
-      return (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
-          ? 'http://10.0.2.2:8080'
-          : 'http://localhost:8080';
-    }
-    // EN: In non-debug builds, avoid plaintext fallback.
-    // KO: 비디버그 빌드에서는 평문 HTTP 폴백을 피합니다.
-    return _stagingBaseUrl;
+    // if (kDebugMode) {
+    //   return (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
+    //       ? 'http://10.0.2.2:8080'
+    //       : 'http://localhost:8080';
+    // }
+    // // EN: In non-debug builds, avoid plaintext fallback.
+    // // KO: 비디버그 빌드에서는 평문 HTTP 폴백을 피합니다.
+    // return _stagingBaseUrl;
+    return _productionBaseUrl;
   }
 
   String _getDefaultProjectId(Environment env) {

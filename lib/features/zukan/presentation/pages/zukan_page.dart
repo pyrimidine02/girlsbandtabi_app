@@ -14,6 +14,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/navigation/gbt_standard_app_bar.dart';
 import '../../application/zukan_controller.dart';
 import '../../domain/entities/zukan_collection.dart';
 
@@ -32,22 +33,14 @@ class ZukanPage extends ConsumerWidget {
     final collectionsAsync = ref.watch(zukanCollectionsProvider(pid));
 
     return Scaffold(
-      backgroundColor:
-          isDark ? GBTColors.darkBackground : GBTColors.background,
-      appBar: AppBar(
-        backgroundColor: isDark ? GBTColors.darkSurface : GBTColors.surface,
-        title: Text(
-          context.l10n(
-            ko: '성지순례 도감',
-            en: 'Place Collection',
-            ja: '聖地巡礼図鑑',
-          ),
-          style: GBTTypography.titleLarge.copyWith(
-            color:
-                isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
-          ),
+      backgroundColor: isDark ? GBTColors.darkBackground : GBTColors.background,
+      appBar: gbtStandardAppBar(
+        context,
+        title: context.l10n(
+          ko: '성지순례 도감',
+          en: 'Place Collection',
+          ja: '聖地巡礼図鑑',
         ),
-        elevation: 0,
       ),
       body: collectionsAsync.when(
         loading: () => _ZukanShimmerList(),
@@ -57,11 +50,7 @@ class ZukanPage extends ConsumerWidget {
             en: 'Could not load collections',
             ja: '図鑑を読み込めませんでした',
           ),
-          actionLabel: context.l10n(
-            ko: '다시 시도',
-            en: 'Retry',
-            ja: '再試行',
-          ),
+          actionLabel: context.l10n(ko: '다시 시도', en: 'Retry', ja: '再試行'),
           onAction: () => ref.refresh(zukanCollectionsProvider(pid)),
         ),
         data: (collections) => collections.isEmpty
@@ -82,9 +71,7 @@ class ZukanPage extends ConsumerWidget {
                       collection: collections[index],
                       onTap: () => context.pushNamed(
                         AppRoutes.zukanDetail,
-                        pathParameters: {
-                          'collectionId': collections[index].id,
-                        },
+                        pathParameters: {'collectionId': collections[index].id},
                       ),
                     ),
                   );
@@ -110,8 +97,7 @@ class _ZukanShimmerList extends StatelessWidget {
             height: 100,
             decoration: BoxDecoration(
               color: GBTColors.surfaceVariant,
-              borderRadius:
-                  BorderRadius.circular(GBTSpacing.radiusMd),
+              borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
             ),
           ),
         ),
@@ -123,10 +109,7 @@ class _ZukanShimmerList extends StatelessWidget {
 /// EN: Card widget representing a single zukan collection summary.
 /// KO: 단일 도감 컬렉션 요약을 나타내는 카드 위젯.
 class _CollectionCard extends StatelessWidget {
-  const _CollectionCard({
-    required this.collection,
-    required this.onTap,
-  });
+  const _CollectionCard({required this.collection, required this.onTap});
 
   final ZukanCollectionSummary collection;
   final VoidCallback onTap;
@@ -135,21 +118,16 @@ class _CollectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final progressColor = collection.isCompleted
-        ? (isDark
-            ? const Color(0xFF34D399)
-            : const Color(0xFF059669))
+        ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
         : (isDark ? GBTColors.darkPrimary : GBTColors.primary);
 
     return Semantics(
       button: true,
       label: collection.title,
       hint: context.l10n(
-        ko:
-            '${collection.stampedCount}/${collection.totalCount} 방문. 탭하면 상세 보기',
-        en:
-            '${collection.stampedCount}/${collection.totalCount} visited. Tap for detail',
-        ja:
-            '${collection.stampedCount}/${collection.totalCount}訪問。タップで詳細表示',
+        ko: '${collection.stampedCount}/${collection.totalCount} 방문. 탭하면 상세 보기',
+        en: '${collection.stampedCount}/${collection.totalCount} visited. Tap for detail',
+        ja: '${collection.stampedCount}/${collection.totalCount}訪問。タップで詳細表示',
       ),
       child: InkWell(
         onTap: onTap,
@@ -192,9 +170,7 @@ class _CollectionCard extends StatelessWidget {
                   ),
                   child: Icon(
                     Icons.photo_album_outlined,
-                    color: isDark
-                        ? GBTColors.darkPrimary
-                        : GBTColors.primary,
+                    color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
                     size: 32,
                   ),
                 ),
@@ -233,12 +209,9 @@ class _CollectionCard extends StatelessWidget {
                       const SizedBox(height: GBTSpacing.xs),
                       Text(
                         context.l10n(
-                          ko:
-                              '${collection.stampedCount} / ${collection.totalCount}곳 방문',
-                          en:
-                              '${collection.stampedCount} / ${collection.totalCount} visited',
-                          ja:
-                              '${collection.stampedCount} / ${collection.totalCount}箇所訪問',
+                          ko: '${collection.stampedCount} / ${collection.totalCount}곳 방문',
+                          en: '${collection.stampedCount} / ${collection.totalCount} visited',
+                          ja: '${collection.stampedCount} / ${collection.totalCount}箇所訪問',
                         ),
                         style: GBTTypography.bodySmall.copyWith(
                           color: isDark
@@ -252,8 +225,9 @@ class _CollectionCard extends StatelessWidget {
                         backgroundColor: isDark
                             ? GBTColors.darkSurfaceVariant
                             : GBTColors.surfaceVariant,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(progressColor),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          progressColor,
+                        ),
                         minHeight: 6,
                         borderRadius: BorderRadius.circular(3),
                       ),

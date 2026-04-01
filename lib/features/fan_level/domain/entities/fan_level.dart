@@ -74,6 +74,18 @@ enum FanActivityType {
   dailyCheckIn,
   commentCreated,
   postLiked,
+  /// EN: Bookmark added (currently no XP awarded).
+  /// KO: 북마크 추가 (현재 XP 미부여).
+  bookmark,
+  /// EN: Collection completed (currently no XP awarded).
+  /// KO: 컬렉션 완성 (현재 XP 미부여).
+  collectionCompleted,
+  /// EN: Follower gained (currently no XP awarded).
+  /// KO: 팔로워 획득 (현재 XP 미부여).
+  followReceived,
+  /// EN: XP manually granted or adjusted by an admin.
+  /// KO: 관리자가 수동으로 부여하거나 조정한 XP.
+  adminGrant,
   other;
 
   /// EN: Korean display label for the activity type.
@@ -84,23 +96,37 @@ enum FanActivityType {
     FanActivityType.liveAttendance => '라이브 참석',
     FanActivityType.dailyCheckIn => '출석 체크',
     FanActivityType.commentCreated => '댓글 작성',
-    FanActivityType.postLiked => '게시글 좋아요 받음',
+    FanActivityType.postLiked => '게시글 좋아요',
+    FanActivityType.bookmark => '북마크 추가',
+    FanActivityType.collectionCompleted => '컬렉션 완성',
+    FanActivityType.followReceived => '팔로워 획득',
+    FanActivityType.adminGrant => '관리자 지급',
     FanActivityType.other => '기타',
   };
 
-  /// EN: Parses a raw string to the matching [FanActivityType]; defaults to [other].
-  /// KO: 원시 문자열을 [FanActivityType]으로 파싱합니다. 매칭되지 않으면 [other]를 반환합니다.
+  /// EN: Parses a raw history action string from the server to the matching
+  ///     [FanActivityType]. Note: history action values differ from the
+  ///     activityType values the app sends to earn XP (e.g. VISIT vs PLACE_VISIT).
+  /// KO: 서버의 히스토리 action 문자열을 [FanActivityType]으로 파싱합니다.
+  ///     히스토리 action 값은 앱이 XP 획득 요청 시 보내는 activityType 값과 다릅니다
+  ///     (예: VISIT vs PLACE_VISIT).
   static FanActivityType fromString(String? raw) {
     return switch (raw?.toLowerCase()) {
-      'place_visit' || 'placevisit' => FanActivityType.placeVisit,
-      'post_created' || 'postcreated' => FanActivityType.postCreated,
-      'live_attendance' || 'liveattendance' => FanActivityType.liveAttendance,
-      // EN: API sends 'ATTENDANCE' for daily check-in action.
-      // KO: API는 일일 출석 체크 동작에 'ATTENDANCE'를 전송합니다.
-      'daily_check_in' || 'dailycheckin' || 'attendance' =>
+      // EN: History action values (server → app)
+      // KO: 히스토리 action 값 (서버 → 앱)
+      'visit' || 'place_visit' || 'placevisit' => FanActivityType.placeVisit,
+      'post' || 'post_created' || 'postcreated' => FanActivityType.postCreated,
+      'comment' || 'comment_created' || 'commentcreated' =>
+        FanActivityType.commentCreated,
+      'attendance' || 'daily_check_in' || 'dailycheckin' =>
         FanActivityType.dailyCheckIn,
-      'comment_created' || 'commentcreated' => FanActivityType.commentCreated,
       'post_liked' || 'postliked' => FanActivityType.postLiked,
+      'live_attendance' || 'liveattendance' => FanActivityType.liveAttendance,
+      'bookmark' => FanActivityType.bookmark,
+      'collection_completed' || 'collectioncompleted' =>
+        FanActivityType.collectionCompleted,
+      'follow_received' || 'followreceived' => FanActivityType.followReceived,
+      'admin_grant' || 'admingrant' => FanActivityType.adminGrant,
       _ => FanActivityType.other,
     };
   }

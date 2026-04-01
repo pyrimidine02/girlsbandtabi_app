@@ -31,14 +31,12 @@ class AppLogger {
   /// EN: Log info message
   /// KO: 정보 메시지 로깅
   static void info(String message, {dynamic data, String? tag}) {
-    if (!kDebugMode) return;
     _log(LogLevel.info, message, data: data, tag: tag);
   }
 
   /// EN: Log warning message
   /// KO: 경고 메시지 로깅
   static void warning(String message, {dynamic data, String? tag}) {
-    if (!kDebugMode) return;
     _log(LogLevel.warning, message, data: data, tag: tag);
   }
 
@@ -50,7 +48,6 @@ class AppLogger {
     StackTrace? stackTrace,
     String? tag,
   }) {
-    if (!kDebugMode) return;
     _log(
       LogLevel.error,
       message,
@@ -58,9 +55,6 @@ class AppLogger {
       stackTrace: stackTrace,
       tag: tag,
     );
-
-    // EN: TODO: Send to crash reporting service (Sentry, etc.) in release mode
-    // KO: TODO: 릴리스 모드에서 크래시 리포팅 서비스(Sentry 등)로 전송
   }
 
   /// EN: Log network request
@@ -95,30 +89,38 @@ class AppLogger {
 
     final logMessage = '$timestamp $levelStr $tagStr$message';
 
-    // EN: Color-coded output for debug mode
-    // KO: 디버그 모드에서 색상 코드 출력
-    final colorCode = switch (level) {
-      LogLevel.debug => '\x1B[37m', // White
-      LogLevel.info => '\x1B[34m', // Blue
-      LogLevel.warning => '\x1B[33m', // Yellow
-      LogLevel.error => '\x1B[31m', // Red
-    };
-    const reset = '\x1B[0m';
-    // ignore: avoid_print
-    print('$colorCode$logMessage$reset');
-
-    // EN: Print additional data if present
-    // KO: 추가 데이터가 있으면 출력
-    if (data != null && kDebugMode) {
+    // EN: Color-coded console output is restricted to debug builds only.
+    // KO: 색상 코드 콘솔 출력은 디버그 빌드에서만 출력됩니다.
+    if (kDebugMode) {
+      final colorCode = switch (level) {
+        LogLevel.debug => '\x1B[37m', // White
+        LogLevel.info => '\x1B[34m', // Blue
+        LogLevel.warning => '\x1B[33m', // Yellow
+        LogLevel.error => '\x1B[31m', // Red
+      };
+      const reset = '\x1B[0m';
       // ignore: avoid_print
-      print('  Data: $data');
+      print('$colorCode$logMessage$reset');
+
+      // EN: Print additional data if present
+      // KO: 추가 데이터가 있으면 출력
+      if (data != null) {
+        // ignore: avoid_print
+        print('  Data: $data');
+      }
+
+      // EN: Print stack trace for errors
+      // KO: 에러의 경우 스택 트레이스 출력
+      if (stackTrace != null) {
+        // ignore: avoid_print
+        print('  StackTrace:\n$stackTrace');
+      }
     }
 
-    // EN: Print stack trace for errors
-    // KO: 에러의 경우 스택 트레이스 출력
-    if (stackTrace != null && kDebugMode) {
-      // ignore: avoid_print
-      print('  StackTrace:\n$stackTrace');
+    // EN: Forward error-level logs to crash reporter in release mode.
+    // KO: 릴리스 모드에서 에러 레벨 로그를 크래시 리포터로 전달합니다.
+    if (!kDebugMode && level == LogLevel.error) {
+      // TODO(infra): Wire Sentry.captureException / FirebaseCrashlytics here.
     }
   }
 }

@@ -41,7 +41,12 @@ class NotificationItemDto {
       body: _string(json, ['body', 'message', 'content']) ?? '',
       createdAt: parsedCreatedAt,
       read: _bool(json, ['read', 'isRead'], false),
-      type: _string(json, ['notificationType', 'type', 'notification_type']),
+      type: _string(json, [
+        'notificationType',
+        'type',
+        'notification_type',
+        'eventType',
+      ]),
       actionUrl: _string(json, ['actionUrl', 'actionURL', 'action_url']),
       deeplink: _string(json, ['deeplink', 'deepLink', 'deep_link']),
       entityId: _string(json, [

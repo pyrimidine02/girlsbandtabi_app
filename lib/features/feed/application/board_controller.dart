@@ -5,6 +5,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/api_constants.dart';
@@ -147,6 +148,7 @@ class CommunityFeedViewState {
     this.posts = const [],
     this.searchSourcePosts = const [],
     this.subscriptions = const [],
+    this.pendingNewPosts = const [],
     this.isInitialLoading = true,
     this.isLoadingMore = false,
     this.isSubscriptionsLoading = true,
@@ -162,6 +164,11 @@ class CommunityFeedViewState {
   final List<PostSummary> posts;
   final List<PostSummary> searchSourcePosts;
   final List<ProjectSubscriptionSummary> subscriptions;
+
+  /// EN: New posts detected in background, not yet applied to the main list.
+  /// KO: 백그라운드에서 감지된 새 글 — 아직 메인 목록에 적용되지 않은 상태.
+  final List<PostSummary> pendingNewPosts;
+
   final bool isInitialLoading;
   final bool isLoadingMore;
   final bool isSubscriptionsLoading;
@@ -172,6 +179,10 @@ class CommunityFeedViewState {
 
   bool get isSearching => searchQuery.trim().isNotEmpty;
 
+  /// EN: Whether there are buffered new posts ready to apply.
+  /// KO: 적용 대기 중인 새 글이 있는지 여부.
+  bool get hasPendingNewPosts => pendingNewPosts.isNotEmpty;
+
   CommunityFeedViewState copyWith({
     CommunityFeedMode? mode,
     String? searchQuery,
@@ -179,6 +190,7 @@ class CommunityFeedViewState {
     List<PostSummary>? posts,
     List<PostSummary>? searchSourcePosts,
     List<ProjectSubscriptionSummary>? subscriptions,
+    List<PostSummary>? pendingNewPosts,
     bool? isInitialLoading,
     bool? isLoadingMore,
     bool? isSubscriptionsLoading,
@@ -195,6 +207,7 @@ class CommunityFeedViewState {
       posts: posts ?? this.posts,
       searchSourcePosts: searchSourcePosts ?? this.searchSourcePosts,
       subscriptions: subscriptions ?? this.subscriptions,
+      pendingNewPosts: pendingNewPosts ?? this.pendingNewPosts,
       isInitialLoading: isInitialLoading ?? this.isInitialLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       isSubscriptionsLoading:
@@ -228,7 +241,16 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
       if (next != _kBoardNavIndex || next == previous) {
         return;
       }
-      unawaited(_reloadForActiveBoard(forceRefresh: true));
+      // EN: On tab return, only do a full reload when there is no data yet.
+      // EN: With existing data, use background refresh so the visible list is not wiped.
+      // KO: 탭 복귀 시 데이터가 없을 때만 전체 재로드합니다.
+      // KO: 데이터가 있으면 목록을 초기화하지 않는 백그라운드 새로고침을 사용합니다.
+      if (state.posts.isEmpty) {
+        unawaited(_reloadForActiveBoard());
+      } else {
+        unawaited(refreshInBackground(minInterval: Duration.zero));
+        unawaited(_loadSubscriptions());
+      }
     });
     _ref.listen<bool>(isAuthenticatedProvider, (_, isAuthenticated) {
       if (!isAuthenticated) {
@@ -236,7 +258,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
         return;
       }
       if (_isRealtimeActive) {
-        unawaited(_connectRealtime());
+        unawaited(_connectRealtimeSafely(origin: 'auth_state_change'));
       }
     });
   }
@@ -277,7 +299,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
   Future<void> startRealtimeSync() async {
     if (_isRealtimeActive) return;
     _isRealtimeActive = true;
-    await _connectRealtime();
+    await _connectRealtimeSafely(origin: 'start_realtime_sync');
   }
 
   /// EN: Stop realtime SSE sync and keep polling fallback only.
@@ -307,14 +329,28 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
       _realtimeSubscription = connection.events.listen(
         _handleRealtimeEvent,
         onError: (Object error, StackTrace stackTrace) {
-          AppLogger.warning(
-            '[CommunityFeed] SSE error; fallback to polling',
-            tag: 'CommunityFeedController',
+          if (_isExpectedStreamDisconnectError(error)) {
+            AppLogger.debug(
+              '[CommunityFeed] SSE disconnected while receiving data',
+              tag: 'CommunityFeedController',
+            );
+          } else {
+            AppLogger.warning(
+              '[CommunityFeed] SSE error; fallback to polling',
+              tag: 'CommunityFeedController',
+              data: error,
+            );
+          }
+          unawaited(
+            _handleRealtimeDisconnectSafely(
+              origin: 'stream_on_error',
+              sourceError: error,
+              sourceStackTrace: stackTrace,
+            ),
           );
-          unawaited(_handleRealtimeDisconnect());
         },
         onDone: () {
-          unawaited(_handleRealtimeDisconnect());
+          unawaited(_handleRealtimeDisconnectSafely(origin: 'stream_on_done'));
         },
         cancelOnError: true,
       );
@@ -373,19 +409,119 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
     _realtimeReconnectTimer?.cancel();
     final delay = _reconnectDelay;
     _realtimeReconnectTimer = Timer(delay, () {
-      unawaited(_connectRealtime());
+      unawaited(_connectRealtimeSafely(origin: 'reconnect_timer'));
     });
     final nextSeconds = (_reconnectDelay.inSeconds * 2).clamp(2, 60);
     _reconnectDelay = Duration(seconds: nextSeconds);
   }
 
   Future<void> _disposeRealtimeConnection() async {
-    await _realtimeSubscription?.cancel();
+    final subscription = _realtimeSubscription;
     _realtimeSubscription = null;
-    if (_realtimeConnection != null) {
-      await _realtimeConnection!.close();
-      _realtimeConnection = null;
+    final connection = _realtimeConnection;
+    _realtimeConnection = null;
+
+    if (subscription != null) {
+      try {
+        await subscription.cancel();
+      } catch (error, stackTrace) {
+        _logRealtimeDisposeFailure(
+          operation: 'subscription.cancel',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
     }
+
+    if (connection != null) {
+      try {
+        await connection.close();
+      } catch (error, stackTrace) {
+        _logRealtimeDisposeFailure(
+          operation: 'connection.close',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+    }
+  }
+
+  Future<void> _connectRealtimeSafely({required String origin}) async {
+    try {
+      await _connectRealtime();
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        '[CommunityFeed] Unexpected realtime connect failure ($origin)',
+        tag: 'CommunityFeedController',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _isRealtimeConnected = false;
+      _scheduleRealtimeReconnect();
+    }
+  }
+
+  Future<void> _handleRealtimeDisconnectSafely({
+    required String origin,
+    Object? sourceError,
+    StackTrace? sourceStackTrace,
+  }) async {
+    try {
+      await _handleRealtimeDisconnect();
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        '[CommunityFeed] Realtime disconnect handler failed ($origin)',
+        tag: 'CommunityFeedController',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (sourceError != null) {
+        AppLogger.debug(
+          '[CommunityFeed] Realtime disconnect source error',
+          tag: 'CommunityFeedController',
+          data: sourceError,
+        );
+      }
+      if (sourceStackTrace != null) {
+        AppLogger.debug(
+          '[CommunityFeed] Realtime disconnect source stack',
+          tag: 'CommunityFeedController',
+          data: sourceStackTrace,
+        );
+      }
+    }
+  }
+
+  bool _isExpectedStreamDisconnectError(Object error) {
+    if (error is http.ClientException) {
+      final message = error.message.toLowerCase();
+      return message.contains('connection closed while receiving data') ||
+          message.contains('connection closed before full header was received');
+    }
+    final raw = error.toString().toLowerCase();
+    return raw.contains('connection closed while receiving data') ||
+        raw.contains('connection closed before full header was received');
+  }
+
+  void _logRealtimeDisposeFailure({
+    required String operation,
+    required Object error,
+    required StackTrace stackTrace,
+  }) {
+    if (_isExpectedStreamDisconnectError(error)) {
+      AppLogger.debug(
+        '[CommunityFeed] Ignored realtime dispose failure: $operation',
+        tag: 'CommunityFeedController',
+        data: error,
+      );
+      return;
+    }
+    AppLogger.error(
+      '[CommunityFeed] Realtime dispose failed: $operation',
+      tag: 'CommunityFeedController',
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
   @override
@@ -498,6 +634,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
           );
         } else if (searchResult is Err<List<PostSummary>> &&
             state.posts.isEmpty) {
+          _handleUnauthorizedFailure(searchResult.failure);
           state = state.copyWith(failure: searchResult.failure);
         }
         return;
@@ -520,16 +657,23 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
                 size: _pageSize,
               );
           if (recommendedResult is Success<PostCursorPage>) {
-            state = state.copyWith(
-              posts: recommendedResult.data.items,
-              searchSourcePosts: const [],
-              page: 0,
-              hasMore: recommendedResult.data.hasNext,
-              nextCursor: recommendedResult.data.nextCursor ?? '',
-              clearFailure: true,
-            );
+            final fresh = recommendedResult.data.items;
+            final newPosts = _findNewPosts(fresh: fresh, current: state.posts);
+            if (newPosts.isNotEmpty) {
+              _accumulatePending(newPosts);
+            } else {
+              state = state.copyWith(
+                posts: fresh,
+                searchSourcePosts: const [],
+                page: 0,
+                hasMore: recommendedResult.data.hasNext,
+                nextCursor: recommendedResult.data.nextCursor ?? '',
+                clearFailure: true,
+              );
+            }
           } else if (recommendedResult is Err<PostCursorPage> &&
               state.posts.isEmpty) {
+            _handleUnauthorizedFailure(recommendedResult.failure);
             state = state.copyWith(failure: recommendedResult.failure);
           }
         case CommunityFeedMode.latest:
@@ -539,18 +683,27 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
             size: _pageSize,
           );
           if (latestResult is Success<PostCursorPage>) {
-            state = state.copyWith(
-              posts: latestResult.data.items,
-              searchSourcePosts: const [],
-              hasMore: latestResult.data.hasNext,
-              nextCursor: latestResult.data.nextCursor ?? '',
-              clearFailure: true,
-            );
+            final fresh = latestResult.data.items;
+            final newPosts = _findNewPosts(fresh: fresh, current: state.posts);
+            if (newPosts.isNotEmpty) {
+              _accumulatePending(newPosts);
+            } else {
+              state = state.copyWith(
+                posts: fresh,
+                searchSourcePosts: const [],
+                hasMore: latestResult.data.hasNext,
+                nextCursor: latestResult.data.nextCursor ?? '',
+                clearFailure: true,
+              );
+            }
           } else if (latestResult is Err<PostCursorPage> &&
               state.posts.isEmpty) {
+            _handleUnauthorizedFailure(latestResult.failure);
             state = state.copyWith(failure: latestResult.failure);
           }
         case CommunityFeedMode.trending:
+          // EN: Trending is rank-ordered, not time-ordered — silent update only.
+          // KO: 트렌딩은 시간순이 아닌 랭킹순이므로 새 글 감지 없이 조용히 갱신합니다.
           final trendingResult = await repository.getTrendingPosts(
             projectCode: projectKey!,
             page: 0,
@@ -568,21 +721,29 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
             );
           } else if (trendingResult is Err<List<PostSummary>> &&
               state.posts.isEmpty) {
+            _handleUnauthorizedFailure(trendingResult.failure);
             state = state.copyWith(failure: trendingResult.failure);
           }
         case CommunityFeedMode.following:
           final followingResult = await repository
               .getCommunityFollowingFeedByCursor(cursor: null, size: _pageSize);
           if (followingResult is Success<PostCursorPage>) {
-            state = state.copyWith(
-              posts: followingResult.data.items,
-              searchSourcePosts: const [],
-              hasMore: followingResult.data.hasNext,
-              nextCursor: followingResult.data.nextCursor ?? '',
-              clearFailure: true,
-            );
+            final fresh = followingResult.data.items;
+            final newPosts = _findNewPosts(fresh: fresh, current: state.posts);
+            if (newPosts.isNotEmpty) {
+              _accumulatePending(newPosts);
+            } else {
+              state = state.copyWith(
+                posts: fresh,
+                searchSourcePosts: const [],
+                hasMore: followingResult.data.hasNext,
+                nextCursor: followingResult.data.nextCursor ?? '',
+                clearFailure: true,
+              );
+            }
           } else if (followingResult is Err<PostCursorPage> &&
               state.posts.isEmpty) {
+            _handleUnauthorizedFailure(followingResult.failure);
             state = state.copyWith(failure: followingResult.failure);
           }
       }
@@ -590,6 +751,47 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
       _lastBackgroundSyncAt = DateTime.now();
       _isBackgroundSyncing = false;
     }
+  }
+
+  /// EN: Apply buffered new posts to the top of the main list and clear the pending buffer.
+  /// KO: 대기 중인 새 글을 메인 목록 상단에 적용하고 버퍼를 비웁니다.
+  void applyPendingPosts() {
+    if (state.pendingNewPosts.isEmpty) return;
+    final pending = state.pendingNewPosts;
+    final currentIds = state.posts.map((p) => p.id).toSet();
+    final unique = pending
+        .where((p) => !currentIds.contains(p.id))
+        .toList(growable: false);
+    state = state.copyWith(
+      posts: [...unique, ...state.posts],
+      pendingNewPosts: const [],
+    );
+  }
+
+  /// EN: Find posts in [fresh] that do not exist in [current] (new arrivals).
+  /// KO: [fresh] 목록에서 [current]에 없는 새 글을 반환합니다.
+  List<PostSummary> _findNewPosts({
+    required List<PostSummary> fresh,
+    required List<PostSummary> current,
+  }) {
+    if (current.isEmpty) return const []; // first load handled by reload()
+    final currentIds = current.map((p) => p.id).toSet();
+    return fresh
+        .where((p) => !currentIds.contains(p.id))
+        .toList(growable: false);
+  }
+
+  /// EN: Accumulate new posts into the pending buffer, deduplicating by ID.
+  /// KO: 새 글을 ID 기준으로 중복 제거하며 대기 버퍼에 쌓습니다.
+  void _accumulatePending(List<PostSummary> newPosts) {
+    final existingIds = state.pendingNewPosts.map((p) => p.id).toSet();
+    final unique = newPosts
+        .where((p) => !existingIds.contains(p.id))
+        .toList(growable: false);
+    if (unique.isEmpty) return;
+    state = state.copyWith(
+      pendingNewPosts: [...unique, ...state.pendingNewPosts],
+    );
   }
 
   Future<void> reload({bool forceRefresh = false}) async {
@@ -602,184 +804,79 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
     _isReloading = true;
     try {
       final projectKey = _ref.read(selectedProjectKeyProvider);
-    final isSearching = state.isSearching;
-    final requiresProjectSelection =
-        isSearching ||
-        state.mode == CommunityFeedMode.latest ||
-        state.mode == CommunityFeedMode.trending;
-    if (requiresProjectSelection &&
-        (projectKey == null || projectKey.isEmpty)) {
-      state = state.copyWith(
-        posts: const [],
-        searchSourcePosts: const [],
-        isInitialLoading: false,
-        hasMore: false,
-        nextCursor: null,
-        page: 0,
-        failure: const AuthFailure(
-          'Project selection required',
-          code: 'project_required',
-        ),
-      );
-      return;
-    }
-    if (!isSearching &&
-        _requiresAuthentication(state.mode) &&
-        !_ref.read(isAuthenticatedProvider)) {
-      state = state.copyWith(
-        posts: const [],
-        searchSourcePosts: const [],
-        isInitialLoading: false,
-        isLoadingMore: false,
-        hasMore: false,
-        nextCursor: null,
-        page: 0,
-        failure: const AuthFailure('Login required', code: 'auth_required'),
-      );
-      return;
-    }
-
-    state = state.copyWith(
-      isInitialLoading: true,
-      isLoadingMore: false,
-      posts: const [],
-      searchSourcePosts: const [],
-      hasMore: false,
-      nextCursor: null,
-      page: 0,
-      clearFailure: true,
-    );
-
-    final repository = await _ref.read(feedRepositoryProvider.future);
-    if (isSearching) {
-      final result = await repository.searchPosts(
-        projectCode: projectKey!,
-        query: state.searchQuery,
-        page: 0,
-        size: _pageSize,
-      );
-      if (result is Success<List<PostSummary>>) {
-        final filtered = _filterSearchResults(
-          sourcePosts: result.data,
-          query: state.searchQuery,
-          scope: state.searchScope,
-        );
-        state = state.copyWith(
-          posts: filtered,
-          searchSourcePosts: result.data,
-          hasMore: false,
-          nextCursor: null,
-          isInitialLoading: false,
-          clearFailure: true,
-        );
-      } else if (result is Err<List<PostSummary>>) {
+      final isSearching = state.isSearching;
+      final requiresProjectSelection =
+          isSearching ||
+          state.mode == CommunityFeedMode.latest ||
+          state.mode == CommunityFeedMode.trending;
+      if (requiresProjectSelection &&
+          (projectKey == null || projectKey.isEmpty)) {
         state = state.copyWith(
           posts: const [],
           searchSourcePosts: const [],
+          isInitialLoading: false,
           hasMore: false,
           nextCursor: null,
-          isInitialLoading: false,
-          failure: result.failure,
+          page: 0,
+          failure: const AuthFailure(
+            'Project selection required',
+            code: 'project_required',
+          ),
         );
+        return;
       }
-      return;
-    }
+      if (!isSearching &&
+          _requiresAuthentication(state.mode) &&
+          !_ref.read(isAuthenticatedProvider)) {
+        state = state.copyWith(
+          posts: const [],
+          searchSourcePosts: const [],
+          isInitialLoading: false,
+          isLoadingMore: false,
+          hasMore: false,
+          nextCursor: null,
+          page: 0,
+          failure: const AuthFailure('Login required', code: 'auth_required'),
+        );
+        return;
+      }
 
-    switch (state.mode) {
-      case CommunityFeedMode.recommended:
-        final result = await repository.getCommunityRecommendedFeedByCursor(
-          cursor: null,
-          size: _pageSize,
-        );
-        if (result is Success<PostCursorPage>) {
-          state = state.copyWith(
-            posts: result.data.items,
-            searchSourcePosts: const [],
-            page: 0,
-            hasMore: result.data.hasNext,
-            nextCursor: result.data.nextCursor ?? '',
-            isInitialLoading: false,
-            clearFailure: true,
-          );
-        } else if (result is Err<PostCursorPage>) {
-          state = state.copyWith(
-            posts: const [],
-            searchSourcePosts: const [],
-            hasMore: false,
-            page: 0,
-            nextCursor: null,
-            isInitialLoading: false,
-            failure: result.failure,
-          );
-        }
-      case CommunityFeedMode.latest:
-        final result = await repository.getPostsByCursor(
+      state = state.copyWith(
+        isInitialLoading: true,
+        isLoadingMore: false,
+        posts: const [],
+        searchSourcePosts: const [],
+        pendingNewPosts: const [],
+        hasMore: false,
+        nextCursor: null,
+        page: 0,
+        clearFailure: true,
+      );
+
+      final repository = await _ref.read(feedRepositoryProvider.future);
+      if (isSearching) {
+        final result = await repository.searchPosts(
           projectCode: projectKey!,
-          cursor: null,
-          size: _pageSize,
-        );
-        if (result is Success<PostCursorPage>) {
-          state = state.copyWith(
-            posts: result.data.items,
-            searchSourcePosts: const [],
-            hasMore: result.data.hasNext,
-            nextCursor: result.data.nextCursor ?? '',
-            isInitialLoading: false,
-            clearFailure: true,
-          );
-        } else if (result is Err<PostCursorPage>) {
-          state = state.copyWith(
-            posts: const [],
-            searchSourcePosts: const [],
-            hasMore: false,
-            nextCursor: null,
-            isInitialLoading: false,
-            failure: result.failure,
-          );
-        }
-      case CommunityFeedMode.trending:
-        final result = await repository.getTrendingPosts(
-          projectCode: projectKey!,
+          query: state.searchQuery,
           page: 0,
           size: _pageSize,
-          forceRefresh: forceRefresh,
         );
         if (result is Success<List<PostSummary>>) {
-          final items = result.data;
+          final filtered = _filterSearchResults(
+            sourcePosts: result.data,
+            query: state.searchQuery,
+            scope: state.searchScope,
+          );
           state = state.copyWith(
-            posts: items,
-            searchSourcePosts: const [],
-            page: 0,
-            hasMore: items.length >= _pageSize,
+            posts: filtered,
+            searchSourcePosts: result.data,
+            hasMore: false,
             nextCursor: null,
             isInitialLoading: false,
             clearFailure: true,
           );
         } else if (result is Err<List<PostSummary>>) {
-          state = state.copyWith(
-            posts: const [],
-            searchSourcePosts: const [],
-            hasMore: false,
-            page: 0,
-            isInitialLoading: false,
-            failure: result.failure,
-          );
-        }
-      case CommunityFeedMode.following:
-        final result = await repository.getCommunityFollowingFeedByCursor(
-          cursor: null,
-          size: _pageSize,
-        );
-        if (result is Success<PostCursorPage>) {
-          state = state.copyWith(
-            posts: result.data.items,
-            searchSourcePosts: const [],
-            hasMore: result.data.hasNext,
-            nextCursor: result.data.nextCursor ?? '',
-            isInitialLoading: false,
-            clearFailure: true,
-          );
-        } else if (result is Err<PostCursorPage>) {
+          _handleUnauthorizedFailure(result.failure);
           state = state.copyWith(
             posts: const [],
             searchSourcePosts: const [],
@@ -789,7 +886,118 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
             failure: result.failure,
           );
         }
-    }
+        return;
+      }
+
+      switch (state.mode) {
+        case CommunityFeedMode.recommended:
+          final result = await repository.getCommunityRecommendedFeedByCursor(
+            cursor: null,
+            size: _pageSize,
+          );
+          if (result is Success<PostCursorPage>) {
+            state = state.copyWith(
+              posts: result.data.items,
+              searchSourcePosts: const [],
+              page: 0,
+              hasMore: result.data.hasNext,
+              nextCursor: result.data.nextCursor ?? '',
+              isInitialLoading: false,
+              clearFailure: true,
+            );
+          } else if (result is Err<PostCursorPage>) {
+            _handleUnauthorizedFailure(result.failure);
+            state = state.copyWith(
+              posts: const [],
+              searchSourcePosts: const [],
+              hasMore: false,
+              page: 0,
+              nextCursor: null,
+              isInitialLoading: false,
+              failure: result.failure,
+            );
+          }
+        case CommunityFeedMode.latest:
+          final result = await repository.getPostsByCursor(
+            projectCode: projectKey!,
+            cursor: null,
+            size: _pageSize,
+          );
+          if (result is Success<PostCursorPage>) {
+            state = state.copyWith(
+              posts: result.data.items,
+              searchSourcePosts: const [],
+              hasMore: result.data.hasNext,
+              nextCursor: result.data.nextCursor ?? '',
+              isInitialLoading: false,
+              clearFailure: true,
+            );
+          } else if (result is Err<PostCursorPage>) {
+            _handleUnauthorizedFailure(result.failure);
+            state = state.copyWith(
+              posts: const [],
+              searchSourcePosts: const [],
+              hasMore: false,
+              nextCursor: null,
+              isInitialLoading: false,
+              failure: result.failure,
+            );
+          }
+        case CommunityFeedMode.trending:
+          final result = await repository.getTrendingPosts(
+            projectCode: projectKey!,
+            page: 0,
+            size: _pageSize,
+            forceRefresh: forceRefresh,
+          );
+          if (result is Success<List<PostSummary>>) {
+            final items = result.data;
+            state = state.copyWith(
+              posts: items,
+              searchSourcePosts: const [],
+              page: 0,
+              hasMore: items.length >= _pageSize,
+              nextCursor: null,
+              isInitialLoading: false,
+              clearFailure: true,
+            );
+          } else if (result is Err<List<PostSummary>>) {
+            _handleUnauthorizedFailure(result.failure);
+            state = state.copyWith(
+              posts: const [],
+              searchSourcePosts: const [],
+              hasMore: false,
+              page: 0,
+              isInitialLoading: false,
+              failure: result.failure,
+            );
+          }
+        case CommunityFeedMode.following:
+          final result = await repository.getCommunityFollowingFeedByCursor(
+            cursor: null,
+            size: _pageSize,
+          );
+          if (result is Success<PostCursorPage>) {
+            state = state.copyWith(
+              posts: result.data.items,
+              searchSourcePosts: const [],
+              hasMore: result.data.hasNext,
+              nextCursor: result.data.nextCursor ?? '',
+              isInitialLoading: false,
+              clearFailure: true,
+            );
+          } else if (result is Err<PostCursorPage>) {
+            _handleUnauthorizedFailure(result.failure);
+            state = state.copyWith(
+              posts: const [],
+              searchSourcePosts: const [],
+              hasMore: false,
+              nextCursor: null,
+              isInitialLoading: false,
+              failure: result.failure,
+            );
+          }
+      }
     } finally {
       _isReloading = false;
     }
@@ -859,6 +1067,7 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
             clearFailure: true,
           );
         } else if (result is Err<List<PostSummary>>) {
+          _handleUnauthorizedFailure(result.failure);
           state = state.copyWith(isLoadingMore: false, failure: result.failure);
         }
       case CommunityFeedMode.following:
@@ -884,6 +1093,13 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
     if (!_isBoardTabActive(_ref)) {
       return;
     }
+    if (!_ref.read(isAuthenticatedProvider)) {
+      state = state.copyWith(
+        subscriptions: const <ProjectSubscriptionSummary>[],
+        isSubscriptionsLoading: false,
+      );
+      return;
+    }
     state = state.copyWith(isSubscriptionsLoading: true);
     final repository = await _ref.read(feedRepositoryProvider.future);
     final result = await repository.getCommunitySubscriptions(
@@ -897,6 +1113,9 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
         isSubscriptionsLoading: false,
       );
     } else {
+      if (result is Err<List<ProjectSubscriptionSummary>>) {
+        _handleUnauthorizedFailure(result.failure);
+      }
       state = state.copyWith(isSubscriptionsLoading: false);
     }
   }
@@ -913,8 +1132,25 @@ class CommunityFeedController extends StateNotifier<CommunityFeedViewState> {
         clearFailure: true,
       );
     } else if (result is Err<PostCursorPage>) {
+      _handleUnauthorizedFailure(result.failure);
       state = state.copyWith(isLoadingMore: false, failure: result.failure);
     }
+  }
+
+  bool _isUnauthorizedFailure(Failure failure) {
+    if (failure is! AuthFailure) {
+      return false;
+    }
+    final code = failure.code?.trim().toLowerCase();
+    return code == '401' || code == 'auth_required';
+  }
+
+  void _handleUnauthorizedFailure(Failure failure) {
+    if (!_isUnauthorizedFailure(failure)) {
+      return;
+    }
+    _ref.read(authStateProvider.notifier).setUnauthenticated();
+    unawaited(stopRealtimeSync());
   }
 
   List<PostSummary> _filterSearchResults({

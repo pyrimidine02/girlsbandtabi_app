@@ -15,4 +15,7 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+    <!-- EN: Dedicated cropper theme used by image_cropper's UCropActivity. -->
+    <!-- KO: image_cropper의 UCropActivity에서 사용하는 전용 크롭 테마입니다. -->
+    <style name="Ucrop.CropTheme" parent="Theme.AppCompat.Light.NoActionBar" />
 </resources>

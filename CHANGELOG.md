@@ -1,5 +1,514 @@
 # Changelog
 
+## 2026-03-31
+- **IOS NATIVE-ASSET OBJECTIVE_C LOAD FIX (simulator/device runtime crash)**:
+  - iOS 런타임에서 `objective_c.framework/objective_c` 로딩 실패로
+    `DOBJC_initializeApi` 예외가 반복 발생하던 문제를 수정했습니다.
+  - 원인:
+    - `NativeAssetsManifest.json`가 `objective_c` 엔트리를
+      런타임 로더가 직접 해석하기 어려운 경로 형태로 포함.
+  - 수정:
+    - iOS `Thin Binary` 단계에서 native-assets 매니페스트를 후처리해
+      `@executable_path/Frameworks/objective_c.framework/objective_c` 경로로 보정.
+    - 기존 dSYM 생성 스크립트 호출 전에 보정 스크립트를 실행하도록
+      Xcode build phase를 연결.
+  - Added:
+    - `ios/scripts/fix_native_assets_manifest.sh`
+  - Updated:
+    - `ios/Runner.xcodeproj/project.pbxproj`
+  - Validation:
+    - `sh -n ios/scripts/fix_native_assets_manifest.sh` ✅
+    - `plutil -lint ios/Runner.xcodeproj/project.pbxproj` ✅
+    - `flutter build ios --simulator --debug` ✅
+    - built manifest check:
+      `build/ios/iphonesimulator/Runner.app/Frameworks/App.framework/flutter_assets/NativeAssetsManifest.json` 에서 objective_c 경로가
+      `@executable_path/Frameworks/objective_c.framework/objective_c`로 반영됨 ✅
+
+- **COMMUNITY COMPOSE FAB LOWER ALIGNMENT (iOS + Android)**:
+  - 커뮤니티 새글 FAB가 하단바 대비 과도하게 위에 보이던 배치를 조정했습니다.
+  - FAB 하단 패딩 계산식을 재튜닝해
+    `subNavVisualHeight(72) + subNavBottomInset(10) + desiredGap(5) - endFloatDefaultMargin(16) + scaledVisualLiftCompensation`
+    기준으로 통일했습니다.
+  - iPhone 17 Pro Max에서 맞춘 기준값(`screenHeight=932 -> +38dp`)을 유지하면서
+    다른 기기에서는 화면 높이에 비례해 보정값을 자동 스케일(`28..48dp clamp`)
+    하도록 변경해 위치 비율 일관성을 높였습니다.
+  - `FloatingActionButtonLocation.endFloat`가 이미 반영하는 하단 안전영역/기본 마진을
+    계산식에서 중복 반영하지 않도록 정리해,
+    iOS/Android 모두 하단바에 거의 붙은 "살짝 위" 위치로 내려왔습니다.
+  - Updated:
+    - `lib/features/feed/presentation/widgets/community_fab_layout.dart`
+    - `lib/features/feed/presentation/pages/feed_page.dart`
+    - `lib/features/feed/presentation/pages/board_page.dart`
+    - `test/features/feed/presentation/widgets/community_fab_layout_test.dart`
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/widgets/community_fab_layout.dart lib/features/feed/presentation/pages/feed_page.dart lib/features/feed/presentation/pages/board_page.dart test/features/feed/presentation/widgets/community_fab_layout_test.dart` ✅
+    - `flutter test test/features/feed/presentation/widgets/community_fab_layout_test.dart` ✅
+
+- **GIF UPLOAD ROUTING FIX (mobile -> direct upload endpoint)**:
+  - GIF 업로드가 `POST /api/v1/uploads/presigned-url`로 라우팅되어
+    서버에서 `INVALID_REQUEST`(Image uploads must use direct upload endpoint)
+    를 반환하던 문제를 수정했습니다.
+  - 업로드 라우팅 정책을 명시적으로 분리해
+    `image/*` MIME은 모두 direct multipart 업로드를 사용하도록 통일했습니다.
+  - `UploadsController`에서 GIF 예외 presigned 분기를 제거하고
+    이미지 MIME 전체를 direct 경로로 처리하도록 변경했습니다.
+  - Added:
+    - `lib/features/uploads/application/upload_routing_policy.dart` (신규)
+    - `test/features/uploads/application/upload_routing_policy_test.dart` (신규)
+    - `test/features/uploads/application/uploads_controller_test.dart` (신규)
+  - Updated:
+    - `lib/features/uploads/application/uploads_controller.dart`
+  - Validation:
+    - `flutter test test/features/uploads/application/upload_routing_policy_test.dart test/features/uploads/application/uploads_controller_test.dart` ✅
+    - `flutter analyze lib/features/uploads/application/upload_routing_policy.dart lib/features/uploads/application/uploads_controller.dart test/features/uploads/application/upload_routing_policy_test.dart test/features/uploads/application/uploads_controller_test.dart` ✅
+
+- **COMMUNITY COMPOSE FAB TAP/OVERLAP FIX (iOS + Android)**:
+  - 커뮤니티 탭의 글 작성 FAB를 `Transform.translate` 기반 이동에서
+    `bottom padding` 기반 배치로 전환해 iOS 탭 무반응 이슈를 해결했습니다.
+  - Android에서 커뮤니티/메인 하단바에 FAB가 가려지던 문제를
+    동일한 계산식(`safeArea + nav reserved + platform clearance`)으로 보정했습니다.
+  - 공통 계산 유틸 `resolveCommunityFabBottomPadding`을 추가해
+    `BoardPage`와 `FeedPage` FAB 배치를 일관되게 통일했습니다.
+  - Updated:
+    - `lib/features/feed/presentation/widgets/community_fab_layout.dart` (신규)
+    - `lib/features/feed/presentation/pages/board_page.dart`
+    - `lib/features/feed/presentation/pages/feed_page.dart`
+    - `test/features/feed/presentation/widgets/community_fab_layout_test.dart` (신규)
+  - Validation:
+    - `flutter test test/features/feed/presentation/widgets/community_fab_layout_test.dart` ✅
+    - `flutter analyze lib/features/feed/presentation/pages/board_page.dart lib/features/feed/presentation/pages/feed_page.dart lib/features/feed/presentation/widgets/community_fab_layout.dart test/features/feed/presentation/widgets/community_fab_layout_test.dart` ✅
+
+- **CLIENT REQUEST GUARD HARDENING (400/401 noise reduction)**:
+  - 업로드 요청 전 클라이언트 검증을 추가해 invalid 파라미터 요청을 사전 차단했습니다.
+    - `filename` 비어있음 차단
+    - `size <= 0` 차단
+    - `contentType` 형식 검증
+    - `contentType` trim/lowercase 정규화 (`Image/JPEG` → `image/jpeg`)
+  - 인증 실패(401 / `auth_required`) 감지 시 주요 컨트롤러에서 인증 상태를
+    즉시 미인증으로 전환해 불필요한 반복 요청을 억제했습니다.
+    - `HomeController` 홈 요약 호출 가드
+    - `CommunityFeedController` 피드/구독 폴링 가드
+    - `NotificationsController` 알림 폴링/SSE 가드
+    - `MandatoryConsentController`, `UserProfileController` 가드
+  - Updated:
+    - `lib/features/uploads/application/uploads_controller.dart`
+    - `lib/features/home/application/home_controller.dart`
+    - `lib/features/feed/application/board_controller.dart`
+    - `lib/features/notifications/application/notifications_controller.dart`
+    - `lib/features/settings/application/mandatory_consent_controller.dart`
+    - `lib/features/settings/application/settings_controller.dart`
+    - `test/features/uploads/application/uploads_controller_test.dart`
+  - Validation:
+    - `flutter test test/features/uploads/application/uploads_controller_test.dart test/features/settings/application/settings_controller_test.dart test/core/notifications/remote_push_service_test.dart` ✅
+    - `flutter analyze lib/features/uploads/application/uploads_controller.dart test/features/uploads/application/uploads_controller_test.dart lib/features/home/application/home_controller.dart lib/features/feed/application/board_controller.dart lib/features/notifications/application/notifications_controller.dart lib/features/settings/application/mandatory_consent_controller.dart lib/features/settings/application/settings_controller.dart` ✅
+
+## 2026-03-30
+- **SOCIAL NOTIFICATION DELIVERY HARDENING (follow post / my post comment / my comment reply)**:
+  - 팔로우 유저 신규글, 내 글 신규 댓글, 내 댓글 답글 알림이 누락될 수 있는
+    타입/이벤트 매핑 경로를 보강했습니다.
+  - `normalizeNotificationType`에 소셜 알림 별칭을 확장했습니다.
+    - `FOLLOWING_POST_CREATED` 계열 → `POST_CREATED`
+    - `POST_COMMENT_CREATED`, `MY_POST_COMMENT_CREATED` 계열 → `COMMENT_CREATED`
+    - `POST_COMMENT_REPLY_CREATED`, `MY_COMMENT_REPLY_CREATED` 계열 → `COMMENT_REPLY_CREATED`
+  - SSE 이벤트 필터를 확장해 `following_post`, `post_comment`, `comment_reply`
+    계열 이벤트도 알림 동기화 대상으로 처리합니다.
+  - 푸시/알림 DTO 파싱에서 `eventType`을 타입 fallback으로 수용해
+    백엔드 payload 키 편차로 인한 누락을 줄였습니다.
+  - 알림 카테고리 정규화에서 소셜 타입 별칭을
+    `FOLLOWING_POST`/`COMMENT`로 canonicalize 하도록 보강했습니다.
+  - Updated:
+    - `lib/features/notifications/domain/entities/notification_navigation.dart`
+    - `lib/features/notifications/application/notifications_controller.dart`
+    - `lib/core/notifications/remote_push_service.dart`
+    - `lib/features/notifications/data/dto/notification_dto.dart`
+    - `lib/features/settings/data/dto/notification_settings_dto.dart`
+    - `test/features/notifications/domain/notification_navigation_test.dart`
+    - `test/features/notifications/data/notification_dto_test.dart`
+    - `test/features/settings/data/notification_settings_dto_test.dart`
+  - Validation:
+    - `flutter test test/features/notifications/domain/notification_navigation_test.dart test/features/notifications/data/notification_dto_test.dart test/features/settings/data/notification_settings_dto_test.dart` ✅
+    - `flutter analyze lib/features/notifications/domain/entities/notification_navigation.dart lib/features/notifications/application/notifications_controller.dart lib/features/notifications/data/dto/notification_dto.dart lib/core/notifications/remote_push_service.dart lib/features/settings/data/dto/notification_settings_dto.dart test/features/notifications/domain/notification_navigation_test.dart test/features/notifications/data/notification_dto_test.dart test/features/settings/data/notification_settings_dto_test.dart` ✅
+
+- **ANDROID-ONLY MATERIAL 3 VISUAL POLISH (iOS design preserved)**:
+  - iOS 디자인은 유지하고 Android에서만 네비게이션/프로필 UI를
+    Material 3 톤으로 보강했습니다.
+  - Android 하단 네비게이션(`NavigationBar`)에 라운드 컨테이너, 톤드 surface,
+    선택 상태 대비, 미세 그림자 계층을 적용했습니다.
+  - 커뮤니티 서브 하단바(피드/발견/여행후기)도 동일한 Android 디자인 언어로 통일했습니다.
+  - 프로필 페이지는 Android에서만 다음을 강화했습니다:
+    - 헤더 뒤로가기 버튼 대비/터치 영역 개선
+    - `프로필 수정/칭호`, `팔로우/차단` 버튼 최소 높이 및 패딩 확장
+    - 스티키 탭바 스크롤 시 elevation 계층 부여
+    - 닉네임/메타/활동 섹션 간격 리듬 및 텍스트 가독성 상향
+    - 팔로워/팔로잉 터치 영역을 `InkWell` 기반으로 변경
+  - `GBTSegmentedTabBar`에 Android 전용 overlay state/indicator 대비/라운드/패딩을
+    적용해 탭 상호작용의 Material 감각을 강화했습니다.
+  - Updated:
+    - `lib/core/widgets/navigation/gbt_bottom_nav.dart`
+    - `lib/shared/main_scaffold.dart`
+    - `lib/features/feed/presentation/pages/user_profile_page.dart`
+    - `lib/core/widgets/navigation/gbt_segmented_tab_bar.dart`
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/user_profile_page.dart lib/core/widgets/navigation/gbt_segmented_tab_bar.dart lib/core/widgets/navigation/gbt_bottom_nav.dart lib/shared/main_scaffold.dart` ✅
+
+- **ANDROID PROFILE IMAGE CROPPING STABILITY (in-app cropper fallback)**:
+  - Android 프로필 사진/커버 편집에서 네이티브 `image_cropper` Activity 경로 대신
+    Flutter 위젯 기반 인앱 크롭 UI(`crop_your_image`)를 사용하도록 변경했습니다.
+  - iOS 및 기타 플랫폼은 기존 `image_cropper` 경로를 유지해
+    플랫폼별 UX 차이를 최소화했습니다.
+  - 크롭 결과는 임시 파일로 저장한 뒤 기존 업로드 파이프라인(WebP 변환/업로드)을
+    재사용하도록 구성했습니다.
+  - Updated:
+    - `pubspec.yaml`
+    - `pubspec.lock`
+    - `lib/features/settings/presentation/pages/profile_edit_page.dart`
+  - Validation:
+    - `flutter analyze lib/features/settings/presentation/pages/profile_edit_page.dart` ✅
+
+- **CACHE TIERING + SENSITIVE LOCAL STORAGE HARDENING**:
+  - `CacheManager`에 bounded L1 in-memory payload cache를 추가했습니다.
+    - 기본 용량: 300 entries (`memoryCacheCapacity`로 주입 가능)
+    - `getJsonEntry`는 메모리 우선 조회, `setJson/remove/removeByPrefix/clearAll`은
+      메모리 캐시와 LocalStorage를 함께 동기화/정리하도록 보강했습니다.
+  - 작성 임시저장(`PostComposeDraftStore`)에 보관 기간 정책을 추가했습니다.
+    - `read()` 시 만료 draft는 자동 삭제 후 `null` 반환
+    - 기본 보관 기간은 30일이며 테스트에서 `retention/now` 주입 가능
+  - 로그아웃 시 작성/수정 draft 키 prefix를 스캔해 임시저장 잔존 데이터를
+    함께 정리하도록 보강했습니다.
+    - `feed_post_create_draft_*`, `feed_post_edit_draft_*`
+  - 푸시 등록 식별자(`deviceId`, `pushToken`)를 SecureStorage 우선으로 이관했습니다.
+    - `RemotePushService`/`NotificationSettingsController`에서 secure-first 조회
+    - legacy LocalStorage 값은 fallback/migration 처리 후 정리
+    - 등록 해제 성공/404 시 secure + legacy 키를 모두 제거
+  - Updated:
+    - `lib/core/cache/cache_manager.dart`
+    - `test/core/cache/cache_manager_test.dart`
+    - `lib/features/feed/application/post_compose_draft_store.dart`
+    - `test/features/feed/application/post_compose_draft_store_test.dart`
+    - `lib/features/auth/application/auth_controller.dart`
+    - `lib/core/security/secure_storage.dart`
+    - `lib/core/notifications/remote_push_service.dart`
+    - `lib/core/providers/core_providers.dart`
+    - `lib/features/settings/application/settings_controller.dart`
+    - `test/core/notifications/remote_push_service_test.dart` (신규)
+    - `test/features/settings/application/settings_controller_test.dart`
+  - Validation:
+    - `flutter test test/core/cache/cache_manager_test.dart test/features/feed/application/post_compose_draft_store_test.dart test/core/notifications/remote_push_service_test.dart test/features/settings/application/settings_controller_test.dart test/features/feed/application/post_compose_autosave_controller_test.dart test/features/feed/presentation/pages/post_compose_autosave_integration_test.dart` ✅
+    - `flutter analyze lib/core/cache/cache_manager.dart test/core/cache/cache_manager_test.dart lib/features/feed/application/post_compose_draft_store.dart test/features/feed/application/post_compose_draft_store_test.dart lib/features/auth/application/auth_controller.dart lib/core/security/secure_storage.dart lib/core/notifications/remote_push_service.dart lib/core/providers/core_providers.dart lib/features/settings/application/settings_controller.dart test/core/notifications/remote_push_service_test.dart test/features/settings/application/settings_controller_test.dart` ✅
+
+- **MY SUB-PAGE APPBAR STANDARDIZATION + FAN LEVEL SCORE ACTION VISIBILITY**:
+  - `정보/유저` 탭 상단바 기준(플랫, no elevation, titleMedium weight 700)을
+    재사용 가능한 공통 헬퍼 `gbtStandardAppBar`로 분리했습니다.
+  - `나의 덕력`, `성지순례 도감`, `응원 가이드`, `명대사 카드`, `즐겨찾기`,
+    `북마크한 글`, `방문 기록`, `방문 통계`, `칭호 관리`, `이벤트 캘린더`
+    페이지 AppBar를 기준 디자인으로 통일했습니다.
+  - `FanLevelPage`에 `점수 부여 행위 전체` 섹션을 추가해
+    점수 부여 대상 행위를 한 화면에서 모두 확인할 수 있도록 했습니다.
+  - `FanLevelPage`의 히스토리 섹션을 `점수 획득 내역`으로 명확히 분리하고,
+    `xpEarned > 0`인 항목만 표시하도록 정리했습니다.
+  - 팬 레벨 화면 회귀 방지를 위해 위젯 테스트를 추가했습니다.
+  - Updated:
+    - `lib/core/widgets/navigation/gbt_standard_app_bar.dart` (신규)
+    - `lib/features/fan_level/presentation/pages/fan_level_page.dart`
+    - `lib/features/zukan/presentation/pages/zukan_page.dart`
+    - `lib/features/zukan/presentation/pages/zukan_detail_page.dart`
+    - `lib/features/cheer_guides/presentation/pages/cheer_guides_page.dart`
+    - `lib/features/cheer_guides/presentation/pages/cheer_guide_detail_page.dart`
+    - `lib/features/quotes/presentation/pages/quotes_page.dart`
+    - `lib/features/favorites/presentation/pages/favorites_page.dart`
+    - `lib/features/feed/presentation/pages/post_bookmarks_page.dart`
+    - `lib/features/visits/presentation/pages/visit_history_page.dart`
+    - `lib/features/visits/presentation/pages/visit_stats_page.dart`
+    - `lib/features/titles/presentation/pages/title_catalog_page.dart`
+    - `lib/features/calendar/presentation/pages/calendar_page.dart`
+    - `test/features/fan_level/presentation/fan_level_page_test.dart` (신규)
+  - Validation:
+    - `flutter analyze lib/core/widgets/navigation/gbt_standard_app_bar.dart lib/features/fan_level/presentation/pages/fan_level_page.dart lib/features/zukan/presentation/pages/zukan_page.dart lib/features/zukan/presentation/pages/zukan_detail_page.dart lib/features/cheer_guides/presentation/pages/cheer_guides_page.dart lib/features/cheer_guides/presentation/pages/cheer_guide_detail_page.dart lib/features/quotes/presentation/pages/quotes_page.dart lib/features/favorites/presentation/pages/favorites_page.dart lib/features/feed/presentation/pages/post_bookmarks_page.dart lib/features/visits/presentation/pages/visit_history_page.dart lib/features/visits/presentation/pages/visit_stats_page.dart lib/features/titles/presentation/pages/title_catalog_page.dart lib/features/calendar/presentation/pages/calendar_page.dart` ✅
+    - `flutter analyze test/features/fan_level/presentation/fan_level_page_test.dart` ✅
+    - `flutter test test/features/fan_level/presentation/fan_level_page_test.dart` ✅
+
+- **NEWS CONTROLLER DISPOSE SAFETY (Crashlytics bad state fix)**:
+  - `NewsListController.load`와 `NewsDetailController.load`에 `mounted` 가드를 추가해,
+    auto-dispose 이후 비동기 응답 완료 시 `state`를 갱신하지 않도록 수정했습니다.
+  - 재현 시나리오(요청 시작 후 dispose, 이후 응답 완료)를 단위 테스트로 고정했습니다.
+  - Updated:
+    - `lib/features/feed/application/news_controller.dart`
+    - `test/features/feed/application/news_controller_test.dart` (신규)
+  - Validation:
+    - `flutter test test/features/feed/application/news_controller_test.dart` ✅
+    - `flutter analyze lib/features/feed/application/news_controller.dart test/features/feed/application/news_controller_test.dart` ✅
+
+- **EXPLORE MAP TOP READABILITY BLUR LAYER**:
+  - 탐방 지도 화면 상단에 약한 블러 + 그라데이션 스크림 오버레이를 추가해
+    상태바 시간/아이콘과 최상단 컨트롤 가독성을 높였습니다.
+  - 오버레이는 지도 전체가 아닌 상단 영역만 적용되며,
+    후속 튜닝으로 플랫폼별 범위를 분리했습니다:
+    - iOS: 노치/다이나믹 아일랜드 높이(`safe area top`)만 블러.
+    - Android: 검색창 바로 위 얇은 스트립(검색창↔알약칩 간격 기준)만 블러.
+  - 플랫폼 뷰 제약으로 블러 효과가 제한되는 경우에도
+    스크림 그라데이션으로 대비를 보정하도록 구성했습니다.
+  - Updated:
+    - `lib/features/places/presentation/pages/places_map_page.dart`
+  - Validation:
+    - `flutter analyze lib/features/places/presentation/pages/places_map_page.dart lib/features/explore/presentation/pages/explore_page.dart` ✅
+    - `flutter test test/features/places/application/places_controller_test.dart` ✅
+
+- **EXPLORE MAP EDGE-TO-EDGE FILL**:
+  - 탐방 탭 루트(`ExplorePage`)의 상단 `SafeArea` 래핑을 제거해
+    지도 서브탭이 상태바 영역까지 꽉 차게 렌더되도록 조정했습니다.
+  - `TabBarView`에 주입하는 `MediaQuery.padding`은 상단 값을 보존하고,
+    하단은 모드 pill 오버레이 높이(`_modeBarHeight`)만 추가하도록 변경했습니다.
+  - 이 변경으로 지도 화면의 상단 빈 여백이 줄어들고,
+    `LiveEvents/VisitHistory/Zukan` 서브탭은 기존 `AppBar` 기반
+    안전영역 처리를 그대로 유지합니다.
+  - Updated:
+    - `lib/features/explore/presentation/pages/explore_page.dart`
+  - Validation:
+    - `flutter analyze lib/features/explore/presentation/pages/explore_page.dart lib/features/places/presentation/pages/places_map_page.dart` ✅
+    - `flutter test test/features/places/application/places_controller_test.dart` ✅
+
+- **HOME TOP HEADER READABILITY IMPROVEMENT**:
+  - 홈 상단(AppBar)에서 스크롤 전/후 상태에 맞춰 타이틀·아이콘 대비를
+    명시적으로 고정해, 배경 이미지/그라디언트 위에서도 가독성이 유지되도록 조정했습니다.
+  - 상단 상태바 아이콘 가독성을 위해 `systemOverlayStyle`을 스크롤 상태에 따라
+    동적으로 적용했습니다.
+  - 홈 인사말 헤더의 title/subtitle에 그림자(shadow)를 추가하고,
+    오버레이/featured live 칩 대비를 소폭 강화해 밝은 배경에서도 텍스트 판독성을 높였습니다.
+  - AppBar 공용 아이콘 버튼(`GBTAppBarIconButton`)에 색상 오버라이드 옵션을 추가했습니다.
+  - 프로필 액션(`GBTProfileAction`)의 플레이스홀더 색상 오버라이드 옵션을 추가했습니다.
+  - Updated:
+    - `lib/features/home/presentation/pages/home_page.dart`
+    - `lib/core/widgets/layout/gbt_greeting_header.dart`
+    - `lib/core/widgets/navigation/gbt_app_bar_icon_button.dart`
+    - `lib/core/widgets/navigation/gbt_profile_action.dart`
+  - Validation:
+    - `flutter analyze lib/features/home/presentation/pages/home_page.dart lib/core/widgets/layout/gbt_greeting_header.dart lib/core/widgets/navigation/gbt_app_bar_icon_button.dart lib/core/widgets/navigation/gbt_profile_action.dart` ✅
+
+- **USER PROFILE HEADER VISUAL REFRESH + ACTIVITY STATS REDESIGN**:
+  - 상단 AppBar 타이틀(내 프로필/닉네임)을 제거하고 커버 집중형 헤더로 정리했습니다.
+  - 뒤로가기 버튼에 원형 반투명 배경/테두리를 추가해 커버 이미지 위 가독성을 높였습니다.
+  - `user_profile_page.dart`에서 아바타 래퍼(배경/테두리/그림자)를 제거해
+    프로필 사진이 오버레이에 가려지지 않도록 변경했습니다.
+  - 아바타를 커버 하단 전환 밴드 위에 배치해 커버/본문에 반씩 걸쳐 보이도록 조정했습니다.
+  - 프로필 이름과 활성 칭호를 세로 배치에서 가로 인라인 배치(이름 옆 칭호)로 변경했습니다.
+  - 활동 통계 UI를 3열 단색 셀에서 2열 그라데이션 카드 패널로 전면 리디자인했습니다.
+  - 프로필 사진/커버 이미지를 탭하면 풀스크린 확대 뷰어가 열리도록 추가했습니다.
+  - 확대 뷰어에는 다운로드 액션을 넣지 않아 이미지 저장 기능이 노출되지 않습니다.
+  - 커버 이미지는 `BoxFit.cover`에서 `BoxFit.contain`으로 변경해
+    잘림 없이 원본 전체가 보이도록 조정했습니다.
+  - 하단 `작성한 글`/`작성한 댓글` 목록 카드도 활동 통계와 동일한
+    그라데이션 카드 톤으로 재디자인했습니다.
+  - 커버 헤더 높이를 `236 -> 280`으로 확장해 커버 이미지 가시 영역을 넓혔습니다.
+  - `프로필 수정/칭호` 액션을 커버-본문 흰 경계 바로 아래(우측 상단)로 재배치했습니다.
+  - 닉네임/가입일/소개 정보는 아바타 바로 아래에서 시작되도록
+    프로필 정보 섹션의 상단 간격을 압축했습니다.
+  - 하단 `덕력/성지 기록/라이브 기록` 숏컷도 통계/목록 카드 톤과 맞춘
+    3열 카드형 스타일로 통일했습니다.
+  - 기존 헤더 레이아웃 간격/액션 정렬 유지를 위해 아바타 반경은
+    `_kAvatarRadius + _kAvatarBorder`로 적용했습니다.
+  - Updated:
+    - `lib/features/feed/presentation/pages/user_profile_page.dart`
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/user_profile_page.dart` ✅
+
+## 2026-03-29
+- **FAN LEVEL PAGE ENTRY ANIMATION**: `_FanLevelContentState.build()` 내 ListView children을 `GBTPageReveal`로 감싸 데이터 로드 후 등급 카드·활동 목록이 순차 슬라이드업 + 페이드인 애니메이션으로 진입합니다.
+  - Updated: `lib/features/fan_level/presentation/pages/fan_level_page.dart`
+
+- **HERO TRANSITION — iOS SWIPE-BACK GESTURE SUPPORT**: 장소 카드·이벤트 카드 → 상세 페이지 Hero 전환에 `transitionOnUserGestures: true` 추가.
+  - `GBTPlaceCard` Hero: `lib/core/widgets/cards/gbt_place_card.dart`
+  - `_PhotoGallery` Hero (단일·다중 모두): `lib/features/places/presentation/pages/place_detail_page.dart`
+  - `GBTEventCard` + `GBTFeaturedEventCard` Hero: `lib/core/widgets/cards/gbt_event_card.dart`
+  - `LiveEventDetailPage` banner Hero: `lib/features/live_events/presentation/pages/live_event_detail_page.dart`
+
+- **MY PAGE CALENDAR WIDE BANNER + EXPLORE PILL SAFE AREA & ACCESSIBILITY**:
+  - `my_page.dart`: "탐방 & 계획" 섹션의 Calendar `ActionCell`을 독립 와이드 배너 카드로 분리.
+    - `GBTPressable` + `GBTDecorations.card` 기반 full-width Row 레이아웃.
+    - 아이콘/제목/부제목/chevron 구성. `Semantics(button: true, label: ...)` 접근성 강화.
+    - 기존 2-column Row에서 Calendar 제거 후 방문기록 셀을 단독 full-width `ActionCell`로 재배치.
+    - Import 추가: `gbt_decorations.dart`, `gbt_pressable.dart`.
+  - `explore_page.dart`:
+    - `_ExploreModePill` `Positioned(bottom: 0)` → `bottom: mq.padding.bottom + 8` 으로 수정.
+      홈 인디케이터/제스처 내비 영역 위에 pill이 표시되도록 SafeArea 오프셋 반영.
+    - 각 모드 pill `Semantics(label: ...)` 강화: `'${label} 탭${isSelected ? ', 현재 선택됨' : ''}'`.
+  - Updated:
+    - `lib/features/my/presentation/pages/my_page.dart`
+    - `lib/features/explore/presentation/pages/explore_page.dart`
+
+## 2026-03-26
+- **USER PROFILE PAGE ACTIVITY OVERVIEW + COVER CROP VISIBILITY IMPROVEMENT**:
+  - 커뮤니티 프로필 페이지(내 프로필/타인 프로필)에 활동 요약 섹션을 추가했습니다.
+    - 표시 항목:
+      - XP
+      - 레벨
+      - 방문 성지 수
+      - 방문 라이브 수
+      - 작성 글 수
+      - 작성 댓글 수
+  - 내 프로필일 때는 앱 내부 데이터 소스를 연동해 값 정확도를 높였습니다.
+    - XP/레벨: `fanLevelControllerProvider`
+    - 방문 성지 수: `userRankingProvider`
+    - 방문 라이브 수: `liveAttendanceHistoryControllerProvider`
+  - 타인 프로필은 공개 프로필 응답에 통계 필드가 있을 때 표시하고,
+    없으면 `-`로 안전 폴백하도록 처리했습니다.
+  - 커버 이미지 과도 크롭 체감 완화를 위해 커버 표시 방식을 고정 높이에서
+    `16:9 AspectRatio`로 전환해, 편집 크롭 비율과 실제 표시 비율을 일치시켰습니다.
+  - 커버 이미지 크롭/업로드 최대 해상도를 `2560x1440`으로 상향해
+    크게 표시해도 품질 저하가 덜하도록 조정했습니다.
+  - 내 프로필에는 활동 진입 숏컷 칩(덕력/성지 기록/라이브 기록)을 추가했습니다.
+  - Updated:
+    - `lib/core/constants/profile_media_constants.dart` (신규)
+    - `lib/features/feed/presentation/pages/user_profile_page.dart`
+    - `lib/features/settings/presentation/pages/profile_edit_page.dart`
+    - `lib/features/settings/data/dto/user_profile_dto.dart`
+    - `lib/features/settings/domain/entities/user_profile.dart`
+    - `test/features/settings/data/user_profile_dto_test.dart`
+  - Validation:
+    - `flutter analyze lib/features/feed/presentation/pages/user_profile_page.dart lib/features/settings/data/dto/user_profile_dto.dart lib/features/settings/domain/entities/user_profile.dart test/features/settings/data/user_profile_dto_test.dart` ✅
+    - `flutter test test/features/settings/data/user_profile_dto_test.dart` ✅
+  - Backend contract alignment (users endpoints):
+    - `/api/v1/users/me`, `/api/v1/users/{userId}` 응답의 canonical 필드(`id` + 8개 통계 필드) 파싱을
+      회귀 테스트로 고정했습니다.
+    - 기본값 시나리오(`0`, `fanLevel=1`, `fanGrade="일반인"`)를 테스트에 포함했습니다.
+
+- **ANDROID IMAGE_CROPPER REPLY-ALREADY-SUBMITTED CRASH GUARD**:
+  - Samsung 단말에서 집계된 아래 크래시 시그니처를 완화했습니다.
+    - `IllegalStateException: Reply already submitted`
+    - `vn.hunghd.flutter.plugins.imagecropper.ImageCropperDelegate.onActivityResult`
+  - 원인:
+    - `image_cropper` 9.1.0 Android delegate가 `MethodChannel.Result`를
+      단일 응답으로 강제하지 못하는 경로가 있어, 특정 라이프사이클/예외 타이밍에서
+      중복 reply가 발생하면 프로세스가 종료될 수 있었습니다.
+  - 수정:
+    - `image_cropper`를 로컬 패치 패키지로 오버라이드(`third_party/image_cropper`).
+    - Android `ImageCropperDelegate`에 단일 pending 작업 가드 추가.
+    - `startActivityForResult` 예외를 안전하게 `error` 응답으로 마감.
+    - `safeReplySuccess/Error`를 추가해 `IllegalStateException`을 방어 처리.
+    - 프로필 편집 화면에서 이미지 변경 플로우 재진입(중복 탭) 방지 상태 가드 추가.
+    - Samsung Android 단말에서는 네이티브 크롭 액티비티를 임시 우회하고
+      원본 선택 이미지로 업로드하도록 fallback 추가(크래시 우선 차단).
+  - Updated:
+    - `pubspec.yaml`
+    - `pubspec.lock`
+    - `lib/features/settings/presentation/pages/profile_edit_page.dart`
+    - `third_party/image_cropper/**` (신규)
+  - Validation:
+    - `flutter analyze` ✅
+    - `flutter test` ✅
+
+- **ANDROID IMAGE_CROPPER ACTIVITYNOTFOUND FIX (UCropActivity declaration)**:
+  - Crashlytics에서 아래 크래시 시그니처가 반복 집계되었습니다.
+    - `PlatformException(activity_not_found, Unable to find explicit activity class {org.pyrimidines.girlsbandtabi_app/M4.b} ...)`
+  - 원인:
+    - `image_cropper`(9.1.0)는 Android에서 `UCropActivity`를 앱 매니페스트에
+      수동 선언해야 하는데, 기존 `android/app/src/main/AndroidManifest.xml`에
+      해당 항목이 누락되어 있었습니다.
+  - 수정:
+    - `AndroidManifest.xml`에 `com.yalantis.ucrop.UCropActivity` 선언 추가
+      (`@style/Ucrop.CropTheme`, `exported=false`).
+    - `values/styles.xml`에 `Ucrop.CropTheme` 추가.
+    - `values-v35/styles.xml` 신규 추가로 Android 15+
+      `windowOptOutEdgeToEdgeEnforcement=true` 반영.
+  - Updated:
+    - `android/app/src/main/AndroidManifest.xml`
+    - `android/app/src/main/res/values/styles.xml`
+    - `android/app/src/main/res/values-v35/styles.xml` (신규)
+  - Validation:
+    - `flutter analyze` ✅
+    - `flutter build appbundle` ⚠️
+      - Gradle cache metadata/AGP DSL 경고(`integration_test` compileSdk 감지 실패)
+        로 빌드 실패. 이번 매니페스트 수정과는 별도 환경 이슈로 분리 추적 필요.
+
+- **SSE DISCONNECT FATAL-ERROR GUARD (notifications/community feed)**:
+  - Samsung 단말에서 관측된
+    `ClientException: Connection closed while receiving data`
+    시나리오를 재현 가능한 네트워크 단절 케이스로 분류하고,
+    앱 전역 fatal 에러로 전파되지 않도록 실시간 SSE 경로를 보강했습니다.
+  - 변경 내용:
+    - 알림/커뮤니티 피드 SSE 컨트롤러에 safe reconnect 래퍼 추가
+      - unawaited 타이머/라이프사이클 경로에서 발생 가능한 예외를
+        내부에서 흡수하고 재연결 스케줄링으로 폴백
+    - dispose 경로(`subscription.cancel`, `connection.close`)를
+      개별 try/catch로 분리해 스트림 종료 경쟁 상태에서도 unhandled 예외 방지
+    - `connection closed while receiving data` 메시지를
+      expected disconnect 시그니처로 명시 처리
+  - 테스트 보강:
+    - SSE 단위 테스트에 스트림 도중 `http.ClientException` 발생 케이스 추가
+      - `onError` 핸들러로 오류가 전달되는지 검증
+  - Updated:
+    - `lib/features/notifications/application/notifications_controller.dart`
+    - `lib/features/feed/application/board_controller.dart`
+    - `test/core/realtime/sse_client_test.dart`
+  - Validation:
+    - `flutter analyze lib/features/notifications/application/notifications_controller.dart lib/features/feed/application/board_controller.dart lib/core/realtime/sse_client.dart test/core/realtime/sse_client_test.dart` ✅
+    - `flutter test test/core/realtime/sse_client_test.dart` ✅
+
+- **MOBILE PUSH INTEGRATION (deviceHash + open tracking + quiet-hours timezone)**:
+  - 백엔드 연동 요청서(`docs/dev/mobile-app-integration-request-20260326.md`) 기준으로 푸시 연동을 고도화했습니다.
+  - 필수 반영:
+    - `POST /api/v1/notifications/devices` 등록 payload에 `deviceHash` 전송 추가
+      - 해시 규칙: `SHA-256(rawDeviceId + ":gbt-salt-v1")` (64자 소문자 hex)
+      - Android: `android_id` 플러그인 기반 식별자 사용
+      - iOS: `identifierForVendor` 기반 식별자 사용
+    - `POST /api/v1/notifications/{notificationId}/open` 호출 추가
+      - `onMessageOpenedApp` / `getInitialMessage` 경로에서 fire-and-forget 호출
+      - 로컬 알림 탭 경로에서도 누락 방지를 위해 best-effort 오픈 추적 호출
+      - 실패 시 UX 비영향(로그만 남기고 무시)
+  - 권장 반영:
+    - Quiet Hours 정확도를 위해 `timezone`을 IANA 형식으로 전송하도록 개선
+      - `flutter_timezone`으로 로컬 타임존 조회
+      - IANA 형식 검증(`Asia/Seoul` 등) 통과 시에만 payload 포함
+  - Updated:
+    - `lib/core/notifications/remote_push_service.dart`
+    - `lib/core/constants/api_constants.dart`
+    - `lib/app.dart`
+    - `pubspec.yaml`
+    - `pubspec.lock`
+    - `test/core/notifications/remote_push_service_test.dart` (신규)
+  - Validation:
+    - `flutter analyze` ✅
+    - `flutter test test/core/notifications/remote_push_service_test.dart` ✅
+    - `flutter test` ✅
+
+- **IOS ARCHIVE DSYM FIX (objective_c.framework)**:
+  - Xcode Archive 업로드 시 아래 오류가 발생하던 문제를 수정했습니다.
+    - `The archive did not include a dSYM for the objective_c.framework ...`
+  - 원인:
+    - Flutter native assets로 포함되는 `objective_c.framework`에 대해
+      아카이브 시점 dSYM이 자동 포함되지 않음.
+  - 수정:
+    - `Thin Binary` 단계 이후 `ios/scripts/generate_native_asset_dsym.sh`를 실행하도록
+      Xcode build phase를 업데이트.
+    - 스크립트에서 `objective_c.framework/objective_c`에 대해 `dsymutil` 실행 후,
+      생성된 `objective_c.framework.dSYM`을 `ARCHIVE_DSYMS_PATH`로 복사.
+  - Updated:
+    - `ios/Runner.xcodeproj/project.pbxproj`
+    - `ios/scripts/generate_native_asset_dsym.sh` (신규)
+  - Validation:
+    - `plutil -lint ios/Runner.xcodeproj/project.pbxproj` ✅
+    - `dwarfdump --uuid`로 framework/dSYM UUID 일치 확인 ✅
+
+## 2026-03-23
+- **EMAIL VERIFICATION MANUAL CODE INPUT (email-verify-manual-v1)**:
+  - 이메일 인증 대기 화면(`EmailVerificationPendingPage`)에 수동 코드 입력 섹션을 추가했습니다.
+  - 변경 내용:
+    - 코드 입력 `TextField` 추가 (`keyboardType: visiblePassword`, `autocorrect: false`, `maxLength: 100`)
+    - "클립보드에서 붙여넣기" 버튼 — `Clipboard.getData`로 내용 읽어 자동 채움
+    - "인증하기" 버튼 — `POST /api/v1/auth/email-verifications/confirm` 호출
+    - 전송 전 `.trim()` 처리, 빈 값 시 인라인 에러
+    - 에러 코드별 메시지 처리:
+      - `EMAIL_VERIFICATION_INVALID` / `EXPIRED` / `INVALID_TYPE` / `MAX_ATTEMPTS` / `COOLDOWN`
+      - `EMAIL_VERIFICATION_ALREADY_USED` → 다이얼로그 표시 후 로그인 화면 이동 안내
+      - 5xx → "서버 오류가 발생했습니다." 안내
+    - 성공 시 스낵바 표시 후 `/login` 이동
+    - 기존 "재발송" 버튼을 Row로 분리, "이메일 열기" 버튼 추가
+    - body를 `SingleChildScrollView`로 감싸 스크롤 가능하도록 개선
+    - 한/영/일 3개 언어 bilingual 주석 유지
+  - Updated:
+    - `lib/features/auth/presentation/pages/email_verification_pending_page.dart`
+  - Validation:
+    - `flutter analyze lib/features/auth/presentation/pages/email_verification_pending_page.dart` ✅
+
 ## 2026-03-13 (2)
 - **PROFILE BANNER CUSTOMIZATION FEATURE**:
   - 사용자가 프로필 배너(홈 헤더 배경 이미지)를 티어/칭호 달성 배너 카탈로그에서 선택·적용할 수 있는 기능을 추가했습니다.

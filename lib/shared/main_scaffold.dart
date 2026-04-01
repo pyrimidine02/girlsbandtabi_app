@@ -107,6 +107,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         );
       },
       child: Scaffold(
+        extendBody: true,
         body: widget.navigationShell,
         bottomNavigationBar: !shouldShowBottomNav
             ? null
@@ -125,10 +126,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                   ref.read(currentNavIndexProvider.notifier).state = 4;
                   switch (section) {
                     case _CommunitySubSection.feed:
-                      widget.navigationShell.goBranch(
-                        4,
-                        initialLocation: true,
-                      );
+                      widget.navigationShell.goBranch(4, initialLocation: true);
                     case _CommunitySubSection.discover:
                       context.go('/community/discover');
                     case _CommunitySubSection.travelReview:
@@ -151,8 +149,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                   GBTBottomNavItem(
                     icon: Icons.auto_stories_outlined,
                     activeIcon: Icons.auto_stories,
-                    label:
-                        context.l10n(ko: '정보', en: 'Info', ja: '情報'),
+                    label: context.l10n(ko: '정보', en: 'Info', ja: '情報'),
                   ),
                   GBTBottomNavItem(
                     icon: Icons.person_outline_rounded,
@@ -190,10 +187,10 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       return currentPath == '/explore';
     }
     if (currentIndex == 2) {
-      return currentPath == '/idol';
+      return currentPath == '/information';
     }
     if (currentIndex == 3) {
-      return currentPath == '/my';
+      return currentPath == '/mypage';
     }
     return false;
   }
@@ -235,11 +232,7 @@ enum _CommunitySubSection { feed, discover, travelReview }
 
 extension on _CommunitySubSection {
   String label(BuildContext context) => switch (this) {
-    _CommunitySubSection.feed => context.l10n(
-      ko: '피드',
-      en: 'Feed',
-      ja: 'フィード',
-    ),
+    _CommunitySubSection.feed => context.l10n(ko: '피드', en: 'Feed', ja: 'フィード'),
     _CommunitySubSection.discover => context.l10n(
       ko: '발견',
       en: 'Discover',
@@ -469,78 +462,178 @@ class _CommunitySubBottomNav extends StatelessWidget {
   Widget _buildAndroidBoardSubBottomNav(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final selectedColor = colorScheme.primary;
     final unselectedColor = colorScheme.onSurfaceVariant;
+    final borderRadius = BorderRadius.circular(28);
+    final shadowColor = Colors.black.withValues(alpha: isDark ? 0.34 : 0.16);
+    final surfaceTint = colorScheme.primary.withValues(alpha: 0.08);
+    final backButtonFill = isDark
+        ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.82)
+        : colorScheme.surfaceContainerHighest.withValues(alpha: 0.84);
 
     return SafeArea(
       top: false,
-      child: Material(
-        elevation: 8,
-        color: colorScheme.surface,
-        child: SizedBox(
-          height: GBTSpacing.bottomNavHeight,
-          child: Row(
-            children: [
-              const SizedBox(width: 4),
-              IconButton(
-                onPressed: () {
-                  HapticFeedback.selectionClick();
-                  onBackTap();
-                },
-                tooltip: context.l10n(
-                  ko: '이전 화면으로 돌아가기',
-                  en: 'Go back to previous screen',
-                  ja: '前の画面に戻る',
-                ),
-                icon: const Icon(Icons.arrow_back_rounded),
-              ),
-              const SizedBox(width: 2),
-              Expanded(
-                child: Row(
-                  children: _CommunitySubSection.values
-                      .map((value) {
-                        final isSelected = value == section;
-                        final itemColor = isSelected
-                            ? selectedColor
-                            : unselectedColor;
-                        return Expanded(
-                          child: InkWell(
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              onSectionChanged(value);
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 6),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    value.icon,
-                                    color: itemColor,
-                                    size: isSelected ? 24 : 22,
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    value.label(context),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color: itemColor,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
+      minimum: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          boxShadow: [
+            BoxShadow(
+              color: shadowColor,
+              blurRadius: isDark ? 26 : 20,
+              offset: const Offset(0, 10),
+              spreadRadius: -10,
+            ),
+          ],
+        ),
+        child: Material(
+          color: colorScheme.surface,
+          surfaceTintColor: surfaceTint,
+          shadowColor: shadowColor,
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: borderRadius),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: SizedBox(
+              height: GBTSpacing.bottomNavHeight - 4,
+              child: Row(
+                children: [
+                  Semantics(
+                    button: true,
+                    label: context.l10n(
+                      ko: '이전 화면으로 돌아가기',
+                      en: 'Go back to previous screen',
+                      ja: '前の画面に戻る',
+                    ),
+                    child: Material(
+                      color: backButtonFill,
+                      shape: const CircleBorder(),
+                      child: InkResponse(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          onBackTap();
+                        },
+                        radius: 28,
+                        containedInkWell: true,
+                        customBorder: const CircleBorder(),
+                        child: const SizedBox(
+                          width: 48,
+                          height: 48,
+                          child: Icon(Icons.arrow_back_rounded, size: 24),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Row(
+                      children: _CommunitySubSection.values
+                          .map((value) {
+                            final isSelected = value == section;
+                            final itemColor = isSelected
+                                ? selectedColor
+                                : unselectedColor;
+                            final itemBackground = isSelected
+                                ? selectedColor.withValues(alpha: 0.12)
+                                : Colors.transparent;
+                            final itemBorder = isSelected
+                                ? selectedColor.withValues(alpha: 0.16)
+                                : Colors.transparent;
+
+                            return Expanded(
+                              child: Semantics(
+                                button: true,
+                                selected: isSelected,
+                                label:
+                                    '${value.label(context)} ${context.l10n(ko: '탭', en: 'tab', ja: 'タブ')}',
+                                hint: isSelected
+                                    ? context.l10n(
+                                        ko: '현재 선택됨',
+                                        en: 'Currently selected',
+                                        ja: '現在選択中',
+                                      )
+                                    : context.l10n(
+                                        ko: '탭하면 이동합니다',
+                                        en: 'Tap to switch',
+                                        ja: 'タップして切り替え',
+                                      ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(18),
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      onSectionChanged(value);
+                                    },
+                                    splashColor: Colors.transparent,
+                                    highlightColor: Colors.transparent,
+                                    child: AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 180,
+                                      ),
+                                      curve: Curves.easeOutCubic,
+                                      margin: const EdgeInsets.symmetric(
+                                        horizontal: 3,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: itemBackground,
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: itemBorder,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          AnimatedSwitcher(
+                                            duration: const Duration(
+                                              milliseconds: 180,
+                                            ),
+                                            child: Icon(
+                                              value.icon,
+                                              key: ValueKey(
+                                                '${value.name}-$isSelected',
+                                              ),
+                                              color: itemColor,
+                                              size: isSelected ? 24 : 22,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            value.label(context),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: theme.textTheme.labelSmall
+                                                ?.copyWith(
+                                                  color: itemColor,
+                                                  fontWeight: isSelected
+                                                      ? FontWeight.w700
+                                                      : FontWeight.w500,
+                                                  fontSize: 10.5,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ],
+                                ),
                               ),
-                            ),
-                          ),
-                        );
-                      })
-                      .toList(growable: false),
-                ),
+                            );
+                          })
+                          .toList(growable: false),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

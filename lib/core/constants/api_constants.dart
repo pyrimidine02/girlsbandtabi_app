@@ -23,14 +23,58 @@ class ApiEndpoints {
       '$apiVersion/auth/email-verifications';
   static const String emailVerificationsConfirm =
       '$apiVersion/auth/email-verifications/confirm';
+
+  // EN: Password reset request (unauthenticated — forgot password flow).
+  // KO: 비밀번호 재설정 요청 (비인증 — 비밀번호 분실 플로우).
+  static const String passwordResetRequests =
+      '$apiVersion/auth/password-reset-requests';
+  static const String passwordResetRequestsConfirm =
+      '$apiVersion/auth/password-reset-requests/confirm';
   static String oauthCallback(String provider) =>
       '$apiVersion/auth/oauth2/callback/$provider';
+
+  // EN: Public legal policy documents — no auth required, used at registration.
+  // KO: 공개 법률 정책 문서 — 인증 불필요, 회원가입 시 사용.
+  static const String legalPolicies = '$apiVersion/auth/legal/policies';
+
+  // EN: Native social login endpoints (POST idToken / identityToken from SDK).
+  // KO: 네이티브 소셜 로그인 엔드포인트 (SDK에서 받은 idToken / identityToken POST).
+  static const String oauthGoogle = '$apiVersion/auth/oauth2/google';
+  static const String oauthApple = '$apiVersion/auth/oauth2/apple';
+
+  // EN: X (Twitter) PKCE login — POST code + codeVerifier + redirectUri.
+  // KO: X (Twitter) PKCE 로그인 — code + codeVerifier + redirectUri POST.
+  static const String oauthTwitter = '$apiVersion/auth/oauth2/twitter';
+
+  // EN: OAuth link-existing endpoints — called after EMAIL_ACCOUNT_CONFLICT (409).
+  // KO: EMAIL_ACCOUNT_CONFLICT(409) 충돌 후 기존 계정 연동 엔드포인트.
+  static const String oauthGoogleLinkExisting =
+      '$apiVersion/auth/oauth2/google/link-existing';
+  static const String oauthAppleLinkExisting =
+      '$apiVersion/auth/oauth2/apple/link-existing';
+
+  // EN: OAuth connect endpoints — authenticated, for account merging and settings.
+  // KO: OAuth 연결 엔드포인트 — 인증 필요, 계정 합치기 및 설정용.
+  static const String oauthConnectExisting =
+      '$apiVersion/auth/oauth2/connect/existing';
+  static const String oauthConnectGoogle =
+      '$apiVersion/auth/oauth2/connect/google';
+  static const String oauthConnectApple =
+      '$apiVersion/auth/oauth2/connect/apple';
+
+  // EN: OAuth disconnect endpoint (DELETE) — authenticated.
+  // KO: OAuth 연결 해제 엔드포인트 (DELETE) — 인증 필요.
+  static const String oauthDisconnect = '$apiVersion/auth/oauth2/connect';
 
   // ============================================================
   // EN: User endpoints (8.2)
   // KO: 사용자 엔드포인트 (8.2)
   // ============================================================
   static const String userMe = '$apiVersion/users/me';
+
+  // EN: Change password for authenticated user (PATCH).
+  // KO: 인증된 사용자의 비밀번호 변경 (PATCH).
+  static const String userMePassword = '$userMe/password';
   static const String userMeAccessLevel = '$userMe/access-level';
   static const String userVisits = '$apiVersion/users/me/visits';
   static const String userVisitsSummary = '$apiVersion/users/me/visits/summary';
@@ -50,6 +94,10 @@ class ApiEndpoints {
   static const String userBlocks = '$apiVersion/users/me/blocks';
   static String userBlock(String targetUserId) => '$userBlocks/$targetUserId';
 
+  // EN: Account restoration endpoint (30-day grace period after deactivation).
+  // KO: 계정 복구 엔드포인트 (비활성화 후 30일 유예기간 내 복구).
+  static const String userMeRestore = '$userMe/restore';
+
   // ============================================================
   // EN: Favorites endpoints (8.14)
   // KO: 즐겨찾기 엔드포인트 (8.14)
@@ -62,6 +110,7 @@ class ApiEndpoints {
   // ============================================================
   static const String notifications = '$apiVersion/notifications';
   static String notificationRead(String id) => '$notifications/$id/read';
+  static String notificationOpen(String id) => '$notifications/$id/open';
   static String notificationDelete(String id) => '$notifications/$id';
   static const String notificationsDeleteAll = notifications;
   static const String notificationSettings = '$notifications/settings';
@@ -632,6 +681,15 @@ class ApiEndpoints {
   /// EN: Another user's active title (GET, public).
   /// KO: 다른 사용자의 활성 칭호 엔드포인트 (GET, 공개).
   static String userTitle(String userId) => '$apiVersion/users/$userId/title';
+
+  // ============================================================
+  // EN: Telemetry endpoints
+  // KO: 텔레메트리 엔드포인트
+  // ============================================================
+
+  /// EN: Batch telemetry event submission (POST). Auth optional.
+  /// KO: 텔레메트리 이벤트 배치 전송 (POST). 인증 선택.
+  static const String telemetryEvents = '$apiVersion/telemetry/events';
 
   // ============================================================
   // EN: Health check endpoints (8.25)

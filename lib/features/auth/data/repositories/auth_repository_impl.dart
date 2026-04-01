@@ -12,14 +12,29 @@ import '../../../../core/utils/result.dart';
 import '../../domain/entities/auth_tokens.dart';
 import '../../domain/entities/oauth_provider.dart';
 import '../../domain/entities/register_consent.dart';
+import '../../domain/entities/register_result.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_data_source.dart';
+import '../dto/apple_link_existing_request.dart';
+import '../dto/apple_oauth_request.dart';
+import '../dto/change_password_request.dart';
+import '../dto/change_password_response.dart';
+import '../dto/connect_apple_request.dart';
+import '../dto/connect_existing_request.dart';
+import '../dto/connect_google_request.dart';
 import '../dto/email_verification_confirm_request.dart';
 import '../dto/email_verification_request.dart';
+import '../dto/email_verification_response.dart';
+import '../dto/google_link_existing_request.dart';
+import '../dto/google_oauth_request.dart';
 import '../dto/login_request.dart';
+import '../dto/password_reset_confirm_request.dart';
+import '../dto/password_reset_request_dto.dart';
 import '../dto/register_request.dart';
+import '../dto/register_response.dart';
 import '../dto/refresh_token_request.dart';
 import '../dto/token_response.dart';
+import '../dto/twitter_oauth_request.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl({
@@ -65,7 +80,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Result<AuthTokens>> register({
+  Future<Result<RegisterResult>> register({
     required String username,
     required String password,
     required String nickname,
@@ -83,7 +98,7 @@ class AuthRepositoryImpl implements AuthRepository {
     // EN: Compatibility fallback for backends that still reject `consents`.
     // KO: `consents` 필드를 아직 허용하지 않는 백엔드에 대한 하위호환 재시도입니다.
     if (consents.isNotEmpty &&
-        primaryResult is Err<TokenResponse> &&
+        primaryResult is Err<RegisterResponse> &&
         _shouldRetryLegacyRegister(primaryResult.failure)) {
       final legacyResult = await _remoteDataSource.register(
         RegisterRequest(
@@ -92,10 +107,71 @@ class AuthRepositoryImpl implements AuthRepository {
           nickname: nickname,
         ),
       );
-      return _persistTokens(legacyResult);
+      return _processRegisterResponse(legacyResult);
     }
 
-    return _persistTokens(primaryResult);
+    return _processRegisterResponse(primaryResult);
+  }
+
+  /// EN: Processes a [RegisterResponse] — persists tokens when verification
+  ///     is not required, otherwise returns [RegisterResult] with pending email.
+  /// KO: [RegisterResponse]를 처리합니다 — 인증 불필요 시 토큰을 저장하고,
+  ///     그렇지 않으면 대기 이메일과 함께 [RegisterResult]를 반환합니다.
+  Future<Result<RegisterResult>> _processRegisterResponse(
+    Result<RegisterResponse> result,
+  ) async {
+    if (result is Err<RegisterResponse>) {
+      return Result.failure(result.failure);
+    }
+
+    final resp = (result as Success<RegisterResponse>).data;
+
+    if (resp.verificationRequired) {
+      // EN: Email verification required — no tokens issued yet.
+      // KO: 이메일 인증 필요 — 토큰이 아직 발급되지 않았습니다.
+      return Result.success(
+        RegisterResult(
+          verificationRequired: true,
+          pendingEmail: resp.email,
+          verificationExpiresAt: resp.verificationExpiresAt,
+        ),
+      );
+    }
+
+    // EN: Persist tokens for immediate login.
+    // KO: 즉시 로그인을 위해 토큰을 저장합니다.
+    final accessToken = resp.accessToken ?? '';
+    final refreshToken = resp.refreshToken ?? '';
+    await _secureStorage.saveTokens(
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    );
+
+    final expiry = resp.resolvedExpiry(_now());
+    if (expiry != null) {
+      await _secureStorage.saveTokenExpiry(expiry);
+    }
+
+    final newUserId = _extractUserId(accessToken);
+    if (newUserId != null && newUserId.isNotEmpty) {
+      final previousUserId = await _secureStorage.getUserId();
+      if (previousUserId == null || previousUserId != newUserId) {
+        await _secureStorage.clearVerificationKeys();
+      }
+      await _secureStorage.saveUserId(newUserId);
+    }
+
+    final hasTokens = await _secureStorage.hasValidTokens();
+    if (!hasTokens) {
+      return Result.failure(
+        const AuthFailure(
+          'Token persistence failed',
+          code: 'token_persist_failed',
+        ),
+      );
+    }
+
+    return const Result.success(RegisterResult(verificationRequired: false));
   }
 
   @override
@@ -140,10 +216,55 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Result<void>> sendEmailVerification({required String email}) {
-    return _remoteDataSource.sendEmailVerification(
+  Future<Result<AuthTokens>> loginWithGoogle({required String idToken}) async {
+    final result = await _remoteDataSource.loginWithGoogle(
+      GoogleOAuthRequest(idToken: idToken),
+    );
+    return _persistTokens(result);
+  }
+
+  @override
+  Future<Result<AuthTokens>> loginWithApple({
+    required String identityToken,
+    String? email,
+    String? fullName,
+  }) async {
+    final result = await _remoteDataSource.loginWithApple(
+      AppleOAuthRequest(
+        identityToken: identityToken,
+        email: email,
+        fullName: fullName,
+      ),
+    );
+    return _persistTokens(result);
+  }
+
+  @override
+  Future<Result<AuthTokens>> loginWithTwitter({
+    required String code,
+    required String codeVerifier,
+    required String redirectUri,
+  }) async {
+    final result = await _remoteDataSource.loginWithTwitter(
+      TwitterOAuthRequest(
+        code: code,
+        codeVerifier: codeVerifier,
+        redirectUri: redirectUri,
+      ),
+    );
+    return _persistTokens(result);
+  }
+
+  @override
+  Future<Result<DateTime?>> sendEmailVerification({required String email}) async {
+    final result = await _remoteDataSource.sendEmailVerification(
       EmailVerificationRequest(email: email),
     );
+    if (result is Err<EmailVerificationResponse>) {
+      return Result.failure(result.failure);
+    }
+    final resp = (result as Success<EmailVerificationResponse>).data;
+    return Result.success(resp.resendAvailableAt);
   }
 
   @override
@@ -151,6 +272,113 @@ class AuthRepositoryImpl implements AuthRepository {
     return _remoteDataSource.confirmEmailVerification(
       EmailVerificationConfirmRequest(token: token),
     );
+  }
+
+  @override
+  Future<Result<void>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final result = await _remoteDataSource.changePassword(
+      ChangePasswordRequest(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      ),
+    );
+    if (result is Err<ChangePasswordResponse>) {
+      return Result.failure(result.failure);
+    }
+    return const Result.success(null);
+  }
+
+  @override
+  Future<Result<void>> requestPasswordReset({required String email}) async {
+    final result = await _remoteDataSource.requestPasswordReset(
+      PasswordResetRequestDto(email: email),
+    );
+    if (result is Err<PasswordResetRequestResponse>) {
+      return Result.failure(result.failure);
+    }
+    return const Result.success(null);
+  }
+
+  @override
+  Future<Result<void>> confirmPasswordReset({
+    required String token,
+    required String newPassword,
+  }) async {
+    final result = await _remoteDataSource.confirmPasswordReset(
+      PasswordResetConfirmRequest(token: token, newPassword: newPassword),
+    );
+    if (result is Err<PasswordResetConfirmResponse>) {
+      return Result.failure(result.failure);
+    }
+    return const Result.success(null);
+  }
+
+  @override
+  Future<Result<AuthTokens>> linkExistingWithGoogle({
+    required String idToken,
+    required String email,
+    required String password,
+  }) async {
+    final result = await _remoteDataSource.linkExistingWithGoogle(
+      GoogleLinkExistingRequest(idToken: idToken, email: email, password: password),
+    );
+    return _persistTokens(result);
+  }
+
+  @override
+  Future<Result<AuthTokens>> linkExistingWithApple({
+    required String identityToken,
+    required String email,
+    required String password,
+    String? appleEmail,
+    String? fullName,
+  }) async {
+    final result = await _remoteDataSource.linkExistingWithApple(
+      AppleLinkExistingRequest(
+        identityToken: identityToken,
+        email: email,
+        password: password,
+        appleEmail: appleEmail,
+        fullName: fullName,
+      ),
+    );
+    return _persistTokens(result);
+  }
+
+  @override
+  Future<Result<AuthTokens>> connectExisting({
+    required String email,
+    required String password,
+  }) async {
+    final result = await _remoteDataSource.connectExisting(
+      ConnectExistingRequest(email: email, password: password),
+    );
+    return _persistTokens(result);
+  }
+
+  @override
+  Future<Result<void>> connectGoogle({required String idToken}) {
+    return _remoteDataSource.connectGoogle(
+      ConnectGoogleRequest(idToken: idToken),
+    );
+  }
+
+  @override
+  Future<Result<void>> connectApple({
+    required String identityToken,
+    String? email,
+  }) {
+    return _remoteDataSource.connectApple(
+      ConnectAppleRequest(identityToken: identityToken, email: email),
+    );
+  }
+
+  @override
+  Future<Result<void>> disconnectOAuth() {
+    return _remoteDataSource.disconnectOAuth();
   }
 
   Future<Result<AuthTokens>> _persistTokens(

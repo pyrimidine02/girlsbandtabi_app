@@ -6,8 +6,12 @@
     <!-- Background location permission (optional, for background location access) -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Write external storage for saving images on Android 9 and below -->
+    <!-- Read/write external storage for gallery access on Android 9 and below -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <!-- Read external storage for gallery access on Android 10-12 (API 29-32) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- Granular media permissions for Android 13+ (API 33+) -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     
     <application
         android:label="걸즈밴드타비"
@@ -34,7 +38,39 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- EN: Deep-link catch-all — handles girlsbandtabi://* (email-verified, etc.) -->
+            <!-- KO: 딥링크 범용 처리 — girlsbandtabi://* (email-verified 등) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="girlsbandtabi"/>
+            </intent-filter>
+            <!-- EN: X (Twitter) PKCE OAuth callback via App Links (https://api.noraneko.cc/oauth/x/callback).
+                      android:autoVerify="true" makes Android verify the Digital Asset Links file
+                      on the server so the link opens in the app without a chooser dialog.
+                      The server must host /.well-known/assetlinks.json with the app's SHA-256 fingerprint. -->
+            <!-- KO: X (Twitter) PKCE OAuth 콜백 — App Links 방식 (https://api.noraneko.cc/oauth/x/callback).
+                      android:autoVerify="true"는 서버의 Digital Asset Links 파일을 검증해
+                      앱 선택 다이얼로그 없이 바로 앱을 열게 합니다.
+                      서버는 /.well-known/assetlinks.json에 앱 SHA-256 fingerprint를 제공해야 합니다. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="api.noraneko.cc"
+                    android:pathPrefix="/oauth/x/callback"/>
+            </intent-filter>
         </activity>
+        <!-- EN: image_cropper (uCrop) requires explicit activity declaration. -->
+        <!-- KO: image_cropper (uCrop)는 Activity 명시 선언이 필요합니다. -->
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Ucrop.CropTheme" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

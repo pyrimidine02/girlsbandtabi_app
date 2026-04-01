@@ -96,6 +96,16 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
   }
 
   Future<void> load({bool forceRefresh = false}) async {
+    if (!_ref.read(isAuthenticatedProvider)) {
+      if (!state.hasValue) {
+        state = AsyncError(
+          const AuthFailure('Login required', code: 'auth_required'),
+          StackTrace.current,
+        );
+      }
+      return;
+    }
+
     final selectedProjectKey = _ref.read(selectedProjectKeyProvider);
     if (selectedProjectKey == null || selectedProjectKey.isEmpty) {
       return;
@@ -206,6 +216,7 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
         );
         state = AsyncData(result.data);
       } else if (result is Err<HomeSummary>) {
+        _handleUnauthorizedFailure(result.failure);
         state = AsyncError(result.failure, StackTrace.current);
       }
     } finally {
@@ -243,6 +254,9 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
       } else if (batchResult case Err<List<HomeSummaryByProjectItem>>(
         :final failure,
       )) {
+        if (_isUnauthorizedFailure(failure)) {
+          return Result.failure(failure);
+        }
         AppLogger.warning(
           'Home by-project load failed, fallback to single summary',
           tag: 'HomeController',
@@ -402,6 +416,21 @@ class HomeController extends StateNotifier<AsyncValue<HomeSummary>> {
       };
     }
     return false;
+  }
+
+  bool _isUnauthorizedFailure(Failure failure) {
+    if (failure is! AuthFailure) {
+      return false;
+    }
+    final code = failure.code?.trim().toLowerCase();
+    return code == '401' || code == 'auth_required';
+  }
+
+  void _handleUnauthorizedFailure(Failure failure) {
+    if (!_isUnauthorizedFailure(failure)) {
+      return;
+    }
+    _ref.read(authStateProvider.notifier).setUnauthenticated();
   }
 }
 

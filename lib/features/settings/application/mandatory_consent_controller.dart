@@ -311,6 +311,11 @@ class MandatoryConsentController extends StateNotifier<MandatoryConsentState> {
   }
 
   void _applyRefreshFailure(Failure failure) {
+    if (_isUnauthorizedFailure(failure)) {
+      _ref.read(authStateProvider.notifier).setUnauthenticated();
+      state = const MandatoryConsentState.idle();
+      return;
+    }
     state = state.copyWith(
       isLoading: false,
       hasResolved: true,
@@ -327,6 +332,11 @@ class MandatoryConsentController extends StateNotifier<MandatoryConsentState> {
   }
 
   void _applySubmitFailure(Failure failure) {
+    if (_isUnauthorizedFailure(failure)) {
+      _ref.read(authStateProvider.notifier).setUnauthenticated();
+      state = const MandatoryConsentState.idle();
+      return;
+    }
     state = state.copyWith(
       isLoading: false,
       hasResolved: true,
@@ -339,6 +349,14 @@ class MandatoryConsentController extends StateNotifier<MandatoryConsentState> {
       errorCode: failure.code,
       requestId: _extractRequestId(failure.message),
     );
+  }
+
+  bool _isUnauthorizedFailure(Failure failure) {
+    if (failure is! AuthFailure) {
+      return false;
+    }
+    final code = failure.code?.trim().toLowerCase();
+    return code == '401' || code == 'auth_required';
   }
 }
 

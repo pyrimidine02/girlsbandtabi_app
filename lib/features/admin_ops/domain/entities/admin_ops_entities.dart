@@ -296,7 +296,7 @@ class AdminMediaDeletionRequest {
       case 'NEWS':
         return '뉴스';
       case 'LIVE':
-        return '라이브';
+        return '이벤트';
       default:
         return entityType;
     }

@@ -3,15 +3,17 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../constants/legal_policy_constants.dart';
 import '../../localization/locale_text.dart';
+import '../../providers/core_providers.dart';
 import '../../theme/gbt_colors.dart';
 import '../../theme/gbt_spacing.dart';
 import '../../theme/gbt_typography.dart';
 
-class LegalPolicyLinksSection extends StatelessWidget {
+class LegalPolicyLinksSection extends ConsumerWidget {
   const LegalPolicyLinksSection({
     super.key,
     this.title,
@@ -22,11 +24,17 @@ class LegalPolicyLinksSection extends StatelessWidget {
   final bool showContainer;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final header =
         title ??
         context.l10n(ko: '약관 및 정책', en: 'Terms and policies', ja: '規約とポリシー');
+
+    // EN: Use server-fetched policies; fall back to constants while loading or on error.
+    // KO: 서버에서 가져온 정책을 사용하며, 로딩 중이거나 오류 시 상수로 폴백합니다.
+    final policies =
+        ref.watch(legalPoliciesProvider).valueOrNull ??
+        LegalPolicyConstants.policies;
 
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -39,7 +47,7 @@ class LegalPolicyLinksSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: GBTSpacing.sm),
-        ...LegalPolicyConstants.policies.map(
+        ...policies.map(
           (policy) => Padding(
             padding: const EdgeInsets.only(bottom: GBTSpacing.xs),
             child: _PolicyRow(policy: policy),

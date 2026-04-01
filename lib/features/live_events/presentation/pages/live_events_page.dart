@@ -100,7 +100,7 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          context.l10n(ko: '라이브', en: 'Live', ja: 'ライブ'),
+          context.l10n(ko: '이벤트', en: 'Events', ja: 'イベント'),
           style: Theme.of(
             context,
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -109,9 +109,9 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
           GBTAppBarIconButton(
             icon: Icons.history_rounded,
             tooltip: context.l10n(
-              ko: '라이브 방문 기록',
-              en: 'Live attendance history',
-              ja: 'ライブ参加履歴',
+              ko: '이벤트 방문 기록',
+              en: 'Event attendance history',
+              ja: 'イベント参加履歴',
             ),
             onPressed: () => context.goToVisitHistory(showLiveTab: true),
           ),
@@ -210,8 +210,8 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
           selectedYear: showYearFilter ? effectiveSelectedYear : null,
         ),
         tooltip: context.l10n(
-          ko: '캘린더로 라이브 이벤트 보기',
-          en: 'View live events in calendar',
+          ko: '캘린더로 이벤트 보기',
+          en: 'View events in calendar',
           ja: 'カレンダーでライブイベントを見る',
         ),
         child: const Icon(Icons.calendar_month_outlined),
@@ -239,8 +239,8 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
         SnackBar(
           content: Text(
             context.l10n(
-              ko: '라이브 정보를 불러오는 중입니다',
-              en: 'Loading live event information',
+              ko: '이벤트 정보를 불러오는 중입니다',
+              en: 'Loading event information',
               ja: 'ライブ情報を読み込み中です',
             ),
           ),
@@ -253,8 +253,8 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
         SnackBar(
           content: Text(
             context.l10n(
-              ko: '$selectedYear년 라이브 이벤트가 없습니다',
-              en: 'No live events in $selectedYear',
+              ko: '$selectedYear년 이벤트가 없습니다',
+              en: 'No events in $selectedYear',
               ja: '$selectedYear年のライブイベントはありません',
             ),
           ),
@@ -377,8 +377,8 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                               child: GBTEmptyState(
                                 icon: Icons.event_busy,
                                 message: context.l10n(
-                                  ko: '해당 날짜에 라이브 이벤트가 없습니다',
-                                  en: 'No live events on this date',
+                                  ko: '해당 날짜에 이벤트가 없습니다',
+                                  en: 'No events on this date',
                                   ja: 'この日にライブイベントはありません',
                                 ),
                               ),
@@ -405,7 +405,7 @@ class _LiveEventsPageState extends ConsumerState<LiveEventsPage>
                                         'live',
                                     isUpcoming: event.isUpcoming,
                                     onTap: () =>
-                                        context.goToLiveDetail(event.id),
+                                        context.goToEventDetail(event.id),
                                   ),
                                 );
                               },
@@ -473,8 +473,8 @@ class _EventList extends StatelessWidget {
           final message = error is Failure
               ? error.userMessage
               : context.l10n(
-                  ko: '라이브 이벤트를 불러오지 못했어요',
-                  en: 'Failed to load live events',
+                  ko: '이벤트를 불러오지 못했어요',
+                  en: 'Failed to load events',
                   ja: 'ライブイベントを読み込めませんでした',
                 );
           return ListView(
@@ -528,25 +528,25 @@ class _EventList extends StatelessWidget {
                   message: isUpcoming
                       ? context.l10n(
                           ko: selectedYear != null
-                              ? '$selectedYear년 예정된 라이브 이벤트가 없습니다'
-                              : '예정된 라이브 이벤트가 없습니다',
+                              ? '$selectedYear년 예정된 이벤트가 없습니다'
+                              : '예정된 이벤트가 없습니다',
                           en: selectedYear != null
-                              ? 'No upcoming live events in $selectedYear'
-                              : 'No upcoming live events',
+                              ? 'No upcoming events in $selectedYear'
+                              : 'No upcoming events',
                           ja: selectedYear != null
-                              ? '$selectedYear年の予定ライブイベントはありません'
-                              : '予定されたライブイベントがありません',
+                              ? '$selectedYear年の予定イベントはありません'
+                              : '予定されたイベントがありません',
                         )
                       : context.l10n(
                           ko: selectedYear != null
-                              ? '$selectedYear년 완료된 라이브 이벤트가 없습니다'
-                              : '완료된 라이브 이벤트가 없습니다',
+                              ? '$selectedYear년 완료된 이벤트가 없습니다'
+                              : '완료된 이벤트가 없습니다',
                           en: selectedYear != null
-                              ? 'No finished live events in $selectedYear'
-                              : 'No finished live events',
+                              ? 'No finished events in $selectedYear'
+                              : 'No finished events',
                           ja: selectedYear != null
-                              ? '$selectedYear年の終了ライブイベントはありません'
-                              : '終了したライブイベントがありません',
+                              ? '$selectedYear年の終了イベントはありません'
+                              : '終了したイベントがありません',
                         ),
                 ),
               ],
@@ -649,7 +649,7 @@ class _EventList extends StatelessWidget {
                     date: event.dateLabel,
                     posterUrl: event.bannerUrl,
                     isLive: isLive,
-                    onTap: () => context.goToLiveDetail(event.id),
+                    onTap: () => context.goToEventDetail(event.id),
                   ),
                 );
               }
@@ -671,7 +671,7 @@ class _EventList extends StatelessWidget {
                             ? GBTColors.darkSecondary
                             : GBTColors.secondary)
                       : null,
-                  onTap: () => context.goToLiveDetail(event.id),
+                  onTap: () => context.goToEventDetail(event.id),
                 ),
               );
             },

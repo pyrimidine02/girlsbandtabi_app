@@ -282,6 +282,7 @@ class GBTEventCard extends StatelessWidget {
                             child: posterUrl != null
                                 ? Hero(
                                     tag: GBTHeroTags.eventPoster(eventId),
+                                    transitionOnUserGestures: true,
                                     child: GBTImage(
                                       imageUrl: posterUrl!,
                                       fit: BoxFit.cover,
@@ -542,6 +543,7 @@ class GBTFeaturedEventCard extends StatelessWidget {
                     child: posterUrl != null
                         ? Hero(
                             tag: GBTHeroTags.eventPoster(eventId),
+                            transitionOnUserGestures: true,
                             child: GBTImage(
                               imageUrl: posterUrl!,
                               fit: BoxFit.cover,

@@ -13,6 +13,7 @@ import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/navigation/gbt_standard_app_bar.dart';
 import '../../application/cheer_guides_controller.dart';
 import '../../domain/entities/cheer_guide.dart';
 
@@ -25,31 +26,14 @@ class CheerGuidesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final projectId = ref.watch(selectedProjectKeyProvider);
-    final effectiveProjectId =
-        projectId?.isNotEmpty == true ? projectId : null;
-    final guidesAsync = ref.watch(
-      cheerGuidesListProvider(effectiveProjectId),
-    );
+    final effectiveProjectId = projectId?.isNotEmpty == true ? projectId : null;
+    final guidesAsync = ref.watch(cheerGuidesListProvider(effectiveProjectId));
 
     return Scaffold(
-      backgroundColor:
-          isDark ? GBTColors.darkBackground : GBTColors.background,
-      appBar: AppBar(
-        backgroundColor: isDark ? GBTColors.darkSurface : GBTColors.surface,
-        title: Text(
-          context.l10n(
-            ko: '응원 가이드',
-            en: 'Cheer Guide',
-            ja: '応援ガイド',
-          ),
-          style: GBTTypography.titleLarge.copyWith(
-            color:
-                isDark
-                    ? GBTColors.darkTextPrimary
-                    : GBTColors.textPrimary,
-          ),
-        ),
-        elevation: 0,
+      backgroundColor: isDark ? GBTColors.darkBackground : GBTColors.background,
+      appBar: gbtStandardAppBar(
+        context,
+        title: context.l10n(ko: '응원 가이드', en: 'Cheer Guide', ja: '応援ガイド'),
       ),
       body: guidesAsync.when(
         loading: () => _CheerGuidesShimmer(),
@@ -61,14 +45,9 @@ class CheerGuidesPage extends ConsumerWidget {
               en: 'Could not load cheer guides',
               ja: '応援ガイドを読み込めませんでした',
             ),
-            actionLabel: context.l10n(
-              ko: '다시 시도',
-              en: 'Retry',
-              ja: '再試行',
-            ),
-            onAction: () => ref.refresh(
-              cheerGuidesListProvider(effectiveProjectId),
-            ),
+            actionLabel: context.l10n(ko: '다시 시도', en: 'Retry', ja: '再試行'),
+            onAction: () =>
+                ref.refresh(cheerGuidesListProvider(effectiveProjectId)),
           ),
         ),
         data: (guides) => guides.isEmpty
@@ -161,15 +140,11 @@ class _CheerGuideTile extends StatelessWidget {
                     color: isDark
                         ? GBTColors.darkPrimary.withValues(alpha: 0.15)
                         : GBTColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(
-                      GBTSpacing.radiusXs,
-                    ),
+                    borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
                   ),
                   child: Icon(
                     Icons.music_note_outlined,
-                    color: isDark
-                        ? GBTColors.darkPrimary
-                        : GBTColors.primary,
+                    color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
                     size: 22,
                   ),
                 ),
@@ -220,11 +195,11 @@ class _CheerGuideTile extends StatelessWidget {
                           size: 12,
                           color: filled
                               ? (isDark
-                                  ? GBTColors.darkPrimary
-                                  : GBTColors.primary)
+                                    ? GBTColors.darkPrimary
+                                    : GBTColors.primary)
                               : (isDark
-                                  ? GBTColors.darkSurfaceVariant
-                                  : GBTColors.surfaceVariant),
+                                    ? GBTColors.darkSurfaceVariant
+                                    : GBTColors.surfaceVariant),
                         );
                       }),
                     ),

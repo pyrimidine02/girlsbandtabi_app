@@ -601,6 +601,7 @@ class _PhotoGalleryState extends State<_PhotoGallery> {
     if (images.length == 1) {
       return Hero(
         tag: GBTHeroTags.placeImage(widget.placeId),
+        transitionOnUserGestures: true,
         child: GBTImage(
           imageUrl: images.first,
           fit: BoxFit.cover,
@@ -635,6 +636,7 @@ class _PhotoGalleryState extends State<_PhotoGallery> {
             if (index == 0) {
               return Hero(
                 tag: GBTHeroTags.placeImage(widget.placeId),
+                transitionOnUserGestures: true,
                 child: child,
               );
             }

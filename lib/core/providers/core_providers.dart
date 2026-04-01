@@ -12,11 +12,15 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../logging/app_logger.dart';
 import '../connectivity/connectivity_service.dart';
 import '../cache/cache_manager.dart';
+import '../constants/legal_policy_constants.dart';
 import '../network/api_client.dart';
 import '../analytics/analytics_service.dart';
 import '../location/location_service.dart';
 import '../notifications/local_notifications_service.dart';
 import '../notifications/remote_push_service.dart';
+import '../telemetry/telemetry_service.dart';
+import '../utils/result.dart';
+import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/notifications/domain/entities/notification_entities.dart';
 import '../realtime/sse_client.dart';
 import '../security/secure_storage.dart';
@@ -113,12 +117,14 @@ final localNotificationTapEventsProvider =
 /// KO: 원격 푸시 서비스 프로바이더입니다.
 final remotePushServiceProvider = Provider<RemotePushService>((ref) {
   final apiClient = ref.watch(apiClientProvider);
+  final secureStorage = ref.watch(secureStorageProvider);
   final localStorageFuture = ref.watch(localStorageProvider.future);
   final localNotificationsService = ref.watch(
     localNotificationsServiceProvider,
   );
   final service = RemotePushService(
     apiClient: apiClient,
+    secureStorage: secureStorage,
     localStorageFuture: localStorageFuture,
     localNotificationsService: localNotificationsService,
   );
@@ -128,10 +134,11 @@ final remotePushServiceProvider = Provider<RemotePushService>((ref) {
 
 /// EN: Stream provider for foreground FCM messages — feeds the in-app banner queue.
 /// KO: 인앱 배너 큐에 공급하기 위한 포그라운드 FCM 메시지 스트림 프로바이더입니다.
-final remotePushForegroundMessagesProvider =
-    StreamProvider<NotificationItem>((ref) {
-      return ref.watch(remotePushServiceProvider).foregroundMessages;
-    });
+final remotePushForegroundMessagesProvider = StreamProvider<NotificationItem>((
+  ref,
+) {
+  return ref.watch(remotePushServiceProvider).foregroundMessages;
+});
 
 /// EN: Stream provider for remote-push open tap events.
 /// KO: 원격 푸시 오픈 탭 이벤트 스트림 프로바이더입니다.
@@ -170,6 +177,18 @@ final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
   return AnalyticsService.instance;
 });
 
+/// EN: Telemetry service provider — bootstraps banned-state from storage on first access.
+/// KO: 텔레메트리 서비스 프로바이더 — 첫 접근 시 저장소에서 차단 상태를 불러옵니다.
+final telemetryServiceProvider = Provider<TelemetryService>((ref) {
+  return TelemetryService.instance;
+});
+
+/// EN: One-time bootstrap provider that restores the device-banned flag from storage.
+/// KO: 저장소에서 기기 차단 플래그를 복원하는 1회 부트스트랩 프로바이더.
+final telemetryBootstrapProvider = Provider<void>((ref) {
+  unawaited(TelemetryService.instance.initialize());
+});
+
 /// EN: Connectivity service provider
 /// KO: 연결 서비스 프로바이더
 final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
@@ -181,7 +200,7 @@ final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
 /// EN: Location service provider.
 /// KO: 위치 서비스 프로바이더.
 final locationServiceProvider = Provider<LocationService>((ref) {
-  return const LocationService();
+  return LocationService();
 });
 
 /// EN: Connectivity status stream provider
@@ -376,6 +395,37 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
     state = AuthState.unauthenticated;
   }
 }
+
+// ========================================
+// EN: Legal Policy Providers
+// KO: 법률 정책 프로바이더
+// ========================================
+
+/// EN: Fetches the latest legal policy list from the public server endpoint.
+///     Falls back to [LegalPolicyConstants.policies] on any network error
+///     so that registration remains usable when the server is unreachable.
+/// KO: 공개 서버 엔드포인트에서 최신 법률 정책 목록을 가져옵니다.
+///     네트워크 오류 시 [LegalPolicyConstants.policies]로 폴백하여
+///     서버 불가 시에도 회원가입 화면이 정상 동작합니다.
+final legalPoliciesProvider = FutureProvider<List<LegalPolicyInfo>>((
+  ref,
+) async {
+  final apiClient = ref.read(apiClientProvider);
+  final result = await AuthRemoteDataSource(apiClient).fetchLegalPolicies();
+  if (result is Success<List<Map<String, dynamic>>>) {
+    final parsed = result.data
+        .map(LegalPolicyInfo.fromJson)
+        .whereType<LegalPolicyInfo>()
+        .toList(growable: false);
+    final hasAll = {
+      LegalPolicyType.termsOfService,
+      LegalPolicyType.privacyPolicy,
+      LegalPolicyType.locationTerms,
+    }.every((t) => parsed.any((p) => p.type == t));
+    if (hasAll) return parsed;
+  }
+  return LegalPolicyConstants.policies;
+});
 
 /// EN: Auth state notifier provider
 /// KO: 인증 상태 노티파이어 프로바이더

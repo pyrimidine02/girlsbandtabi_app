@@ -6,11 +6,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' show DartPluginRegistrant;
 
+import 'package:android_id/android_id.dart';
+import 'package:crypto/crypto.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' as widgets;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
@@ -20,6 +24,7 @@ import '../constants/api_constants.dart';
 import '../error/failure.dart';
 import '../logging/app_logger.dart';
 import '../network/api_client.dart';
+import '../security/secure_storage.dart';
 import '../storage/local_storage.dart';
 import '../utils/result.dart';
 import 'firebase_runtime_options.dart';
@@ -38,6 +43,11 @@ const String _kPushChannelDescription =
 final FlutterLocalNotificationsPlugin _backgroundNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 bool _backgroundNotificationsInitialized = false;
+const String _kDeviceHashSalt = 'gbt-salt-v1';
+final RegExp _kNotificationDeviceHashPattern = RegExp(r'^[0-9a-f]{64}$');
+final RegExp _kIanaTimezonePattern = RegExp(
+  r'^[A-Za-z_]+(?:/[A-Za-z0-9._+\-]+)+$',
+);
 
 class _PushCredential {
   const _PushCredential({required this.provider, required this.token});
@@ -136,10 +146,12 @@ Future<void> _showBackgroundLocalNotificationIfNeeded(
       'type': _firstNonEmpty(
         message.data['notificationType']?.toString(),
         message.data['type']?.toString(),
+        message.data['eventType']?.toString(),
       ),
       'notificationType': _firstNonEmpty(
         message.data['notificationType']?.toString(),
         message.data['type']?.toString(),
+        message.data['eventType']?.toString(),
       ),
       'deeplink': _firstNonEmpty(
         message.data['deeplink']?.toString(),
@@ -204,6 +216,70 @@ int _stableBackgroundNotificationId(String seed) {
   return seed.hashCode & 0x7fffffff;
 }
 
+/// EN: Compute salted SHA-256 hash for notification device fingerprinting.
+/// KO: 알림 디바이스 지문용 salt 적용 SHA-256 해시를 계산합니다.
+String computeNotificationDeviceHash(String rawDeviceId) {
+  final normalizedRawDeviceId = rawDeviceId.trim();
+  final digest = sha256.convert(
+    utf8.encode('$normalizedRawDeviceId:$_kDeviceHashSalt'),
+  );
+  return digest.toString();
+}
+
+/// EN: Normalize and validate a notification device hash (64-char lowercase hex).
+/// KO: 알림 디바이스 해시를 정규화/검증합니다 (64자 소문자 16진수).
+String? normalizeNotificationDeviceHash(String? deviceHash) {
+  if (deviceHash == null) {
+    return null;
+  }
+  final normalized = deviceHash.trim().toLowerCase();
+  if (normalized.isEmpty ||
+      !_kNotificationDeviceHashPattern.hasMatch(normalized)) {
+    return null;
+  }
+  return normalized;
+}
+
+/// EN: Normalize and validate IANA timezone names (for Quiet Hours).
+/// KO: IANA 타임존 문자열을 정규화/검증합니다 (Quiet Hours 용).
+String? normalizeNotificationTimezone(String? timezone) {
+  if (timezone == null) {
+    return null;
+  }
+  final normalized = timezone.trim();
+  if (normalized.isEmpty || !_kIanaTimezonePattern.hasMatch(normalized)) {
+    return null;
+  }
+  return normalized;
+}
+
+/// EN: Build notification device registration payload with optional metadata.
+/// KO: 선택 메타데이터를 포함한 알림 디바이스 등록 payload를 구성합니다.
+Map<String, dynamic> buildNotificationDeviceRegistrationPayload({
+  required String platform,
+  required String provider,
+  required String deviceId,
+  required String pushToken,
+  String? locale,
+  String? timezone,
+  String? deviceHash,
+}) {
+  final normalizedLocale = locale?.trim();
+  final normalizedTimezone = normalizeNotificationTimezone(timezone);
+  final normalizedDeviceHash = normalizeNotificationDeviceHash(deviceHash);
+
+  return <String, dynamic>{
+    'platform': platform,
+    'provider': provider,
+    'deviceId': deviceId,
+    'pushToken': pushToken,
+    if (normalizedLocale != null && normalizedLocale.isNotEmpty)
+      'locale': normalizedLocale,
+    if (normalizedTimezone != null) 'timezone': normalizedTimezone,
+    if (normalizedDeviceHash != null) 'deviceHash': normalizedDeviceHash,
+  };
+}
+
 /// EN: Background entrypoint for Firebase Messaging.
 /// KO: Firebase Messaging 백그라운드 엔트리포인트입니다.
 @pragma('vm:entry-point')
@@ -224,17 +300,26 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 class RemotePushService {
   RemotePushService({
     required ApiClient apiClient,
+    required SecureStorage secureStorage,
     required Future<LocalStorage> localStorageFuture,
     required LocalNotificationsService localNotificationsService,
     FirebaseMessaging? messaging,
+    Future<String?> Function()? deviceHashResolver,
+    Future<String?> Function()? timezoneResolver,
   }) : _apiClient = apiClient,
+       _secureStorage = secureStorage,
        _localStorageFuture = localStorageFuture,
        _localNotificationsService = localNotificationsService,
+       _deviceHashResolver = deviceHashResolver,
+       _timezoneResolver = timezoneResolver,
        _messaging = messaging;
 
   final ApiClient _apiClient;
+  final SecureStorage _secureStorage;
   final Future<LocalStorage> _localStorageFuture;
   final LocalNotificationsService _localNotificationsService;
+  final Future<String?> Function()? _deviceHashResolver;
+  final Future<String?> Function()? _timezoneResolver;
   FirebaseMessaging? _messaging;
   final StreamController<LocalNotificationTapEvent> _tapEventsController =
       StreamController<LocalNotificationTapEvent>.broadcast();
@@ -253,6 +338,8 @@ class RemotePushService {
   // EN: Prevents concurrent device registration/token sync calls.
   // KO: 디바이스 등록/토큰 동기화 동시 호출을 방지합니다.
   bool _isSyncing = false;
+  String? _cachedDeviceHash;
+  String? _cachedTimezone;
 
   /// EN: Stream of push-open tap events mapped to existing notification routing model.
   /// KO: 기존 알림 라우팅 모델로 매핑된 푸시 오픈 탭 이벤트 스트림입니다.
@@ -311,7 +398,7 @@ class RemotePushService {
 
     final initialMessage = await messaging.getInitialMessage();
     if (initialMessage != null) {
-      _emitTapEvent(initialMessage);
+      _handleOpenedMessage(initialMessage);
     }
   }
 
@@ -408,7 +495,10 @@ class RemotePushService {
   /// KO: 현재 백엔드 디바이스 등록을 비활성화하고 로컬 키를 정리합니다.
   Future<void> deactivateCurrentDevice() async {
     final storage = await _localStorageFuture;
-    final deviceId = _resolveStoredDeviceId(storage);
+    final deviceId = await _resolveStoredDeviceId(
+      storage,
+      migrateLegacyKeys: false,
+    );
     if (deviceId == null || deviceId.isEmpty) {
       return;
     }
@@ -418,19 +508,54 @@ class RemotePushService {
     );
 
     if (result is Success<dynamic>) {
-      await _clearLocalRegistrationKeys(storage);
+      await _clearNotificationRegistration(storage);
       return;
     }
 
     if (result is Err<dynamic>) {
       final failure = result.failure;
       if (failure is NotFoundFailure && failure.code == '404') {
-        await _clearLocalRegistrationKeys(storage);
+        await _clearNotificationRegistration(storage);
         return;
       }
       AppLogger.warning(
         'Failed to deactivate notification device registration',
         data: failure,
+        tag: 'RemotePushService',
+      );
+    }
+  }
+
+  /// EN: Record notification-open event (best-effort, no UX impact on failure).
+  /// KO: 알림 오픈 이벤트를 기록합니다 (실패 시 UX 영향 없이 best-effort).
+  Future<void> trackNotificationOpen(
+    String notificationId, {
+    String? deviceId,
+  }) async {
+    final normalizedNotificationId = notificationId.trim();
+    if (normalizedNotificationId.isEmpty) {
+      return;
+    }
+
+    final storage = await _localStorageFuture;
+    final resolvedDeviceId = _firstNonEmpty(
+      deviceId,
+      await _resolveStoredDeviceId(storage),
+    );
+
+    final result = await _apiClient.post<dynamic>(
+      ApiEndpoints.notificationOpen(normalizedNotificationId),
+      queryParameters: resolvedDeviceId == null
+          ? null
+          : <String, dynamic>{'deviceId': resolvedDeviceId},
+    );
+
+    if (result is Err<dynamic>) {
+      // EN: Do not surface open-tracking failures to users.
+      // KO: 오픈 추적 실패는 사용자에게 노출하지 않습니다.
+      AppLogger.debug(
+        'Failed to record notification open',
+        data: result.failure,
         tag: 'RemotePushService',
       );
     }
@@ -481,14 +606,13 @@ class RemotePushService {
       return;
     }
     final storage = await _localStorageFuture;
-    final deviceId = await _resolveOrCreateDeviceId(storage);
+    final existingDeviceId = await _resolveStoredDeviceId(storage);
+    final deviceId = existingDeviceId ?? await _createAndStoreDeviceId(storage);
     if (deviceId.isEmpty) {
       return;
     }
 
-    final shouldRegister =
-        forceRegister ||
-        !storage.containsKey(LocalStorageKeys.notificationDeviceId);
+    final shouldRegister = forceRegister || existingDeviceId == null;
     if (shouldRegister) {
       await _registerDevice(
         storage: storage,
@@ -504,9 +628,10 @@ class RemotePushService {
       data: {'pushToken': pushToken, 'provider': provider},
     );
     if (patchResult is Success<dynamic>) {
-      await storage.setString(
-        LocalStorageKeys.notificationPushToken,
-        pushToken,
+      await _storeNotificationRegistration(
+        storage: storage,
+        deviceId: deviceId,
+        pushToken: pushToken,
       );
       return;
     }
@@ -536,16 +661,15 @@ class RemotePushService {
     required String provider,
     required String pushToken,
   }) async {
-    final locale = _resolveDeviceLocale(storage);
-    final timezone = _resolveDeviceTimezone();
-    final payload = <String, dynamic>{
-      'platform': _platformValue(),
-      'provider': provider,
-      'deviceId': deviceId,
-      'pushToken': pushToken,
-      if (locale != null) 'locale': locale,
-      if (timezone != null) 'timezone': timezone,
-    };
+    final payload = buildNotificationDeviceRegistrationPayload(
+      platform: _platformValue(),
+      provider: provider,
+      deviceId: deviceId,
+      pushToken: pushToken,
+      locale: _resolveDeviceLocale(storage),
+      timezone: await _resolveDeviceTimezone(),
+      deviceHash: await _resolveDeviceHash(),
+    );
 
     final registerResult = await _apiClient.post<dynamic>(
       ApiEndpoints.notificationDevices,
@@ -563,14 +687,10 @@ class RemotePushService {
           persistedDeviceId = candidate;
         }
       }
-      await storage.setString(
-        LocalStorageKeys.notificationDeviceId,
-        persistedDeviceId,
-      );
-      await storage.remove(LocalStorageKeys.notificationDeviceIdLegacy);
-      await storage.setString(
-        LocalStorageKeys.notificationPushToken,
-        pushToken,
+      await _storeNotificationRegistration(
+        storage: storage,
+        deviceId: persistedDeviceId,
+        pushToken: pushToken,
       );
       return;
     }
@@ -617,27 +737,29 @@ class RemotePushService {
   }
 
   void _handleOpenedMessage(RemoteMessage message) {
-    _emitTapEvent(message);
+    final notificationId = _extractNotificationId(message);
+    if (notificationId != null) {
+      unawaited(trackNotificationOpen(notificationId));
+    }
+    _emitTapEvent(message, notificationId: notificationId);
   }
 
-  void _emitTapEvent(RemoteMessage message) {
+  void _emitTapEvent(RemoteMessage message, {String? notificationId}) {
     final data = message.data;
-    final notificationId = _firstNonEmpty(
-      data['notificationId']?.toString(),
-      data['id']?.toString(),
-      message.messageId,
-    );
-    if (notificationId == null || notificationId.isEmpty) {
+    final resolvedNotificationId =
+        notificationId ?? _extractNotificationId(message);
+    if (resolvedNotificationId == null || resolvedNotificationId.isEmpty) {
       return;
     }
 
     _tapEventsController.add(
       LocalNotificationTapEvent(
-        notificationId: notificationId,
+        notificationId: resolvedNotificationId,
         type: normalizeNotificationType(
           _firstNonEmpty(
             data['notificationType']?.toString(),
             data['type']?.toString(),
+            data['eventType']?.toString(),
           ),
         ),
         deeplink: _firstNonEmpty(
@@ -655,6 +777,14 @@ class RemotePushService {
           data['projectId']?.toString(),
         ),
       ),
+    );
+  }
+
+  String? _extractNotificationId(RemoteMessage message) {
+    return _firstNonEmpty(
+      message.data['notificationId']?.toString(),
+      message.data['id']?.toString(),
+      message.messageId,
     );
   }
 
@@ -686,6 +816,7 @@ class RemotePushService {
         _firstNonEmpty(
           data['notificationType']?.toString(),
           data['type']?.toString(),
+          data['eventType']?.toString(),
         ),
       ),
       actionUrl: data['actionUrl']?.toString(),
@@ -705,37 +836,82 @@ class RemotePushService {
     );
   }
 
-  String? _resolveStoredDeviceId(LocalStorage storage) {
+  Future<String?> _resolveStoredDeviceId(
+    LocalStorage storage, {
+    bool migrateLegacyKeys = true,
+  }) async {
+    final secureDeviceId = (await _secureStorage.getNotificationDeviceId())
+        ?.trim();
+    if (secureDeviceId != null && secureDeviceId.isNotEmpty) {
+      if (migrateLegacyKeys) {
+        await _clearLegacyRegistrationKeys(storage);
+      }
+      return secureDeviceId;
+    }
+
     final primary = storage.getString(LocalStorageKeys.notificationDeviceId);
     if (primary != null && primary.trim().isNotEmpty) {
-      return primary.trim();
+      final normalized = primary.trim();
+      if (migrateLegacyKeys) {
+        await _storeNotificationRegistration(
+          storage: storage,
+          deviceId: normalized,
+          pushToken: storage.getString(LocalStorageKeys.notificationPushToken),
+        );
+      }
+      return normalized;
     }
+
     final legacy = storage.getString(
       LocalStorageKeys.notificationDeviceIdLegacy,
     );
     if (legacy != null && legacy.trim().isNotEmpty) {
-      return legacy.trim();
+      final normalized = legacy.trim();
+      if (migrateLegacyKeys) {
+        await _storeNotificationRegistration(
+          storage: storage,
+          deviceId: normalized,
+          pushToken: storage.getString(LocalStorageKeys.notificationPushToken),
+        );
+      }
+      return normalized;
     }
     return null;
   }
 
-  Future<String> _resolveOrCreateDeviceId(LocalStorage storage) async {
-    final existing = _resolveStoredDeviceId(storage);
-    if (existing != null && existing.isNotEmpty) {
-      return existing;
-    }
-
+  Future<String> _createAndStoreDeviceId(LocalStorage storage) async {
     final generated = '${_platformValue().toLowerCase()}-${const Uuid().v4()}';
-    await storage.setString(LocalStorageKeys.notificationDeviceId, generated);
-    await storage.remove(LocalStorageKeys.notificationDeviceIdLegacy);
+    await _storeNotificationRegistration(storage: storage, deviceId: generated);
     return generated;
   }
 
-  Future<void> _clearLocalRegistrationKeys(LocalStorage storage) async {
+  Future<void> _storeNotificationRegistration({
+    required LocalStorage storage,
+    required String deviceId,
+    String? pushToken,
+  }) async {
+    final trimmedDeviceId = deviceId.trim();
+    final trimmedPushToken = pushToken?.trim();
+    await Future.wait([
+      _secureStorage.saveNotificationDeviceId(trimmedDeviceId),
+      if (trimmedPushToken != null && trimmedPushToken.isNotEmpty)
+        _secureStorage.saveNotificationPushToken(trimmedPushToken),
+      _clearLegacyRegistrationKeys(storage),
+    ]);
+  }
+
+  Future<void> _clearLegacyRegistrationKeys(LocalStorage storage) async {
     await Future.wait([
       storage.remove(LocalStorageKeys.notificationDeviceId),
       storage.remove(LocalStorageKeys.notificationDeviceIdLegacy),
       storage.remove(LocalStorageKeys.notificationPushToken),
+    ]);
+  }
+
+  Future<void> _clearNotificationRegistration(LocalStorage storage) async {
+    await Future.wait([
+      _secureStorage.clearNotificationRegistration(),
+      _clearLegacyRegistrationKeys(storage),
     ]);
   }
 
@@ -780,9 +956,95 @@ class RemotePushService {
     return currentLocale.isEmpty ? null : currentLocale;
   }
 
-  String? _resolveDeviceTimezone() {
-    final timezone = DateTime.now().timeZoneName.trim();
-    return timezone.isEmpty ? null : timezone;
+  Future<String?> _resolveDeviceHash() async {
+    if (_cachedDeviceHash != null) {
+      return _cachedDeviceHash;
+    }
+
+    final hashResolver = _deviceHashResolver;
+    if (hashResolver != null) {
+      final customHash = normalizeNotificationDeviceHash(await hashResolver());
+      if (customHash != null) {
+        _cachedDeviceHash = customHash;
+      }
+      return customHash;
+    }
+
+    final rawDeviceIdentifier = await _resolveRawDeviceIdentifier();
+    if (rawDeviceIdentifier == null || rawDeviceIdentifier.isEmpty) {
+      return null;
+    }
+
+    final computedHash = computeNotificationDeviceHash(rawDeviceIdentifier);
+    _cachedDeviceHash = computedHash;
+    return computedHash;
+  }
+
+  Future<String?> _resolveRawDeviceIdentifier() async {
+    if (kIsWeb) {
+      return null;
+    }
+
+    try {
+      switch (defaultTargetPlatform) {
+        case TargetPlatform.android:
+          return _firstNonEmpty(await AndroidId().getId());
+        case TargetPlatform.iOS:
+          final iosInfo = await DeviceInfoPlugin().iosInfo;
+          return _firstNonEmpty(iosInfo.identifierForVendor);
+        default:
+          return null;
+      }
+    } catch (error) {
+      AppLogger.debug(
+        'Failed to resolve raw device identifier for push registration',
+        data: error,
+        tag: 'RemotePushService',
+      );
+      return null;
+    }
+  }
+
+  Future<String?> _resolveDeviceTimezone() async {
+    if (_cachedTimezone != null) {
+      return _cachedTimezone;
+    }
+
+    final timezoneResolver = _timezoneResolver;
+    if (timezoneResolver != null) {
+      final customTimezone = normalizeNotificationTimezone(
+        await timezoneResolver(),
+      );
+      if (customTimezone != null) {
+        _cachedTimezone = customTimezone;
+      }
+      return customTimezone;
+    }
+
+    try {
+      final localTimezone = normalizeNotificationTimezone(
+        await FlutterTimezone.getLocalTimezone(),
+      );
+      if (localTimezone != null) {
+        _cachedTimezone = localTimezone;
+        return localTimezone;
+      }
+    } catch (error) {
+      AppLogger.debug(
+        'Failed to resolve IANA timezone for push registration',
+        data: error,
+        tag: 'RemotePushService',
+      );
+    }
+
+    final fallbackTimezone = normalizeNotificationTimezone(
+      DateTime.now().timeZoneName,
+    );
+    if (fallbackTimezone != null) {
+      _cachedTimezone = fallbackTimezone;
+      return fallbackTimezone;
+    }
+    return null;
   }
 }
 

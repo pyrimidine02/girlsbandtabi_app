@@ -66,11 +66,12 @@ jobs:
         run: |
           raw_version=$(grep -m1 '^version:' pubspec.yaml | awk '{print $2}')
           app_version="${raw_version%%+*}"
-          date_prefix="$(date -u +%Y%m%d)"
-          sequence=$(((GITHUB_RUN_NUMBER + GITHUB_RUN_ATTEMPT - 1) % 100))
-          auto_build_number="${date_prefix}$(printf '%02d' "${sequence}")"
+
+
+
           echo "app_version=${app_version}" >> "$GITHUB_OUTPUT"
-          echo "build_number=${auto_build_number}" >> "$GITHUB_OUTPUT"
+
+          echo "build_number=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
 
       - name: Restore Android upload keystore
         run: |
@@ -102,7 +103,7 @@ jobs:
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: org.pyrimidines.girlsbandtabi_app
+          packageName: cc.noraneko.girlsbandtabi_app
           releaseFiles: build/app/outputs/bundle/release/app-release.aab
           track: internal
           status: completed

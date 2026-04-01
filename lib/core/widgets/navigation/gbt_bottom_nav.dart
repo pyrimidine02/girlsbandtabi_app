@@ -136,29 +136,83 @@ class GBTBottomNav extends StatelessWidget {
   }
 
   Widget _buildAndroidBottomNav(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final borderRadius = BorderRadius.circular(28);
+    final shadowColor = Colors.black.withValues(alpha: isDark ? 0.34 : 0.16);
+    final surfaceTint = colorScheme.primary.withValues(alpha: 0.08);
+
     return SafeArea(
       top: false,
-      child: NavigationBar(
-        selectedIndex: currentIndex,
-        height: height,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        backgroundColor: colorScheme.surface,
-        indicatorColor: colorScheme.primary.withValues(alpha: 0.14),
-        onDestinationSelected: (index) {
-          HapticFeedback.selectionClick();
-          onTap(index);
-        },
-        destinations: items
-            .map(
-              (item) => NavigationDestination(
-                icon: Icon(item.icon),
-                selectedIcon: Icon(item.activeIcon),
-                label: item.label,
-                tooltip: item.semanticLabel ?? item.label,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: borderRadius,
+            boxShadow: [
+              BoxShadow(
+                color: shadowColor,
+                blurRadius: isDark ? 26 : 20,
+                offset: const Offset(0, 10),
+                spreadRadius: -10,
               ),
-            )
-            .toList(growable: false),
+            ],
+          ),
+          child: Material(
+            color: colorScheme.surface,
+            surfaceTintColor: surfaceTint,
+            shadowColor: shadowColor,
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: borderRadius),
+            clipBehavior: Clip.antiAlias,
+            child: NavigationBarTheme(
+              data: NavigationBarThemeData(
+                indicatorColor: colorScheme.primary.withValues(alpha: 0.16),
+                labelTextStyle: WidgetStateProperty.resolveWith((states) {
+                  final isSelected = states.contains(WidgetState.selected);
+                  return GBTTypography.labelSmall.copyWith(
+                    color: isSelected
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    fontSize: isSelected ? 11 : 10.5,
+                  );
+                }),
+                iconTheme: WidgetStateProperty.resolveWith((states) {
+                  final isSelected = states.contains(WidgetState.selected);
+                  return IconThemeData(
+                    color: isSelected
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
+                    size: isSelected ? 26 : 23,
+                  );
+                }),
+              ),
+              child: NavigationBar(
+                selectedIndex: currentIndex,
+                height: height,
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                backgroundColor: Colors.transparent,
+                indicatorColor: colorScheme.primary.withValues(alpha: 0.16),
+                onDestinationSelected: (index) {
+                  HapticFeedback.selectionClick();
+                  onTap(index);
+                },
+                destinations: items
+                    .map(
+                      (item) => NavigationDestination(
+                        icon: Icon(item.icon),
+                        selectedIcon: Icon(item.activeIcon),
+                        label: item.label,
+                        tooltip: item.semanticLabel ?? item.label,
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

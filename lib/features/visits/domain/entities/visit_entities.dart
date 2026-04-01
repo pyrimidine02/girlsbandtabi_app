@@ -12,8 +12,7 @@ class VisitEvent {
     required this.id,
     required this.placeId,
     required this.visitedAt,
-    this.latitude,
-    this.longitude,
+    this.distanceM,
     this.accuracy,
   });
 
@@ -21,27 +20,24 @@ class VisitEvent {
   final String placeId;
   final DateTime? visitedAt;
 
-  /// EN: GPS latitude recorded at verification (optional).
-  /// KO: 인증 시 기록된 GPS 위도 (선택적).
-  final double? latitude;
+  /// EN: Distance from the place at verification time, in meters (optional).
+  /// KO: 인증 시 장소로부터의 거리 (미터 단위, 선택적).
+  final double? distanceM;
 
-  /// EN: GPS longitude recorded at verification (optional).
-  /// KO: 인증 시 기록된 GPS 경도 (선택적).
-  final double? longitude;
-
-  /// EN: GPS accuracy in meters (optional).
-  /// KO: GPS 정확도 (미터 단위, 선택적).
+  /// EN: GPS accuracy in meters (optional, nullable after 30 days).
+  /// KO: GPS 정확도 (미터 단위, 30일 후 null이 될 수 있음).
   final double? accuracy;
 
-  /// EN: Whether this visit has GPS coordinates.
-  /// KO: 이 방문에 GPS 좌표가 있는지 여부.
-  bool get hasCoordinates => latitude != null && longitude != null;
+  /// EN: Whether this visit was GPS-verified (distanceM is present).
+  /// KO: GPS 인증이 완료된 방문인지 여부 (distanceM 존재 여부로 판단).
+  bool get hasGpsVerification => distanceM != null;
 
   factory VisitEvent.fromDto(VisitEventDto dto) {
     return VisitEvent(
       id: dto.id,
       placeId: dto.placeId,
       visitedAt: dto.visitedAt,
+      distanceM: dto.distanceM,
     );
   }
 
@@ -50,8 +46,7 @@ class VisitEvent {
       id: dto.id,
       placeId: dto.placeId,
       visitedAt: dto.visitedAt,
-      latitude: dto.latitude,
-      longitude: dto.longitude,
+      distanceM: dto.distanceM,
       accuracy: dto.accuracy,
     );
   }

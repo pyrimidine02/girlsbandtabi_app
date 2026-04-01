@@ -21,6 +21,14 @@ class UserProfile {
     this.avatarUrl,
     this.bio,
     this.coverImageUrl,
+    this.totalXp,
+    this.fanLevel,
+    this.fanGrade,
+    this.uniquePlacesVisited,
+    this.totalVisits,
+    this.liveAttendanceCount,
+    this.postCount,
+    this.commentCount,
   });
 
   final String id;
@@ -36,6 +44,14 @@ class UserProfile {
   final String? avatarUrl;
   final String? bio;
   final String? coverImageUrl;
+  final int? totalXp;
+  final int? fanLevel;
+  final String? fanGrade;
+  final int? uniquePlacesVisited;
+  final int? totalVisits;
+  final int? liveAttendanceCount;
+  final int? postCount;
+  final int? commentCount;
 
   String get summaryLabel {
     return '가입일: ${createdAt.toLocal().toIso8601String().split('T').first}';
@@ -113,6 +129,14 @@ class UserProfile {
       createdAt: dto.createdAt,
       bio: dto.bio,
       coverImageUrl: dto.coverImageUrl,
+      totalXp: dto.totalXp,
+      fanLevel: dto.fanLevel,
+      fanGrade: dto.fanGrade,
+      uniquePlacesVisited: dto.uniquePlacesVisited,
+      totalVisits: dto.totalVisits,
+      liveAttendanceCount: dto.liveAttendanceCount,
+      postCount: dto.postCount,
+      commentCount: dto.commentCount,
     );
   }
 }

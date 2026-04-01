@@ -2,6 +2,37 @@
 /// KO: 설정 계정 도구 API DTO 모음.
 library;
 
+/// EN: Response DTO for the account restoration endpoint.
+/// KO: 계정 복구 엔드포인트 응답 DTO.
+class RestoreAccountResultDto {
+  const RestoreAccountResultDto({
+    required this.result,
+    required this.restoredAt,
+    this.retentionUntil,
+  });
+
+  /// EN: Result string, e.g. "RESTORED".
+  /// KO: 결과 문자열 (예: "RESTORED").
+  final String result;
+
+  /// EN: Timestamp when the account was restored.
+  /// KO: 계정이 복구된 시각.
+  final DateTime restoredAt;
+
+  /// EN: Date until which user data is retained (nullable).
+  /// KO: 사용자 데이터 보존 기한 (nullable).
+  final DateTime? retentionUntil;
+
+  factory RestoreAccountResultDto.fromJson(Map<String, dynamic> json) {
+    return RestoreAccountResultDto(
+      result: json['result'] as String? ?? 'RESTORED',
+      restoredAt: _dateTime(json, const ['restoredAt']) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      retentionUntil: _dateTime(json, const ['retentionUntil']),
+    );
+  }
+}
+
 class BlockedUserDto {
   const BlockedUserDto({
     required this.id,
