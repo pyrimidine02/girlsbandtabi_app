@@ -222,6 +222,9 @@ class GBTPageTransitions {
   )
   fadeThrough() {
     return (context, animation, secondaryAnimation, child) {
+      // EN: Respect system-level reduce-motion accessibility setting.
+      // KO: 시스템 수준의 모션 감소 접근성 설정을 존중합니다.
+      if (MediaQuery.of(context).disableAnimations) return child;
       // EN: Fade out the outgoing page
       // KO: 나가는 페이지를 페이드 아웃
       const fadeOutStart = 0.0;
@@ -320,6 +323,9 @@ class GBTPageTransitions {
   )
   sharedAxisY() {
     return (context, animation, secondaryAnimation, child) {
+      // EN: Respect system-level reduce-motion accessibility setting.
+      // KO: 시스템 수준의 모션 감소 접근성 설정을 존중합니다.
+      if (MediaQuery.of(context).disableAnimations) return child;
       // EN: Outgoing page fades out and slides down slightly
       // KO: 나가는 페이지가 페이드 아웃되고 약간 아래로 슬라이드
       final outgoingOpacity = Tween<double>(begin: 1.0, end: 0.0).animate(

@@ -5,5 +5,21 @@
 <dict>
   <key>aps-environment</key>
   <string>development</string>
+  <!-- EN: Associated Domains for Universal Links.
+           applinks:api.noraneko.cc lets iOS intercept https://api.noraneko.cc/oauth/x/callback
+           and deliver it to the app (X Twitter PKCE callback). -->
+  <!-- KO: Universal Links용 Associated Domains.
+           applinks:api.noraneko.cc는 iOS가 https://api.noraneko.cc/oauth/x/callback을
+           가로채 앱으로 전달합니다 (X Twitter PKCE 콜백). -->
+  <key>com.apple.developer.associated-domains</key>
+  <array>
+    <string>applinks:api.noraneko.cc</string>
+  </array>
+  <!-- EN: Required for Sign in with Apple native SDK. -->
+  <!-- KO: Sign in with Apple 네이티브 SDK 사용에 필요합니다. -->
+  <key>com.apple.developer.applesignin</key>
+  <array>
+    <string>Default</string>
+  </array>
 </dict>
 </plist>

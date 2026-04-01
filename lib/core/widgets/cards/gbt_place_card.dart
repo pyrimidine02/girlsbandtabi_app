@@ -104,10 +104,11 @@ class GBTPlaceCard extends StatelessWidget {
               // KO: 오버레이 그라디언트가 있는 이미지 섹션 (4:3 비율)
               Stack(
                 children: [
-                  // EN: Hero animation for smooth image transition
-                  // KO: 부드러운 이미지 전환을 위한 Hero 애니메이션
+                  // EN: Hero animation for smooth image transition, including iOS swipe-back.
+                  // KO: iOS 스와이프 백 포함 부드러운 이미지 전환을 위한 Hero 애니메이션.
                   Hero(
                     tag: GBTHeroTags.placeImage(placeId),
+                    transitionOnUserGestures: true,
                     child: AspectRatio(
                       aspectRatio: 4 / 3,
                       child: _buildImage(isDark),

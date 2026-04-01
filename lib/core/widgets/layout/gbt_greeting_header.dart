@@ -68,9 +68,15 @@ class GBTGreetingHeader extends StatelessWidget {
     final titleStyle = GBTTypography.displayMedium.copyWith(
       color: Colors.white,
       fontWeight: FontWeight.w700,
+      shadows: const [
+        Shadow(color: Color(0x73000000), blurRadius: 10, offset: Offset(0, 2)),
+      ],
     );
     final subtitleStyle = GBTTypography.bodyLarge.copyWith(
-      color: Colors.white.withValues(alpha: 0.8),
+      color: Colors.white.withValues(alpha: 0.92),
+      shadows: const [
+        Shadow(color: Color(0x70000000), blurRadius: 8, offset: Offset(0, 1)),
+      ],
     );
     final titleSingleLineHeight = _measureTextHeight(
       text: greeting.title,
@@ -117,7 +123,8 @@ class GBTGreetingHeader extends StatelessWidget {
       effectiveBackgroundUrl = backgroundImageUrl;
     }
 
-    final resolvedBackgroundUrl = (effectiveBackgroundUrl?.trim().isNotEmpty == true)
+    final resolvedBackgroundUrl =
+        (effectiveBackgroundUrl?.trim().isNotEmpty == true)
         ? effectiveBackgroundUrl
         : null;
     // EN: Hide the live chip when the user has a custom banner set,
@@ -159,7 +166,7 @@ class GBTGreetingHeader extends StatelessWidget {
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0x33000000), Color(0xB3000000)],
+                colors: [Color(0x66000000), Color(0xC9000000)],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
@@ -261,9 +268,9 @@ class _FeaturedLiveChip extends StatelessWidget {
         child: Ink(
           padding: const EdgeInsets.all(GBTSpacing.xs),
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.30),
+            color: Colors.black.withValues(alpha: 0.42),
             borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.34)),
           ),
           child: Row(
             children: [

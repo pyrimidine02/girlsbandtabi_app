@@ -20,6 +20,21 @@ class SecureStorageKeys {
       'verification_key_registered_at';
   static const String oauthPendingState = 'oauth_pending_state';
   static const String oauthPendingProvider = 'oauth_pending_provider';
+  static const String notificationDeviceId = 'notification_device_id';
+  static const String notificationPushToken = 'notification_push_token';
+
+  // EN: Apple Sign-In cached credentials (required because Apple only provides
+  //     email/fullName on the very first sign-in; subsequent logins omit them).
+  // KO: Apple 로그인 캐시 자격증명 (Apple은 최초 1회만 email/fullName을 제공하므로
+  //     이후 요청 시 재사용하기 위해 저장합니다).
+  static const String appleEmail = 'apple_cached_email';
+  static const String appleFullName = 'apple_cached_full_name';
+
+  // EN: Twitter PKCE code_verifier — stored before launching the browser,
+  //     retrieved and cleared when the OAuth callback arrives.
+  // KO: Twitter PKCE code_verifier — 브라우저 실행 전 저장하고,
+  //     OAuth 콜백 수신 시 읽고 즉시 삭제합니다.
+  static const String twitterCodeVerifier = 'twitter_pkce_code_verifier';
 }
 
 /// EN: Wrapper for FlutterSecureStorage with typed methods
@@ -78,16 +93,21 @@ class SecureStorage {
     await _storage.delete(key: SecureStorageKeys.refreshToken);
   }
 
-  /// EN: Save both tokens at once
-  /// KO: 두 토큰을 한번에 저장
+  /// EN: Save both tokens at once, optionally with an expiry timestamp.
+  /// KO: 두 토큰을 한번에 저장하고, 선택적으로 만료 시간도 함께 저장합니다.
   Future<void> saveTokens({
     required String accessToken,
     required String refreshToken,
+    DateTime? expiresAt,
   }) async {
-    await Future.wait([
+    final futures = <Future<void>>[
       saveAccessToken(accessToken),
       saveRefreshToken(refreshToken),
-    ]);
+    ];
+    if (expiresAt != null) {
+      futures.add(saveTokenExpiry(expiresAt));
+    }
+    await Future.wait(futures);
   }
 
   /// EN: Delete all tokens (logout)
@@ -164,6 +184,62 @@ class SecureStorage {
   /// KO: 사용자 ID 삭제
   Future<void> deleteUserId() async {
     await _storage.delete(key: SecureStorageKeys.userId);
+  }
+
+  // ========================================
+  // EN: Notification Device Management
+  // KO: 알림 디바이스 관리
+  // ========================================
+
+  /// EN: Save notification device ID.
+  /// KO: 알림 디바이스 ID 저장.
+  Future<void> saveNotificationDeviceId(String deviceId) async {
+    await _storage.write(
+      key: SecureStorageKeys.notificationDeviceId,
+      value: deviceId,
+    );
+  }
+
+  /// EN: Get notification device ID.
+  /// KO: 알림 디바이스 ID 조회.
+  Future<String?> getNotificationDeviceId() async {
+    return _storage.read(key: SecureStorageKeys.notificationDeviceId);
+  }
+
+  /// EN: Delete notification device ID.
+  /// KO: 알림 디바이스 ID 삭제.
+  Future<void> deleteNotificationDeviceId() async {
+    await _storage.delete(key: SecureStorageKeys.notificationDeviceId);
+  }
+
+  /// EN: Save notification push token.
+  /// KO: 알림 푸시 토큰 저장.
+  Future<void> saveNotificationPushToken(String pushToken) async {
+    await _storage.write(
+      key: SecureStorageKeys.notificationPushToken,
+      value: pushToken,
+    );
+  }
+
+  /// EN: Get notification push token.
+  /// KO: 알림 푸시 토큰 조회.
+  Future<String?> getNotificationPushToken() async {
+    return _storage.read(key: SecureStorageKeys.notificationPushToken);
+  }
+
+  /// EN: Delete notification push token.
+  /// KO: 알림 푸시 토큰 삭제.
+  Future<void> deleteNotificationPushToken() async {
+    await _storage.delete(key: SecureStorageKeys.notificationPushToken);
+  }
+
+  /// EN: Clear notification registration material.
+  /// KO: 알림 등록 정보를 삭제합니다.
+  Future<void> clearNotificationRegistration() async {
+    await Future.wait([
+      deleteNotificationDeviceId(),
+      deleteNotificationPushToken(),
+    ]);
   }
 
   // ========================================
@@ -285,6 +361,68 @@ class SecureStorage {
       _storage.delete(key: SecureStorageKeys.oauthPendingState),
       _storage.delete(key: SecureStorageKeys.oauthPendingProvider),
     ]);
+  }
+
+  // ========================================
+  // EN: Apple Sign-In credential cache
+  // KO: Apple 로그인 자격증명 캐시
+  // ========================================
+
+  /// EN: Cache Apple email and fullName (only available on first sign-in).
+  ///     Pass null to skip writing a field (preserves any previously cached value).
+  /// KO: Apple 이메일과 이름을 캐시합니다 (최초 로그인 시에만 제공됨).
+  ///     null을 전달하면 해당 필드를 건너뜁니다 (기존 캐시 값 유지).
+  Future<void> saveAppleCredentials({String? email, String? fullName}) async {
+    final futures = <Future<void>>[];
+    if (email != null) {
+      futures.add(
+        _storage.write(key: SecureStorageKeys.appleEmail, value: email),
+      );
+    }
+    if (fullName != null) {
+      futures.add(
+        _storage.write(key: SecureStorageKeys.appleFullName, value: fullName),
+      );
+    }
+    if (futures.isNotEmpty) await Future.wait(futures);
+  }
+
+  /// EN: Get cached Apple email.
+  /// KO: 캐시된 Apple 이메일을 조회합니다.
+  Future<String?> getAppleEmail() async {
+    return _storage.read(key: SecureStorageKeys.appleEmail);
+  }
+
+  /// EN: Get cached Apple fullName.
+  /// KO: 캐시된 Apple 이름을 조회합니다.
+  Future<String?> getAppleFullName() async {
+    return _storage.read(key: SecureStorageKeys.appleFullName);
+  }
+
+  // ========================================
+  // EN: Twitter PKCE code_verifier management
+  // KO: Twitter PKCE code_verifier 관리
+  // ========================================
+
+  /// EN: Store the PKCE code_verifier before launching the Twitter auth browser.
+  /// KO: Twitter 인증 브라우저 실행 전 PKCE code_verifier를 저장합니다.
+  Future<void> saveTwitterCodeVerifier(String verifier) async {
+    await _storage.write(
+      key: SecureStorageKeys.twitterCodeVerifier,
+      value: verifier,
+    );
+  }
+
+  /// EN: Retrieve and immediately delete the PKCE code_verifier.
+  ///     Returns null if none was stored (e.g., stale callback after restart).
+  /// KO: PKCE code_verifier를 읽고 즉시 삭제합니다.
+  ///     저장된 값이 없으면 null을 반환합니다 (예: 재시작 후 오래된 콜백).
+  Future<String?> getAndClearTwitterCodeVerifier() async {
+    final value = await _storage.read(
+      key: SecureStorageKeys.twitterCodeVerifier,
+    );
+    await _storage.delete(key: SecureStorageKeys.twitterCodeVerifier);
+    return value;
   }
 
   // ========================================

@@ -12,7 +12,9 @@ import '../../../../core/localization/locale_text.dart';
 import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
+import '../../../../core/widgets/common/gbt_page_reveal.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/navigation/gbt_standard_app_bar.dart';
 import '../../application/fan_level_controller.dart';
 import '../../domain/entities/fan_level.dart';
 
@@ -27,24 +29,10 @@ class FanLevelPage extends ConsumerWidget {
     final state = ref.watch(fanLevelControllerProvider);
 
     return Scaffold(
-      backgroundColor:
-          isDark ? GBTColors.darkBackground : GBTColors.background,
-      appBar: AppBar(
-        backgroundColor:
-            isDark ? GBTColors.darkSurface : GBTColors.surface,
-        title: Text(
-          context.l10n(
-            ko: '나의 덕력',
-            en: 'Fan Level',
-            ja: 'ファンレベル',
-          ),
-          style: GBTTypography.titleLarge.copyWith(
-            color: isDark
-                ? GBTColors.darkTextPrimary
-                : GBTColors.textPrimary,
-          ),
-        ),
-        elevation: 0,
+      backgroundColor: isDark ? GBTColors.darkBackground : GBTColors.background,
+      appBar: gbtStandardAppBar(
+        context,
+        title: context.l10n(ko: '나의 덕력', en: 'Fan Level', ja: 'ファンレベル'),
       ),
       body: state.when(
         loading: () => _buildShimmer(isDark),
@@ -84,8 +72,7 @@ class FanLevelPage extends ConsumerWidget {
                 color: isDark
                     ? GBTColors.darkSurfaceVariant
                     : GBTColors.surfaceVariant,
-                borderRadius:
-                    BorderRadius.circular(GBTSpacing.radiusMd),
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
               ),
             ),
           ),
@@ -97,8 +84,7 @@ class FanLevelPage extends ConsumerWidget {
                 color: isDark
                     ? GBTColors.darkSurfaceVariant
                     : GBTColors.surfaceVariant,
-                borderRadius:
-                    BorderRadius.circular(GBTSpacing.radiusSm),
+                borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
               ),
             ),
           ),
@@ -119,8 +105,7 @@ class _FanLevelContent extends ConsumerStatefulWidget {
   final FanLevelProfile profile;
 
   @override
-  ConsumerState<_FanLevelContent> createState() =>
-      _FanLevelContentState();
+  ConsumerState<_FanLevelContent> createState() => _FanLevelContentState();
 }
 
 class _FanLevelContentState extends ConsumerState<_FanLevelContent> {
@@ -128,39 +113,188 @@ class _FanLevelContentState extends ConsumerState<_FanLevelContent> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final profile = widget.profile;
+    final scoredActivities =
+        profile.recentActivities
+            .where((activity) => activity.xpEarned > 0)
+            .toList(growable: false)
+          ..sort((a, b) => b.earnedAt.compareTo(a.earnedAt));
+    final latestByType = _buildLatestScoredActivityMap(scoredActivities);
 
     return RefreshIndicator(
-      onRefresh: () =>
-          ref.read(fanLevelControllerProvider.notifier).refresh(),
+      onRefresh: () => ref.read(fanLevelControllerProvider.notifier).refresh(),
       child: ListView(
         padding: const EdgeInsets.all(GBTSpacing.pageHorizontal),
         children: [
-          _GradeCard(profile: profile),
-          if (profile.recentActivities.isNotEmpty) ...[
-            const SizedBox(height: GBTSpacing.lg),
-            Text(
-              context.l10n(
-                ko: '최근 활동',
-                en: 'Recent Activities',
-                ja: '最近のアクティビティ',
+          // EN: Staggered reveal animation applied to major content sections.
+          // KO: 주요 콘텐츠 섹션에 순차 진입 애니메이션을 적용합니다.
+          GBTPageReveal(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _GradeCard(profile: profile),
+              const SizedBox(height: GBTSpacing.lg),
+              Text(
+                context.l10n(
+                  ko: '점수 부여 행위 전체',
+                  en: 'All Scored Actions',
+                  ja: 'スコア付与行動一覧',
+                ),
+                style: GBTTypography.titleMedium.copyWith(
+                  color: isDark
+                      ? GBTColors.darkTextPrimary
+                      : GBTColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-              style: GBTTypography.titleMedium.copyWith(
-                color: isDark
-                    ? GBTColors.darkTextPrimary
-                    : GBTColors.textPrimary,
-                fontWeight: FontWeight.w700,
+              const SizedBox(height: GBTSpacing.sm),
+              ..._scoreAwardedActivityTypes.map(
+                (type) => _ScoredActionTile(
+                  activityType: type,
+                  latestActivity: latestByType[type],
+                ),
               ),
-            ),
-            const SizedBox(height: GBTSpacing.sm),
-            ...profile.recentActivities.map(
-              (activity) => _ActivityTile(activity: activity),
-            ),
-          ],
-          const SizedBox(height: GBTSpacing.xl),
+              const SizedBox(height: GBTSpacing.lg),
+              Text(
+                context.l10n(
+                  ko: '점수 획득 내역',
+                  en: 'Scored History',
+                  ja: '獲得スコア履歴',
+                ),
+                style: GBTTypography.titleMedium.copyWith(
+                  color: isDark
+                      ? GBTColors.darkTextPrimary
+                      : GBTColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: GBTSpacing.sm),
+              if (scoredActivities.isEmpty)
+                _NoScoredActivityState()
+              else
+                ...scoredActivities.map(
+                  (activity) => _ActivityTile(activity: activity),
+                ),
+              const SizedBox(height: GBTSpacing.xl),
+            ],
+          ),
         ],
       ),
     );
   }
+}
+
+// =============================================================================
+// EN: Shared metadata for score-awarded actions.
+// KO: 점수가 부여되는 행위의 공통 메타데이터.
+// =============================================================================
+
+const _scoreAwardedActivityTypes = <FanActivityType>[
+  FanActivityType.dailyCheckIn,
+  FanActivityType.placeVisit,
+  FanActivityType.liveAttendance,
+  FanActivityType.postCreated,
+  FanActivityType.commentCreated,
+  FanActivityType.postLiked,
+  FanActivityType.adminGrant,
+  FanActivityType.other,
+];
+
+// EN: Returns localized activity labels for fan score actions.
+// KO: 팬 점수 행위의 다국어 라벨을 반환합니다.
+String _activityTypeLabel(BuildContext context, FanActivityType type) {
+  return switch (type) {
+    FanActivityType.placeVisit => context.l10n(
+      ko: '성지 방문',
+      en: 'Place Visit',
+      ja: '聖地訪問',
+    ),
+    FanActivityType.postCreated => context.l10n(
+      ko: '게시글 작성',
+      en: 'Post Created',
+      ja: '投稿作成',
+    ),
+    FanActivityType.liveAttendance => context.l10n(
+      ko: '라이브 참석',
+      en: 'Live Attendance',
+      ja: 'ライブ参加',
+    ),
+    FanActivityType.dailyCheckIn => context.l10n(
+      ko: '출석 체크',
+      en: 'Daily Check-in',
+      ja: 'デイリーチェックイン',
+    ),
+    FanActivityType.commentCreated => context.l10n(
+      ko: '댓글 작성',
+      en: 'Comment Created',
+      ja: 'コメント作成',
+    ),
+    FanActivityType.postLiked => context.l10n(
+      ko: '게시글 좋아요',
+      en: 'Post Liked',
+      ja: '投稿いいね',
+    ),
+    FanActivityType.bookmark => context.l10n(
+      ko: '북마크 추가',
+      en: 'Bookmark Added',
+      ja: 'ブックマーク追加',
+    ),
+    FanActivityType.collectionCompleted => context.l10n(
+      ko: '컬렉션 완성',
+      en: 'Collection Completed',
+      ja: 'コレクション完成',
+    ),
+    FanActivityType.followReceived => context.l10n(
+      ko: '팔로워 획득',
+      en: 'Follower Gained',
+      ja: 'フォロワー獲得',
+    ),
+    FanActivityType.adminGrant => context.l10n(
+      ko: '관리자 지급',
+      en: 'Admin Grant',
+      ja: '管理者付与',
+    ),
+    FanActivityType.other => context.l10n(
+      ko: '기타 활동',
+      en: 'Other Activity',
+      ja: 'その他の活動',
+    ),
+  };
+}
+
+// EN: Returns a semantic icon for each score action type.
+// KO: 점수 행위 타입별 시맨틱 아이콘을 반환합니다.
+IconData _activityTypeIcon(FanActivityType type) {
+  return switch (type) {
+    FanActivityType.placeVisit => Icons.place_outlined,
+    FanActivityType.postCreated => Icons.edit_note_rounded,
+    FanActivityType.liveAttendance => Icons.music_note_outlined,
+    FanActivityType.dailyCheckIn => Icons.event_available_outlined,
+    FanActivityType.commentCreated => Icons.chat_bubble_outline_rounded,
+    FanActivityType.postLiked => Icons.thumb_up_off_alt_rounded,
+    FanActivityType.bookmark => Icons.bookmark_outline_rounded,
+    FanActivityType.collectionCompleted => Icons.collections_bookmark_outlined,
+    FanActivityType.followReceived => Icons.people_outline_rounded,
+    FanActivityType.adminGrant => Icons.shield_outlined,
+    FanActivityType.other => Icons.bolt_outlined,
+  };
+}
+
+// EN: Builds latest activity map keyed by action type.
+// KO: 행위 타입을 키로 최신 활동 맵을 구성합니다.
+Map<FanActivityType, FanActivity?> _buildLatestScoredActivityMap(
+  List<FanActivity> scoredActivities,
+) {
+  final latest = <FanActivityType, FanActivity?>{
+    for (final type in _scoreAwardedActivityTypes) type: null,
+  };
+  for (final activity in scoredActivities) {
+    if (!latest.containsKey(activity.type)) {
+      continue;
+    }
+    if (latest[activity.type] == null) {
+      latest[activity.type] = activity;
+    }
+  }
+  return latest;
 }
 
 // =============================================================================
@@ -177,24 +311,18 @@ class _GradeCard extends StatelessWidget {
   // KO: 주어진 등급과 밝기에 맞는 강조 색상을 반환합니다.
   Color _gradeColor(FanGrade grade, bool isDark) {
     return switch (grade) {
-      FanGrade.newbie => isDark
-          ? const Color(0xFF9CA3AF)
-          : const Color(0xFF6B7280),
-      FanGrade.beginner => isDark
-          ? const Color(0xFF34D399)
-          : const Color(0xFF059669),
-      FanGrade.enthusiast => isDark
-          ? const Color(0xFF60A5FA)
-          : const Color(0xFF2563EB),
-      FanGrade.devotee => isDark
-          ? const Color(0xFFA78BFA)
-          : const Color(0xFF7C3AED),
-      FanGrade.master => isDark
-          ? const Color(0xFFFBBF24)
-          : const Color(0xFFD97706),
-      FanGrade.legend => isDark
-          ? const Color(0xFFF87171)
-          : const Color(0xFFDC2626),
+      FanGrade.newbie =>
+        isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+      FanGrade.beginner =>
+        isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
+      FanGrade.enthusiast =>
+        isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
+      FanGrade.devotee =>
+        isDark ? const Color(0xFFA78BFA) : const Color(0xFF7C3AED),
+      FanGrade.master =>
+        isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706),
+      FanGrade.legend =>
+        isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626),
     };
   }
 
@@ -238,8 +366,7 @@ class _GradeCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: gradeColor.withValues(alpha: 0.15),
-                    borderRadius:
-                        BorderRadius.circular(GBTSpacing.radiusXs),
+                    borderRadius: BorderRadius.circular(GBTSpacing.radiusXs),
                   ),
                   child: Text(
                     gradeLabel,
@@ -287,8 +414,7 @@ class _GradeCard extends StatelessWidget {
                   backgroundColor: isDark
                       ? GBTColors.darkSurfaceVariant
                       : GBTColors.surfaceVariant,
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(gradeColor),
+                  valueColor: AlwaysStoppedAnimation<Color>(gradeColor),
                   minHeight: 8,
                 ),
               ),
@@ -335,14 +461,18 @@ class _ActivityTile extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final dateLabel = DateFormat('MM.dd').format(activity.earnedAt);
 
+    // EN: Strip "[ADMIN] " prefix from admin-granted activity descriptions.
+    // KO: 관리자 지급 항목의 "[ADMIN] " 접두사를 제거합니다.
+    final rawDesc = activity.description;
+    final fallbackLabel = _activityTypeLabel(context, activity.type);
+    final activityLabel = rawDesc != null
+        ? (rawDesc.startsWith('[ADMIN] ') ? rawDesc.substring(8) : rawDesc)
+        : fallbackLabel;
     return Semantics(
       label: context.l10n(
-        ko:
-            '${activity.type.koLabel}, +${activity.xpEarned} XP, $dateLabel',
-        en:
-            '${activity.type.koLabel}, +${activity.xpEarned} XP, $dateLabel',
-        ja:
-            '${activity.type.koLabel}, +${activity.xpEarned} XP, $dateLabel',
+        ko: '$activityLabel, +${activity.xpEarned} XP, $dateLabel',
+        en: '$activityLabel, +${activity.xpEarned} XP, $dateLabel',
+        ja: '$activityLabel, +${activity.xpEarned} XP, $dateLabel',
       ),
       child: Padding(
         padding: const EdgeInsets.only(bottom: GBTSpacing.xs),
@@ -360,11 +490,9 @@ class _ActivityTile extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                Icons.bolt_outlined,
+                _activityTypeIcon(activity.type),
                 size: 18,
-                color: isDark
-                    ? GBTColors.darkPrimary
-                    : GBTColors.primary,
+                color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
               ),
             ),
             const SizedBox(width: GBTSpacing.sm),
@@ -374,7 +502,7 @@ class _ActivityTile extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    activity.type.koLabel,
+                    activityLabel,
                     style: GBTTypography.bodySmall.copyWith(
                       color: isDark
                           ? GBTColors.darkTextPrimary
@@ -397,13 +525,138 @@ class _ActivityTile extends StatelessWidget {
             Text(
               '+${activity.xpEarned} XP',
               style: GBTTypography.labelMedium.copyWith(
-                color: isDark
-                    ? GBTColors.darkPrimary
-                    : GBTColors.primary,
+                color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// EN: Static list tile for score-awarded action categories.
+// KO: 점수 부여 행위 카테고리 정적 목록 타일.
+// =============================================================================
+
+class _ScoredActionTile extends StatelessWidget {
+  const _ScoredActionTile({required this.activityType, this.latestActivity});
+
+  final FanActivityType activityType;
+  final FanActivity? latestActivity;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final label = _activityTypeLabel(context, activityType);
+    final subtitle = latestActivity == null
+        ? context.l10n(
+            ko: '아직 획득 내역이 없어요',
+            en: 'No earned score yet',
+            ja: 'まだ獲得履歴がありません',
+          )
+        : context.l10n(
+            ko: '최근 획득: ${DateFormat('MM.dd').format(latestActivity!.earnedAt)}',
+            en: 'Latest: ${DateFormat('MM.dd').format(latestActivity!.earnedAt)}',
+            ja: '最新: ${DateFormat('MM.dd').format(latestActivity!.earnedAt)}',
+          );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: GBTSpacing.xs),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: GBTSpacing.sm,
+          vertical: GBTSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: isDark ? GBTColors.darkSurface : GBTColors.surface,
+          borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? GBTColors.darkSurfaceVariant
+                    : GBTColors.surfaceVariant,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _activityTypeIcon(activityType),
+                size: 18,
+                color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
+              ),
+            ),
+            const SizedBox(width: GBTSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: GBTTypography.bodySmall.copyWith(
+                      color: isDark
+                          ? GBTColors.darkTextPrimary
+                          : GBTColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: GBTTypography.labelSmall.copyWith(
+                      color: isDark
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              latestActivity == null ? '-' : '+${latestActivity!.xpEarned} XP',
+              style: GBTTypography.labelMedium.copyWith(
+                color: latestActivity == null
+                    ? (isDark
+                          ? GBTColors.darkTextTertiary
+                          : GBTColors.textTertiary)
+                    : (isDark ? GBTColors.darkPrimary : GBTColors.primary),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// EN: Empty-state tile for score history.
+// KO: 점수 획득 내역 비어있을 때의 상태 타일.
+// =============================================================================
+
+class _NoScoredActivityState extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(GBTSpacing.md),
+      decoration: BoxDecoration(
+        color: isDark ? GBTColors.darkSurface : GBTColors.surface,
+        borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
+      ),
+      child: Text(
+        context.l10n(
+          ko: '아직 점수 획득 내역이 없습니다.',
+          en: 'No scored history yet.',
+          ja: 'まだ獲得スコア履歴がありません。',
+        ),
+        style: GBTTypography.bodySmall.copyWith(
+          color: isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
         ),
       ),
     );

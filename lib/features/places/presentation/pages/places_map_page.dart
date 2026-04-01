@@ -4,6 +4,7 @@ library;
 
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:apple_maps_flutter/apple_maps_flutter.dart' as amaps;
 import 'package:flutter/foundation.dart';
@@ -172,6 +173,18 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
               onCameraIdle: _handleCameraIdle,
               onClusterTap: _zoomToCluster,
               onPlaceTap: _navigateToPlaceDetail,
+            ),
+          ),
+          // EN: Apply a subtle top readability layer so status bar text and
+          //     top controls stay legible over bright/complex map tiles.
+          // KO: 밝거나 복잡한 지도 타일 위에서도 상태바 텍스트와 상단 컨트롤
+          //     가독성을 유지하기 위해 상단에 약한 읽기 보정 레이어를 적용합니다.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: _TopMapReadabilityOverlay(isDarkMode: isDarkMode),
             ),
           ),
           // EN: Floating top header — Google Maps / Naver Maps style
@@ -938,6 +951,71 @@ class _PlacesMapPageState extends ConsumerState<PlacesMapPage> {
 
   bool get _isAppleMap =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+}
+
+/// EN: Lightweight blur + scrim overlay for top readability on map.
+/// KO: 지도 상단 가독성 개선을 위한 약한 블러 + 스크림 오버레이.
+class _TopMapReadabilityOverlay extends StatelessWidget {
+  const _TopMapReadabilityOverlay({required this.isDarkMode});
+
+  final bool isDarkMode;
+
+  @override
+  Widget build(BuildContext context) {
+    final topInset = MediaQuery.paddingOf(context).top;
+    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    // EN: Search bar top is SafeArea top inset + one xs spacer.
+    // KO: 검색창 상단은 SafeArea top inset + xs 간격 1개입니다.
+    const searchBarTopOffset = GBTSpacing.xs;
+    // EN: Gap between search bar and the pill-chip row.
+    // KO: 검색창과 알약형 칩 행 사이 간격.
+    const searchToPillGap = GBTSpacing.xs;
+
+    // EN: iOS: blur only notch / dynamic-island height.
+    // KO: iOS: 노치 / 다이나믹 아일랜드 높이만 블러 처리.
+    final overlayTop = isIOS
+        ? 0.0
+        : topInset + searchBarTopOffset - searchToPillGap;
+    // EN: Android: keep a slim strip above search bar, sized by
+    //     search-to-pill spacing.
+    // KO: Android: 검색창 위 얇은 스트립만, 검색창-알약칩 간격과 같은 높이.
+    final overlayHeight = isIOS ? topInset : searchToPillGap;
+
+    if (overlayHeight <= 0) {
+      return const SizedBox.shrink();
+    }
+
+    final topColor = isDarkMode
+        ? Colors.black.withValues(alpha: 0.22)
+        : Colors.white.withValues(alpha: 0.24);
+    final midColor = isDarkMode
+        ? Colors.black.withValues(alpha: 0.10)
+        : Colors.white.withValues(alpha: 0.10);
+
+    return Padding(
+      padding: EdgeInsets.only(top: overlayTop),
+      child: SizedBox(
+        height: overlayHeight,
+        child: ClipRect(
+          child: BackdropFilter(
+            // EN: Keep blur subtle to preserve map context.
+            // KO: 지도 맥락은 유지되도록 블러 강도는 약하게 유지합니다.
+            filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [topColor, midColor, Colors.transparent],
+                  stops: const [0, 0.55, 1],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _PlacesSliverList extends StatelessWidget {

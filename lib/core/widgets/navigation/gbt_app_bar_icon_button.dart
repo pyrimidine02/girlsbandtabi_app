@@ -17,6 +17,7 @@ class GBTAppBarIconButton extends StatelessWidget {
     required this.onPressed,
     this.tooltip,
     this.semanticLabel,
+    this.iconColor,
   });
 
   /// EN: Icon to display.
@@ -35,13 +36,17 @@ class GBTAppBarIconButton extends StatelessWidget {
   /// KO: 접근성 시맨틱 라벨 (기본값: tooltip).
   final String? semanticLabel;
 
+  /// EN: Optional explicit icon color to override theme defaults.
+  /// KO: 테마 기본값을 덮어쓰는 선택적 아이콘 색상입니다.
+  final Color? iconColor;
+
   @override
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
       label: semanticLabel ?? tooltip,
       child: IconButton(
-        icon: Icon(icon),
+        icon: Icon(icon, color: iconColor),
         onPressed: onPressed,
         tooltip: tooltip,
         constraints: const BoxConstraints(

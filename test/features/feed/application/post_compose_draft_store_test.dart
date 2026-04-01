@@ -1,7 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:girlsbandtabi_app/features/feed/application/post_compose_draft_store.dart';
+import 'package:girlsbandtabi_app/core/storage/local_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('PostComposeDraft', () {
     test('fromJson restores valid payload', () {
       final draft = PostComposeDraft.fromJson({
@@ -61,4 +65,50 @@ void main() {
       );
     });
   });
+
+  group('PostComposeDraftStore', () {
+    test('read removes expired draft and returns null', () async {
+      final now = DateTime.parse('2026-03-12T09:00:00.000Z');
+      final harness = await _createStore(
+        now: () => now,
+        retention: const Duration(days: 7),
+      );
+      final store = harness.store;
+      final storage = harness.storage;
+
+      const key = 'feed_post_create_draft_v1';
+      await store.write(
+        key,
+        PostComposeDraft(
+          title: '오래된 제목',
+          content: '오래된 내용',
+          imagePaths: const ['/tmp/old.jpg'],
+          savedAt: now.subtract(const Duration(days: 8)),
+          projectCode: 'girls-band-cry',
+        ),
+      );
+
+      final restored = await store.read(key);
+
+      expect(restored, isNull);
+      expect(storage.containsKey(key), isFalse);
+    });
+  });
+}
+
+Future<({PostComposeDraftStore store, LocalStorage storage})> _createStore({
+  DateTime Function()? now,
+  Duration? retention,
+}) async {
+  SharedPreferences.setMockInitialValues(<String, Object>{});
+  final prefs = await SharedPreferences.getInstance();
+  final storage = LocalStorage(prefs);
+  return (
+    store: PostComposeDraftStore(
+      storage,
+      now: now,
+      retention: retention ?? const Duration(days: 7),
+    ),
+    storage: storage,
+  );
 }

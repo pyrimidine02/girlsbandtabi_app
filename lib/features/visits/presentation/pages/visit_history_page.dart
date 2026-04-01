@@ -14,6 +14,7 @@ import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
+import '../../../../core/widgets/navigation/gbt_standard_app_bar.dart';
 import '../../../places/domain/entities/place_entities.dart';
 import '../../../projects/application/projects_controller.dart';
 import '../../../projects/domain/entities/project_entities.dart';
@@ -65,13 +66,18 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage>
         ref.watch(projectsControllerProvider).valueOrNull ?? const <Project>[];
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n(ko: '방문 기록', en: 'Visit history', ja: '訪問履歴')),
+      appBar: gbtStandardAppBar(
+        context,
+        title: context.l10n(ko: '방문 기록', en: 'Visit history', ja: '訪問履歴'),
         bottom: TabBar(
           controller: _tabController,
           tabs: [
-            Tab(text: context.l10n(ko: '장소', en: 'Places', ja: '場所')),
-            Tab(text: context.l10n(ko: '라이브', en: 'Live', ja: 'ライブ')),
+            Tab(
+              text: context.l10n(ko: '장소', en: 'Places', ja: '場所'),
+            ),
+            Tab(
+              text: context.l10n(ko: '이벤트', en: 'Events', ja: 'イベント'),
+            ),
           ],
         ),
         actions: [
@@ -102,7 +108,8 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage>
     AsyncValue<List<VisitEvent>> visitsState,
     AsyncValue<
       Map<String, ({PlaceSummary place, String projectId, String projectName})>
-    > allPlacesMapState,
+    >
+    allPlacesMapState,
     List<Project> orderedProjects,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -124,10 +131,9 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage>
                 );
           return _VisitEmptyState(
             message: message,
-            onRetry: () =>
-                ref.read(userVisitsControllerProvider.notifier).load(
-                  forceRefresh: true,
-                ),
+            onRetry: () => ref
+                .read(userVisitsControllerProvider.notifier)
+                .load(forceRefresh: true),
           );
         },
         data: (visits) {
@@ -173,9 +179,7 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage>
               if (buckets.containsKey(p.id)) p.id,
             if (buckets.containsKey(unknownProjectId)) unknownProjectId,
           ];
-          final projectNameOf = {
-            for (final p in orderedProjects) p.id: p.name,
-          };
+          final projectNameOf = {for (final p in orderedProjects) p.id: p.name};
 
           // EN: Build a flat sliver list: project header → month header → tiles.
           // KO: 프로젝트 헤더 → 월별 헤더 → 타일 순의 평탄한 슬리버 리스트 구성.
@@ -221,8 +225,6 @@ class _VisitHistoryPageState extends ConsumerState<VisitHistoryPage>
                           visitId: visit.id,
                           placeId: visit.placeId,
                           visitedAt: visit.visitedAt?.toIso8601String(),
-                          latitude: visit.latitude,
-                          longitude: visit.longitude,
                         ),
                       );
                     },

@@ -459,6 +459,27 @@ class SettingsRepositoryImpl implements SettingsRepository {
   }
 
   @override
+  Future<Result<RestoreAccountResult>> restoreAccount() async {
+    try {
+      final result = await _remoteDataSource.restoreAccount();
+      if (result is Success<RestoreAccountResultDto>) {
+        return Result.success(RestoreAccountResult.fromDto(result.data));
+      }
+      if (result is Err<RestoreAccountResultDto>) {
+        return Result.failure(result.failure);
+      }
+      return Result.failure(
+        const UnknownFailure(
+          'Unknown restore account result',
+          code: 'unknown_restore_account',
+        ),
+      );
+    } catch (e, stackTrace) {
+      return Result.failure(ErrorHandler.mapException(e, stackTrace));
+    }
+  }
+
+  @override
   Future<Result<List<UserBlock>>> getUserBlocks({
     bool forceRefresh = false,
   }) async {

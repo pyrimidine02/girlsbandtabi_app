@@ -13,6 +13,7 @@ import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
+import '../../../../core/widgets/navigation/gbt_standard_app_bar.dart';
 import '../../application/local_post_bookmarks_controller.dart';
 
 /// EN: Page showing all community posts the user has bookmarked locally.
@@ -25,10 +26,9 @@ class PostBookmarksPage extends ConsumerWidget {
     final posts = ref.watch(localPostBookmarksControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          context.l10n(ko: '북마크한 글', en: 'Bookmarks', ja: 'ブックマーク'),
-        ),
+      appBar: gbtStandardAppBar(
+        context,
+        title: context.l10n(ko: '북마크한 글', en: 'Bookmarks', ja: 'ブックマーク'),
         actions: [
           GBTAppBarIconButton(
             icon: Icons.refresh,
@@ -92,10 +92,12 @@ class _BookmarkedPostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary =
-        isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary;
-    final textTertiary =
-        isDark ? GBTColors.darkTextTertiary : GBTColors.textTertiary;
+    final textPrimary = isDark
+        ? GBTColors.darkTextPrimary
+        : GBTColors.textPrimary;
+    final textTertiary = isDark
+        ? GBTColors.darkTextTertiary
+        : GBTColors.textTertiary;
     final surfaceColor = isDark ? GBTColors.darkSurfaceElevated : Colors.white;
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
 
@@ -136,8 +138,8 @@ class _BookmarkedPostCard extends StatelessWidget {
                     height: 72,
                     decoration: BoxDecoration(
                       color: (isDark
-                              ? GBTColors.darkSurfaceVariant
-                              : GBTColors.surfaceVariant),
+                          ? GBTColors.darkSurfaceVariant
+                          : GBTColors.surfaceVariant),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(GBTSpacing.radiusMd - 1),
                         bottomLeft: Radius.circular(GBTSpacing.radiusMd - 1),

@@ -19,6 +19,14 @@ class UserProfileDto {
     this.avatarUrl,
     this.bio,
     this.coverImageUrl,
+    this.totalXp,
+    this.fanLevel,
+    this.fanGrade,
+    this.uniquePlacesVisited,
+    this.totalVisits,
+    this.liveAttendanceCount,
+    this.postCount,
+    this.commentCount,
   });
 
   final String id;
@@ -27,6 +35,14 @@ class UserProfileDto {
   final String? avatarUrl;
   final String? bio;
   final String? coverImageUrl;
+  final int? totalXp;
+  final int? fanLevel;
+  final String? fanGrade;
+  final int? uniquePlacesVisited;
+  final int? totalVisits;
+  final int? liveAttendanceCount;
+  final int? postCount;
+  final int? commentCount;
   final String accountRole;
   final String baselineAccessLevel;
   final String effectiveAccessLevel;
@@ -77,6 +93,59 @@ class UserProfileDto {
         baselineAccessLevel;
     final grants = _parseAccessLevelGrants(json['grants']);
     final projectRolesByProject = _parseProjectRolesByProject(json);
+    final totalXp = _resolveStatsInt(json, [
+      'totalXp',
+      'total_xp',
+      'xp',
+      'fanXp',
+      'fan_xp',
+    ]);
+    final fanLevel = _resolveStatsInt(json, [
+      'fanLevel',
+      'fan_level',
+      'level',
+      'levelNumber',
+      'level_number',
+    ]);
+    final fanGrade = _resolveStatsString(json, [
+      'fanGrade',
+      'fan_grade',
+      'grade',
+      'levelName',
+      'level_name',
+    ]);
+    final uniquePlacesVisited = _resolveStatsInt(json, [
+      'uniquePlacesVisited',
+      'unique_places_visited',
+      'uniquePlaces',
+      'unique_places',
+    ]);
+    final totalVisits = _resolveStatsInt(json, [
+      'totalVisits',
+      'total_visits',
+      'visitCount',
+      'visit_count',
+    ]);
+    final liveAttendanceCount = _resolveStatsInt(json, [
+      'liveAttendanceCount',
+      'live_attendance_count',
+      'attendanceCount',
+      'attendance_count',
+      'liveVisits',
+      'live_visits',
+    ]);
+    final postCount = _resolveStatsInt(json, [
+      'postCount',
+      'post_count',
+      'postsCount',
+      'posts_count',
+    ]);
+    final commentCount = _resolveStatsInt(json, [
+      'commentCount',
+      'comment_count',
+      'commentsCount',
+      'comments_count',
+    ]);
 
     return UserProfileDto(
       id: _string(json, ['id', 'userId', 'user_id']) ?? '',
@@ -108,6 +177,14 @@ class UserProfileDto {
         'bannerImageUrl',
         'banner_image_url',
       ]),
+      totalXp: totalXp,
+      fanLevel: fanLevel,
+      fanGrade: fanGrade,
+      uniquePlacesVisited: uniquePlacesVisited,
+      totalVisits: totalVisits,
+      liveAttendanceCount: liveAttendanceCount,
+      postCount: postCount,
+      commentCount: commentCount,
     );
   }
 
@@ -119,6 +196,16 @@ class UserProfileDto {
       'avatarUrl': avatarUrl,
       'bio': bio,
       'coverImageUrl': coverImageUrl,
+      if (totalXp != null) 'totalXp': totalXp,
+      if (fanLevel != null) 'fanLevel': fanLevel,
+      if (fanGrade != null) 'fanGrade': fanGrade,
+      if (uniquePlacesVisited != null)
+        'uniquePlacesVisited': uniquePlacesVisited,
+      if (totalVisits != null) 'totalVisits': totalVisits,
+      if (liveAttendanceCount != null)
+        'liveAttendanceCount': liveAttendanceCount,
+      if (postCount != null) 'postCount': postCount,
+      if (commentCount != null) 'commentCount': commentCount,
       'accountRole': accountRole,
       'baselineAccessLevel': baselineAccessLevel,
       'effectiveAccessLevel': effectiveAccessLevel,
@@ -151,6 +238,14 @@ class UserProfileDto {
       avatarUrl: avatarUrl,
       bio: bio,
       coverImageUrl: coverImageUrl,
+      totalXp: totalXp,
+      fanLevel: fanLevel,
+      fanGrade: fanGrade,
+      uniquePlacesVisited: uniquePlacesVisited,
+      totalVisits: totalVisits,
+      liveAttendanceCount: liveAttendanceCount,
+      postCount: postCount,
+      commentCount: commentCount,
       role: role,
       accountRole: mergedAccountRole,
       baselineAccessLevel: mergedBaseline,
@@ -168,6 +263,77 @@ String? _string(Map<String, dynamic> json, List<String> keys) {
     if (value is String && value.trim().isNotEmpty) return value.trim();
   }
   return null;
+}
+
+int? _int(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) {
+      final parsed = int.tryParse(value.trim());
+      if (parsed != null) return parsed;
+    }
+  }
+  return null;
+}
+
+Map<String, dynamic>? _map(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+  }
+  return null;
+}
+
+int? _resolveStatsInt(Map<String, dynamic> json, List<String> keys) {
+  final direct = _int(json, keys);
+  if (direct != null) {
+    return direct;
+  }
+  final nested = _map(json, [
+    'stats',
+    'activityStats',
+    'activity_stats',
+    'profileStats',
+    'profile_stats',
+    'fanLevel',
+    'fan_level',
+    'visitStats',
+    'visit_stats',
+    'attendanceStats',
+    'attendance_stats',
+  ]);
+  if (nested == null) {
+    return null;
+  }
+  return _int(nested, keys);
+}
+
+String? _resolveStatsString(Map<String, dynamic> json, List<String> keys) {
+  final direct = _string(json, keys);
+  if (direct != null) {
+    return direct;
+  }
+  final nested = _map(json, [
+    'stats',
+    'activityStats',
+    'activity_stats',
+    'profileStats',
+    'profile_stats',
+    'fanLevel',
+    'fan_level',
+    'visitStats',
+    'visit_stats',
+    'attendanceStats',
+    'attendance_stats',
+  ]);
+  if (nested == null) {
+    return null;
+  }
+  return _string(nested, keys);
 }
 
 String? _firstRoleValue(Map<String, dynamic> json, List<String> keys) {

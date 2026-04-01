@@ -85,7 +85,7 @@ class ErrorHandler {
       ),
       403 => AuthFailure(
         message ?? 'Forbidden',
-        code: isCsrfFailure ? 'auth_required' : '403',
+        code: isCsrfFailure ? 'auth_required' : (errorCode ?? '403'),
         stackTrace: stackTrace,
       ),
       404 => NotFoundFailure(

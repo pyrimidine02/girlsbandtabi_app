@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -55,7 +56,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.initState();
     _scrollController.addListener(() {
       if (!mounted) return;
-      final isScrolled = _scrollController.hasClients && _scrollController.offset > 50;
+      final isScrolled =
+          _scrollController.hasClients && _scrollController.offset > 50;
       if (isScrolled != _isScrolled) {
         setState(() => _isScrolled = isScrolled);
       }
@@ -93,15 +95,36 @@ class _HomePageState extends ConsumerState<HomePage> {
     final appBarFgColor = _isScrolled
         ? (isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary)
         : Colors.white;
+    final appBarOverlayStyle = _isScrolled
+        ? (isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
+        : SystemUiOverlayStyle.light;
+    final appBarTitleStyle = GBTTypography.titleMedium.copyWith(
+      color: appBarFgColor,
+      fontWeight: FontWeight.w700,
+      shadows: _isScrolled
+          ? null
+          : const [
+              Shadow(
+                color: Color(0x70000000),
+                blurRadius: 8,
+                offset: Offset(0, 1),
+              ),
+            ],
+    );
+    final appBarActionIconColor = appBarFgColor;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text('Girls Band Tabi'),
+        titleTextStyle: appBarTitleStyle,
         backgroundColor: appBarBgColor,
         elevation: 0,
         scrolledUnderElevation: 0,
         foregroundColor: appBarFgColor,
+        iconTheme: IconThemeData(color: appBarActionIconColor),
+        actionsIconTheme: IconThemeData(color: appBarActionIconColor),
+        systemOverlayStyle: appBarOverlayStyle,
         flexibleSpace: _isScrolled
             ? ClipRect(
                 child: BackdropFilter(
@@ -113,20 +136,31 @@ class _HomePageState extends ConsumerState<HomePage> {
         actions: [
           GBTAppBarIconButton(
             icon: Icons.search,
+            iconColor: appBarActionIconColor,
             onPressed: () => context.goToSearch(),
             tooltip: context.l10n(ko: '검색', en: 'Search', ja: '検索'),
           ),
           GBTAppBarIconButton(
             icon: Icons.notifications_outlined,
+            iconColor: appBarActionIconColor,
             onPressed: () => context.push('/notifications'),
             tooltip: context.l10n(ko: '알림', en: 'Notifications', ja: '通知'),
           ),
           if (!_isScrolled)
-            GBTProfileAction(avatarUrl: avatarUrl)
+            GBTProfileAction(
+              avatarUrl: avatarUrl,
+              placeholderBackgroundColor: Colors.black.withValues(alpha: 0.26),
+              placeholderIconColor: Colors.white.withValues(alpha: 0.94),
+            )
           else
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
-              child: GBTProfileAction(avatarUrl: avatarUrl),
+              child: GBTProfileAction(
+                avatarUrl: avatarUrl,
+                placeholderIconColor: appBarActionIconColor.withValues(
+                  alpha: 0.9,
+                ),
+              ),
             ),
         ],
       ),
@@ -342,12 +376,14 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ? null
                 : () {
                     unawaited(
-                      ref.read(analyticsServiceProvider).logLiveEventView(
-                        featuredLive.id,
-                        eventName: featuredLive.title,
-                      ),
+                      ref
+                          .read(analyticsServiceProvider)
+                          .logLiveEventView(
+                            featuredLive.id,
+                            eventName: featuredLive.title,
+                          ),
                     );
-                    context.goToLiveDetail(featuredLive.id);
+                    context.goToEventDetail(featuredLive.id);
                   },
             onCustomizeTap: isAuthenticated
                 ? () => context.push('/banner-picker')
@@ -368,9 +404,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.only(top: GBTSpacing.md),
-            child: _HomeSponsoredSlot(
-              onTap: () => context.go('/explore'),
-            ),
+            child: _HomeSponsoredSlot(onTap: () => context.go('/explore')),
           ),
         ),
 
@@ -437,10 +471,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                   imageUrl: place.imageUrl,
                   onTap: () {
                     unawaited(
-                      ref.read(analyticsServiceProvider).logPlaceVisit(
-                        place.id,
-                        placeName: place.name,
-                      ),
+                      ref
+                          .read(analyticsServiceProvider)
+                          .logPlaceVisit(place.id, placeName: place.name),
                     );
                     context.goToPlaceDetail(place.id);
                   },
@@ -460,7 +493,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           SliverToBoxAdapter(
             child: GBTCarouselSection(
               title: context.l10n(
-                ko: '트렌딩 라이브',
+                ko: '트렌딩 이벤트',
                 en: 'Trending Live',
                 ja: 'トレンドライブ',
               ),
@@ -476,12 +509,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                   isLive: event.isLive,
                   onTap: () {
                     unawaited(
-                      ref.read(analyticsServiceProvider).logLiveEventView(
-                        event.id,
-                        eventName: event.title,
-                      ),
+                      ref
+                          .read(analyticsServiceProvider)
+                          .logLiveEventView(event.id, eventName: event.title),
                     );
-                    context.goToLiveDetail(event.id);
+                    context.goToEventDetail(event.id);
                   },
                 );
               },

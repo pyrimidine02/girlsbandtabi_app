@@ -665,33 +665,42 @@ class _PostCreatePageState extends ConsumerState<PostCreatePage> {
                         ),
                       ],
                     ),
-                    if (_images.isNotEmpty) ...[
-                      const SizedBox(height: GBTSpacing.sm),
-                      SizedBox(
-                        height: 92,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _images.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(width: GBTSpacing.sm),
-                          itemBuilder: (context, index) {
-                            final image = _images[index];
-                            return _ComposerLocalImageTile(
-                              imagePath: image.path,
-                              onPreview: () => _previewImage(image),
-                              onRemove: _isSubmitting
-                                  ? null
-                                  : () {
-                                      setState(() {
-                                        _images.removeAt(index);
-                                      });
-                                      _scheduleDraftSave();
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      alignment: Alignment.topCenter,
+                      child: _images.isNotEmpty
+                          ? Column(
+                              children: [
+                                const SizedBox(height: GBTSpacing.sm),
+                                SizedBox(
+                                  height: 92,
+                                  child: ListView.separated(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: _images.length,
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(width: GBTSpacing.sm),
+                                    itemBuilder: (context, index) {
+                                      final image = _images[index];
+                                      return _ComposerLocalImageTile(
+                                        imagePath: image.path,
+                                        onPreview: () => _previewImage(image),
+                                        onRemove: _isSubmitting
+                                            ? null
+                                            : () {
+                                                setState(() {
+                                                  _images.removeAt(index);
+                                                });
+                                                _scheduleDraftSave();
+                                              },
+                                      );
                                     },
-                            );
-                          },
-                        ),
-                      ),
-                    ],
+                                  ),
+                                ),
+                              ],
+                            )
+                          : const SizedBox.shrink(),
+                    ),
                     if (_errorMessage != null) ...[
                       const SizedBox(height: GBTSpacing.sm),
                       Semantics(

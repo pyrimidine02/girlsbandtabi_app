@@ -230,7 +230,7 @@ class _HistoryCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
       child: InkWell(
         borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),
-        onTap: () => context.goToLiveDetail(record.eventId),
+        onTap: () => context.goToEventDetail(record.eventId),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(GBTSpacing.radiusMd),

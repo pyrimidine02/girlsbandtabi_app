@@ -295,6 +295,10 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage>
       'COMMENT_CREATED' ||
       'COMMENT_REPLY_CREATED' ||
       'POST_LIKED' => '/board',
+      'LIVE_EVENT_UPDATED' ||
+      'LIVE_EVENT_CANCELLED' ||
+      'LIVE_EVENT_ATTENDANCE_VERIFIED' => '/visits?tab=live',
+      'MODERATION' => '/notifications',
       // EN: System notices have no external target — stay on this page.
       // KO: 시스템 공지는 별도 이동 대상이 없으므로 현재 페이지에 머뭅니다.
       _ => null,
@@ -447,6 +451,12 @@ class _NotificationTile extends StatelessWidget {
       'COMMENT_CREATED' || 'COMMENT_REPLY_CREATED' =>
         Icons.chat_bubble_outline,
       'POST_LIKED' => Icons.favorite_border,
+      notificationTypeTitleEarned => Icons.workspace_premium_outlined,
+      'LIVE_EVENT_UPDATED' ||
+      'LIVE_EVENT_CANCELLED' ||
+      'LIVE_EVENT_ATTENDANCE_VERIFIED' =>
+        Icons.event_outlined,
+      'MODERATION' => Icons.gavel_outlined,
       notificationTypeSystemNotice => Icons.campaign_outlined,
       _ => Icons.notifications_outlined,
     };
@@ -466,6 +476,17 @@ class _NotificationTile extends StatelessWidget {
       'POST_LIKED' => isDark
           ? GBTColors.darkSecondary
           : GBTColors.secondary,
+      notificationTypeTitleEarned => isDark
+          ? GBTColors.darkPrimary
+          : GBTColors.primary,
+      'LIVE_EVENT_UPDATED' ||
+      'LIVE_EVENT_CANCELLED' ||
+      'LIVE_EVENT_ATTENDANCE_VERIFIED' => isDark
+          ? GBTColors.darkPrimary
+          : GBTColors.primary,
+      'MODERATION' => isDark
+          ? const Color(0xFFEF9A9A)
+          : const Color(0xFFC62828),
       _ => isDark ? GBTColors.darkTextSecondary : GBTColors.textSecondary,
     };
   }

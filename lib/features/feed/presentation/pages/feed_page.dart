@@ -32,6 +32,7 @@ import '../../application/new_posts_indicator_notifier.dart';
 import '../../application/report_rate_limiter.dart';
 import '../../domain/entities/community_moderation.dart';
 import '../../domain/entities/feed_entities.dart';
+import '../widgets/community_fab_layout.dart';
 import '../widgets/community_translation_panel.dart';
 import '../widgets/community_report_sheet.dart';
 
@@ -167,10 +168,17 @@ class _FeedPageState extends ConsumerState<FeedPage>
           if (!showCommunityFab) {
             return const SizedBox.shrink();
           }
-          return FloatingActionButton(
-            onPressed: () => context.goToPostCreate(),
-            tooltip: '글쓰기',
-            child: const Icon(Icons.edit_outlined),
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: resolveCommunityFabBottomPadding(
+                screenHeight: MediaQuery.sizeOf(context).height,
+              ),
+            ),
+            child: FloatingActionButton(
+              onPressed: () => context.goToPostCreate(),
+              tooltip: '글쓰기',
+              child: const Icon(Icons.edit_outlined),
+            ),
           );
         },
       ),
@@ -554,7 +562,11 @@ class _NewPostsPill extends StatelessWidget {
               ),
             ),
             const SizedBox(width: GBTSpacing.xs),
-            const Icon(Icons.arrow_upward_rounded, size: 15, color: Colors.white),
+            const Icon(
+              Icons.arrow_upward_rounded,
+              size: 15,
+              color: Colors.white,
+            ),
           ],
         ),
       ),
@@ -584,10 +596,7 @@ class _StackedAvatars extends StatelessWidget {
           for (int i = 0; i < count; i++)
             Positioned(
               left: i * (size - overlap),
-              child: _AvatarCircle(
-                url: posts[i].authorAvatarUrl,
-                size: size,
-              ),
+              child: _AvatarCircle(url: posts[i].authorAvatarUrl, size: size),
             ),
         ],
       ),

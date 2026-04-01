@@ -389,6 +389,9 @@ class PostLikeController extends StateNotifier<AsyncValue<PostLikeStatus>> {
       postId: target.postId,
     );
 
+    // EN: Guard against setting state after disposal (autoDispose + navigation).
+    // KO: 자동 dispose 후 네비게이션 복귀 시 state 설정 방지.
+    if (!mounted) return;
     if (result is Success<PostLikeStatus>) {
       state = AsyncData(result.data);
     } else if (result is Err<PostLikeStatus>) {
@@ -521,6 +524,9 @@ class PostBookmarkController
       postId: target.postId,
     );
 
+    // EN: Guard against setting state after disposal (autoDispose + navigation).
+    // KO: 자동 dispose 후 네비게이션 복귀 시 state 설정 방지.
+    if (!mounted) return;
     if (result is Success<PostBookmarkStatus>) {
       state = AsyncData(result.data);
     } else if (result is Err<PostBookmarkStatus>) {

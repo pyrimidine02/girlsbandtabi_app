@@ -1,5 +1,255 @@
 # TODO
 
+- Run QA for iOS native-assets objective_c runtime load fix (2026-03-31):
+  - iOS Simulator(arm64/x64)에서 앱 시작 직후
+    `DOBJC_initializeApi` / `objective_c.framework/objective_c` 예외가
+    더 이상 발생하지 않는지 확인.
+  - 홈/커뮤니티에서 `CachedNetworkImage`가 정상 로드되고
+    이미지 캐시 경로 초기화 예외가 재발하지 않는지 확인.
+  - 실기기(iOS 17+)에서도 동일 시나리오(앱 시작, 이미지 다수 화면 진입) 재확인.
+  - 제거 기준:
+    - 시뮬레이터 2종(arm64/x64) + 실기기 1대 이상에서 재현 실패 시 본 항목 제거.
+
+- Run QA for client request guard hardening (2026-03-31):
+  - 이미지 업로드에서 `contentType`이 대소문자 혼합(`Image/JPEG`)이어도
+    direct upload로 정상 라우팅되는지 확인.
+  - 빈 파일(`size=0`) 또는 비정상 `contentType` 입력에서
+    서버 요청 없이 클라이언트에서 즉시 실패 처리되는지 확인.
+  - 인증 만료/무효 세션 상태에서 홈/피드/알림/동의 상태 호출이
+    반복 401 루프로 이어지지 않고 인증 해제 상태로 정리되는지 확인.
+  - 로그 기준으로 `GET /api/v1/home/summary/by-project`,
+    `GET /api/v1/community/feed/recommended/cursor`,
+    `GET /api/v1/notifications`의 동일 세션 반복 401 빈도가 감소했는지 확인.
+  - 제거 기준:
+    - 내부 QA 2기기 이상에서 재현 실패 + 운영 로그에서 동일 시나리오 401 반복 패턴 감소 확인 시 본 항목 제거.
+
+- Run QA for GIF upload direct-routing fix (2026-03-31):
+  - Android/iOS에서 GIF 첨부 업로드 시 `POST /api/v1/uploads` direct endpoint로
+    요청이 나가는지 앱 로그/서버 로그로 확인.
+  - 동일 시나리오에서 `POST /api/v1/uploads/presigned-url` 요청이
+    더 이상 발생하지 않는지 확인.
+  - 업로드 후 게시글 본문/리스트/상세에서 GIF 애니메이션 재생이
+    기대대로 유지되는지 확인.
+  - JPEG/WEBP 등 일반 이미지 업로드 회귀(실패/속도 저하)가 없는지 확인.
+  - 제거 기준:
+    - Android/iOS 각 1기기 이상에서 GIF + 일반 이미지 업로드 QA 통과 시 본 항목 제거.
+
+- Run QA for community compose FAB tap/overlap fix (2026-03-31):
+  - iOS 커뮤니티 탭(`/community`)에서 작성 FAB 메인 버튼 탭 시
+    메뉴 열림/닫힘이 매번 반응하는지 확인.
+  - iOS에서 확장 액션(`게시글 작성`, `내 신고 내역`, `커뮤니티 제재 관리`)이
+    터치 누락 없이 정상 동작하는지 확인.
+  - Android 커뮤니티 탭에서 FAB/확장 액션이 하단바 위에 완전히 노출되고
+    하단바와 겹치지 않는지 확인.
+  - iOS/Android 모두에서 FAB가 하단바 상단에 과도하게 뜨지 않고,
+    하단바 바로 위 사용자 요구 간격으로 배치되는지 확인.
+  - 메인 피드의 커뮤니티 FAB(`feed_page`)도 동일하게 하단바 간섭 없이
+    동작하는지 확인.
+  - 제거 기준:
+    - iOS/Android 각 1기기 이상에서 FAB 탭/라우팅 + 하단 정렬 QA 통과 시 본 항목 제거.
+
+- Run QA for social notification delivery hardening (2026-03-30):
+  - 팔로우 유저가 새 글 작성 시 `POST_CREATED` 계열 알림이 수신되는지 확인.
+  - 내 글에 새 댓글 작성 시 `COMMENT_CREATED` 계열 알림이 수신되는지 확인.
+  - 내 댓글에 새 답글 작성 시 `COMMENT_REPLY_CREATED` 계열 알림이 수신되는지 확인.
+  - 위 3종 알림에서 foreground/background 모두 알림 수신 + 알림함 반영 + 탭 라우팅이
+    정상 동작하는지 확인.
+  - `notificationType/type/eventType` 키 중 어떤 조합으로 와도
+    타입 매핑이 정상 적용되는지 로그 기반으로 샘플 검증.
+  - 제거 기준:
+    - Android/iOS 각 1기기 이상에서 3종 알림 end-to-end QA 통과 시 본 항목 제거.
+
+- Run QA for Android-only Material 3 visual polish (2026-03-30):
+  - Android에서만 하단 네비게이션/커뮤니티 서브 하단바가
+    라운드 컨테이너 + 톤드 surface + 선택 상태 강조로 표시되는지 확인.
+  - iOS에서 기존 하단바/프로필 디자인이 이전과 동일하게 유지되는지 확인
+    (플랫폼 회귀 방지).
+  - 프로필 페이지 Android에서:
+    - 헤더 뒤로가기 버튼 가독성/터치 영역(최소 44dp) 확인
+    - `프로필 수정/칭호`, `팔로우/차단` 버튼 높이/패딩 증가가 의도대로 반영되는지 확인
+    - 팔로워/팔로잉 영역 ripple 피드백 및 탭 이동 동작 확인
+    - 스티키 탭바 스크롤 시 elevation 계층이 자연스러운지 확인
+  - 작성한 글/댓글 목록에서 Android 카드 간 간격/메타 텍스트 가독성 개선이
+    일관되게 적용되는지 확인.
+  - 제거 기준:
+    - Android/iOS 각 1기기 이상에서 시각 QA 및 기본 네비게이션 플로우 통과 시 본 항목 제거.
+
+- Run QA for cache tiering + sensitive local storage hardening (2026-03-30):
+  - 캐시/스토리지 데이터 분류 기준 점검:
+    - 메모리/로컬 캐시 허용 데이터(비민감 목록/피드/카탈로그/설정 스냅샷)가
+      정상 조회되고 앱 재시작 후 LocalStorage fallback이 동작하는지 확인.
+    - 민감 데이터(`notificationDeviceId`, `notificationPushToken`)가
+      LocalStorage에 남지 않고 SecureStorage 우선 저장으로 유지되는지 확인.
+  - 로그아웃 직후 `feed_post_create_draft_*`, `feed_post_edit_draft_*` 키가
+    모두 제거되는지 확인.
+  - 오래된 작성 draft(`savedAt + retention` 경과)가 조회 시 자동 삭제되는지 확인.
+  - 푸시 등록 해제 성공/404 케이스에서 secure + legacy 키가 모두 정리되는지 확인.
+  - 제거 기준:
+    - iOS/Android 각 1기기 이상에서 캐시 hit/재시작 fallback/로그아웃 정리/푸시 키 정리 QA 통과 시 본 항목 제거.
+
+- Run QA for My sub-page appbar standardization + FanLevel score visibility (2026-03-30):
+  - `정보/유저` 탭과 동일한 상단바 톤(배경/타이포/그림자 없음)이
+    아래 페이지에서 일관되게 적용되는지 확인:
+    `나의 덕력`, `성지순례 도감(목록/상세)`, `응원 가이드(목록/상세)`,
+    `명대사 카드`, `즐겨찾기`, `북마크한 글`, `방문 기록`, `방문 통계`,
+    `칭호 관리`, `이벤트 캘린더`.
+  - `나의 덕력` 진입 시 `점수 부여 행위 전체` 섹션에
+    점수 부여 행위 카테고리가 모두 노출되는지 확인.
+  - `점수 획득 내역`에는 0점 항목이 제외되고
+    실제 점수 획득 항목만 표시되는지 확인.
+  - 라이트/다크 모드 각각에서 상단바 대비와 가독성이 유지되는지 확인.
+  - 제거 기준:
+    - iOS/Android 각 1기기 이상에서 상단바 통일 + 덕력 섹션 QA 통과 시 본 항목 제거.
+
+- Run QA for news controller dispose-safety fix (2026-03-30):
+  - `Info` 또는 커뮤니티 이동 직후 빠르게 탭 전환/뒤로가기를 반복해도
+    `Bad state: Tried to use NewsListController after dispose` 크래시가 재발하지 않는지 확인.
+  - 뉴스 목록/상세 요청 중 화면 이탈 후 복귀했을 때 로딩/재시도 UX가 정상인지 확인.
+  - Crashlytics에서 동일 시그니처
+    (`NewsListController.load`, `NewsDetailController.load`) 신규 발생이 없는지 확인.
+  - 제거 기준:
+    - 내부 QA 기기 2대 이상에서 재현 시도 실패 + Crashlytics 신규 발생 0건 24시간 유지 시 본 항목 제거.
+
+- Run QA for explore map edge-to-edge fill (2026-03-30):
+  - 탐방 탭 지도 모드에서 지도 타일이 상태바 영역(노치/다이내믹 아일랜드 상단 포함)까지 연속적으로 채워지는지 확인.
+  - 상단 검색/필터 헤더가 상태바와 겹치지 않고 기존 터치 영역/가독성을 유지하는지 확인.
+  - 탐방 내 다른 서브탭(이벤트/방문기록/성지도감) 진입 시 AppBar 상단 여백/터치 영역이 기존과 동일한지 확인.
+  - iOS/Android 각 1기기 이상에서 상단 빈 여백 회귀가 없는지 확인.
+  - 제거 기준:
+    - iOS/Android 탐방 탭 시각 QA 통과 후 본 항목 제거.
+
+- Run QA for explore map top readability blur layer (2026-03-30):
+  - 탐방 지도 상단에서 상태바 시간/아이콘 가독성이 밝은 지도 타일에서도 유지되는지 확인.
+  - 상단 검색 카드/필터 칩 뒤 배경이 과도하게 뿌옇지 않고, 지도 맥락이 유지되는지 확인.
+  - iOS/Android에서 상단 오버레이 경계(블러 종료 지점) 밴딩/이음선이 보이지 않는지 확인.
+  - 성능 측면에서 지도 팬/줌 중 프레임 드랍(jank) 증가가 없는지 확인.
+  - 제거 기준:
+    - iOS/Android 각 1기기 이상에서 시각+성능 QA 통과 시 본 항목 제거.
+
+- Run QA for home top header readability improvement (2026-03-30):
+  - 홈 상단(스크롤 전)에서 `Girls Band Tabi` 타이틀과 검색/알림 아이콘이
+    밝은 색으로 충분히 구분되어 보이는지 확인.
+  - 밝은/복잡한 헤더 배경 이미지에서도 인사말 title/subtitle 및 featured live 칩 텍스트가
+    읽기 쉬운 대비를 유지하는지 확인.
+  - 스크롤 후 AppBar가 반투명 배경으로 전환될 때
+    타이틀/아이콘 색상이 자연스럽게 다크 톤으로 바뀌고 가독성이 유지되는지 확인.
+  - iOS에서 상태바 시계/아이콘, Android에서 상태바 아이콘이
+    스크롤 전/후 모두 배경과 충돌 없이 표시되는지 확인.
+  - 제거 기준:
+    - iOS/Android 각 1기기 이상에서 메인 홈 상단 시각 QA 통과 시 본 항목 제거.
+
+- Run QA for user profile header visual refresh (2026-03-30):
+  - 커버 이미지가 밝거나 복잡한 경우에도 뒤로가기 버튼(원형 배경 포함) 가독성이
+    유지되는지 확인.
+  - 상단 AppBar 타이틀 제거 후 스크롤(확장/축소) 시 헤더 정보 구조가 어색하지
+    않은지 확인.
+  - 아바타가 커버/본문 경계에 반씩 걸쳐 보이고, 내/타인 프로필 모두에서
+    가려짐 없이 유지되는지 확인.
+  - 커버 이미지가 `contain` 기준으로 잘림 없이 전체 노출되는지,
+    가로/세로 비율이 다른 이미지 각각에서 확인.
+  - 커버 헤더 높이 상향(`280`) 이후 상단 잘림/여백 과다 없이
+    원하는 범위가 노출되는지 확인.
+  - 프로필 사진/커버 이미지 탭 시 풀스크린 확대 뷰어가 열리고,
+    핀치 줌/팬이 동작하는지 확인.
+  - 확대 뷰어에서 다운로드 버튼/저장 액션이 노출되지 않는지 확인.
+  - `프로필 수정/칭호` 버튼이 흰 경계 바로 아래(우측 상단)에 배치되는지 확인.
+  - 표시 이름 우측에 활성 칭호 배지가 나란히 표시되고,
+    긴 닉네임에서도 레이아웃 깨짐이 없는지 확인.
+  - 닉네임/가입일/소개가 아바타 바로 아래에서 시작되는지 확인.
+  - 활동 통계 2열 카드 패널(그라데이션 카드)에서 라벨/값 가독성과
+    라이트/다크 대비가 충분한지 확인.
+  - `작성한 글`/`작성한 댓글` 카드가 동일한 톤으로 표시되고,
+    긴 텍스트/빈 내용 케이스에서 줄바꿈/말줄임이 안정적인지 확인.
+  - `덕력/성지 기록/라이브 기록` 숏컷이 3열 카드형으로 균일 폭/높이로
+    렌더링되고 통계 카드와 톤이 일치하는지 확인.
+  - 제거 기준:
+    - iOS/Android 각 1기기 이상에서 내/타인 프로필 QA 통과 시 본 항목 제거.
+
+- Run QA for FanLevelPage entry animation + Hero swipe-back (2026-03-29):
+  - `FanLevelPage` 진입 시 등급 카드와 활동 목록이 순차 슬라이드업 애니메이션으로 표시되는지 iOS/Android 실기기 확인.
+  - `disableAnimations`(접근성 설정 > 모션 줄이기) 활성화 시 애니메이션 없이 즉시 표시되는지 확인.
+  - 장소 카드 → 상세 페이지 전환 + iOS 스와이프 백 시 Hero 이미지 전환이 자연스러운지 확인.
+  - 이벤트 카드 → 상세 페이지 전환 + iOS 스와이프 백 시 Hero 포스터 전환이 자연스러운지 확인.
+  - `GBTFeaturedEventCard`(16:9 배너) Hero도 동일하게 동작하는지 확인.
+  - 제거 기준:
+    - iOS/Android 각 1기기 이상 실기기 QA 통과 + 애니메이션 jank 미발생 시 본 항목 제거.
+
+- Run QA for user profile activity overview + cover visibility update (2026-03-26):
+  - 내 프로필/타인 프로필에서 활동 요약 카드(XP/레벨/성지/라이브/글/댓글)가
+    레이아웃 깨짐 없이 노출되는지 확인.
+  - 내 프로필에서 덕력/성지 기록/라이브 기록 숏컷 칩이 각각
+    `/fan-level`, `/visits`, `/visits?tab=live`로 정확히 이동하는지 확인.
+  - 프로필 편집 크롭 비율(16:9)과 프로필 헤더 표시 비율(16:9)이
+    Android/iOS에서 동일하게 보이는지 시각 검수.
+  - 커버 업로드 고해상도(`2560x1440`) 반영 후에도 업로드 실패율/지연이
+    증가하지 않는지 확인.
+  - 백엔드 기본값 응답(`0`, `fanLevel=1`, `fanGrade="일반인"`)에서
+    활동 카드가 `-`가 아닌 값으로 정상 표시되는지 확인.
+  - 제거 기준:
+    - 내/타인 프로필 각각 2회 이상 실기기 QA 통과 + 크래시 미발생 시 본 항목 제거.
+
+- Run QA for Android image_cropper single-reply guard (2026-03-26):
+  - Samsung 실기기(Android 13/14/15 우선)에서 프로필 사진/배경 변경을
+    빠르게 연속 탭해도 플로우가 1회만 진행되고 크래시가 없는지 확인.
+  - 크롭 완료/취소/뒤로가기/앱 백그라운드 복귀 시
+    `Reply already submitted` 크래시가 재발하지 않는지 Crashlytics로 확인.
+  - Samsung 단말에서는 임시 우회 정책에 따라
+    크롭 UI 없이 업로드가 정상 완료되는지 확인.
+  - 이미지 선택/크롭 시작 실패(권한 거부, 액티비티 실행 실패) 상황에서
+    앱이 종료되지 않고 에러 메시지로 복귀하는지 확인.
+  - 제거 기준:
+    - Samsung 2기기 이상에서 2일 이상 모니터링 시
+      동일 크래시 시그니처 신규 발생 0건이면 본 항목 제거.
+
+- Run QA for Android image_cropper ActivityNotFound fix (2026-03-26):
+  - Samsung 실기기(Android 13/14/15 우선)에서 이미지 선택 후 크롭 진입 시
+    `PlatformException(activity_not_found)` 없이 편집 화면이 열리는지 확인.
+  - 원형/사각 크롭 각각에서 완료/취소 플로우가 정상 복귀하는지 확인.
+  - 앱 릴리즈 빌드(AAB 설치본)에서 동일 플로우 재검증.
+  - 제거 기준:
+    - 내부 테스터 2기기 이상에서 1일 내 크래시 재발 0건이면 본 항목 제거.
+
+- Run QA for Android in-app profile cropper migration (2026-03-30):
+  - Android 13/14/15 실기기에서 프로필 사진(1:1), 커버(16:9) 크롭 UI가
+    앱 내부 다이얼로그로 정상 표시되는지 확인.
+  - 크롭 적용/취소/뒤로가기/앱 백그라운드 복귀 시 앱 프로세스 크래시 없이
+    편집 화면으로 안전 복귀하는지 확인.
+  - 크롭 결과 업로드 후 미리보기(프로필/커버)가 의도한 비율로 반영되는지 확인.
+  - 제거 기준:
+    - Android 3기기 이상에서 2일 모니터링 동안 크롭 관련 fatal crash 0건.
+
+- Run QA for SSE disconnect fatal-error guard (2026-03-26):
+  - Samsung 실기기에서 알림/커뮤니티 화면 활성 상태로 유지한 뒤
+    Wi-Fi ↔ LTE 전환을 반복해 `Connection closed while receiving data`
+    발생 시 앱이 종료되지 않고 자동 재연결되는지 확인.
+  - 앱 백그라운드 전환(30초~2분) 후 복귀 시 SSE가 정상 재연결되고
+    알림 목록 백그라운드 동기화가 유지되는지 확인.
+  - 알림/피드에서 네트워크 강제 차단 후 해제했을 때
+    unhandled/fatal 크래시 리포트가 추가로 발생하지 않는지 확인.
+  - 제거 기준:
+    - Samsung 2개 이상 기기에서 1일 이상 soak test 수행 후
+      fatal crash 미재현이면 본 TODO 항목 제거.
+
+- Run QA for iOS archive native-asset dSYM fix (2026-03-26):
+  - Xcode Archive 생성 후 `Runner.xcarchive/dSYMs/objective_c.framework.dSYM` 존재 확인.
+  - `dwarfdump --uuid`로 `Runner.app/Frameworks/objective_c.framework/objective_c`와
+    dSYM UUID가 동일한지 확인.
+  - App Store Connect 업로드에서 `objective_c.framework missing dSYM` 오류가
+    재발하지 않는지 확인.
+  - 제거 기준:
+    - 내부/외부 테스트 채널 업로드 1회 이상 성공 시 본 TODO 항목 제거.
+
+- Run QA for mobile push integration hardening (2026-03-26):
+  - Android/iOS 실기기에서 `POST /api/v1/notifications/devices` payload에
+    `deviceHash`(64자 hex), `timezone`(IANA)가 포함되는지 프록시/로그로 확인.
+  - 앱 종료 상태 푸시 탭, 백그라운드 탭, 로컬 fallback 알림 탭 각각에서
+    `POST /api/v1/notifications/{id}/open`가 호출되는지 확인.
+  - 인증 만료/네트워크 실패 상황에서 오픈 추적 실패가 UX(라우팅/알림함)에
+    영향이 없는지 확인.
+  - 제거 기준:
+    - 내부 테스트 채널에서 Android/iOS 각각 최소 1회 이상 정상 수집 확인 후
+      본 TODO 항목 제거.
+
 - Backend follow-up for banner feature (2026-03-13):
   - `GET /api/v1/users/me/banner`, `PUT /api/v1/users/me/banner`, `DELETE /api/v1/users/me/banner`,
     `GET /api/v1/banners` 엔드포인트 서버 구현 확인.

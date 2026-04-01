@@ -164,9 +164,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                             vertical: 14,
                           ),
                           hintText: context.l10n(
-                            ko: '장소, 라이브, 뉴스, 게시글 검색',
-                            en: 'Search places, live events, news, posts',
-                            ja: '場所、ライブ、ニュース、投稿を検索',
+                            ko: '장소, 이벤트, 뉴스, 게시글 검색',
+                            en: 'Search places, events, news, posts',
+                            ja: '場所、イベント、ニュース、投稿を検索',
                           ),
                           hintStyle: GBTTypography.bodyLarge.copyWith(
                             color: isDark
@@ -514,7 +514,7 @@ class _RecentSearches extends StatelessWidget {
       context.l10n(ko: 'BanG Dream!', en: 'BanG Dream!', ja: 'BanG Dream!'),
       context.l10n(ko: 'Zepp', en: 'Zepp', ja: 'Zepp'),
       context.l10n(ko: '성지순례', en: 'Pilgrimage', ja: '聖地巡礼'),
-      context.l10n(ko: '라이브 일정', en: 'Live schedule', ja: 'ライブ日程'),
+      context.l10n(ko: '이벤트 일정', en: 'Event schedule', ja: 'イベント日程'),
     ];
     final merged = <String>[];
     for (final item in items) {
@@ -561,7 +561,7 @@ class _RecentSearches extends StatelessWidget {
 
   List<String> _buildExploreTopics(BuildContext context) {
     return [
-      context.l10n(ko: '오늘의 라이브', en: 'Today live', ja: '今日のライブ'),
+      context.l10n(ko: '오늘의 이벤트', en: 'Today events', ja: '今日のイベント'),
       context.l10n(ko: '성지 순례 루트', en: 'Pilgrimage routes', ja: '聖地巡礼ルート'),
       context.l10n(ko: '공연장 근처', en: 'Near venue', ja: '会場周辺'),
       context.l10n(ko: '팬 후기', en: 'Fan reviews', ja: 'ファンレビュー'),
@@ -1253,7 +1253,7 @@ void _handleTap(BuildContext context, SearchItem item) {
       context.goToPlaceDetail(item.id);
       break;
     case SearchItemType.liveEvent:
-      context.goToLiveDetail(item.id);
+      context.goToEventDetail(item.id);
       break;
     case SearchItemType.news:
       context.goToNewsDetail(item.id);

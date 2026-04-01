@@ -167,4 +167,92 @@ void main() {
     expect(merged.grants.first.grantId, 'grant-1');
     expect(merged.grants.first.isActive, isTrue);
   });
+
+  test('UserProfileDto parses activity stats from top-level fields', () {
+    final json = {
+      'userId': 'user-6',
+      'displayName': 'Stats Top Level',
+      'emailAddress': 'stats-top@example.com',
+      'createdAt': '2026-01-28T00:00:00Z',
+      'totalXp': 1280,
+      'fanLevel': 14,
+      'fanGrade': 'Enthusiast',
+      'uniquePlacesVisited': 23,
+      'totalVisits': 57,
+      'liveAttendanceCount': 11,
+      'postCount': 39,
+      'commentCount': 84,
+    };
+
+    final dto = UserProfileDto.fromJson(json);
+    expect(dto.totalXp, 1280);
+    expect(dto.fanLevel, 14);
+    expect(dto.fanGrade, 'Enthusiast');
+    expect(dto.uniquePlacesVisited, 23);
+    expect(dto.totalVisits, 57);
+    expect(dto.liveAttendanceCount, 11);
+    expect(dto.postCount, 39);
+    expect(dto.commentCount, 84);
+  });
+
+  test('UserProfileDto parses activity stats from nested stats object', () {
+    final json = {
+      'userId': 'user-7',
+      'displayName': 'Stats Nested',
+      'emailAddress': 'stats-nested@example.com',
+      'createdAt': '2026-01-28T00:00:00Z',
+      'stats': {
+        'xp': '980',
+        'level': '9',
+        'grade': 'Devotee',
+        'unique_places': 17,
+        'attendance_count': 6,
+        'posts_count': 21,
+        'comments_count': 45,
+      },
+    };
+
+    final dto = UserProfileDto.fromJson(json);
+    expect(dto.totalXp, 980);
+    expect(dto.fanLevel, 9);
+    expect(dto.fanGrade, 'Devotee');
+    expect(dto.uniquePlacesVisited, 17);
+    expect(dto.liveAttendanceCount, 6);
+    expect(dto.postCount, 21);
+    expect(dto.commentCount, 45);
+  });
+
+  test('UserProfileDto parses canonical users endpoint payload', () {
+    final json = {
+      'id': 'u_123',
+      'displayName': '홍길동',
+      'avatarUrl': 'https://example.com/avatar.jpg',
+      'bio': '안녕하세요',
+      'coverImageUrl': 'https://example.com/cover.jpg',
+      'createdAt': '2026-03-26T00:00:00Z',
+      'totalXp': 0,
+      'fanLevel': 1,
+      'fanGrade': '일반인',
+      'uniquePlacesVisited': 0,
+      'totalVisits': 0,
+      'liveAttendanceCount': 0,
+      'postCount': 0,
+      'commentCount': 0,
+    };
+
+    final dto = UserProfileDto.fromJson(json);
+    expect(dto.id, 'u_123');
+    expect(dto.displayName, '홍길동');
+    expect(dto.avatarUrl, 'https://example.com/avatar.jpg');
+    expect(dto.bio, '안녕하세요');
+    expect(dto.coverImageUrl, 'https://example.com/cover.jpg');
+    expect(dto.totalXp, 0);
+    expect(dto.fanLevel, 1);
+    expect(dto.fanGrade, '일반인');
+    expect(dto.uniquePlacesVisited, 0);
+    expect(dto.totalVisits, 0);
+    expect(dto.liveAttendanceCount, 0);
+    expect(dto.postCount, 0);
+    expect(dto.commentCount, 0);
+  });
 }

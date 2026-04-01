@@ -112,7 +112,7 @@ class _InfoPageState extends ConsumerState<InfoPage>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentNavIndex = ref.watch(currentNavIndexProvider);
-    final isInfoTabActive = currentNavIndex == NavIndex.idol;
+    final isInfoTabActive = currentNavIndex == NavIndex.information;
     final projectSelection = ref.watch(projectSelectionControllerProvider);
     final selectedProjectId = projectSelection.projectKey ?? '';
     final borderColor = isDark ? GBTColors.darkBorder : GBTColors.border;
@@ -1645,9 +1645,9 @@ class _MoreTab extends StatelessWidget {
           ja: '応援ガイド',
         ),
         subtitle: context.l10n(
-          ko: '라이브에서 응원하는 법을 알아보세요',
-          en: 'Learn how to cheer at lives',
-          ja: 'ライブの応援方法を確認',
+          ko: '이벤트에서 응원하는 법을 알아보세요',
+          en: 'Learn how to cheer at events',
+          ja: 'イベントの応援方法を確認',
         ),
         routeName: AppRoutes.cheerGuides,
       ),

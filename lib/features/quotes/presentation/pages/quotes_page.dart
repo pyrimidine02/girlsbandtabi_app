@@ -15,6 +15,7 @@ import '../../../../core/theme/gbt_colors.dart';
 import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/navigation/gbt_standard_app_bar.dart';
 import '../../application/quotes_controller.dart';
 import '../../domain/entities/quote_card.dart';
 
@@ -34,21 +35,10 @@ class QuotesPage extends ConsumerWidget {
     final quotesAsync = ref.watch(quotesControllerProvider(pid));
 
     return Scaffold(
-      backgroundColor:
-          isDark ? GBTColors.darkBackground : GBTColors.background,
-      appBar: AppBar(
-        backgroundColor: isDark ? GBTColors.darkSurface : GBTColors.surface,
-        elevation: 0,
-        title: Text(
-          context.l10n(
-            ko: '명대사 카드',
-            en: 'Quote Cards',
-            ja: '名言カード',
-          ),
-          style: GBTTypography.titleLarge.copyWith(
-            color: isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
-          ),
-        ),
+      backgroundColor: isDark ? GBTColors.darkBackground : GBTColors.background,
+      appBar: gbtStandardAppBar(
+        context,
+        title: context.l10n(ko: '명대사 카드', en: 'Quote Cards', ja: '名言カード'),
       ),
       body: RefreshIndicator(
         onRefresh: () =>
@@ -62,11 +52,7 @@ class QuotesPage extends ConsumerWidget {
                 en: 'Could not load quotes',
                 ja: '名言を読み込めませんでした',
               ),
-              actionLabel: context.l10n(
-                ko: '다시 시도',
-                en: 'Retry',
-                ja: 'リトライ',
-              ),
+              actionLabel: context.l10n(ko: '다시 시도', en: 'Retry', ja: 'リトライ'),
               onAction: () =>
                   ref.read(quotesControllerProvider(pid).notifier).refresh(),
             ),
@@ -155,8 +141,9 @@ class _QuoteCardWidgetState extends State<_QuoteCardWidget> {
     if (_isSaving) return;
     setState(() => _isSaving = true);
     try {
-      final boundary = _repaintKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary?;
+      final boundary =
+          _repaintKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) return;
       final image = await boundary.toImage(pixelRatio: 3.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -223,8 +210,7 @@ class _QuoteCardWidgetState extends State<_QuoteCardWidget> {
 
     // EN: Text is white on coloured/gradient backgrounds, theme-aware otherwise.
     // KO: 색상/그라디언트 배경에서는 흰색, 그 외에는 테마에 맞는 색상입니다.
-    final onCardPrimary =
-        (hasGradient || hasSolid) ? Colors.white : null;
+    final onCardPrimary = (hasGradient || hasSolid) ? Colors.white : null;
 
     return Semantics(
       label: '${quote.characterName}: ${quote.quoteText}',
@@ -256,7 +242,8 @@ class _QuoteCardWidgetState extends State<_QuoteCardWidget> {
                 children: [
                   Icon(
                     Icons.format_quote,
-                    color: onCardPrimary?.withValues(alpha: 0.7) ??
+                    color:
+                        onCardPrimary?.withValues(alpha: 0.7) ??
                         (isDark
                             ? GBTColors.darkTextTertiary
                             : GBTColors.textTertiary),
@@ -266,7 +253,8 @@ class _QuoteCardWidgetState extends State<_QuoteCardWidget> {
                   Text(
                     quote.quoteText,
                     style: GBTTypography.titleMedium.copyWith(
-                      color: onCardPrimary ??
+                      color:
+                          onCardPrimary ??
                           (isDark
                               ? GBTColors.darkTextPrimary
                               : GBTColors.textPrimary),
@@ -278,7 +266,8 @@ class _QuoteCardWidgetState extends State<_QuoteCardWidget> {
                   Text(
                     '— ${quote.characterName}',
                     style: GBTTypography.bodyMedium.copyWith(
-                      color: onCardPrimary?.withValues(alpha: 0.85) ??
+                      color:
+                          onCardPrimary?.withValues(alpha: 0.85) ??
                           (isDark
                               ? GBTColors.darkTextSecondary
                               : GBTColors.textSecondary),
@@ -290,7 +279,8 @@ class _QuoteCardWidgetState extends State<_QuoteCardWidget> {
                     Text(
                       quote.episodeContext!,
                       style: GBTTypography.bodySmall.copyWith(
-                        color: onCardPrimary?.withValues(alpha: 0.65) ??
+                        color:
+                            onCardPrimary?.withValues(alpha: 0.65) ??
                             (isDark
                                 ? GBTColors.darkTextTertiary
                                 : GBTColors.textTertiary),
@@ -314,16 +304,8 @@ class _QuoteCardWidgetState extends State<_QuoteCardWidget> {
                 Semantics(
                   button: true,
                   label: quote.isLiked
-                      ? context.l10n(
-                          ko: '좋아요 취소',
-                          en: 'Unlike',
-                          ja: 'いいね取り消し',
-                        )
-                      : context.l10n(
-                          ko: '좋아요',
-                          en: 'Like',
-                          ja: 'いいね',
-                        ),
+                      ? context.l10n(ko: '좋아요 취소', en: 'Unlike', ja: 'いいね取り消し')
+                      : context.l10n(ko: '좋아요', en: 'Like', ja: 'いいね'),
                   child: InkWell(
                     onTap: widget.onLike,
                     borderRadius: BorderRadius.circular(20),
@@ -342,8 +324,8 @@ class _QuoteCardWidgetState extends State<_QuoteCardWidget> {
                             color: quote.isLiked
                                 ? GBTColors.error
                                 : (isDark
-                                    ? GBTColors.darkTextSecondary
-                                    : GBTColors.textSecondary),
+                                      ? GBTColors.darkTextSecondary
+                                      : GBTColors.textSecondary),
                             size: GBTSpacing.iconSm,
                           ),
                           const SizedBox(width: GBTSpacing.xs),

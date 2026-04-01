@@ -12,6 +12,7 @@ import '../../../../core/theme/gbt_spacing.dart';
 import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
+import '../../../../core/widgets/navigation/gbt_standard_app_bar.dart';
 import '../../application/zukan_controller.dart';
 import '../../domain/entities/zukan_collection.dart';
 
@@ -25,33 +26,21 @@ class ZukanDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final collectionAsync =
-        ref.watch(zukanCollectionDetailProvider(collectionId));
+    final collectionAsync = ref.watch(
+      zukanCollectionDetailProvider(collectionId),
+    );
+    final appBarTitle = collectionAsync.maybeWhen(
+      data: (collection) => collection?.title,
+      orElse: () => null,
+    );
 
     return Scaffold(
-      backgroundColor:
-          isDark ? GBTColors.darkBackground : GBTColors.background,
-      appBar: AppBar(
-        backgroundColor: isDark ? GBTColors.darkSurface : GBTColors.surface,
-        title: collectionAsync.maybeWhen(
-          data: (c) => Text(
-            c?.title ?? '',
-            style: GBTTypography.titleLarge.copyWith(
-              color: isDark
-                  ? GBTColors.darkTextPrimary
-                  : GBTColors.textPrimary,
-            ),
-          ),
-          orElse: () => Text(
-            context.l10n(ko: '도감', en: 'Collection', ja: '図鑑'),
-            style: GBTTypography.titleLarge.copyWith(
-              color: isDark
-                  ? GBTColors.darkTextPrimary
-                  : GBTColors.textPrimary,
-            ),
-          ),
-        ),
-        elevation: 0,
+      backgroundColor: isDark ? GBTColors.darkBackground : GBTColors.background,
+      appBar: gbtStandardAppBar(
+        context,
+        title: appBarTitle?.isNotEmpty == true
+            ? appBarTitle!
+            : context.l10n(ko: '도감', en: 'Collection', ja: '図鑑'),
       ),
       body: collectionAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -61,11 +50,7 @@ class ZukanDetailPage extends ConsumerWidget {
             en: 'Could not load collection',
             ja: '図鑑を読み込めませんでした',
           ),
-          actionLabel: context.l10n(
-            ko: '다시 시도',
-            en: 'Retry',
-            ja: '再試行',
-          ),
+          actionLabel: context.l10n(ko: '다시 시도', en: 'Retry', ja: '再試行'),
           onAction: () =>
               ref.refresh(zukanCollectionDetailProvider(collectionId)),
         ),
@@ -143,11 +128,7 @@ class _CollectionDetail extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        context.l10n(
-                          ko: '완료!',
-                          en: 'Complete!',
-                          ja: '完了!',
-                        ),
+                        context.l10n(ko: '완료!', en: 'Complete!', ja: '完了!'),
                         style: GBTTypography.labelSmall.copyWith(
                           color: const Color(0xFF059669),
                           fontWeight: FontWeight.w700,
@@ -172,8 +153,7 @@ class _CollectionDetail extends StatelessWidget {
 
         // EN: Reward banner — only shown when collection is complete
         // KO: 보상 배너 — 컬렉션 완료 시에만 표시
-        if (collection.isCompleted &&
-            collection.rewardDescription != null) ...[
+        if (collection.isCompleted && collection.rewardDescription != null) ...[
           const SizedBox(height: GBTSpacing.md),
           Container(
             padding: const EdgeInsets.all(GBTSpacing.md),
@@ -203,8 +183,7 @@ class _CollectionDetail extends StatelessWidget {
         Text(
           context.l10n(ko: '스탬프', en: 'Stamps', ja: 'スタンプ'),
           style: GBTTypography.titleMedium.copyWith(
-            color:
-                isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
+            color: isDark ? GBTColors.darkTextPrimary : GBTColors.textPrimary,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -254,17 +233,11 @@ class _StampItem extends StatelessWidget {
               en: 'Visited. Tap for place detail',
               ja: '訪問済み。タップで場所の詳細表示',
             )
-          : context.l10n(
-              ko: '미방문',
-              en: 'Not yet visited',
-              ja: '未訪問',
-            ),
+          : context.l10n(ko: '미방문', en: 'Not yet visited', ja: '未訪問'),
       child: InkWell(
         // EN: Tapping a stamped cell opens place detail; unvisited cells are not interactive.
         // KO: 스탬프된 셀을 탭하면 장소 상세를 열고, 미방문 셀은 인터랙션 없음.
-        onTap: isStamped
-            ? () => context.goToPlaceDetail(stamp.placeId)
-            : null,
+        onTap: isStamped ? () => context.goToPlaceDetail(stamp.placeId) : null,
         borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
         child: Container(
           decoration: BoxDecoration(
@@ -272,9 +245,7 @@ class _StampItem extends StatelessWidget {
             borderRadius: BorderRadius.circular(GBTSpacing.radiusSm),
             border: isStamped
                 ? Border.all(
-                    color: isDark
-                        ? GBTColors.darkPrimary
-                        : GBTColors.primary,
+                    color: isDark ? GBTColors.darkPrimary : GBTColors.primary,
                     width: 1.5,
                   )
                 : null,
@@ -311,11 +282,11 @@ class _StampItem extends StatelessWidget {
                                 : Icons.lock_outline,
                             color: isStamped
                                 ? (isDark
-                                    ? GBTColors.darkPrimary
-                                    : GBTColors.primary)
+                                      ? GBTColors.darkPrimary
+                                      : GBTColors.primary)
                                 : (isDark
-                                    ? GBTColors.darkTextTertiary
-                                    : GBTColors.textTertiary),
+                                      ? GBTColors.darkTextTertiary
+                                      : GBTColors.textTertiary),
                             size: 28,
                           ),
                         ),

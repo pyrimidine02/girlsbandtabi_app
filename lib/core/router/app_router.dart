@@ -10,9 +10,18 @@ import 'package:go_router/go_router.dart';
 import '../providers/core_providers.dart';
 import '../theme/gbt_animations.dart';
 import '../../shared/main_scaffold.dart';
+import '../../features/auth/presentation/pages/change_password_page.dart';
+import '../../features/auth/presentation/pages/email_verification_args.dart';
+import '../../features/auth/presentation/pages/email_verification_pending_page.dart';
+import '../../features/auth/presentation/pages/email_verified_page.dart';
+import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
+import '../../features/auth/presentation/pages/reset_password_page.dart';
 import '../../features/auth/presentation/pages/oauth_callback_page.dart';
+import '../../features/auth/presentation/pages/oauth_conflict_page.dart';
+import '../../features/auth/presentation/pages/oauth_merge_existing_page.dart';
+import '../../features/settings/presentation/pages/linked_accounts_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/explore/presentation/pages/explore_page.dart';
 import '../../features/places/presentation/pages/place_detail_page.dart';
@@ -67,16 +76,9 @@ Page<void> _buildAdaptiveDetailPage({
   required LocalKey key,
   required Widget child,
 }) {
-  final platform = defaultTargetPlatform;
-  if (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS) {
-    return MaterialPage<void>(key: key, child: child);
-  }
-  return CustomTransitionPage<void>(
-    key: key,
-    child: child,
-    transitionsBuilder: GBTPageTransitions.fadeThrough(),
-    transitionDuration: GBTAnimations.normal,
-  );
+  // EN: Delegate to MaterialPage to universally respect the theme's PageTransitionsTheme.
+  // KO: 테마의 PageTransitionsTheme을 전역적으로 존중하기 위해 MaterialPage에 위임합니다.
+  return MaterialPage<void>(key: key, child: child);
 }
 
 Page<void> _buildAdaptiveOverlayPage({
@@ -105,6 +107,9 @@ class AppRoutes {
   static const String login = 'login';
   static const String register = 'register';
   static const String oauthCallback = 'oauth-callback';
+  static const String oauthConflict = 'oauth-conflict';
+  static const String oauthMerge = 'oauth-merge';
+  static const String linkedAccounts = 'linked-accounts';
 
   // EN: Main tab routes
   // KO: 메인 탭 라우트
@@ -115,12 +120,12 @@ class AppRoutes {
   static const String explore = 'explore';
   static const String placeDetail = 'place-detail';
   static const String overlayPlaceDetail = 'overlay-place-detail';
-  static const String liveDetail = 'live-detail';
-  static const String overlayLiveDetail = 'overlay-live-detail';
+  static const String eventDetail = 'event-detail';
+  static const String overlayEventDetail = 'overlay-event-detail';
 
-  // EN: Idol branch (info + cheer guides + quotes + zukan)
-  // KO: 아이돌 분기 (정보 + 응원가이드 + 명언 + 도감)
-  static const String idol = 'idol';
+  // EN: Information branch (info + cheer guides + quotes + zukan)
+  // KO: 정보 분기 (정보 + 응원가이드 + 명언 + 도감)
+  static const String information = 'information';
 
   // EN: Community branch (board)
   // KO: 커뮤니티 분기 (게시판)
@@ -129,9 +134,9 @@ class AppRoutes {
   static const String discover = 'discover';
   static const String travelReviewTab = 'travel-review-tab';
 
-  // EN: My branch
-  // KO: 나 분기
-  static const String my = 'my';
+  // EN: Mypage branch
+  // KO: 마이페이지 분기
+  static const String mypage = 'mypage';
 
   // EN: Info/idol sub-routes
   // KO: 정보/아이돌 서브 라우트
@@ -160,6 +165,11 @@ class AppRoutes {
   static const String profileEdit = 'profile-edit';
   static const String notificationSettings = 'notification-settings';
   static const String accountTools = 'account-tools';
+  static const String changePassword = 'change-password';
+  static const String forgotPassword = 'forgot-password';
+  static const String resetPassword = 'reset-password';
+  static const String emailVerificationPending = 'email-verification-pending';
+  static const String emailVerified = 'email-verified';
   static const String privacyRights = 'privacy-rights';
   static const String consentHistory = 'consent-history';
   static const String adminOps = 'admin-ops';
@@ -204,13 +214,13 @@ class NavIndex {
   /// KO: 탐방 분기 — 장소 지도, 라이브, 방문기록.
   static const int explore = 1;
 
-  /// EN: Idol branch — info, cheer guides, quotes, zukan.
-  /// KO: 아이돌 분기 — 정보, 응원가이드, 명언, 도감.
-  static const int idol = 2;
+  /// EN: Information branch — info, cheer guides, quotes, zukan.
+  /// KO: 정보 분기 — 정보, 응원가이드, 명언, 도감.
+  static const int information = 2;
 
-  /// EN: My branch — fan level, calendar, collection, settings.
-  /// KO: 나 분기 — 팬레벨, 달력, 컬렉션, 설정.
-  static const int my = 3;
+  /// EN: Mypage branch — fan level, calendar, collection, settings.
+  /// KO: 마이페이지 분기 — 팬레벨, 달력, 컬렉션, 설정.
+  static const int mypage = 3;
 
   /// EN: Community branch — board / feed.
   /// KO: 커뮤니티 분기 — 게시판.
@@ -234,10 +244,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = authState == AuthState.authenticated;
       final loc = state.matchedLocation;
       final isAuthRoute =
-          loc == '/login' || loc == '/register' || loc.startsWith('/auth/');
+          loc == '/login' ||
+          loc == '/register' ||
+          loc.startsWith('/auth/') ||
+          loc.startsWith('/oauth/') ||
+          loc == '/forgot-password' ||
+          loc == '/reset-password' ||
+          loc == '/email-verification-pending' ||
+          loc == '/email-verified';
       final isPublicRoute =
           loc == '/home' ||
-          loc.startsWith('/idol');
+          loc.startsWith('/information');
 
       // EN: If logged in and on auth pages, redirect to home.
       // KO: 로그인했고 인증 페이지면 홈으로 리다이렉트.
@@ -270,6 +287,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const RegisterPage(),
       ),
       GoRoute(
+        path: '/email-verification-pending',
+        name: AppRoutes.emailVerificationPending,
+        builder: (context, state) {
+          final args = state.extra is EmailVerificationArgs
+              ? state.extra! as EmailVerificationArgs
+              : EmailVerificationArgs(email: state.uri.queryParameters['email'] ?? '');
+          return EmailVerificationPendingPage(args: args);
+        },
+      ),
+      GoRoute(
+        path: '/email-verified',
+        name: AppRoutes.emailVerified,
+        builder: (context, state) => const EmailVerifiedPage(),
+      ),
+      GoRoute(
         path: '/auth/callback',
         name: AppRoutes.oauthCallback,
         builder: (context, state) {
@@ -282,6 +314,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             stateParam: stateParam,
           );
         },
+      ),
+
+      // EN: OAuth conflict page — shown after EMAIL_ACCOUNT_CONFLICT (409).
+      //     Receives the conflict email via [state.extra].
+      // KO: OAuth 충돌 페이지 — EMAIL_ACCOUNT_CONFLICT(409) 후 표시됩니다.
+      //     충돌 이메일을 [state.extra]로 전달받습니다.
+      GoRoute(
+        path: '/oauth/conflict',
+        name: AppRoutes.oauthConflict,
+        builder: (context, state) {
+          final email =
+              state.extra is String ? state.extra! as String : '';
+          return OAuthConflictPage(conflictEmail: email);
+        },
+      ),
+
+      // EN: OAuth merge page — shown after successful OAuth login (new account).
+      //     Asks the user whether to merge with an existing local account.
+      // KO: OAuth 합치기 페이지 — 신규 OAuth 계정 생성 성공 후 표시됩니다.
+      //     기존 로컬 계정과 합칠지 사용자에게 묻습니다.
+      GoRoute(
+        path: '/oauth/merge',
+        name: AppRoutes.oauthMerge,
+        builder: (context, state) => const OAuthMergeExistingPage(),
       ),
 
       // EN: Main app with bottom navigation shell
@@ -332,8 +388,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     },
                   ),
                   GoRoute(
-                    path: 'live/:eventId',
-                    name: AppRoutes.liveDetail,
+                    path: 'events/:eventId',
+                    name: AppRoutes.eventDetail,
                     pageBuilder: (context, state) {
                       final eventId = state.pathParameters['eventId']!;
                       return _buildAdaptiveDetailPage(
@@ -347,13 +403,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // EN: Idol Branch (Index 2) — info, cheer guides, quotes, zukan.
-          // KO: 아이돌 분기 (인덱스 2) — 정보, 응원가이드, 명언, 도감.
+          // EN: Information Branch (Index 2) — info, cheer guides, quotes, zukan.
+          // KO: 정보 분기 (인덱스 2) — 정보, 응원가이드, 명언, 도감.
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/idol',
-                name: AppRoutes.idol,
+                path: '/information',
+                name: AppRoutes.information,
                 builder: (context, state) => const InfoPage(),
                 routes: [
                   GoRoute(
@@ -497,13 +553,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // EN: My Branch (Index 3) — fan level, calendar, collection, settings.
-          // KO: 나 분기 (인덱스 3) — 팬레벨, 달력, 컬렉션, 설정.
+          // EN: Mypage Branch (Index 3) — fan level, calendar, collection, settings.
+          // KO: 마이페이지 분기 (인덱스 3) — 팬레벨, 달력, 컬렉션, 설정.
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/my',
-                name: AppRoutes.my,
+                path: '/mypage',
+                name: AppRoutes.mypage,
                 builder: (context, state) => const MyPage(),
               ),
             ],
@@ -540,12 +596,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'posts/new',
                     name: AppRoutes.postCreate,
-                    builder: (context, state) => const PostCreatePage(),
+                    pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+                      key: state.pageKey,
+                      child: const PostCreatePage(),
+                    ),
                   ),
                   GoRoute(
                     path: 'travel-review-create',
                     name: AppRoutes.travelReviewCreate,
-                    builder: (context, state) => const TravelReviewCreatePage(),
+                    pageBuilder: (context, state) =>
+                        _buildAdaptiveOverlayPage(
+                      key: state.pageKey,
+                      child: const TravelReviewCreatePage(),
+                    ),
                   ),
                   GoRoute(
                     path: 'travel-reviews/:reviewId',
@@ -625,6 +688,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
+            path: 'linked-accounts',
+            name: AppRoutes.linkedAccounts,
+            pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+              key: state.pageKey,
+              child: const LinkedAccountsPage(),
+            ),
+          ),
+          GoRoute(
+            path: 'change-password',
+            name: AppRoutes.changePassword,
+            pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+              key: state.pageKey,
+              child: const ChangePasswordPage(),
+            ),
+          ),
+          GoRoute(
             path: 'privacy-rights',
             name: AppRoutes.privacyRights,
             pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
@@ -653,6 +732,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       // EN: Overlay routes (outside shell)
       // KO: 오버레이 라우트 (쉘 외부)
+      // EN: Password-related routes (unauthenticated access allowed).
+      // KO: 비밀번호 관련 라우트 (비인증 접근 허용).
+      GoRoute(
+        path: '/forgot-password',
+        name: AppRoutes.forgotPassword,
+        pageBuilder: (context, state) => _buildAdaptiveDetailPage(
+          key: state.pageKey,
+          child: const ForgotPasswordPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        name: AppRoutes.resetPassword,
+        pageBuilder: (context, state) {
+          final token = state.uri.queryParameters['token'];
+          return _buildAdaptiveDetailPage(
+            key: state.pageKey,
+            child: ResetPasswordPage(initialToken: token),
+          );
+        },
+      ),
+
       GoRoute(
         path: '/community-settings',
         name: AppRoutes.communitySettings,
@@ -661,25 +762,37 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/search',
         name: AppRoutes.search,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final query = state.uri.queryParameters['q'];
-          return SearchPage(initialQuery: query);
+          return _buildAdaptiveOverlayPage(
+            key: state.pageKey,
+            child: SearchPage(initialQuery: query),
+          );
         },
       ),
       GoRoute(
         path: '/notifications',
         name: AppRoutes.notifications,
-        builder: (context, state) => const NotificationsPage(),
+        pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+          key: state.pageKey,
+          child: const NotificationsPage(),
+        ),
       ),
       GoRoute(
         path: '/favorites',
         name: AppRoutes.favorites,
-        builder: (context, state) => const FavoritesPage(),
+        pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+          key: state.pageKey,
+          child: const FavoritesPage(),
+        ),
       ),
       GoRoute(
         path: '/post-bookmarks',
         name: AppRoutes.postBookmarks,
-        builder: (context, state) => const PostBookmarksPage(),
+        pageBuilder: (context, state) => _buildAdaptiveOverlayPage(
+          key: state.pageKey,
+          child: const PostBookmarksPage(),
+        ),
       ),
 
       // EN: Otaku feature routes (overlay, outside shell)
@@ -793,8 +906,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/overlay/live/:eventId',
-        name: AppRoutes.overlayLiveDetail,
+        path: '/overlay/events/:eventId',
+        name: AppRoutes.overlayEventDetail,
         pageBuilder: (context, state) {
           final eventId = state.pathParameters['eventId']!;
           return _buildAdaptiveDetailPage(
@@ -875,14 +988,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               final visitId = state.pathParameters['visitId']!;
               final placeId = state.uri.queryParameters['placeId'] ?? '';
               final visitedAt = state.uri.queryParameters['visitedAt'];
-              final latStr = state.uri.queryParameters['latitude'];
-              final lngStr = state.uri.queryParameters['longitude'];
               return VisitDetailPage(
                 visitId: visitId,
                 placeId: placeId,
                 visitedAt: visitedAt,
-                latitude: latStr != null ? double.tryParse(latStr) : null,
-                longitude: lngStr != null ? double.tryParse(lngStr) : null,
               );
             },
           ),
@@ -991,6 +1100,7 @@ extension AppRouterExtension on BuildContext {
         path.startsWith('/cheer-guides') ||
         path.startsWith('/quotes') ||
         path.startsWith('/zukan') ||
+        path.startsWith('/users') ||
         path.startsWith('/overlay/music') ||
         path.startsWith('/overlay');
   }
@@ -1065,19 +1175,19 @@ extension AppRouterExtension on BuildContext {
     }
   }
 
-  /// EN: Navigate to live event detail
-  /// KO: 라이브 이벤트 상세로 이동
-  void goToLiveDetail(String eventId) {
+  /// EN: Navigate to event detail
+  /// KO: 이벤트 상세로 이동
+  void goToEventDetail(String eventId) {
     if (_isInOverlayContext()) {
       pushNamed(
-        AppRoutes.overlayLiveDetail,
+        AppRoutes.overlayEventDetail,
         pathParameters: {'eventId': eventId},
       );
       return;
     }
     final router = GoRouter.of(this);
     final targetPath = router.namedLocation(
-      AppRoutes.liveDetail,
+      AppRoutes.eventDetail,
       pathParameters: {'eventId': eventId},
     );
     switch (_resolveShellNavigationAction(targetPath)) {
@@ -1087,7 +1197,7 @@ extension AppRouterExtension on BuildContext {
       case _ShellNavigationAction.none:
         return;
       case _ShellNavigationAction.push:
-        pushNamed(AppRoutes.liveDetail, pathParameters: {'eventId': eventId});
+        pushNamed(AppRoutes.eventDetail, pathParameters: {'eventId': eventId});
         return;
     }
   }
@@ -1330,14 +1440,10 @@ extension AppRouterExtension on BuildContext {
     required String visitId,
     required String placeId,
     String? visitedAt,
-    double? latitude,
-    double? longitude,
   }) {
     final queryParams = <String, String>{
       'placeId': placeId,
       if (visitedAt != null) 'visitedAt': visitedAt,
-      if (latitude != null) 'latitude': latitude.toString(),
-      if (longitude != null) 'longitude': longitude.toString(),
     };
     pushNamed(
       AppRoutes.visitDetail,

@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:girlsbandtabi_app/core/error/failure.dart';
 import 'package:girlsbandtabi_app/core/providers/core_providers.dart';
+import 'package:girlsbandtabi_app/core/security/secure_storage.dart';
 import 'package:girlsbandtabi_app/core/storage/local_storage.dart';
 import 'package:girlsbandtabi_app/core/utils/result.dart';
 import 'package:girlsbandtabi_app/features/settings/application/settings_controller.dart';
@@ -145,10 +147,16 @@ void main() {
 
   group('NotificationSettingsController', () {
     test('keeps OFF and succeeds when device deactivation succeeds', () async {
+      FlutterSecureStorage.setMockInitialValues(<String, String>{
+        SecureStorageKeys.notificationDeviceId: 'secure-123',
+        SecureStorageKeys.notificationPushToken: 'secure-token',
+      });
       SharedPreferences.setMockInitialValues({
-        LocalStorageKeys.notificationDeviceId: 'ios-123',
+        LocalStorageKeys.notificationDeviceIdLegacy: 'legacy-ios-123',
+        LocalStorageKeys.notificationPushToken: 'legacy-token',
       });
       final storage = await LocalStorage.create();
+      final secureStorage = SecureStorage();
       const offSettings = NotificationSettings(
         pushEnabled: false,
         emailEnabled: true,
@@ -165,6 +173,7 @@ void main() {
         overrides: [
           isAuthenticatedProvider.overrideWith((ref) => true),
           localStorageProvider.overrideWith((ref) async => storage),
+          secureStorageProvider.overrideWithValue(secureStorage),
           settingsRepositoryProvider.overrideWith((ref) async => repository),
         ],
       );
@@ -178,8 +187,14 @@ void main() {
 
       expect(result, isA<Success<NotificationSettings>>());
       expect(repository.deactivateCalls, 1);
-      expect(repository.lastDeactivatedDeviceId, 'ios-123');
-      expect(storage.getString(LocalStorageKeys.notificationDeviceId), isNull);
+      expect(repository.lastDeactivatedDeviceId, 'secure-123');
+      expect(await secureStorage.getNotificationDeviceId(), isNull);
+      expect(await secureStorage.getNotificationPushToken(), isNull);
+      expect(
+        storage.getString(LocalStorageKeys.notificationDeviceIdLegacy),
+        isNull,
+      );
+      expect(storage.getString(LocalStorageKeys.notificationPushToken), isNull);
       expect(
         container
             .read(notificationSettingsControllerProvider)
@@ -192,10 +207,12 @@ void main() {
     test(
       'keeps OFF and succeeds even when device deactivation fails',
       () async {
+        FlutterSecureStorage.setMockInitialValues(<String, String>{});
         SharedPreferences.setMockInitialValues({
-          LocalStorageKeys.notificationDeviceId: 'ios-456',
+          LocalStorageKeys.notificationDeviceIdLegacy: 'legacy-ios-456',
         });
         final storage = await LocalStorage.create();
+        final secureStorage = SecureStorage();
         const offSettings = NotificationSettings(
           pushEnabled: false,
           emailEnabled: true,
@@ -214,6 +231,7 @@ void main() {
           overrides: [
             isAuthenticatedProvider.overrideWith((ref) => true),
             localStorageProvider.overrideWith((ref) async => storage),
+            secureStorageProvider.overrideWithValue(secureStorage),
             settingsRepositoryProvider.overrideWith((ref) async => repository),
           ],
         );
@@ -235,9 +253,11 @@ void main() {
           isFalse,
         );
         expect(
-          storage.getString(LocalStorageKeys.notificationDeviceId),
-          'ios-456',
+          storage.getString(LocalStorageKeys.notificationDeviceIdLegacy),
+          'legacy-ios-456',
         );
+        expect(await secureStorage.getNotificationDeviceId(), isNull);
+        expect(await secureStorage.getNotificationPushToken(), isNull);
       },
     );
 
@@ -653,6 +673,11 @@ class _FakeSettingsRepository implements SettingsRepository {
     String? description,
     List<String> evidenceUrls = const [],
   }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Result<RestoreAccountResult>> restoreAccount() {
     throw UnimplementedError();
   }
 }

@@ -34,6 +34,9 @@ class NewsListController extends StateNotifier<AsyncValue<List<NewsSummary>>> {
   final Ref _ref;
 
   Future<void> load({bool forceRefresh = false}) async {
+    if (!mounted) {
+      return;
+    }
     if (!_isInfoTabActive(_ref)) {
       return;
     }
@@ -44,14 +47,23 @@ class NewsListController extends StateNotifier<AsyncValue<List<NewsSummary>>> {
       return;
     }
 
+    if (!mounted) {
+      return;
+    }
     state = const AsyncLoading();
 
     final repository = await _ref.read(feedRepositoryProvider.future);
+    if (!mounted) {
+      return;
+    }
     final result = await repository.getNews(
       projectId: projectKey,
       forceRefresh: forceRefresh,
     );
 
+    if (!mounted) {
+      return;
+    }
     if (result is Success<List<NewsSummary>>) {
       state = AsyncData(result.data);
     } else if (result is Err<List<NewsSummary>>) {
@@ -67,6 +79,9 @@ class NewsDetailController extends StateNotifier<AsyncValue<NewsDetail>> {
   final String newsId;
 
   Future<void> load({bool forceRefresh = false}) async {
+    if (!mounted) {
+      return;
+    }
     final projectKey = _ref.read(selectedProjectKeyProvider);
     if (projectKey == null || projectKey.isEmpty) {
       // EN: Wait for project selection before loading.
@@ -74,15 +89,24 @@ class NewsDetailController extends StateNotifier<AsyncValue<NewsDetail>> {
       return;
     }
 
+    if (!mounted) {
+      return;
+    }
     state = const AsyncLoading();
 
     final repository = await _ref.read(feedRepositoryProvider.future);
+    if (!mounted) {
+      return;
+    }
     final result = await repository.getNewsDetail(
       projectId: projectKey,
       newsId: newsId,
       forceRefresh: forceRefresh,
     );
 
+    if (!mounted) {
+      return;
+    }
     if (result is Success<NewsDetail>) {
       state = AsyncData(result.data);
     } else if (result is Err<NewsDetail>) {

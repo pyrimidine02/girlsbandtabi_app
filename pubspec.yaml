@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.5.0+2060671873
+version: 0.0.1+1
 environment:
   sdk: '>=3.8.1 <4.0.0'
 
@@ -82,8 +82,19 @@ dependencies:
   apple_maps_flutter: ^1.4.0
   device_info_plus: ^12.3.0
   package_info_plus: ^8.3.0
+  crypto: ^3.0.3
+  firebase_crashlytics: ^4.3.7
+  sentry_flutter: ^8.14.0
   uuid: ^4.5.1
   focus_detector: ^2.0.1
+  app_links: ^6.0.0
+  android_id: ^0.4.0
+  flutter_timezone: ^4.1.1
+
+  # Social Login SDKs / 소셜 로그인 SDK
+  google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.4
+  crop_your_image: ^2.0.0
 
 dev_dependencies:
   flutter_test:
@@ -113,6 +124,10 @@ dev_dependencies:
   # Code Generation
   build_runner: ^2.4.9
   riverpod_generator: ^2.4.2
+
+dependency_overrides:
+  image_cropper:
+    path: third_party/image_cropper
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

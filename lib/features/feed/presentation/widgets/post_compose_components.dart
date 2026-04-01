@@ -84,59 +84,64 @@ class PostTopicTagSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Wrap(
-      spacing: GBTSpacing.xs,
-      runSpacing: GBTSpacing.xs,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        ActionChip(
-          onPressed: onTapTopic,
-          avatar: const Icon(Icons.topic_outlined, size: 16),
-          label: Text(selectedTopic ?? '토픽 선택'),
-          side: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.75),
-          ),
-          backgroundColor: colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.45,
-          ),
-          labelStyle: GBTTypography.labelMedium.copyWith(
-            color: colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        ...selectedTags.map(
-          (tag) => InputChip(
-            label: Text('#$tag'),
-            onDeleted: onRemoveTag == null ? null : () => onRemoveTag!(tag),
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.centerLeft,
+      child: Wrap(
+        spacing: GBTSpacing.xs,
+        runSpacing: GBTSpacing.xs,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          ActionChip(
+            onPressed: onTapTopic,
+            avatar: const Icon(Icons.topic_outlined, size: 16),
+            label: Text(selectedTopic ?? '토픽 선택'),
             side: BorderSide(
               color: colorScheme.outlineVariant.withValues(alpha: 0.75),
             ),
             backgroundColor: colorScheme.surfaceContainerHighest.withValues(
-              alpha: 0.32,
+              alpha: 0.45,
             ),
-            labelStyle: GBTTypography.labelSmall.copyWith(
+            labelStyle: GBTTypography.labelMedium.copyWith(
               color: colorScheme.onSurface,
               fontWeight: FontWeight.w600,
             ),
-            deleteIconColor: colorScheme.onSurfaceVariant,
           ),
-        ),
-        ActionChip(
-          onPressed: onTapAddTag,
-          avatar: const Icon(Icons.add, size: 16),
-          label: const Text('태그'),
-          side: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.75),
+          ...selectedTags.map(
+            (tag) => InputChip(
+              label: Text('#$tag'),
+              onDeleted: onRemoveTag == null ? null : () => onRemoveTag!(tag),
+              side: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.75),
+              ),
+              backgroundColor: colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.32,
+              ),
+              labelStyle: GBTTypography.labelSmall.copyWith(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
+              deleteIconColor: colorScheme.onSurfaceVariant,
+            ),
           ),
-          backgroundColor: colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.3,
+          ActionChip(
+            onPressed: onTapAddTag,
+            avatar: const Icon(Icons.add, size: 16),
+            label: const Text('태그'),
+            side: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.75),
+            ),
+            backgroundColor: colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.3,
+            ),
+            labelStyle: GBTTypography.labelMedium.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-          labelStyle: GBTTypography.labelMedium.copyWith(
-            color: colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

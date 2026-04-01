@@ -44,6 +44,7 @@ import '../models/feed_native_ad_placement.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
 import '../widgets/community_translation_panel.dart';
 import '../widgets/community_report_sheet.dart';
+import '../widgets/community_fab_layout.dart';
 import '../../../titles/application/titles_controller.dart';
 import '../../../titles/presentation/widgets/active_title_badge.dart';
 
@@ -108,6 +109,12 @@ class _BoardPageState extends ConsumerState<BoardPage> {
     context.goToSearch(query);
   }
 
+  double _fabBottomPadding(BuildContext context) {
+    return resolveCommunityFabBottomPadding(
+      screenHeight: MediaQuery.sizeOf(context).height,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isAuthenticated = ref.watch(isAuthenticatedProvider);
@@ -137,139 +144,145 @@ class _BoardPageState extends ConsumerState<BoardPage> {
 
     return FocusDetector(
       onFocusGained: () {
-        // EN: For the Feed section, always reset to recommended mode so that
-        //     returning from Discover (which sets mode to trending) correctly
-        //     shows recommended posts instead of trending.
-        // KO: 피드 섹션은 항상 recommended 모드로 초기화합니다.
-        //     발견 섹션(trending 모드)에서 돌아올 때 trending 대신 추천 피드가
-        //     올바르게 표시되도록 합니다.
+        final notifier = ref.read(communityFeedControllerProvider.notifier);
+        final feedState = ref.read(communityFeedControllerProvider);
+
         if (sectionIndex == 0) {
-          final mode = ref.read(communityFeedControllerProvider).mode;
-          if (mode != CommunityFeedMode.recommended) {
-            unawaited(
-              ref
-                  .read(communityFeedControllerProvider.notifier)
-                  .setMode(CommunityFeedMode.recommended),
-            );
-          } else {
-            unawaited(
-              ref
-                  .read(communityFeedControllerProvider.notifier)
-                  .reload(forceRefresh: true),
-            );
+          if (feedState.mode != CommunityFeedMode.recommended) {
+            // EN: Mode mismatch (e.g. returning from Discover/trending) — reset mode.
+            // KO: 모드 불일치 (예: 발견/트렌딩에서 복귀) — 모드를 초기화합니다.
+            unawaited(notifier.setMode(CommunityFeedMode.recommended));
+          } else if (feedState.posts.isNotEmpty) {
+            // EN: Data exists — soft refresh only, never wipe the visible list.
+            // KO: 데이터 있음 — 목록을 초기화하지 않고 조용히 새로고침합니다.
+            unawaited(notifier.refreshInBackground(minInterval: Duration.zero));
           }
+          // EN: Empty feed is handled by the controller's nav-index listener.
+          // KO: 빈 피드는 컨트롤러의 네비게이션 인덱스 리스너가 처리합니다.
         } else {
-          unawaited(
-            ref
-                .read(communityFeedControllerProvider.notifier)
-                .reload(forceRefresh: true),
-          );
+          if (feedState.posts.isEmpty) {
+            unawaited(notifier.reload(forceRefresh: true));
+          } else {
+            unawaited(notifier.refreshInBackground(minInterval: Duration.zero));
+          }
         }
-        unawaited(
-          ref.read(postListControllerProvider.notifier).load(forceRefresh: true),
-        );
+
+        // EN: Project post list — only load if no data yet.
+        // KO: 프로젝트 게시글 목록 — 데이터가 없을 때만 로드합니다.
+        final postState = ref.read(postListControllerProvider);
+        if (postState.valueOrNull == null) {
+          unawaited(ref.read(postListControllerProvider.notifier).load());
+        }
       },
       child: Scaffold(
         appBar: useFeedHeroHeader
             ? null
             : AppBar(
-              titleSpacing: 0,
-              title: Row(
-                children: [
-                  const SizedBox(width: GBTSpacing.md),
-                  Text(
-                    sectionTitle,
-                    style: GBTTypography.titleMedium.copyWith(
-                      fontWeight: FontWeight.w700,
+                titleSpacing: 0,
+                title: Row(
+                  children: [
+                    const SizedBox(width: GBTSpacing.md),
+                    Text(
+                      sectionTitle,
+                      style: GBTTypography.titleMedium.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
+                  ],
+                ),
+                actions: [
+                  // EN: Search icon — hidden on travel review section.
+                  // KO: 검색 아이콘 — 여행후기 섹션에서는 숨김.
+                  if (sectionIndex != 2)
+                    GBTAppBarIconButton(
+                      icon: Icons.search_rounded,
+                      tooltip: context.l10n(ko: '검색', en: 'Search', ja: '検索'),
+                      onPressed: () => _openSearchSheet(context),
+                    ),
+                  GBTAppBarIconButton(
+                    icon: Icons.menu_rounded,
+                    tooltip: context.l10n(
+                      ko: '커뮤니티 설정',
+                      en: 'Community settings',
+                      ja: 'コミュニティ設定',
+                    ),
+                    onPressed: context.goToCommunitySettings,
                   ),
                 ],
               ),
-              actions: [
-                // EN: Search icon — hidden on travel review section.
-                // KO: 검색 아이콘 — 여행후기 섹션에서는 숨김.
-                if (sectionIndex != 2)
-                  GBTAppBarIconButton(
-                    icon: Icons.search_rounded,
-                    tooltip: context.l10n(ko: '검색', en: 'Search', ja: '検索'),
-                    onPressed: () => _openSearchSheet(context),
+        body: switch (sectionIndex) {
+          0 => const _FeedSection(),
+          1 => const _CommunityTab(isDiscoverSection: true),
+          _ => const _TravelReviewTab(),
+        },
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        floatingActionButton: Padding(
+          padding: EdgeInsets.only(bottom: _fabBottomPadding(context)),
+          child: _ExpandableActionFab(
+            isExpanded: _isFabMenuExpanded,
+            onToggle: _toggleFabMenu,
+            mainHeroTag: 'board-fab-main',
+            actions: [
+              if (sectionIndex != 2)
+                _FabMenuAction(
+                  id: 'create-post',
+                  icon: Icons.edit_outlined,
+                  label: context.l10n(
+                    ko: '게시글 작성',
+                    en: 'Write Post',
+                    ja: '投稿作成',
                   ),
-                GBTAppBarIconButton(
-                  icon: Icons.menu_rounded,
-                  tooltip: context.l10n(
-                    ko: '커뮤니티 설정',
-                    en: 'Community settings',
-                    ja: 'コミュニティ設定',
-                  ),
-                  onPressed: context.goToCommunitySettings,
+                  onPressed: () {
+                    _closeFabMenu();
+                    context.goToPostCreate();
+                  },
                 ),
-              ],
-            ),
-      body: switch (sectionIndex) {
-        0 => const _FeedSection(),
-        1 => const _CommunityTab(isDiscoverSection: true),
-        _ => const _TravelReviewTab(),
-      },
-      floatingActionButton: _ExpandableActionFab(
-        isExpanded: _isFabMenuExpanded,
-        onToggle: _toggleFabMenu,
-        mainHeroTag: 'board-fab-main',
-        actions: [
-          if (sectionIndex != 2)
-            _FabMenuAction(
-              id: 'create-post',
-              icon: Icons.edit_outlined,
-              label: context.l10n(ko: '게시글 작성', en: 'Write Post', ja: '投稿作成'),
-              onPressed: () {
-                _closeFabMenu();
-                context.goToPostCreate();
-              },
-            ),
-          if (sectionIndex == 2)
-            _FabMenuAction(
-              id: 'create-review',
-              icon: Icons.rate_review_outlined,
-              label: context.l10n(
-                ko: '여행후기 작성',
-                en: 'Write Review',
-                ja: '旅行レビュー作成',
-              ),
-              onPressed: () {
-                _closeFabMenu();
-                context.pushNamed(AppRoutes.travelReviewCreate);
-              },
-            ),
-          if (sectionIndex != 2 && isAuthenticated)
-            _FabMenuAction(
-              id: 'my-reports',
-              icon: Icons.flag_outlined,
-              label: context.l10n(
-                ko: '내 신고 내역',
-                en: 'My Reports',
-                ja: '自分の通報履歴',
-              ),
-              onPressed: () {
-                _closeFabMenu();
-                _showMyReportsSheet(context);
-              },
-            ),
-          if (sectionIndex != 2 && isAdmin)
-            _FabMenuAction(
-              id: 'ban',
-              icon: Icons.gavel_outlined,
-              label: context.l10n(
-                ko: '커뮤니티 제재 관리',
-                en: 'Moderation',
-                ja: 'コミュニティ制裁管理',
-              ),
-              onPressed: () {
-                _closeFabMenu();
-                _showCommunityBanSheet(context);
-              },
-            ),
-        ],
+              if (sectionIndex == 2)
+                _FabMenuAction(
+                  id: 'create-review',
+                  icon: Icons.rate_review_outlined,
+                  label: context.l10n(
+                    ko: '여행후기 작성',
+                    en: 'Write Review',
+                    ja: '旅行レビュー作成',
+                  ),
+                  onPressed: () {
+                    _closeFabMenu();
+                    context.pushNamed(AppRoutes.travelReviewCreate);
+                  },
+                ),
+              if (sectionIndex != 2 && isAuthenticated)
+                _FabMenuAction(
+                  id: 'my-reports',
+                  icon: Icons.flag_outlined,
+                  label: context.l10n(
+                    ko: '내 신고 내역',
+                    en: 'My Reports',
+                    ja: '自分の通報履歴',
+                  ),
+                  onPressed: () {
+                    _closeFabMenu();
+                    _showMyReportsSheet(context);
+                  },
+                ),
+              if (sectionIndex != 2 && isAdmin)
+                _FabMenuAction(
+                  id: 'ban',
+                  icon: Icons.gavel_outlined,
+                  label: context.l10n(
+                    ko: '커뮤니티 제재 관리',
+                    en: 'Moderation',
+                    ja: 'コミュニティ制裁管理',
+                  ),
+                  onPressed: () {
+                    _closeFabMenu();
+                    _showCommunityBanSheet(context);
+                  },
+                ),
+            ],
+          ),
+        ),
       ),
-     ),
     );
   }
 }
@@ -477,6 +490,19 @@ class _FeedSectionState extends ConsumerState<_FeedSection>
     );
   }
 
+  // EN: Scroll to top then apply buffered new posts — Twitter-style "new posts" flow.
+  // KO: 상단으로 스크롤 후 대기 중인 새 글 적용 — 트위터 스타일 새 글 배너 동작.
+  void _scrollToTopAndApplyPending() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
+    }
+    _feedController.applyPendingPosts();
+  }
+
   Future<void> _openSearchSheet() async {
     final feedState = ref.read(communityFeedControllerProvider);
     final query = feedState.searchQuery.trim();
@@ -615,11 +641,26 @@ class _FeedSectionState extends ConsumerState<_FeedSection>
           ],
           if (_tab != _FeedTopTab.project)
             Expanded(
-              child: _CommunityList(
-                state: feedState,
-                scrollController: _scrollController,
-                onRefresh: () => notifier.reload(forceRefresh: true),
-                onRetry: () => notifier.reload(forceRefresh: true),
+              child: Stack(
+                children: [
+                  _CommunityList(
+                    state: feedState,
+                    scrollController: _scrollController,
+                    onRefresh: () => notifier.reload(forceRefresh: true),
+                    onRetry: () => notifier.reload(forceRefresh: true),
+                  ),
+                  Positioned(
+                    top: GBTSpacing.sm,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: _NewPostsBanner(
+                        count: feedState.pendingNewPosts.length,
+                        onTap: _scrollToTopAndApplyPending,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
         ],
@@ -914,6 +955,19 @@ class _CommunityTabState extends ConsumerState<_CommunityTab>
     );
   }
 
+  // EN: Scroll to top then apply buffered new posts.
+  // KO: 상단으로 스크롤 후 대기 중인 새 글 적용.
+  void _scrollToTopAndApplyPending() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
+    }
+    _feedController.applyPendingPosts();
+  }
+
   void _syncSectionMode({bool? previousWasDiscover}) {
     if (!mounted) return;
     final state = ref.read(communityFeedControllerProvider);
@@ -1068,14 +1122,29 @@ class _CommunityTabState extends ConsumerState<_CommunityTab>
           ),
         ],
 
-        // EN: Main content list.
-        // KO: 메인 콘텐츠 목록.
+        // EN: Main content list with new-posts banner overlay.
+        // KO: 새 글 배너 오버레이가 포함된 메인 콘텐츠 목록.
         Expanded(
-          child: _CommunityList(
-            state: feedState,
-            scrollController: _scrollController,
-            onRefresh: () => notifier.reload(forceRefresh: true),
-            onRetry: () => notifier.reload(forceRefresh: true),
+          child: Stack(
+            children: [
+              _CommunityList(
+                state: feedState,
+                scrollController: _scrollController,
+                onRefresh: () => notifier.reload(forceRefresh: true),
+                onRetry: () => notifier.reload(forceRefresh: true),
+              ),
+              Positioned(
+                top: GBTSpacing.sm,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: _NewPostsBanner(
+                    count: feedState.pendingNewPosts.length,
+                    onTap: _scrollToTopAndApplyPending,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -2088,9 +2157,9 @@ class _FeedSponsoredCampaign {
         return SponsoredFallbackContent(
           icon: Icons.music_note_outlined,
           title: context.l10n(
-            ko: '다가오는 라이브 일정을 놓치지 마세요',
-            en: 'Don\'t miss upcoming live events',
-            ja: '近づくライブ日程を見逃さないでください',
+            ko: '다가오는 이벤트 일정을 놓치지 마세요',
+            en: 'Don\'t miss upcoming events',
+            ja: '近づくイベント日程を見逃さないでください',
           ),
           description: context.l10n(
             ko: '예정/완료 필터로 공연 흐름을 빠르게 확인할 수 있어요.',
@@ -2098,9 +2167,9 @@ class _FeedSponsoredCampaign {
             ja: '予定/完了フィルターで公演の流れを素早く確認できます。',
           ),
           ctaLabel: context.l10n(
-            ko: '라이브 보기',
-            en: 'View Live Events',
-            ja: 'ライブを見る',
+            ko: '이벤트 보기',
+            en: 'View Events',
+            ja: 'イベントを見る',
           ),
           accentColor: GBTColors.accentBlue,
           badgeLabel: context.l10n(ko: '광고', en: 'AD', ja: '広告'),
@@ -2496,11 +2565,12 @@ class _CommunityPostCard extends ConsumerWidget {
                               ),
                           ];
 
-                          final action = await showGBTActionSheet<_PostCardAction>(
-                            context: context,
-                            actions: actions,
-                            cancelLabel: '취소',
-                          );
+                          final action =
+                              await showGBTActionSheet<_PostCardAction>(
+                                context: context,
+                                actions: actions,
+                                cancelLabel: '취소',
+                              );
 
                           if (action == null || !context.mounted) return;
 
@@ -4566,6 +4636,97 @@ class _Avatar extends StatelessWidget {
             minHeight: GBTSpacing.touchTarget,
           ),
           child: Center(child: content),
+        ),
+      ),
+    );
+  }
+}
+
+// ========================================
+// EN: New Posts Banner — Twitter-style floating pill shown when new posts are buffered.
+// KO: 새 글 배너 — 새 글이 버퍼에 쌓이면 나타나는 트위터 스타일 플로팅 필.
+// ========================================
+
+/// EN: Animated floating pill banner that appears when background sync detects new posts.
+/// KO: 백그라운드 동기화가 새 글을 감지하면 위에서 슬라이드 인하는 플로팅 배너.
+class _NewPostsBanner extends StatelessWidget {
+  const _NewPostsBanner({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = count > 0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // EN: Pill background — dark in both themes for contrast against feed.
+    // KO: 피드 배경 대비를 위해 라이트/다크 모두 짙은 색상 사용.
+    final bgColor = isDark
+        ? GBTColors.darkTextPrimary.withValues(alpha: 0.92)
+        : GBTColors.textPrimary.withValues(alpha: 0.88);
+
+    final label = count >= 99
+        ? context.l10n(ko: '새 글 99+개', en: '99+ new posts', ja: '新着99+件')
+        : count == 1
+        ? context.l10n(ko: '새 글 1개', en: '1 new post', ja: '新着1件')
+        : context.l10n(
+            ko: '새 글 $count개',
+            en: '$count new posts',
+            ja: '新着$count件',
+          );
+
+    return IgnorePointer(
+      ignoring: !visible,
+      child: AnimatedSlide(
+        offset: visible ? Offset.zero : const Offset(0, -2.5),
+        duration: Duration(milliseconds: visible ? 320 : 220),
+        curve: visible ? Curves.easeOutBack : Curves.easeInCubic,
+        child: AnimatedOpacity(
+          opacity: visible ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 200),
+          child: Semantics(
+            button: true,
+            label: label,
+            child: GestureDetector(
+              onTap: onTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: GBTSpacing.md,
+                  vertical: GBTSpacing.xs2,
+                ),
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(GBTSpacing.radiusFull),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.18),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.arrow_upward_rounded,
+                      size: 13,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: GBTSpacing.xs),
+                    Text(
+                      label,
+                      style: GBTTypography.labelSmall.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

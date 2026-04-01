@@ -134,11 +134,11 @@ class _NotificationSettingsView extends StatelessWidget {
             _NotifToggleRow(
               icon: Icons.event_rounded,
               iconColor: const Color(0xFF6366F1),
-              title: '라이브 이벤트',
+              title: '이벤트',
               subtitle: '다가오는 공연 소식',
               value: settings.liveEventsEnabled,
               semanticLabel:
-                  '라이브 이벤트 알림 ${settings.liveEventsEnabled ? "켜짐" : "꺼짐"}',
+                  '이벤트 알림 ${settings.liveEventsEnabled ? "켜짐" : "꺼짐"}',
               onChanged: (v) =>
                   onChanged(settings.copyWith(liveEventsEnabled: v)),
               isDark: isDark,

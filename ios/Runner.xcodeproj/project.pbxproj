@@ -199,9 +199,10 @@
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
-				D8C418D7CD3641498FC5DC92 /* Strip Simulator Slices */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
+				D8C418D7CD3641498FC5DC92 /* Strip Simulator Slices */,
 				2FA61974C4C8CEAE3C195018 /* [CP] Copy Pods Resources */,
+				FA738D7D65B91248A9A65D0E /* [firebase_crashlytics] Crashlytics Upload Symbols */,
 			);
 			buildRules = (
 			);
@@ -304,28 +305,18 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources.sh\"\n";
 			showEnvVarsInLog = 0;
-		};
-		D8C418D7CD3641498FC5DC92 /* Strip Simulator Slices */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Strip Simulator Slices";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "APP_PATH=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\"\nfind \"$APP_PATH\" -name '*.framework' -type d | while read -r FRAMEWORK; do\n  BINARY=\"${FRAMEWORK}/$(basename \"$FRAMEWORK\" .framework)\"\n  if [ -f \"$BINARY\" ]; then\n    if xcrun vtool -show-build \"$BINARY\" 2>/dev/null | grep -q 'IOSSIMULATOR'; then\n      lipo -remove x86_64 -output \"$BINARY\" \"$BINARY\" 2>/dev/null || true\n      lipo -remove arm64 -output \"$BINARY\" \"$BINARY\" 2>/dev/null || true\n      echo \"Stripped simulator slices from $(basename $FRAMEWORK)\"\n    fi\n  fi\ndone\n";
 		};
 		3B06AD1E1E4923F5004D2608 /* Thin Binary */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -341,7 +332,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" embed_and_thin";
+			shellScript = "set -e\n/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" embed_and_thin\n/bin/sh \"$PROJECT_DIR/scripts/fix_native_assets_manifest.sh\"\n/bin/sh \"$PROJECT_DIR/scripts/generate_native_asset_dsym.sh\"\n";
 		};
 		9740EEB61CF901F6004384FC /* Run Script */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -378,6 +369,40 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		D8C418D7CD3641498FC5DC92 /* Strip Simulator Slices */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Strip Simulator Slices";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Skip for simulator builds — only needed for device/archive.\nif [ \"$EFFECTIVE_PLATFORM_NAME\" = \"-iphonesimulator\" ]; then\n  echo \"Simulator build — skipping Strip Simulator Slices\"\n  exit 0\nfi\n\nfix_binary() {\n  BINARY=\"$1\"\n  [ -f \"$BINARY\" ] || return 0\n  # Remove x86_64 (Intel simulator) slice if present — safe to remove from device builds.\n  lipo -remove x86_64 -output \"$BINARY\" \"$BINARY\" 2>/dev/null || true\n  # Fix arm64 simulator platform flag: vtool cannot write in-place, so use a temp file.\n  if xcrun vtool -show-build \"$BINARY\" 2>/dev/null | grep -q 'IOSSIMULATOR'; then\n    TMP=\"${BINARY}.__fix\"\n    if xcrun vtool -set-build-version ios 14.0 14.0 -replace -output \"$TMP\" \"$BINARY\"; then\n      mv \"$TMP\" \"$BINARY\"\n      echo \"Fixed IOSSIMULATOR platform flag: $(basename $BINARY)\"\n    else\n      rm -f \"$TMP\"\n      echo \"warning: vtool failed for $(basename $BINARY), skipping\"\n    fi\n  fi\n  return 0\n}\n\n# 1) Fix frameworks embedded in the app bundle (runs after Thin Binary / embed_and_thin).\nAPP_PATH=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\"\nfind \"$APP_PATH\" -name '*.framework' -type d | while IFS= read -r FRAMEWORK; do\n  fix_binary \"${FRAMEWORK}/$(basename \"$FRAMEWORK\" .framework)\"\ndone\n\n# 2) Fix the native_assets source cache so future archive builds stay clean.\nNATIVE_ASSETS_DIR=\"${SRCROOT}/../build/native_assets/ios\"\nif [ -d \"$NATIVE_ASSETS_DIR\" ]; then\n  find \"$NATIVE_ASSETS_DIR\" -name '*.framework' -type d | while IFS= read -r FRAMEWORK; do\n    fix_binary \"${FRAMEWORK}/$(basename \"$FRAMEWORK\" .framework)\"\n  done\nfi\n\nexit 0\n";
+		};
+		FA738D7D65B91248A9A65D0E /* [firebase_crashlytics] Crashlytics Upload Symbols */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/FirebaseCrashlytics/CrashlyticsInputFiles.xcfilelist",
+			);
+			inputPaths = (
+			);
+			name = "[firebase_crashlytics] Crashlytics Upload Symbols";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/FirebaseCrashlytics/run\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -490,7 +515,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/RunnerRelease.entitlements;
-				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = RGX6UT6Z8N;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -501,7 +526,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = org.pyrimidines.girlsbandtabi;
+				PRODUCT_BUNDLE_IDENTIFIER = cc.noraneko.girlsbandtabi;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -519,7 +544,7 @@
 				DEVELOPMENT_TEAM = RGX6UT6Z8N;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = org.pyrimidines.girlsbandtabi.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = cc.noraneko.girlsbandtabi.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -538,7 +563,7 @@
 				DEVELOPMENT_TEAM = RGX6UT6Z8N;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = org.pyrimidines.girlsbandtabi.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = cc.noraneko.girlsbandtabi.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
@@ -555,7 +580,7 @@
 				DEVELOPMENT_TEAM = RGX6UT6Z8N;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = org.pyrimidines.girlsbandtabi.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = cc.noraneko.girlsbandtabi.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
@@ -681,7 +706,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/RunnerDebug.entitlements;
-				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = RGX6UT6Z8N;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -692,7 +717,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = org.pyrimidines.girlsbandtabi;
+				PRODUCT_BUNDLE_IDENTIFIER = cc.noraneko.girlsbandtabi;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -708,7 +733,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/RunnerRelease.entitlements;
-				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = RGX6UT6Z8N;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -719,7 +744,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = org.pyrimidines.girlsbandtabi;
+				PRODUCT_BUNDLE_IDENTIFIER = cc.noraneko.girlsbandtabi;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;

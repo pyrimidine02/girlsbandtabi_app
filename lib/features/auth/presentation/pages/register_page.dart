@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/legal_policy_constants.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/router/app_router.dart';
 import '../../../../core/localization/locale_text.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/storage/local_storage.dart';
@@ -21,6 +22,8 @@ import '../../../../core/widgets/inputs/gbt_text_field.dart';
 import '../../../../core/widgets/legal/legal_policy_links_section.dart';
 import '../../application/auth_controller.dart';
 import '../../domain/entities/register_consent.dart';
+import '../../domain/entities/register_result.dart';
+import 'email_verification_args.dart';
 
 /// EN: Register page widget.
 /// KO: 회원가입 페이지 위젯.
@@ -43,8 +46,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   // EN: Live password validation state.
   // KO: 실시간 비밀번호 검증 상태.
   bool _hasMinLength = false;
-  bool _hasUppercase = false;
   bool _hasLowercase = false;
+  bool _hasUppercase = false;
   bool _hasDigit = false;
   bool _hasSpecialChar = false;
   bool _passwordsMatch = false;
@@ -77,9 +80,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     final value = _passwordController.text;
     setState(() {
       _passwordTouched = true;
-      _hasMinLength = value.length >= 6;
-      _hasUppercase = value.contains(RegExp(r'[A-Z]'));
+      _hasMinLength = value.length >= 8 && value.length <= 128;
       _hasLowercase = value.contains(RegExp(r'[a-z]'));
+      _hasUppercase = value.contains(RegExp(r'[A-Z]'));
       _hasDigit = value.contains(RegExp(r'[0-9]'));
       _hasSpecialChar = value.contains(RegExp(r'[@$!%*?&]'));
       _passwordsMatch =
@@ -98,8 +101,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   bool get _allPasswordConditionsMet =>
       _hasMinLength &&
-      _hasUppercase &&
       _hasLowercase &&
+      _hasUppercase &&
       _hasDigit &&
       _hasSpecialChar;
 
@@ -196,11 +199,29 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   prefixIcon: Icons.badge_outlined,
                   textInputAction: TextInputAction.next,
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
+                    if (value == null || value.trim().isEmpty) {
                       return context.l10n(
-                        ko: '닉네임을 입력해주세요',
-                        en: 'Please enter a nickname',
-                        ja: 'ニックネームを入力してください',
+                        ko: '사용자명은 필수입니다.',
+                        en: 'Nickname is required.',
+                        ja: 'ニックネームは必須です。',
+                      );
+                    }
+                    final trimmed = value.trim();
+                    if (trimmed.length < 2 || trimmed.length > 50) {
+                      return context.l10n(
+                        ko: '사용자명은 2자 이상 50자 이하여야 합니다.',
+                        en: 'Nickname must be 2–50 characters.',
+                        ja: 'ニックネームは2文字以上50文字以下にしてください。',
+                      );
+                    }
+                    if (!RegExp(
+                      r'^[\p{L}\p{M}\p{N}_\-・\p{Zs}]+$',
+                      unicode: true,
+                    ).hasMatch(trimmed)) {
+                      return context.l10n(
+                        ko: '사용자명은 문자, 숫자, 공백, 밑줄(_), 하이픈(-), 가운데점(・)만 사용할 수 있습니다.',
+                        en: 'Only letters, numbers, spaces, _, -, and ・ are allowed.',
+                        ja: '文字、数字、スペース、_、-、・のみ使用できます。',
                       );
                     }
                     return null;
@@ -236,8 +257,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 _PasswordConditions(
                   touched: _passwordTouched,
                   hasMinLength: _hasMinLength,
-                  hasUppercase: _hasUppercase,
                   hasLowercase: _hasLowercase,
+                  hasUppercase: _hasUppercase,
                   hasDigit: _hasDigit,
                   hasSpecialChar: _hasSpecialChar,
                 ),
@@ -392,10 +413,22 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       consents: _buildRegisterConsents(),
     );
 
-    if (result is Success<void> && mounted) {
+    if (result is Success<RegisterResult> && mounted) {
       await _persistConsentHistory();
       if (!mounted) return;
-      context.go('/home');
+      if (result.data.verificationRequired) {
+        final pendingEmail =
+            result.data.pendingEmail ?? _emailController.text.trim();
+        context.pushNamed(
+          AppRoutes.emailVerificationPending,
+          extra: EmailVerificationArgs(
+            email: pendingEmail,
+            verificationExpiresAt: result.data.verificationExpiresAt,
+          ),
+        );
+      } else {
+        context.go('/home');
+      }
     }
   }
 
@@ -421,31 +454,42 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   List<RegisterConsent> _buildRegisterConsents() {
     final now = DateTime.now();
-    final terms = LegalPolicyConstants.byType(LegalPolicyType.termsOfService);
-    final privacy = LegalPolicyConstants.byType(LegalPolicyType.privacyPolicy);
-    final location = LegalPolicyConstants.byType(LegalPolicyType.locationTerms);
+    // EN: Use server-fetched policy versions when available; fall back to constants.
+    // KO: 서버에서 가져온 정책 버전을 우선 사용하며, 없으면 상수로 폴백합니다.
+    final fetchedPolicies = ref.read(legalPoliciesProvider).valueOrNull;
+
+    String versionFor(LegalPolicyType type) {
+      if (fetchedPolicies != null) {
+        for (final p in fetchedPolicies) {
+          if (p.type == type) return p.version;
+        }
+      }
+      return LegalPolicyConstants.byType(type).version;
+    }
+
+    final termsVersion = versionFor(LegalPolicyType.termsOfService);
     return [
       RegisterConsent(
         type: 'TERMS_OF_SERVICE',
-        version: terms.version,
+        version: termsVersion,
         agreed: _agreeTerms,
         agreedAt: now,
       ),
       RegisterConsent(
         type: 'PRIVACY_POLICY',
-        version: privacy.version,
+        version: versionFor(LegalPolicyType.privacyPolicy),
         agreed: _agreePrivacy,
         agreedAt: now,
       ),
       RegisterConsent(
         type: 'LOCATION_TERMS',
-        version: location.version,
+        version: versionFor(LegalPolicyType.locationTerms),
         agreed: _agreeLocationTerms,
         agreedAt: now,
       ),
       RegisterConsent(
         type: 'AGE_OVER_14',
-        version: terms.version,
+        version: termsVersion,
         agreed: _confirmOver14,
         agreedAt: now,
       ),
@@ -455,16 +499,23 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   String? _validatePassword(BuildContext context, String? value) {
     if (value == null || value.isEmpty) {
       return context.l10n(
-        ko: '비밀번호를 입력해주세요',
-        en: 'Please enter your password',
-        ja: 'パスワードを入力してください',
+        ko: '비밀번호는 필수입니다.',
+        en: 'Password is required.',
+        ja: 'パスワードは必須です。',
+      );
+    }
+    if (value.length < 8 || value.length > 128) {
+      return context.l10n(
+        ko: '비밀번호는 8자 이상 128자 이하여야 합니다.',
+        en: 'Password must be 8–128 characters.',
+        ja: 'パスワードは8文字以上128文字以下にしてください。',
       );
     }
     if (!_allPasswordConditionsMet) {
       return context.l10n(
-        ko: '아래 조건을 모두 충족해주세요',
-        en: 'Please satisfy all conditions below',
-        ja: '下記の条件をすべて満たしてください',
+        ko: '비밀번호는 대문자, 소문자, 숫자, 특수문자(@\$!%*?&)를 각각 1개 이상 포함해야 합니다.',
+        en: 'Password must include uppercase, lowercase, number, and special character (@\$!%*?&).',
+        ja: 'パスワードは大文字・小文字・数字・特殊文字(@\$!%*?&)を各1文字以上含む必要があります。',
       );
     }
     return null;
@@ -625,6 +676,25 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         ja: 'ネットワーク状態を確認して再試行してください。',
       );
     }
+    if (error is Failure && error.code == '409') {
+      return context.l10n(
+        ko: '이미 가입된 이메일입니다.',
+        en: 'This email is already registered.',
+        ja: 'このメールアドレスはすでに登録されています。',
+      );
+    }
+    if (error is Failure && error.code == '429') {
+      return context.l10n(
+        ko: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
+        en: 'Too many requests. Please try again later.',
+        ja: 'リクエストが多すぎます。しばらく経ってから再試行してください。',
+      );
+    }
+    if (error is ValidationFailure) {
+      final firstFieldError =
+          error.fieldErrors?.values.firstOrNull?.firstOrNull;
+      if (firstFieldError != null) return firstFieldError;
+    }
     return context.l10n(
       ko: '회원가입 처리 중 문제가 발생했습니다. 입력값을 확인하고 다시 시도해주세요.',
       en: 'Sign-up failed. Please verify your input and try again.',
@@ -770,16 +840,16 @@ class _PasswordConditions extends StatelessWidget {
   const _PasswordConditions({
     required this.touched,
     required this.hasMinLength,
-    required this.hasUppercase,
     required this.hasLowercase,
+    required this.hasUppercase,
     required this.hasDigit,
     required this.hasSpecialChar,
   });
 
   final bool touched;
   final bool hasMinLength;
-  final bool hasUppercase;
   final bool hasLowercase;
+  final bool hasUppercase;
   final bool hasDigit;
   final bool hasSpecialChar;
 
@@ -792,19 +862,9 @@ class _PasswordConditions extends StatelessWidget {
           met: hasMinLength,
           touched: touched,
           label: context.l10n(
-            ko: '6자 이상',
-            en: 'At least 6 characters',
-            ja: '6文字以上',
-          ),
-        ),
-        const SizedBox(height: 2),
-        _ConditionRow(
-          met: hasUppercase,
-          touched: touched,
-          label: context.l10n(
-            ko: '대문자 포함 (A-Z)',
-            en: 'Contains uppercase (A-Z)',
-            ja: '大文字を含む (A-Z)',
+            ko: '8자 이상 128자 이하',
+            en: '8–128 characters',
+            ja: '8文字以上128文字以下',
           ),
         ),
         const SizedBox(height: 2),
@@ -815,6 +875,16 @@ class _PasswordConditions extends StatelessWidget {
             ko: '소문자 포함 (a-z)',
             en: 'Contains lowercase (a-z)',
             ja: '小文字を含む (a-z)',
+          ),
+        ),
+        const SizedBox(height: 2),
+        _ConditionRow(
+          met: hasUppercase,
+          touched: touched,
+          label: context.l10n(
+            ko: '대문자 포함 (A-Z)',
+            en: 'Contains uppercase (A-Z)',
+            ja: '大文字を含む (A-Z)',
           ),
         ),
         const SizedBox(height: 2),
@@ -832,9 +902,9 @@ class _PasswordConditions extends StatelessWidget {
           met: hasSpecialChar,
           touched: touched,
           label: context.l10n(
-            ko: '특수문자 포함 (@\$!%*?&)',
-            en: 'Contains special char (@\$!%*?&)',
-            ja: '記号を含む (@\$!%*?&)',
+            ko: '특수문자 포함 (@\$!%*?& 중 1개 이상)',
+            en: 'Contains special character (@\$!%*?&)',
+            ja: '特殊文字を含む (@\$!%*?& のいずれか)',
           ),
         ),
       ],

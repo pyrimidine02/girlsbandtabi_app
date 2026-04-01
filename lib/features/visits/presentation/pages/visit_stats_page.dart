@@ -15,6 +15,7 @@ import '../../../../core/theme/gbt_typography.dart';
 import '../../../../core/widgets/common/gbt_image.dart';
 import '../../../../core/widgets/feedback/gbt_loading.dart';
 import '../../../../core/widgets/navigation/gbt_app_bar_icon_button.dart';
+import '../../../../core/widgets/navigation/gbt_standard_app_bar.dart';
 import '../../../places/domain/entities/place_entities.dart';
 import '../../application/visits_controller.dart';
 import '../../domain/entities/visit_entities.dart';
@@ -44,8 +45,9 @@ class _VisitStatsPageState extends ConsumerState<VisitStatsPage> {
     final rankingState = ref.watch(userRankingProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n(ko: '방문 통계', en: 'Visit stats', ja: '訪問統計')),
+      appBar: gbtStandardAppBar(
+        context,
+        title: context.l10n(ko: '방문 통계', en: 'Visit stats', ja: '訪問統計'),
         actions: [
           GBTAppBarIconButton(
             icon: Icons.history_rounded,

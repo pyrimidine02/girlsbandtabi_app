@@ -105,9 +105,16 @@ class PostComposeDraft {
 /// EN: Handles read/write/delete operations for compose drafts.
 /// KO: 작성 임시저장 데이터의 조회/저장/삭제를 담당합니다.
 class PostComposeDraftStore {
-  const PostComposeDraftStore(this._localStorage);
+  PostComposeDraftStore(
+    this._localStorage, {
+    DateTime Function()? now,
+    Duration retention = const Duration(days: 30),
+  }) : _now = now ?? DateTime.now,
+       _retention = retention;
 
   final LocalStorage _localStorage;
+  final DateTime Function() _now;
+  final Duration _retention;
 
   /// EN: Reads a draft from storage by key.
   /// KO: 키를 기준으로 임시저장 데이터를 읽습니다.
@@ -116,7 +123,17 @@ class PostComposeDraftStore {
     if (json == null) {
       return null;
     }
-    return PostComposeDraft.fromJson(json);
+    final draft = PostComposeDraft.fromJson(json);
+    if (draft == null) {
+      return null;
+    }
+
+    if (_isExpired(draft.savedAt)) {
+      await delete(key);
+      return null;
+    }
+
+    return draft;
   }
 
   /// EN: Writes a draft snapshot to storage.
@@ -129,5 +146,9 @@ class PostComposeDraftStore {
   /// KO: 저장된 임시저장 데이터를 삭제합니다.
   Future<void> delete(String key) async {
     await _localStorage.remove(key);
+  }
+
+  bool _isExpired(DateTime savedAt) {
+    return _now().isAfter(savedAt.add(_retention));
   }
 }

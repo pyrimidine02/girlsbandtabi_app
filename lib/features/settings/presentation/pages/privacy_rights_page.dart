@@ -351,13 +351,16 @@ class _PrivacyRightsPageState extends ConsumerState<PrivacyRightsPage> {
     context.go('/login');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
+        // EN: Inform the user that deactivation is pending purge (30-day grace).
+        // KO: 30일 유예기간 내 계정 복구가 가능함을 안내합니다.
         content: Text(
           context.l10n(
-            ko: '탈퇴가 완료되었습니다.',
-            en: 'Your account has been deleted.',
-            ja: 'アカウント削除が完了しました。',
+            ko: '탈퇴 신청이 완료되었습니다. 30일 이내에 재로그인하면 계정을 복구할 수 있습니다.',
+            en: 'Account deactivation requested. You can restore your account within 30 days by logging in again.',
+            ja: '退会申請が完了しました。30日以内に再ログインすることでアカウントを復元できます。',
           ),
         ),
+        duration: const Duration(seconds: 6),
       ),
     );
   }

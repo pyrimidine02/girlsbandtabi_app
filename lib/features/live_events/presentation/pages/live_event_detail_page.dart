@@ -232,6 +232,7 @@ class LiveEventDetailPage extends ConsumerWidget {
                       ),
                       child: Hero(
                         tag: GBTHeroTags.eventPoster(event.id),
+                        transitionOnUserGestures: true,
                         child: GBTImage(
                           imageUrl: event.bannerUrl!,
                           fit: BoxFit.contain,

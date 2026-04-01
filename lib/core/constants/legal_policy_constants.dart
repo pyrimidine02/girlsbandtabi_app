@@ -20,6 +20,31 @@ class LegalPolicyInfo {
   final String version;
   final String effectiveDate;
   final String url;
+
+  /// EN: Parse a single policy item from the server response.
+  ///     Returns null when [json] contains an unrecognised type field.
+  /// KO: 서버 응답에서 단일 정책 항목을 파싱합니다.
+  ///     type 필드가 알 수 없는 값이면 null을 반환합니다.
+  static LegalPolicyInfo? fromJson(Map<String, dynamic> json) {
+    final typeStr = (json['type'] as String? ?? '').trim().toUpperCase();
+    final type = switch (typeStr) {
+      'TERMS_OF_SERVICE' => LegalPolicyType.termsOfService,
+      'PRIVACY_POLICY' => LegalPolicyType.privacyPolicy,
+      'LOCATION_TERMS' => LegalPolicyType.locationTerms,
+      _ => null,
+    };
+    if (type == null) return null;
+    return LegalPolicyInfo(
+      type: type,
+      version: ((json['version'] as String?) ??
+              (json['requiredVersion'] as String?) ??
+              '-')
+          .trim(),
+      effectiveDate: ((json['effectiveDate'] as String?) ?? '-').trim(),
+      url: ((json['policyUrl'] as String?) ?? (json['url'] as String?) ?? '')
+          .trim(),
+    );
+  }
 }
 
 class LegalPolicyConstants {
