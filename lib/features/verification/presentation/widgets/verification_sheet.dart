@@ -279,81 +279,34 @@ class _LocationNoticeCard extends StatelessWidget {
   }
 }
 
+// EN: Maps server error codes to user-facing Korean messages.
+// KO: 서버 에러 코드를 사용자 표시용 한국어 메시지로 매핑합니다.
+const _verificationErrorMessages = <String, String>{
+  'out_of_verification_radius':
+      '인증 반경 밖입니다. 장소/공연장 근처에서 다시 시도해주세요.',
+  'location_token_invalid':
+      '위치 인증 토큰이 유효하지 않습니다. 앱을 재시작한 뒤 다시 시도해주세요.',
+  'location_token_expired': '위치 인증 토큰이 만료되었습니다. 다시 시도해주세요.',
+  'visit_cooldown_active': '짧은 시간 내 중복 인증은 제한됩니다. 잠시 후 다시 시도해주세요.',
+  'daily_visit_limit_reached': '오늘 이 장소의 인증 가능 횟수를 초과했습니다.',
+  'duplicate_verification_request': '중복 인증 요청입니다.',
+  'simulated_location_not_allowed': '모의 위치는 허용되지 않습니다.',
+  'suspicious_movement_detected': '비정상 이동 패턴이 감지되어 인증이 거부되었습니다.',
+  'rapid_traversal_detected': '짧은 시간 내 과도한 장소 인증 패턴이 감지되었습니다.',
+  'gps_accuracy_invalid': 'GPS 정확도가 비정상으로 감지되었습니다.',
+  'gps_accuracy_too_low': 'GPS 정확도가 낮아 인증할 수 없습니다.',
+};
+
+const _verificationFallbackMessage =
+    '인증에 실패했습니다. 위치와 GPS 상태를 확인하고 다시 시도해주세요.';
+
 String _buildVerificationErrorMessage(Failure error) {
-  final rawMessage = error.message.trim();
-  final mapped = _normalizeVerificationMessage(rawMessage, error.code);
-  if (mapped != null) return mapped;
-
-  if (error is ValidationFailure || error is UnknownFailure) {
-    return '인증에 실패했습니다';
+  final codeLower = error.code?.toLowerCase();
+  if (codeLower != null) {
+    final mapped = _verificationErrorMessages[codeLower];
+    if (mapped != null) return mapped;
   }
-
-  final localizedMessage = _localizeVerificationMessage(error.userMessage);
-  if (_containsLocationLeak(localizedMessage)) {
-    return '현재 위치가 장소에서 너무 멀어요';
-  }
-  return localizedMessage;
-}
-
-String _localizeVerificationMessage(String message) {
-  final lower = message.toLowerCase();
-  if (lower.contains('too far')) {
-    return '현재 위치가 장소에서 너무 멀어요';
-  }
-  return message;
-}
-
-String? _normalizeVerificationMessage(String message, String? code) {
-  final raw = message.trim();
-  if (raw.isEmpty) return null;
-  final codeLower = code?.toLowerCase();
-  const tooFarCodes = {
-    'too_far',
-    'too_far_from_place',
-    'distance_too_far',
-    'out_of_range',
-    'out_of_verification_radius',
-  };
-  if (codeLower != null && tooFarCodes.contains(codeLower)) {
-    return '현재 위치가 장소에서 너무 멀어요';
-  }
-  final lower = raw.toLowerCase();
-  if (lower.contains('duplicate verification request') ||
-      lower.contains('duplicate request')) {
-    return '이미 인증 요청이 처리 중이에요. 잠시 후 다시 시도해 주세요';
-  }
-  if (lower.contains('simulated locations are not allowed') ||
-      lower.contains('simulated location') ||
-      lower.contains('mocked location')) {
-    return '모의 위치는 사용할 수 없어요. 실제 위치로 시도해 주세요';
-  }
-  if (lower.contains('invalid location token')) {
-    return '인증 정보가 유효하지 않아요. 다시 시도해 주세요';
-  }
-  if (lower.contains('too far')) {
-    return '현재 위치가 장소에서 너무 멀어요';
-  }
-  if (_containsLocationLeak(raw)) {
-    return '현재 위치가 장소에서 너무 멀어요';
-  }
-  return null;
-}
-
-bool _containsLocationLeak(String message) {
-  final lower = message.toLowerCase();
-  if (lower.contains('latitude') || lower.contains('longitude')) {
-    return true;
-  }
-  if (lower.contains('distance')) {
-    return true;
-  }
-  final distancePattern = RegExp(
-    r'\b\d+(\.\d+)?\s*(m|meter|meters)\b',
-    caseSensitive: false,
-  );
-  if (distancePattern.hasMatch(message)) return true;
-  final coordinatePattern = RegExp(r'-?\d{1,3}\.\d{4,}');
-  return coordinatePattern.hasMatch(message);
+  return _verificationFallbackMessage;
 }
 
 class _PrimaryButton extends StatelessWidget {
