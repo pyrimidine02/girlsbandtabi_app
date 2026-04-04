@@ -211,16 +211,18 @@ class VerificationController
   }
 
   bool _shouldRetryWithKeyReset(Failure failure) {
-    final message = failure.message.toLowerCase();
-    if (message.contains('jws key not found') ||
-        message.contains('location jws key not found')) {
+    final code = failure.code;
+    // EN: Token-invalid/expired codes mean the server rejected our JWS token —
+    //     clear keys and re-register before retrying.
+    // KO: 토큰 무효/만료 코드는 서버가 JWS 토큰을 거부했음을 의미하므로
+    //     키를 초기화하고 재등록 후 재시도합니다.
+    if (code == 'LOCATION_TOKEN_INVALID' || code == 'LOCATION_TOKEN_EXPIRED') {
       return true;
     }
     // EN: 401/403 from a verification call may mean the server revoked our
     //     device key — clear registeredAt and attempt re-registration on retry.
     // KO: 검증 API의 401/403은 서버가 기기 키를 폐기했을 수 있으므로,
     //     registeredAt을 초기화하고 키 재등록을 시도합니다.
-    final code = failure.code;
     return code == '401' || code == '403';
   }
 

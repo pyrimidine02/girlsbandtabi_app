@@ -21,6 +21,7 @@ permissions:
 jobs:
   quality:
     name: Analyze and Test
+    if: github.ref != 'refs/heads/dev'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

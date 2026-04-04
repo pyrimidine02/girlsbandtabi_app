@@ -455,7 +455,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
               itemCount: summary.recommendedPlaces.length,
               itemHeight: 220,
-              onSeeAll: () => context.go('/places'),
+              onSeeAll: () => context.go('/explore'),
               itemBuilder: (context, index) {
                 final place = summary.recommendedPlaces[index];
                 return GBTPlaceCardCarousel(
@@ -499,7 +499,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
               itemCount: summary.trendingLiveEvents.length,
               itemHeight: 220,
-              onSeeAll: () => context.go('/live'),
+              onSeeAll: () => context.go('/explore?tab=1'),
               itemBuilder: (context, index) {
                 final event = summary.trendingLiveEvents[index];
                 return GBTEventCardCarousel(
