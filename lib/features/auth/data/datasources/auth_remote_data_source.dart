@@ -11,6 +11,8 @@ import '../dto/apple_oauth_request.dart';
 import '../dto/change_password_request.dart';
 import '../dto/change_password_response.dart';
 import '../dto/connect_apple_request.dart';
+import '../dto/connect_existing_apple_request.dart';
+import '../dto/connect_existing_google_request.dart';
 import '../dto/connect_existing_request.dart';
 import '../dto/connect_google_request.dart';
 import '../dto/email_verification_confirm_request.dart';
@@ -205,6 +207,34 @@ class AuthRemoteDataSource {
   ) {
     return _apiClient.post<TokenResponse>(
       ApiEndpoints.oauthConnectExisting,
+      data: request.toJson(),
+      fromJson: (json) => TokenResponse.fromJson(json as Map<String, dynamic>),
+    );
+  }
+
+  /// EN: Merge current OAuth account with an existing Google account on the merge page.
+  ///     Authenticates via native Google SDK token (POST /connect/existing/google).
+  /// KO: 머지 페이지에서 현재 OAuth 계정을 기존 Google 계정과 합치기.
+  ///     네이티브 Google SDK 토큰으로 인증합니다 (POST /connect/existing/google).
+  Future<Result<TokenResponse>> connectExistingWithGoogle(
+    ConnectExistingGoogleRequest request,
+  ) {
+    return _apiClient.post<TokenResponse>(
+      ApiEndpoints.oauthConnectExistingGoogle,
+      data: request.toJson(),
+      fromJson: (json) => TokenResponse.fromJson(json as Map<String, dynamic>),
+    );
+  }
+
+  /// EN: Merge current OAuth account with an existing Apple account on the merge page.
+  ///     Authenticates via native Sign in with Apple token (POST /connect/existing/apple).
+  /// KO: 머지 페이지에서 현재 OAuth 계정을 기존 Apple 계정과 합치기.
+  ///     네이티브 Sign in with Apple 토큰으로 인증합니다 (POST /connect/existing/apple).
+  Future<Result<TokenResponse>> connectExistingWithApple(
+    ConnectExistingAppleRequest request,
+  ) {
+    return _apiClient.post<TokenResponse>(
+      ApiEndpoints.oauthConnectExistingApple,
       data: request.toJson(),
       fromJson: (json) => TokenResponse.fromJson(json as Map<String, dynamic>),
     );

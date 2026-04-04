@@ -212,8 +212,16 @@ class VerificationController
 
   bool _shouldRetryWithKeyReset(Failure failure) {
     final message = failure.message.toLowerCase();
-    return message.contains('jws key not found') ||
-        message.contains('location jws key not found');
+    if (message.contains('jws key not found') ||
+        message.contains('location jws key not found')) {
+      return true;
+    }
+    // EN: 401/403 from a verification call may mean the server revoked our
+    //     device key — clear registeredAt and attempt re-registration on retry.
+    // KO: 검증 API의 401/403은 서버가 기기 키를 폐기했을 수 있으므로,
+    //     registeredAt을 초기화하고 키 재등록을 시도합니다.
+    final code = failure.code;
+    return code == '401' || code == '403';
   }
 
   Future<Result<VerificationResult>> _retryWithFreshKey({

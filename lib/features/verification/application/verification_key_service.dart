@@ -4,6 +4,7 @@ library;
 
 import 'dart:convert';
 import 'dart:math';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:jose/jose.dart';
 
@@ -34,8 +35,28 @@ class VerificationKeyService {
   final SecureStorage _secureStorage;
 
   /// EN: Ensures a signing key exists and is registered with the backend.
+  ///     On 400 (ValidationFailure) from registration, clears stale keys
+  ///     and retries once with a freshly generated key.
   /// KO: 서명 키가 존재하고 백엔드에 등록되었는지 확인합니다.
+  ///     등록 시 400(ValidationFailure)이 오면 오래된 키를 삭제하고
+  ///     새 키로 한 번 재시도합니다.
   Future<VerificationSigningKey> ensureSigningKey({
+    required String jwsAlg,
+  }) async {
+    try {
+      return await _tryBuildAndRegisterKey(jwsAlg: jwsAlg);
+    } catch (e) {
+      // EN: 400 on key registration means the stored key is stale — reset and retry once.
+      // KO: 등록 400 응답은 저장된 키가 오래됐음을 의미합니다 — 초기화 후 한 번 재시도.
+      if (e is ValidationFailure) {
+        await _secureStorage.clearVerificationKeys();
+        return await _tryBuildAndRegisterKey(jwsAlg: jwsAlg);
+      }
+      rethrow;
+    }
+  }
+
+  Future<VerificationSigningKey> _tryBuildAndRegisterKey({
     required String jwsAlg,
   }) async {
     final storedKeyId = await _secureStorage.getVerificationKeyId();
@@ -59,8 +80,7 @@ class VerificationKeyService {
       );
     }
 
-    final deviceId =
-        storedDeviceId ?? 'device-${_platformPrefix()}-${_randomId()}';
+    final deviceId = storedDeviceId ?? await _resolveStableDeviceId();
     final keyId = 'device-key-${_randomId()}';
 
     final privateKey = _generateKeyPair(jwsAlg, keyId);
@@ -118,6 +138,28 @@ class VerificationKeyService {
           'Device key registration failed',
           code: 'device_key_registration_failed',
         );
+  }
+
+  /// EN: Returns a stable device identifier.
+  ///     Android: uses androidId (persists across app reinstalls).
+  ///     Other platforms: falls back to a randomly-generated ID stored in secure storage.
+  /// KO: 안정적인 디바이스 식별자를 반환합니다.
+  ///     Android: androidId 사용 (앱 재설치 후에도 유지됨).
+  ///     기타 플랫폼: 보안 저장소에 저장된 랜덤 ID로 대체합니다.
+  Future<String> _resolveStableDeviceId() async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        final info = await DeviceInfoPlugin().androidInfo;
+        final androidId = info.id;
+        if (androidId.isNotEmpty) {
+          return 'device-android-$androidId';
+        }
+      } catch (_) {
+        // EN: Fall through to random ID if device info is unavailable.
+        // KO: 기기 정보를 가져올 수 없으면 랜덤 ID로 대체합니다.
+      }
+    }
+    return 'device-${_platformPrefix()}-${_randomId()}';
   }
 
   JsonWebKey _generateKeyPair(String jwsAlg, String keyId) {

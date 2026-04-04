@@ -168,6 +168,10 @@ flutter precache --ios
 log "Running flutter pub get"
 flutter pub get
 
+# Sync pubspec.yaml version into project.pbxproj.
+log "Running flutter build ios --release --config-only"
+flutter build ios --release --config-only
+
 # Install CocoaPods only when unavailable.
 if command -v pod >/dev/null 2>&1; then
   log "Using preinstalled CocoaPods: $(pod --version)"

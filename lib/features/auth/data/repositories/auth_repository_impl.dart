@@ -20,6 +20,8 @@ import '../dto/apple_oauth_request.dart';
 import '../dto/change_password_request.dart';
 import '../dto/change_password_response.dart';
 import '../dto/connect_apple_request.dart';
+import '../dto/connect_existing_apple_request.dart';
+import '../dto/connect_existing_google_request.dart';
 import '../dto/connect_existing_request.dart';
 import '../dto/connect_google_request.dart';
 import '../dto/email_verification_confirm_request.dart';
@@ -355,6 +357,32 @@ class AuthRepositoryImpl implements AuthRepository {
   }) async {
     final result = await _remoteDataSource.connectExisting(
       ConnectExistingRequest(email: email, password: password),
+    );
+    return _persistTokens(result);
+  }
+
+  @override
+  Future<Result<AuthTokens>> connectExistingWithGoogle({
+    required String idToken,
+  }) async {
+    final result = await _remoteDataSource.connectExistingWithGoogle(
+      ConnectExistingGoogleRequest(idToken: idToken),
+    );
+    return _persistTokens(result);
+  }
+
+  @override
+  Future<Result<AuthTokens>> connectExistingWithApple({
+    required String identityToken,
+    String? email,
+    String? fullName,
+  }) async {
+    final result = await _remoteDataSource.connectExistingWithApple(
+      ConnectExistingAppleRequest(
+        identityToken: identityToken,
+        email: email,
+        fullName: fullName,
+      ),
     );
     return _persistTokens(result);
   }
