@@ -312,6 +312,7 @@ String? _normalizeVerificationMessage(String message, String? code) {
     'too_far_from_place',
     'distance_too_far',
     'out_of_range',
+    'out_of_verification_radius',
   };
   if (codeLower != null && tooFarCodes.contains(codeLower)) {
     return '현재 위치가 장소에서 너무 멀어요';
