@@ -546,6 +546,47 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     return _handleAuthResult(result);
   }
 
+  /// EN: Merge the current new OAuth account with an existing Google account.
+  ///     Calls Google SDK for proof of ownership, then POST /connect/existing/google.
+  ///     On success, the existing Google account's tokens replace the current ones.
+  /// KO: 현재 신규 OAuth 계정을 기존 Google 계정과 합칩니다.
+  ///     소유권 증명을 위해 Google SDK를 호출한 뒤 POST /connect/existing/google을 호출합니다.
+  ///     성공 시 기존 Google 계정의 토큰이 현재 토큰을 대체합니다.
+  Future<Result<void>> connectExistingWithGoogle() async {
+    final tokenResult = await _nativeSocialLoginService.signInWithGoogle();
+    if (tokenResult is Err<String>) {
+      state = AsyncError(tokenResult.failure, StackTrace.current);
+      return Result.failure(tokenResult.failure);
+    }
+    final idToken = (tokenResult as Success<String>).data;
+    state = const AsyncLoading();
+    final result = await _repository.connectExistingWithGoogle(idToken: idToken);
+    return _handleAuthResult(result);
+  }
+
+  /// EN: Merge the current new OAuth account with an existing Apple account.
+  ///     Calls Apple SDK for proof of ownership, then POST /connect/existing/apple.
+  ///     On success, the existing Apple account's tokens replace the current ones.
+  /// KO: 현재 신규 OAuth 계정을 기존 Apple 계정과 합칩니다.
+  ///     소유권 증명을 위해 Apple SDK를 호출한 뒤 POST /connect/existing/apple을 호출합니다.
+  ///     성공 시 기존 Apple 계정의 토큰이 현재 토큰을 대체합니다.
+  Future<Result<void>> connectExistingWithApple() async {
+    final credentialResult = await _nativeSocialLoginService.signInWithApple();
+    if (credentialResult is Err<AppleSignInCredentials>) {
+      state = AsyncError(credentialResult.failure, StackTrace.current);
+      return Result.failure(credentialResult.failure);
+    }
+    final credentials =
+        (credentialResult as Success<AppleSignInCredentials>).data;
+    state = const AsyncLoading();
+    final result = await _repository.connectExistingWithApple(
+      identityToken: credentials.identityToken,
+      email: credentials.email,
+      fullName: credentials.fullName,
+    );
+    return _handleAuthResult(result);
+  }
+
   /// EN: Connect Google OAuth to the current account from settings.
   ///     Calls Google SDK, then POST /connect/google with Bearer token.
   /// KO: 설정에서 Google OAuth를 현재 계정에 연결합니다.

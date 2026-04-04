@@ -57,6 +57,16 @@ class ApiEndpoints {
   // KO: OAuth 연결 엔드포인트 — 인증 필요, 계정 합치기 및 설정용.
   static const String oauthConnectExisting =
       '$apiVersion/auth/oauth2/connect/existing';
+  // EN: Merge current OAuth account with an existing Google account (POST).
+  //     Called from the merge page when the user proves ownership via Google SDK.
+  // KO: 현재 OAuth 계정을 기존 Google 계정과 합치기 (POST).
+  //     머지 페이지에서 Google SDK로 소유권 인증 시 호출합니다.
+  static const String oauthConnectExistingGoogle =
+      '$apiVersion/auth/oauth2/connect/existing/google';
+  // EN: Merge current OAuth account with an existing Apple account (POST).
+  // KO: 현재 OAuth 계정을 기존 Apple 계정과 합치기 (POST).
+  static const String oauthConnectExistingApple =
+      '$apiVersion/auth/oauth2/connect/existing/apple';
   static const String oauthConnectGoogle =
       '$apiVersion/auth/oauth2/connect/google';
   static const String oauthConnectApple =

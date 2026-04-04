@@ -141,6 +141,30 @@ abstract class AuthRepository {
     required String password,
   });
 
+  /// EN: Merge the current new OAuth account with an existing Google account.
+  ///     The user proves ownership via the native Google Sign-In SDK.
+  ///     On success, the existing account's tokens replace the current ones.
+  /// KO: 현재 신규 OAuth 계정을 기존 Google 계정과 합칩니다.
+  ///     네이티브 Google Sign-In SDK로 소유권을 인증합니다.
+  ///     성공 시 기존 계정의 토큰이 현재 토큰을 대체합니다.
+  Future<Result<AuthTokens>> connectExistingWithGoogle({
+    required String idToken,
+  });
+
+  /// EN: Merge the current new OAuth account with an existing Apple account.
+  ///     The user proves ownership via the native Sign in with Apple SDK.
+  ///     email and fullName are passed from local cache (Apple provides once only).
+  ///     On success, the existing account's tokens replace the current ones.
+  /// KO: 현재 신규 OAuth 계정을 기존 Apple 계정과 합칩니다.
+  ///     네이티브 Sign in with Apple SDK로 소유권을 인증합니다.
+  ///     email, fullName은 로컬 캐시에서 전달됩니다 (Apple은 최초 1회만 제공).
+  ///     성공 시 기존 계정의 토큰이 현재 토큰을 대체합니다.
+  Future<Result<AuthTokens>> connectExistingWithApple({
+    required String identityToken,
+    String? email,
+    String? fullName,
+  });
+
   /// EN: Link Google OAuth to the current authenticated account (from settings).
   /// KO: 설정 화면에서 현재 인증된 계정에 Google OAuth를 연결합니다.
   Future<Result<void>> connectGoogle({required String idToken});
